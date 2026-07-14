@@ -13,23 +13,24 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: var(--bg); color: var(--text);
+    background: var(--bg); color: var(--text); font-size: 14px;
   }
-  .container { max-width: 1000px; padding: 20px; margin: 0 auto; }
-  .header { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; }
+  .container { max-width: 1100px; padding: 20px; margin: 0 auto; }
+  .header { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; flex-wrap: wrap; gap: 8px; }
   .header h1 { font-size: 22px; color: var(--pink-dark); }
   .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px; }
-  .card-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+  .card-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
-  input, select {
+  input, select, textarea {
     padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px;
-    font-size: 13px; outline: none; background: #faf5f7;
+    font-size: 13px; outline: none; background: #faf5f7; font-family: inherit;
   }
-  input:focus { border-color: var(--pink); }
+  input:focus, select:focus, textarea:focus { border-color: var(--pink); }
+  textarea { resize: vertical; min-height: 60px; }
   .btn {
     display: inline-flex; align-items: center; justify-content: center;
     padding: 7px 14px; border: none; border-radius: 8px; font-size: 12px;
-    font-weight: 600; cursor: pointer; transition: all 0.2s;
+    font-weight: 600; cursor: pointer; transition: all 0.2s; gap: 4px;
   }
   .btn-primary { background: var(--pink); color: white; }
   .btn-primary:hover { background: var(--pink-dark); }
@@ -37,9 +38,10 @@
   .btn-success { background: #4caf50; color: white; }
   .btn-danger { background: #e74c3c; color: white; }
   .btn-outline { background: transparent; border: 1.5px solid var(--border); }
+  .btn-warning { background: #ff9800; color: white; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th { text-align: left; padding: 8px; border-bottom: 2px solid var(--border); font-weight: 600; color: var(--text-light); font-size: 11px; letter-spacing: 0.5px; white-space: nowrap; }
-  td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  th { text-align: left; padding: 8px 6px; border-bottom: 2px solid var(--border); font-weight: 600; color: var(--text-light); font-size: 11px; letter-spacing: 0.3px; white-space: nowrap; }
+  td { padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
   tr:hover td { background: #faf5f7; }
   .badge {
     display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600;
@@ -50,70 +52,239 @@
   .toast {
     position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
     padding: 10px 20px; border-radius: 8px; font-size: 13px;
-    z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+    z-index: 9999; opacity: 0; transition: opacity 0.3s; pointer-events: none;
   }
   .toast.show { opacity: 1; }
   .toast.success { background: #4caf50; color: white; }
   .toast.error { background: #e74c3c; color: white; }
   .hidden { display: none !important; }
-  .search-box input { width: 240px; }
   .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.3); display: flex; align-items: center;
     justify-content: center; z-index: 100;
   }
-  .modal { background: white; border-radius: var(--radius); padding: 24px; max-width: 420px; width: 90%; }
-  .modal h3 { margin-bottom: 12px; font-size: 15px; }
-  .modal input, .modal select { width: 100%; margin-bottom: 8px; }
-  .modal .btn { width: 100%; }
+  .modal { background: white; border-radius: var(--radius); padding: 24px; max-width: 520px; width: 92%; max-height: 85vh; overflow-y: auto; }
+  .modal h3 { margin-bottom: 12px; font-size: 15px; display: flex; align-items: center; gap: 6px; }
+  .modal label { display: block; font-size: 12px; font-weight: 500; margin: 6px 0 2px; color: var(--text-light); }
+  .modal input, .modal select, .modal textarea { width: 100%; margin-bottom: 4px; }
+  .modal .btn { margin-top: 4px; }
   .pts { font-weight: 700; color: var(--pink-dark); font-size: 14px; }
-  .order-row { font-size: 12px; color: var(--text-light); padding: 4px 0; }
-  .stats-bar { display: flex; gap: 20px; font-size: 13px; color: var(--text-light); margin-bottom: 12px; }
-  .stats-bar span { background: var(--pink-light); padding: 4px 12px; border-radius: 20px; }
+  .order-row { font-size: 12px; color: var(--text-light); padding: 3px 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .stats-bar { display: flex; gap: 16px; font-size: 13px; color: var(--text-light); margin-bottom: 12px; flex-wrap: wrap; }
+  .stats-bar span { background: var(--pink-light); padding: 4px 12px; border-radius: 20px; font-weight: 500; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 2px; margin-bottom: 16px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px; flex-wrap: wrap; }
+  .tab {
+    flex: 1; min-width: 80px; padding: 10px 12px; border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    background: transparent; color: var(--text-light); text-align: center;
+  }
+  .tab:hover { background: var(--pink-light); color: var(--text); }
+  .tab.active { background: var(--pink); color: white; }
+  .tab .count { font-size: 11px; opacity: 0.7; margin-left: 2px; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Toggle switch for CC */
+  .toggle-wrap { display: flex; align-items: center; gap: 6px; justify-content: center; }
+  .toggle-cb { display: none; }
+  .toggle-label {
+    display: inline-block; width: 36px; height: 20px; background: #ddd; border-radius: 10px;
+    position: relative; cursor: pointer; transition: background 0.2s; flex-shrink: 0;
+  }
+  .toggle-label::after {
+    content: ''; display: block; width: 16px; height: 16px; background: white; border-radius: 50%;
+    position: absolute; top: 2px; left: 2px; transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .toggle-cb:checked + .toggle-label { background: var(--pink); }
+  .toggle-cb:checked + .toggle-label::after { transform: translateX(16px); }
+
+  .deadline-box { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px; background: #faf5f7; border-radius: 8px; font-size: 13px; }
+  .deadline-box input[type="date"] { width: 150px; }
+  .deadline-box input[type="time"] { width: 110px; }
+  .cc-badge { font-size: 10px; padding: 1px 6px; border-radius: 10px; background: var(--pink-light); color: var(--pink-dark); }
+  .section-divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--text-light); font-size: 14px; }
+  .truncate { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle; }
+  @media (max-width: 768px) {
+    .container { padding: 12px; }
+    .tabs { gap: 1px; }
+    .tab { font-size: 12px; padding: 8px 6px; min-width: 60px; }
+    th, td { font-size: 12px; padding: 6px 4px; }
+    .truncate { max-width: 100px; }
+  }
 </style>
 </head>
 <body>
 <div class="container">
+  <!-- ===== LOGIN ===== -->
   <div id="login-screen" class="card" style="max-width:320px;margin:80px auto;">
     <div class="card-title">🔐 Admin</div>
     <input type="password" id="admin-pw" placeholder="Password" style="width:100%;margin-bottom:8px;">
     <button class="btn btn-primary" onclick="adminLogin()" style="width:100%;">Login</button>
   </div>
 
+  <!-- ===== ADMIN PANEL ===== -->
   <div id="admin-panel" class="hidden">
     <div class="header">
       <h1>🎀 Admin · KOC Redemption</h1>
-      <button class="btn btn-outline" onclick="adminLogout()">Logout</button>
-    </div>
-
-    <div class="card">
-      <div class="row" style="margin-bottom:4px;">
-        <input type="text" id="new-discord" placeholder="Discord name" style="width:160px;">
-        <input type="text" id="new-uid" placeholder="UID" style="width:140px;">
-        <button class="btn btn-primary" onclick="addKOC()">+ Add KOC</button>
-      </div>
-      <div class="row">
-        <input type="text" id="search-input" placeholder="Search by Discord or UID..." class="search-box" oninput="renderTable()">
-        <span id="koc-count" style="font-size:12px;color:var(--text-light);"></span>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span id="deadline-show" style="font-size:12px;color:var(--text-light);"></span>
+        <button class="btn btn-outline btn-sm" onclick="adminLogout()">Logout</button>
       </div>
     </div>
 
-    <div class="card" style="padding:12px 20px;">
-      <table>
-        <thead><tr>
-          <th style="width:28%;">Discord</th>
-          <th style="width:22%;">UID</th>
-          <th style="width:10%;">Points</th>
-          <th style="width:20%;">Orders</th>
-          <th style="width:20%;">Actions</th>
-        </tr></thead>
-        <tbody id="koc-table"></tbody>
-      </table>
+    <!-- Tab Navigation -->
+    <div class="tabs" id="tab-nav">
+      <button class="tab active" onclick="switchTab('koc-ledger')">📋 KOC台账</button>
+      <button class="tab" onclick="switchTab('merch')">📦 周边发货</button>
+      <button class="tab" onclick="switchTab('diamond')">💎 端内奖励</button>
+      <button class="tab" onclick="switchTab('gplay')">🎮 谷歌卡</button>
+    </div>
+
+    <!-- ======== TAB: KOC台账 ======== -->
+    <div id="tab-koc-ledger" class="tab-content active">
+      <div class="card">
+        <div class="stats-bar" id="stats-bar">
+          <span id="stat-total">Loading...</span>
+          <span id="stat-shipped">Loading...</span>
+          <span id="stat-pending">Loading...</span>
+        </div>
+        <div class="row" style="margin-bottom:4px;">
+          <input type="text" id="new-discord" placeholder="Discord name" style="width:150px;">
+          <input type="text" id="new-uid" placeholder="UID" style="width:130px;">
+          <button class="btn btn-primary btn-sm" onclick="addKOC()">+ Add KOC</button>
+        </div>
+        <div class="row">
+          <input type="text" id="search-input" placeholder="Search Discord or UID..." style="width:220px;" oninput="renderKocTable()">
+          <span id="koc-count" style="font-size:12px;color:var(--text-light);"></span>
+        </div>
+        <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>Discord</th>
+            <th>UID</th>
+            <th>Pts</th>
+            <th>Name</th>
+            <th>Region</th>
+            <th>Account ID</th>
+            <th>Server</th>
+            <th style="text-align:center;">CC ✓</th>
+            <th>Edit</th>
+            <th>Orders</th>
+          </tr></thead>
+          <tbody id="koc-table"></tbody>
+        </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">⏰ 提交截止时间</div>
+        <div class="deadline-box">
+          <span>Submission closes:</span>
+          <input type="date" id="deadline-date">
+          <input type="time" id="deadline-time">
+          <button class="btn btn-primary btn-sm" onclick="saveDeadline()">Save</button>
+          <span id="deadline-status" style="font-size:12px;color:var(--text-light);"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======== TAB: 周边发货 ======== -->
+    <div id="tab-merch" class="tab-content">
+      <div class="card">
+        <div class="card-title">📦 周边发货清单 <span id="merch-count" style="font-size:12px;color:var(--text-light);"></span></div>
+        <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>Discord</th>
+            <th>UID</th>
+            <th>Order Date</th>
+            <th>Reward</th>
+            <th>Shipping Address</th>
+            <th>Phone</th>
+          </tr></thead>
+          <tbody id="merch-table"></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======== TAB: 端内奖励 ======== -->
+    <div id="tab-diamond" class="tab-content">
+      <div class="card">
+        <div class="card-title">💎 端内奖励清单 <span id="diamond-count" style="font-size:12px;color:var(--text-light);"></span></div>
+        <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>Discord</th>
+            <th>UID</th>
+            <th>Order Date</th>
+            <th>Reward</th>
+            <th>Account ID</th>
+            <th>Server</th>
+          </tr></thead>
+          <tbody id="diamond-table"></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======== TAB: 谷歌卡 ======== -->
+    <div id="tab-gplay" class="tab-content">
+      <div class="card">
+        <div class="card-title">🎮 Google Play 礼品卡清单 <span id="gplay-count" style="font-size:12px;color:var(--text-light);"></span></div>
+        <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>Discord</th>
+            <th>UID</th>
+            <th>Order Date</th>
+            <th>Reward</th>
+            <th>Region / Country</th>
+          </tr></thead>
+          <tbody id="gplay-table"></tbody>
+        </table>
+        </div>
+      </div>
     </div>
   </div>
 </div>
-<div id="toast" class="toast"></div>
 
+<!-- ===== MODAL: Edit KOC ===== -->
+<div id="edit-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeEditModal()">
+  <div class="modal">
+    <h3>✏️ Edit KOC</h3>
+    <label>Discord Name</label>
+    <input type="text" id="edit-discord" readonly style="background:#f0e8ec;">
+    <label>UID</label>
+    <input type="text" id="edit-uid" readonly style="background:#f0e8ec;">
+    <label>Name</label>
+    <input type="text" id="edit-name" placeholder="Real name / game name">
+    <label>Channel Tag</label>
+    <input type="text" id="edit-channel" placeholder="TT / Ins / FB / Reddit">
+    <label>Region / Country</label>
+    <input type="text" id="edit-region" placeholder="e.g. USA, Canada">
+    <label>Address (full)</label>
+    <textarea id="edit-address" rows="4" placeholder="Street, city, state, zip, country"></textarea>
+    <label>Phone</label>
+    <input type="text" id="edit-phone" placeholder="Phone number">
+    <label>Account ID (game)</label>
+    <input type="text" id="edit-account" placeholder="Game Account ID">
+    <label>Server</label>
+    <input type="text" id="edit-server" placeholder="正式服 / 灯塔服">
+    <label>Notes</label>
+    <textarea id="edit-notes" rows="3" placeholder="Level, months, auth info"></textarea>
+    <div class="row" style="margin-top:10px;">
+      <button class="btn btn-primary" onclick="saveEditKOC()" style="flex:1;">Save</button>
+      <button class="btn btn-outline" onclick="closeEditModal()" style="flex:1;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Point Adjust ===== -->
 <div id="point-modal" class="modal-overlay hidden" onclick="if(event.target===this)closePointModal()">
   <div class="modal">
     <h3 id="modal-title">✏️ Adjust Points</h3>
@@ -124,10 +295,14 @@
     </select>
     <input type="number" id="modal-points" placeholder="Points" min="1">
     <input type="text" id="modal-reason" placeholder="Reason (e.g. June settlement)">
-    <button class="btn btn-primary" onclick="submitPoints()">Confirm</button>
-    <button class="btn btn-outline" onclick="closePointModal()">Cancel</button>
+    <div class="row" style="margin-top:6px;">
+      <button class="btn btn-primary" onclick="submitPoints()" style="flex:1;">Confirm</button>
+      <button class="btn btn-outline" onclick="closePointModal()" style="flex:1;">Cancel</button>
+    </div>
   </div>
 </div>
+
+<div id="toast" class="toast"></div>
 
 <script>
 const SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
@@ -148,6 +323,7 @@ function showToast(m, t = '') {
   setTimeout(() => x.classList.remove('show'), 2500);
 }
 
+// ===== LOGIN =====
 function adminLogin() {
   if (document.getElementById('admin-pw').value === ADMIN_PASSWORD) {
     document.getElementById('login-screen').classList.add('hidden');
@@ -162,77 +338,205 @@ function adminLogout() {
   document.getElementById('admin-pw').value = '';
 }
 
+// ===== TABS =====
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('.tab[onclick*="' + name + '"]').classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  // Refresh tab content
+  if (name === 'koc-ledger') renderKocTable();
+  if (name === 'merch') renderMerchTab();
+  if (name === 'diamond') renderDiamondTab();
+  if (name === 'gplay') renderGplayTab();
+}
+
+// ===== DATA LOADING =====
 async function loadData() {
   try {
     const [kocRes, ordRes] = await Promise.all([
-      supabaseFetch(`${SUPABASE_URL}/rest/v1/kocs?order=discord_name.asc&select=*`),
-      supabaseFetch(`${SUPABASE_URL}/rest/v1/redemption_orders?order=created_at.desc&limit=200&select=*`)
+      supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?order=discord_name.asc&select=*'),
+      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?order=created_at.desc&limit=500&select=*')
     ]);
     allKocs = await kocRes.json();
     allOrders = await ordRes.json();
-    renderTable();
+    renderKocTable();
+    loadDeadline();
   } catch (e) { showToast('Error loading data', 'error'); }
 }
 
 async function getBalance(uid) {
   try {
-    const r = await supabaseFetch(`${SUPABASE_URL}/rest/v1/point_logs?uid=eq.${encodeURIComponent(uid)}&order=created_at.desc&limit=1`);
+    const r = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(uid) + '&order=created_at.desc&limit=1');
     const d = await r.json();
     return d.length ? d[0].balance_after : 0;
   } catch { return 0; }
 }
 
-function renderTable() {
-  const q = document.getElementById('search-input').value.toLowerCase();
-  const filtered = allKocs.filter(k =>
-    k.discord_name.toLowerCase().includes(q) || k.uid.toLowerCase().includes(q)
-  );
-  document.getElementById('koc-count').textContent = `${filtered.length} creators`;
+// ===== CHECK CC STATUS =====
+function hasCC(notes) {
+  if (!notes) return false;
+  const now = new Date();
+  const m = String(now.getMonth()+1).padStart(2,'0');
+  const y = now.getFullYear();
+  return notes.includes('CC:' + y + '-' + m);
+}
 
-  const tbody = document.getElementById('koc-table');
+function toggleCC(uid, notes) {
+  const now = new Date();
+  const m = String(now.getMonth()+1).padStart(2,'0');
+  const y = now.getFullYear();
+  const tag = 'CC:' + y + '-' + m;
+  let updated = notes || '';
+  if (hasCC(notes)) {
+    updated = updated.replace(new RegExp(',?\\s*' + tag, 'g'), '');
+  } else {
+    updated = updated ? updated + ', ' + tag : tag;
+  }
+  updated = updated.replace(/^,\s*/, '').replace(/,\s*$/, '');
+  // Update via API
+  supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
+    method: 'PATCH',
+    body: JSON.stringify({ notes: updated })
+  }).then(function(r) {
+    if (r.ok) {
+      var koc = allKocs.find(function(k) { return k.uid === uid; });
+      if (koc) koc.notes = updated;
+      renderKocTable();
+      showToast('CC updated', 'success');
+    } else {
+      showToast('Failed to update CC', 'error');
+    }
+  }).catch(function() { showToast('Error updating CC', 'error'); });
+}
+
+// ===== RENDER KOC LEDGER =====
+function renderKocTable() {
+  var q = document.getElementById('search-input').value.toLowerCase();
+  var filtered = allKocs.filter(function(k) {
+    return (k.discord_name || '').toLowerCase().includes(q) || (k.uid || '').toLowerCase().includes(q);
+  });
+
+  document.getElementById('koc-count').textContent = filtered.length + ' creators';
+  document.getElementById('stat-total').textContent = '\uD83D\uDC65 Total: ' + allKocs.length;
+  var shipped = allOrders.filter(function(o) { return o.status === 'shipped'; }).length;
+  var pending = allOrders.filter(function(o) { return o.status === 'pending'; }).length;
+  document.getElementById('stat-shipped').textContent = '\u2705 Shipped: ' + shipped;
+  document.getElementById('stat-pending').textContent = '\u23F3 Pending: ' + pending;
+
+  var tbody = document.getElementById('koc-table');
   if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
     return;
   }
 
-  tbody.innerHTML = filtered.map(k => {
-    const orders = allOrders.filter(o => o.uid === k.uid);
-    const pendingOrders = orders.filter(o => o.status === 'pending');
-    return `<tr>
-      <td><strong>${k.discord_name}</strong></td>
-      <td style="font-family:monospace;font-size:12px;color:var(--text-light);">${k.uid}</td>
-      <td><span class="pts" id="pts-${k.uid}">⋯</span></td>
-      <td>
-        ${pendingOrders.length > 0 ? `<span class="badge badge-pending" style="cursor:pointer;" onclick="toggleOrders('${k.uid}')">${pendingOrders.length} pending</span>` : '<span style="color:var(--text-light);font-size:12px;">0</span>'}
-        <div id="orders-${k.uid}" class="hidden" style="margin-top:4px;">
-          ${orders.slice(0,5).map(o => `<div class="order-row">${o.option_name} · <span class="badge badge-${o.status}">${o.status}</span> ${o.status === 'pending' ? `<span class="btn btn-success btn-sm" onclick="shipOrder(${o.id})">✓</span>` : ''}</div>`).join('')}
-          ${orders.length > 5 ? `<div style="font-size:11px;color:var(--text-light);">+${orders.length-5} more</div>` : ''}
-        </div>
-      </td>
-      <td>
-        <button class="btn btn-primary btn-sm" onclick="openPointModal('${k.uid}','${k.discord_name}')">+/-</button>
-      </td>
-    </tr>`;
+  tbody.innerHTML = filtered.map(function(k) {
+    var orders = allOrders.filter(function(o) { return o.uid === k.uid; });
+    var pendingOrders = orders.filter(function(o) { return o.status === 'pending'; });
+    var cc = hasCC(k.notes);
+    return '<tr>' +
+      '<td><strong>' + esc(k.discord_name) + '</strong></td>' +
+      '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.uid) + '</td>' +
+      '<td><span class="pts" id="pts-' + k.uid + '">\u22EF</span></td>' +
+      '<td>' + esc(k.name || '-') + '</td>' +
+      '<td style="font-size:12px;">' + esc(k.region || '-') + '</td>' +
+      '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.account_id || '-') + '</td>' +
+      '<td style="font-size:12px;">' + esc(k.server || '-') + '</td>' +
+      '<td style="text-align:center;">' +
+        '<div class="toggle-wrap">' +
+          '<input type="checkbox" class="toggle-cb" id="cc-' + k.uid + '" ' + (cc ? 'checked' : '') + ' onchange="toggleCC(\'' + k.uid + '\',\'' + escAttr(k.notes||'') + '\')">' +
+          '<label class="toggle-label" for="cc-' + k.uid + '"></label>' +
+        '</div>' +
+      '</td>' +
+      '<td>' +
+        (pendingOrders.length > 0 ? '<span class="badge badge-pending" style="cursor:pointer;" onclick="toggleOrders(\'' + k.uid + '\')">' + pendingOrders.length + ' pending</span>' : '<span style="color:var(--text-light);font-size:12px;">0</span>') +
+        '<div id="orders-' + k.uid + '" class="hidden" style="margin-top:4px;max-width:240px;">' +
+          orders.slice(0,5).map(function(o) {
+            return '<div class="order-row">' + esc(o.option_name) + ' \u00B7 <span class="badge badge-' + o.status + '">' + o.status + '</span> ' + (o.status === 'pending' ? '<span class="btn btn-success btn-sm" onclick="shipOrder(' + o.id + ')">\u2713</span>' : '') + '</div>';
+          }).join('') +
+          (orders.length > 5 ? '<div style="font-size:11px;color:var(--text-light);">+' + (orders.length-5) + ' more</div>' : '') +
+        '</div>' +
+      '</td>' +
+    '</tr>';
   }).join('');
 
   // Load balances
-  filtered.forEach(k => {
-    getBalance(k.uid).then(p => {
-      const el = document.getElementById('pts-' + k.uid);
+  filtered.forEach(function(k) {
+    getBalance(k.uid).then(function(p) {
+      var el = document.getElementById('pts-' + k.uid);
       if (el) el.textContent = p;
     });
   });
 }
 
+function esc(s) { return s == null ? '' : String(s).replace(/[&<>]/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]; }); }
+function escAttr(s) { return String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, '\\n'); }
+
 function toggleOrders(uid) {
-  const el = document.getElementById('orders-' + uid);
+  var el = document.getElementById('orders-' + uid);
   if (el) el.classList.toggle('hidden');
 }
 
-// === POINT MODAL ===
+// ===== ADD KOC =====
+async function addKOC() {
+  var discord = document.getElementById('new-discord').value.trim();
+  var uid = document.getElementById('new-uid').value.trim();
+  if (!discord || !uid) { showToast('Discord name and UID required', 'error'); return; }
+  try {
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs', {
+      method: 'POST',
+      body: JSON.stringify({ uid: uid, discord_name: discord, name: discord, status: 'active', created_at: new Date().toISOString() })
+    });
+    showToast('\u2705 Added ' + discord, 'success');
+    document.getElementById('new-discord').value = '';
+    document.getElementById('new-uid').value = '';
+    loadData();
+  } catch (e) { showToast('Error: maybe UID exists', 'error'); }
+}
+
+// ===== SHIP ORDER =====
+async function shipOrder(id) {
+  try {
+    var oRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + id + '&select=*');
+    var oData = await oRes.json();
+    var order = oData[0];
+    if (!order) throw new Error('Order not found');
+
+    // Check if points already deducted (old system compatibility)
+    var lRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + order.uid + '&change=eq.' + (-order.points_spent) + '&source=eq.redemption&order=created_at.desc&limit=1');
+    var logs = await lRes.json();
+    var alreadyDeducted = logs.length > 0 && 
+      (Math.abs(new Date(logs[0].created_at).getTime() - new Date(order.created_at).getTime()) < 10000);
+
+    // Ship the order
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + id, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'shipped', processed_at: new Date().toISOString(), processed_by: 'admin' })
+    });
+
+    // Deduct points if not already deducted (new system)
+    if (!alreadyDeducted) {
+      var curBal = await getBalance(order.uid);
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+        method: 'POST',
+        body: JSON.stringify({
+          uid: order.uid, change: -order.points_spent,
+          balance_after: curBal - order.points_spent,
+          source: 'redemption', reason: 'Shipped order #' + id,
+          created_at: new Date().toISOString()
+        })
+      });
+    }
+
+    showToast('\u2705 Shipped' + (alreadyDeducted ? '' : ' + pts deducted'), 'success');
+    loadData();
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ===== POINT MODAL =====
 function openPointModal(uid, discord) {
   editingUid = uid;
-  document.getElementById('modal-title').textContent = '✏️ ' + discord;
+  document.getElementById('modal-title').textContent = '\u270F\uFE0F ' + discord;
   document.getElementById('modal-points').value = '';
   document.getElementById('modal-reason').value = '';
   document.getElementById('modal-action').value = '';
@@ -245,83 +549,224 @@ function closePointModal() {
 }
 
 async function submitPoints() {
-  const action = document.getElementById('modal-action').value;
-  const pts = parseInt(document.getElementById('modal-points').value);
-  const reason = document.getElementById('modal-reason').value.trim();
+  var action = document.getElementById('modal-action').value;
+  var pts = parseInt(document.getElementById('modal-points').value);
+  var reason = document.getElementById('modal-reason').value.trim();
   if (!action || !pts || pts < 1 || !reason) { showToast('Fill in all fields', 'error'); return; }
 
-  const change = action === 'add' ? pts : -pts;
+  var change = action === 'add' ? pts : -pts;
   try {
-    const bal = await getBalance(editingUid);
-    const newBal = Math.max(0, bal + change);
-    await supabaseFetch(`${SUPABASE_URL}/rest/v1/point_logs`, {
+    var bal = await getBalance(editingUid);
+    var newBal = Math.max(0, bal + change);
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
       method: 'POST',
-      body: JSON.stringify({ uid: editingUid, change, balance_after: newBal, source: 'manual', reason, created_by: 'admin', created_at: new Date().toISOString() })
+      body: JSON.stringify({ uid: editingUid, change: change, balance_after: newBal, source: 'manual', reason: reason, created_by: 'admin', created_at: new Date().toISOString() })
     });
-    showToast(`✅ ${change > 0 ? '+' : ''}${change} pts`, 'success');
+    showToast('\u2705 ' + (change > 0 ? '+' : '') + change + ' pts', 'success');
     closePointModal();
-    renderTable();
+    renderKocTable();
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
 
-// === ADD KOC ===
-async function addKOC() {
-  const discord = document.getElementById('new-discord').value.trim();
-  const uid = document.getElementById('new-uid').value.trim();
-  if (!discord || !uid) { showToast('Discord name and UID required', 'error'); return; }
-  try {
-    await supabaseFetch(`${SUPABASE_URL}/rest/v1/kocs`, {
-      method: 'POST',
-      body: JSON.stringify({ uid, discord_name: discord, status: 'active', created_at: new Date().toISOString() })
-    });
-    showToast('✅ Added ' + discord, 'success');
-    document.getElementById('new-discord').value = '';
-    document.getElementById('new-uid').value = '';
-    loadData();
-  } catch (e) { showToast('Error: maybe UID exists', 'error'); }
+// ===== EDIT KOC MODAL =====
+function openEditModal(uid) {
+  var koc = allKocs.find(function(k) { return k.uid === uid; });
+  if (!koc) return;
+  editingUid = uid;
+  
+  // Parse address to extract phone if present
+  var addr = koc.address || '';
+  var parsed = parseAddress(addr);
+
+  document.getElementById('edit-discord').value = koc.discord_name || '';
+  document.getElementById('edit-uid').value = koc.uid || '';
+  document.getElementById('edit-name').value = koc.name || '';
+  document.getElementById('edit-channel').value = koc.channel_tag || '';
+  document.getElementById('edit-region').value = koc.region || '';
+  document.getElementById('edit-address').value = parsed.address;
+  document.getElementById('edit-phone').value = parsed.phone;
+  document.getElementById('edit-account').value = koc.account_id || '';
+  document.getElementById('edit-server').value = koc.server || '';
+  document.getElementById('edit-notes').value = koc.notes || '';
+  document.getElementById('edit-modal').classList.remove('hidden');
 }
 
-// === SHIP ORDER ===
-async function shipOrder(id) {
+function parseAddress(addr) {
+  if (!addr) return { address: '', phone: '' };
+  // Check if phone is separated by \n\n at end
+  var parts = addr.split('\n\n');
+  if (parts.length >= 2 && /[\d\-\(\)\+\s]{7,}/.test(parts[parts.length-1])) {
+    return { address: parts.slice(0,-1).join('\n\n'), phone: parts[parts.length-1].trim() };
+  }
+  // Try last line
+  var lines = addr.split('\n');
+  var last = lines[lines.length-1];
+  if (/[\d\-\(\)\+\s]{7,}/.test(last) && lines.length > 1) {
+    return { address: lines.slice(0,-1).join('\n'), phone: last.trim() };
+  }
+  return { address: addr, phone: '' };
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.add('hidden');
+  editingUid = null;
+}
+
+async function saveEditKOC() {
+  if (!editingUid) return;
+  var addr = document.getElementById('edit-address').value.trim();
+  var phone = document.getElementById('edit-phone').value.trim();
+  var fullAddr = phone ? addr + '\n\n' + phone : addr;
+
+  var updates = {
+    name: document.getElementById('edit-name').value.trim(),
+    channel_tag: document.getElementById('edit-channel').value.trim(),
+    region: document.getElementById('edit-region').value.trim(),
+    address: fullAddr,
+    account_id: document.getElementById('edit-account').value.trim(),
+    server: document.getElementById('edit-server').value.trim(),
+    notes: document.getElementById('edit-notes').value.trim()
+  };
+
   try {
-    // Get order details
-    const oRes = await supabaseFetch(\`\${SUPABASE_URL}/rest/v1/redemption_orders?id=eq.\${id}&select=*\`);
-    const oData = await oRes.json();
-    const order = oData[0];
-    if (!order) throw new Error('Order not found');
-
-    // Check if points already deducted (old system)
-    const lRes = await supabaseFetch(\`\${SUPABASE_URL}/rest/v1/point_logs?uid=eq.\${order.uid}&change=eq.\${-order.points_spent}&source=eq.redemption&order=created_at.desc&limit=1\`);
-    const logs = await lRes.json();
-    // Check by time proximity: old system created point_logs at the same time as the order
-    const alreadyDeducted = logs.length > 0 && 
-      (Math.abs(new Date(logs[0].created_at).getTime() - new Date(order.created_at).getTime()) < 10000);
-
-    // Ship the order
-    await supabaseFetch(\`\${SUPABASE_URL}/rest/v1/redemption_orders?id=eq.\${id}\`, {
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(editingUid), {
       method: 'PATCH',
-      body: JSON.stringify({ status: 'shipped', processed_at: new Date().toISOString(), processed_by: 'admin' })
+      body: JSON.stringify(updates)
     });
+    showToast('\u2705 Saved', 'success');
+    closeEditModal();
+    loadData();
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
 
-    // Deduct points if not already deducted (new system)
-    if (!alreadyDeducted) {
-      const curBal = await getBalance(order.uid);
-      await supabaseFetch(\`\${SUPABASE_URL}/rest/v1/point_logs\`, {
+// ===== RENDER SHIPPING TABS =====
+function getKocMap() {
+  var m = {};
+  allKocs.forEach(function(k) { m[k.uid] = k; });
+  return m;
+}
+
+function fmtDate(d) {
+  if (!d) return '-';
+  try { return new Date(d).toLocaleDateString('en-CA'); } catch(e) { return '-'; }
+}
+
+function renderMerchTab() {
+  var kmap = getKocMap();
+  var merchOrders = allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; });
+  document.getElementById('merch-count').textContent = '(' + merchOrders.length + ' orders)';
+  var tbody = document.getElementById('merch-table');
+  if (!merchOrders.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">No shipped merch orders yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = merchOrders.map(function(o) {
+    var koc = kmap[o.uid];
+    var addr = koc ? (koc.address || '') : '';
+    var parsed = parseAddress(addr);
+    return '<tr>' +
+      '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+      '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
+      '<td style="font-size:12px;">' + fmtDate(o.created_at) + '</td>' +
+      '<td>' + esc(o.option_name) + '</td>' +
+      '<td style="font-size:12px;max-width:280px;"><div class="truncate" title="' + escAttr(parsed.address) + '">' + (esc(parsed.address) || '-') + '</div></td>' +
+      '<td style="font-size:12px;">' + (esc(parsed.phone) || '-') + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function renderDiamondTab() {
+  var kmap = getKocMap();
+  var orders = allOrders.filter(function(o) { return o.option_type === 'diamonds' && o.status === 'shipped'; });
+  document.getElementById('diamond-count').textContent = '(' + orders.length + ' orders)';
+  var tbody = document.getElementById('diamond-table');
+  if (!orders.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">No shipped diamond rewards yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = orders.map(function(o) {
+    var koc = kmap[o.uid];
+    return '<tr>' +
+      '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+      '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
+      '<td style="font-size:12px;">' + fmtDate(o.created_at) + '</td>' +
+      '<td>' + esc(o.option_name) + '</td>' +
+      '<td style="font-family:monospace;font-size:12px;">' + (esc(koc ? koc.account_id : '-') || '-') + '</td>' +
+      '<td style="font-size:12px;">' + (esc(koc ? koc.server : '-') || '-') + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function renderGplayTab() {
+  var kmap = getKocMap();
+  var orders = allOrders.filter(function(o) { return o.option_type === 'gplay' && o.status === 'shipped'; });
+  document.getElementById('gplay-count').textContent = '(' + orders.length + ' orders)';
+  var tbody = document.getElementById('gplay-table');
+  if (!orders.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">No shipped Google Play cards yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = orders.map(function(o) {
+    var koc = kmap[o.uid];
+    return '<tr>' +
+      '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+      '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
+      '<td style="font-size:12px;">' + fmtDate(o.created_at) + '</td>' +
+      '<td>' + esc(o.option_name) + '</td>' +
+      '<td style="font-size:12px;">' + (esc(koc ? koc.region : '-') || '-') + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ===== DEADLINE =====
+async function loadDeadline() {
+  try {
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+    var data = await res.json();
+    if (data && data.length > 0 && data[0].notes) {
+      try {
+        var cfg = JSON.parse(data[0].notes);
+        if (cfg.submission_deadline_date) {
+          document.getElementById('deadline-date').value = cfg.submission_deadline_date || '';
+          document.getElementById('deadline-time').value = cfg.submission_deadline_time || '23:59';
+          updateDeadlineDisplay(cfg.submission_deadline_date, cfg.submission_deadline_time);
+        }
+      } catch(e) {}
+    }
+  } catch(e) {}
+}
+
+async function saveDeadline() {
+  var date = document.getElementById('deadline-date').value;
+  var time = document.getElementById('deadline-time').value || '23:59';
+  if (!date) { showToast('Select a date', 'error'); return; }
+  
+  var config = JSON.stringify({ submission_deadline_date: date, submission_deadline_time: time });
+  try {
+    // Upsert: check if config record exists
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=uid');
+    var existing = await res.json();
+    if (existing && existing.length > 0) {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__', {
+        method: 'PATCH',
+        body: JSON.stringify({ notes: config })
+      });
+    } else {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs', {
         method: 'POST',
-        body: JSON.stringify({
-          uid: order.uid, change: -order.points_spent,
-          balance_after: curBal - order.points_spent,
-          source: 'redemption', reason: 'Shipped order #' + id,
-          created_at: new Date().toISOString()
-        })
+        body: JSON.stringify({ uid: '__config__', discord_name: '__config__', name: 'System Config', status: 'active', notes: config })
       });
     }
-
-    showToast('✅ Shipped' + (alreadyDeducted ? '' : ' + pts deducted'), 'success');
-    loadData();
-  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+    updateDeadlineDisplay(date, time);
+    showToast('\u2705 Deadline saved', 'success');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
+
+function updateDeadlineDisplay(date, time) {
+  document.getElementById('deadline-status').textContent = date ? '\u23F0 ' + date + ' ' + time : '';
+  document.getElementById('deadline-show').textContent = date ? '\u23F0 Closes: ' + date : '';
 }
 </script>
 </body>
 </html>
+      '<td><button class="btn btn-outline btn-sm" onclick="openEditModal(\'' + k.uid + '\')">\u270E</button> <button class="btn btn-primary btn-sm" onclick="openPointModal(\'' + k.uid + '\',\'' + escAttr(k.discord_name) + '\')">+/-</button></td>' +
