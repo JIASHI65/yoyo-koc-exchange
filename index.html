@@ -121,6 +121,7 @@ let selections = {};
 function initSelections() { selections = {}; REWARDS.forEach(r => selections[r.id] = 0); }
 function getSelCount() { return Object.values(selections).filter(q => q > 0).length; }
 function getTotalCost() { return REWARDS.reduce((s, r) => s + (selections[r.id] || 0) * r.cost, 0); }
+function esc(s) { return s == null ? "" : String(s).replace(/[&<>]/g, function(c) { return ({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]; }); }
 
 function supabaseFetch(url, opts = {}) {
   return fetch(url, { ...opts, headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json', ...opts.headers } });
@@ -187,8 +188,8 @@ async function login() {
     if (statusEl) statusEl.textContent = 'Loading your points...';
     const koc = data[0];
     const points = await getBalance(uid);
-    const pendingRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&status=eq.pending&select=points_spent');
-    const pendingOrders = await pendingRes.json();
+    const pendingRes = await fetchWithTimeout(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&status=eq.pending&select=points_spent');
+    const pendingOrders = pendingRes.ok ? await pendingRes.json() : [];
     const pendingTotal = pendingOrders.reduce((s, o) => s + (o.points_spent || 0), 0);
     currentUser = { ...koc, points: points - pendingTotal };
     if (statusEl) statusEl.textContent = '';
@@ -310,10 +311,11 @@ async function redeem() {
     // Points reserved until admin ships the order
     currentUser.points -= totalCost;
     document.getElementById('display-points').textContent = currentUser.points;
-    showToast('✅ Order submitted! Points deducted when shipped.', 'success');
     initSelections();
     renderOptions();
-    loadOrders();
+    // Load orders independently so errors don't override success toast
+    try { await loadOrders(); } catch(e) { console.error('loadOrders:', e); }
+    showToast('✅ Order submitted! Points deducted when shipped.', 'success');
   } catch (e) {
     showToast('Error: ' + e.message, 'error');
   }
