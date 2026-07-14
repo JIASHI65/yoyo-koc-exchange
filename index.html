@@ -63,7 +63,7 @@
     <input type="text" id="input-discord" placeholder="Your Discord username" autocomplete="off">
     <label>UID</label>
     <input type="text" id="input-uid" placeholder="Your UID" autocomplete="off">
-    <button class="btn btn-primary" id="btn-login" onclick="login()">Check My Points</button>
+    <button class="btn btn-primary" id="btn-login" onclick="login()">Check My Points</button><div id="login-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
     <div style="margin-top:14px;font-size:12px;color:var(--text-light);text-align:center;">
       If you have any inquiries, please create a thread in the forum ｜town-service-station. Our team will reply to posts in submission order.
     </div>
@@ -154,28 +154,63 @@ async function login() {
 
   const btn = document.getElementById('btn-login');
   btn.disabled = true; btn.textContent = 'Checking...';
+  const statusEl = document.getElementById('login-status');
+  if (statusEl) statusEl.textContent = 'Looking up your info...';
 
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000);
-    const res = await supabaseFetch(`${SUPABASE_URL}/rest/v1/kocs?uid=eq.${encodeURIComponent(uid)}&discord_name=eq.${encodeURIComponent(discord)}&select=uid,discord_name,name,status`, { signal: controller.signal });
-    clearTimeout(timer);
-    const data = await res.json();
+    // Try exact match first (10s timeout)
+    let c1 = new AbortController();
+    let t1 = setTimeout(() => c1.abort(), 10000);
+    let res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid) + '&discord_name=eq.' + encodeURIComponent(discord) + '&select=uid,discord_name,name,status', { signal: c1.signal });
+    clearTimeout(t1);
+    let data = await res.json();
+
+    // Fallback: if exact match fails, try UID-only
     if (!data || data.length === 0) {
-      showToast('No match found. Check your Discord name and UID.', 'error');
+      if (statusEl) statusEl.textContent = 'Trying UID match...';
+      let c2 = new AbortController();
+      let t2 = setTimeout(() => c2.abort(), 10000);
+      res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid) + '&select=uid,discord_name,name,status', { signal: c2.signal });
+      clearTimeout(t2);
+      data = await res.json();
+    }
+
+    if (!data || data.length === 0) {
+      showToast('No match found. Check your UID or contact admin.', 'error');
       btn.disabled = false; btn.textContent = 'Check My Points';
+      if (statusEl) statusEl.textContent = '';
       return;
     }
+
+    if (statusEl) statusEl.textContent = 'Loading your points...';
+    const koc = data[0];
+
+    // Check deadline from config
+    try {
+      const cfgRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+      const cfgData = await cfgRes.json();
+      if (cfgData && cfgData.length > 0 && cfgData[0].notes) {
+        const cfg = JSON.parse(cfgData[0].notes);
+        if (cfg.submission_deadline_date) {
+          const deadline = new Date(cfg.submission_deadline_date + 'T' + (cfg.submission_deadline_time || '23:59'));
+          if (new Date() > deadline) {
+            if (statusEl) statusEl.innerHTML = '\u26A0\uFE0F Submission period closed on ' + cfg.submission_deadline_date;
+          }
+        }
+      }
+    } catch(e) {}
+
     const points = await getBalance(uid);
-    // Subtract pending orders (points deducted when admin ships)
     const pendingRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&status=eq.pending&select=points_spent');
     const pendingOrders = await pendingRes.json();
     const pendingTotal = pendingOrders.reduce((s, o) => s + (o.points_spent || 0), 0);
-    currentUser = { ...data[0], points: points - pendingTotal };
+    currentUser = { ...koc, points: points - pendingTotal };
+    if (statusEl) statusEl.textContent = '';
     showDashboard();
   } catch (e) {
-    showToast(e.name === 'AbortError' ? 'Request timed out. Try again.' : 'Error: ' + e.message, 'error');
+    showToast(e.name === 'AbortError' ? 'Connection timed out. Please try again.' : 'Error: ' + e.message, 'error');
     btn.disabled = false; btn.textContent = 'Check My Points';
+    if (statusEl) statusEl.textContent = '';
   }
 }
 
@@ -206,9 +241,9 @@ function renderOptions() {
     row.className = 'reward-row';
     row.innerHTML = '<div><div class="reward-name">' + opt.name + '</div><div class="reward-desc">' + opt.desc + '</div></div>' +
       '<div class="qty-selector">' +
-        '<button class="btn-qty" id="m-' + opt.id + '" onclick="changeQty('' + opt.id + '',-1)">−</button>' +
+        '<button class="btn-qty" id="m-' + opt.id + '" onclick="changeQty(&quot;' + opt.id + '&quot;,-1)">−</button>' +
         '<span class="qty-value" id="q-' + opt.id + '">0</span>' +
-        '<button class="btn-qty" id="p-' + opt.id + '" onclick="changeQty('' + opt.id + '',1)">+</button>' +
+        '<button class="btn-qty" id="p-' + opt.id + '" onclick="changeQty(&quot;' + opt.id + '&quot;,1)">+</button>' +
       '</div>';
     container.appendChild(row);
   });
