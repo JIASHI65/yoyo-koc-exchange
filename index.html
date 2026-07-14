@@ -123,6 +123,13 @@ function supabaseFetch(url, opts = {}) {
   return fetch(url, { ...opts, headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json', ...opts.headers } });
 }
 
+async function fetchWithTimeout(url, opts = {}, ms = 15000) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  try { return await supabaseFetch(url, { ...opts, signal: ctrl.signal }); }
+  finally { clearTimeout(id); }
+}
+
 function showToast(msg, type) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'toast ' + (type||'') + ' show';
@@ -131,7 +138,7 @@ function showToast(msg, type) {
 
 async function getBalance(uid) {
   try {
-    const r = await supabaseFetch(`${SUPABASE_URL}/rest/v1/point_logs?uid=eq.${encodeURIComponent(uid)}&order=created_at.desc&limit=1`);
+    const r = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/point_logs?uid=eq.${encodeURIComponent(uid)}&order=created_at.desc&limit=1`);
     const d = await r.json();
     return (d && d.length > 0) ? d[0].balance_after : 0;
   } catch(e) { return 0; }
@@ -146,7 +153,10 @@ async function login() {
   btn.disabled = true; btn.textContent = 'Checking...';
 
   try {
-    const res = await supabaseFetch(`${SUPABASE_URL}/rest/v1/kocs?uid=eq.${encodeURIComponent(uid)}&discord_name=eq.${encodeURIComponent(discord)}&select=uid,discord_name,name,status`);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    const res = await supabaseFetch(`${SUPABASE_URL}/rest/v1/kocs?uid=eq.${encodeURIComponent(uid)}&discord_name=eq.${encodeURIComponent(discord)}&select=uid,discord_name,name,status`, { signal: controller.signal });
+    clearTimeout(timer);
     const data = await res.json();
     if (!data || data.length === 0) {
       showToast('No match found. Check your Discord name and UID.', 'error');
@@ -157,7 +167,7 @@ async function login() {
     currentUser = { ...data[0], points };
     showDashboard();
   } catch (e) {
-    showToast('Error: ' + e.message, 'error');
+    showToast(e.name === 'AbortError' ? 'Request timed out. Try again.' : 'Error: ' + e.message, 'error');
     btn.disabled = false; btn.textContent = 'Check My Points';
   }
 }
