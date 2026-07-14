@@ -122,6 +122,11 @@
   .month-table tr:hover td { background: #fef6f9; }
   .section-divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
   .empty-state { text-align: center; padding: 40px 20px; color: var(--text-light); font-size: 14px; }
+  .sortable-ghost { opacity:0.4; background:var(--pink-light)!important; box-shadow:0 0 0 2px var(--pink) inset }
+  .sortable-drag { background:white!important; box-shadow:0 8px 24px rgba(0,0,0,0.15); opacity:0.95 }
+  .drag-handle:hover { color:var(--pink-dark)!important }
+  .drag-handle:active { cursor:grabbing!important }
+  .month-table tbody { min-height:30px }
   .truncate { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle; }
   @media (max-width: 768px) {
     .container { padding: 12px; }
@@ -294,6 +299,17 @@
 const SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_oyewqnQ8AnitAOD94Qg0nA_v6Zqkr7r';
 const ADMIN_PASSWORD = 'yoyo2026';
+
+// -- Drag-and-Drop Reorder --
+function loadSortableJS() {
+  if (window.Sortable) return Promise.resolve();
+  return new Promise(function(resolve, reject) {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js';
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
 
 let allKocs = [];
 let allOrders = [];
@@ -696,6 +712,7 @@ function renderMerchTab() {
     return;
   }
   var groups = groupByMonth(merchOrders);
+  groups.forEach(function(g) { g.items = applyOrder('merch', g.label, g.items); });
   container.innerHTML = groups.map(function(g) {
    return '<div class="month-section">' +
       '<div class="month-header">' +
@@ -707,12 +724,13 @@ function renderMerchTab() {
       '</div>' +
       '</div>' +
      '<table class="month-table"><thead><tr>' +
-        '<th>Discord</th><th>UID</th><th>Address</th><th>Reward</th>' +
+        '<th style="width:22px;">&#8944;</th><th>Discord</th><th>UID</th><th>Address</th><th>Reward</th>' +
      '</tr></thead><tbody>' +
      g.items.map(function(o) {
        var koc = kmap[o.uid];
        var addr = koc ? (koc.address || '') : '';
-       return '<tr>' +
+       return '<tr' + ' data-order-id="' + o.id + '"' + '>' +
+         '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
          '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
          '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
           '<td style="font-size:12px;white-space:pre-wrap;min-width:300px;">' + (esc(koc ? koc.address : '-') || '-') + '</td>' +
@@ -721,6 +739,7 @@ function renderMerchTab() {
       }).join('') +
       '</tbody></table></div>';
   }).join('');
+  setTimeout(function() { initSortable('merch'); }, 100);
 }
 
 function renderDiamondTab() {
@@ -733,6 +752,7 @@ function renderDiamondTab() {
     return;
   }
   var groups = groupByMonth(orders);
+  groups.forEach(function(g) { g.items = applyOrder('diamonds', g.label, g.items); });
   container.innerHTML = groups.map(function(g) {
    return '<div class="month-section">' +
       '<div class="month-header">' +
@@ -744,11 +764,12 @@ function renderDiamondTab() {
       '</div>' +
       '</div>' +
      '<table class="month-table"><thead><tr>' +
-        '<th>Discord</th><th>UID</th><th>Account ID</th><th>Server</th><th>Reward</th>' +
+        '<th style="width:22px;">&#8944;</th><th>Discord</th><th>UID</th><th>Account ID</th><th>Server</th><th>Reward</th>' +
      '</tr></thead><tbody>' +
      g.items.map(function(o) {
        var koc = kmap[o.uid];
-       return '<tr>' +
+       return '<tr' + ' data-order-id="' + o.id + '"' + '>' +
+         '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
          '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
          '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
          '<td style="font-family:monospace;font-size:12px;">' + (esc(koc ? koc.account_id : '-') || '-') + '</td>' +
@@ -758,6 +779,7 @@ function renderDiamondTab() {
       }).join('') +
       '</tbody></table></div>';
   }).join('');
+  setTimeout(function() { initSortable('diamonds'); }, 100);
 }
 
 function renderGplayTab() {
@@ -770,6 +792,7 @@ function renderGplayTab() {
     return;
   }
   var groups = groupByMonth(orders);
+  groups.forEach(function(g) { g.items = applyOrder('gplay', g.label, g.items); });
   container.innerHTML = groups.map(function(g) {
    return '<div class="month-section">' +
       '<div class="month-header">' +
@@ -781,11 +804,12 @@ function renderGplayTab() {
       '</div>' +
       '</div>' +
      '<table class="month-table"><thead><tr>' +
-        '<th>Discord</th><th>UID</th><th>Region / Country</th><th>Reward</th>' +
+        '<th style="width:22px;">&#8944;</th><th>Discord</th><th>UID</th><th>Region / Country</th><th>Reward</th>' +
      '</tr></thead><tbody>' +
      g.items.map(function(o) {
        var koc = kmap[o.uid];
-       return '<tr>' +
+       return '<tr' + ' data-order-id="' + o.id + '"' + '>' +
+         '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
          '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
          '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
          '<td style="font-size:12px;">' + (esc(koc ? koc.region : '-') || '-') + '</td>' +
@@ -794,6 +818,7 @@ function renderGplayTab() {
       }).join('') +
       '</tbody></table></div>';
   }).join('');
+  setTimeout(function() { initSortable('gplay'); }, 100);
 }
 
 
@@ -850,6 +875,63 @@ function exportMonth(type, label) {
 }
 
 function clean(s) { return s || '-'; }
+
+// -- Drag Reorder --
+function initSortable(type) {
+  loadSortableJS().then(function() {
+    document.querySelectorAll('#tab-' + type + ' .month-table tbody').forEach(function(tb) {
+      var ml = null;
+      var sec = tb.closest('.month-section');
+      if (sec) { var h = sec.querySelector('.month-header span:nth-child(2)'); if (h) ml = h.textContent.trim(); }
+      new Sortable(tb, {
+        handle: '.drag-handle', animation: 150, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag',
+        onEnd: function() {
+          var ids = []; tb.querySelectorAll('tr').forEach(function(tr) { var id = tr.getAttribute('data-order-id'); if (id) ids.push(parseInt(id)); });
+          saveOrder(type, ml, ids);
+        }
+      });
+    });
+  }).catch(function() { console.warn('SortableJS failed'); });
+}
+function saveOrder(type, month, ids) {
+  var key = 'koc_order_' + type + '_' + (month||'unknown');
+  try { localStorage.setItem(key, JSON.stringify(ids)); } catch(e) {}
+  supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes')
+  .then(function(r){return r.json()}).then(function(d) {
+    var notes = (d&&d.length&&d[0].notes)||'{}'; var cfg; try{cfg=JSON.parse(notes)}catch(e){cfg={}};
+    if(!cfg.display_orders)cfg.display_orders={};
+    var ck='display_order_'+type;
+    if(!cfg.display_orders[ck])cfg.display_orders[ck]={};
+    cfg.display_orders[ck][month||'unknown']=ids;
+    var method=d&&d.length?'PATCH':'POST';
+    var url=SUPABASE_URL+'/rest/v1/kocs?uid=eq.__config__';
+    if(method==='POST'){
+      supabaseFetch(url,{method:'POST',body:JSON.stringify({uid:'__config__',discord_name:'__config__',name:'System Config',status:'active',notes:JSON.stringify(cfg)})}).catch(function(){})
+    } else {
+      supabaseFetch(url,{method:'PATCH',body:JSON.stringify({notes:JSON.stringify(cfg)})}).catch(function(){})
+    }
+  }).catch(function(){});
+}
+function loadOrder(type, month) {
+  try{var d=JSON.parse(localStorage.getItem('koc_order_'+type+'_'+(month||'unknown')));if(d&&d.length)return d}catch(e){}
+  return null;
+}
+function applyOrder(type, month, items) {
+  var o=loadOrder(type,month);if(!o||!o.length||!items||items.length<2)return items;
+  var m={};items.forEach(function(i){m[i.id]=i});
+  var r=[];o.forEach(function(id){if(m[id]){r.push(m[id]);delete m[id]}});
+  Object.keys(m).forEach(function(id){r.push(m[id])});
+  return r;
+}
+function resetOrder(type, month) {
+  if(!confirm('Reset "'+month+'" order?'))return;
+  try{localStorage.removeItem('koc_order_'+type+'_'+month)}catch(e){}
+  supabaseFetch(SUPABASE_URL+'/rest/v1/kocs?uid=eq.__config__&select=notes')
+  .then(function(r){return r.json()}).then(function(d){
+    if(d&&d.length&&d[0].notes){try{var cfg=JSON.parse(d[0].notes);var ck='display_order_'+type;if(cfg.display_orders&&cfg.display_orders[ck]){delete cfg.display_orders[ck][month];supabaseFetch(SUPABASE_URL+'/rest/v1/kocs?uid=eq.__config__',{method:'PATCH',body:JSON.stringify({notes:JSON.stringify(cfg)})}).catch(function(){})}}catch(e){}}
+  }).catch(function(){});
+  if(type==='merch')renderMerchTab();else if(type==='diamonds')renderDiamondTab();else if(type==='gplay')renderGplayTab();
+}
 // Global click handler for export buttons
 document.addEventListener('click', function(e) {
   var btn = e.target.closest('.export-btn');
