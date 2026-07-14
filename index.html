@@ -164,7 +164,11 @@ async function login() {
       return;
     }
     const points = await getBalance(uid);
-    currentUser = { ...data[0], points };
+    // Subtract pending orders (points deducted when admin ships)
+    const pendingRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&status=eq.pending&select=points_spent');
+    const pendingOrders = await pendingRes.json();
+    const pendingTotal = pendingOrders.reduce((s, o) => s + (o.points_spent || 0), 0);
+    currentUser = { ...data[0], points: points - pendingTotal };
     showDashboard();
   } catch (e) {
     showToast(e.name === 'AbortError' ? 'Request timed out. Try again.' : 'Error: ' + e.message, 'error');
@@ -260,10 +264,8 @@ async function redeem() {
   btn.disabled = true; btn.textContent = 'Submitting...';
 
   try {
-    const newBal = currentUser.points - totalCost;
     const contact = document.getElementById('input-contact').value.trim() || '';
     const chosen = REWARDS.filter(r => selections[r.id] > 0);
-    const reasons = chosen.map(s => s.name + ' ×' + selections[s.id]).join(', ');
 
     for (const opt of chosen) {
       const qty = selections[opt.id];
@@ -280,17 +282,10 @@ async function redeem() {
       if (!resp.ok) throw new Error('Order failed for ' + opt.name);
     }
 
-    await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
-      method: 'POST',
-      body: JSON.stringify({
-        uid: currentUser.uid, change: -totalCost, balance_after: newBal,
-        source: 'redemption', reason: 'Redeemed: ' + reasons, created_at: new Date().toISOString()
-      })
-    });
-
-    currentUser.points = newBal;
-    document.getElementById('display-points').textContent = newBal;
-    showToast('✅ Redemption submitted!', 'success');
+    // Points reserved until admin ships the order
+    currentUser.points -= totalCost;
+    document.getElementById('display-points').textContent = currentUser.points;
+    showToast('✅ Order submitted! Points deducted when shipped.', 'success');
     initSelections();
     renderOptions();
     loadOrders();

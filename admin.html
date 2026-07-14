@@ -284,13 +284,41 @@ async function addKOC() {
 // === SHIP ORDER ===
 async function shipOrder(id) {
   try {
-    await supabaseFetch(`${SUPABASE_URL}/rest/v1/redemption_orders?id=eq.${id}`, {
+    // Get order details
+    const oRes = await supabaseFetch(\`\${SUPABASE_URL}/rest/v1/redemption_orders?id=eq.\${id}&select=*\`);
+    const oData = await oRes.json();
+    const order = oData[0];
+    if (!order) throw new Error('Order not found');
+
+    // Check if points already deducted (old system)
+    const lRes = await supabaseFetch(\`\${SUPABASE_URL}/rest/v1/point_logs?uid=eq.\${order.uid}&change=eq.\${-order.points_spent}&source=eq.redemption&order=created_at.desc&limit=1\`);
+    const logs = await lRes.json();
+    const alreadyDeducted = logs.length > 0;
+
+    // Ship the order
+    await supabaseFetch(\`\${SUPABASE_URL}/rest/v1/redemption_orders?id=eq.\${id}\`, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'shipped', processed_at: new Date().toISOString(), processed_by: 'admin' })
     });
-    showToast('✅ Shipped', 'success');
+
+    // Deduct points if not already deducted (new system)
+    if (!alreadyDeducted) {
+      const curBal = await getBalance(order.uid);
+      await supabaseFetch(\`\${SUPABASE_URL}/rest/v1/point_logs\`, {
+        method: 'POST',
+        body: JSON.stringify({
+          uid: order.uid, change: -order.points_spent,
+          balance_after: curBal - order.points_spent,
+          source: 'redemption', reason: 'Shipped order #' + id,
+          created_at: new Date().toISOString()
+        })
+      });
+    }
+
+    showToast('✅ Shipped' + (alreadyDeducted ? '' : ' + pts deducted'), 'success');
     loadData();
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
 }
 </script>
 </body>
