@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yoyo Town · Admin</title>
+<style>
+  :root {
+    --pink: #f2a6c4; --pink-light: #fce4ec; --pink-dark: #d4749a;
+    --bg: #fef6f9; --card: #ffffff; --text: #3d2b36; --text-light: #8a7a83;
+    --border: #f0dae4; --shadow: 0 4px 20px rgba(210,120,150,0.12); --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  .container { max-width: 1000px; padding: 20px; margin: 0 auto; }
+  .header { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; }
+  .header h1 { font-size: 22px; color: var(--pink-dark); }
+  .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+  input, select {
+    padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13px; outline: none; background: #faf5f7;
+  }
+  input:focus { border-color: var(--pink); }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 7px 14px; border: none; border-radius: 8px; font-size: 12px;
+    font-weight: 600; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-primary { background: var(--pink); color: white; }
+  .btn-primary:hover { background: var(--pink-dark); }
+  .btn-sm { padding: 4px 10px; font-size: 11px; }
+  .btn-success { background: #4caf50; color: white; }
+  .btn-danger { background: #e74c3c; color: white; }
+  .btn-outline { background: transparent; border: 1.5px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px; border-bottom: 2px solid var(--border); font-weight: 600; color: var(--text-light); font-size: 11px; letter-spacing: 0.5px; white-space: nowrap; }
+  td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: #faf5f7; }
+  .badge {
+    display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600;
+  }
+  .badge-pending { background: #fff3e0; color: #e65100; }
+  .badge-shipped { background: #e8f5e9; color: #2e7d32; }
+  .badge-cancelled { background: #fbe9e7; color: #bf360c; }
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    padding: 10px 20px; border-radius: 8px; font-size: 13px;
+    z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  .toast.success { background: #4caf50; color: white; }
+  .toast.error { background: #e74c3c; color: white; }
+  .hidden { display: none !important; }
+  .search-box input { width: 240px; }
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.3); display: flex; align-items: center;
+    justify-content: center; z-index: 100;
+  }
+  .modal { background: white; border-radius: var(--radius); padding: 24px; max-width: 420px; width: 90%; }
+  .modal h3 { margin-bottom: 12px; font-size: 15px; }
+  .modal input, .modal select { width: 100%; margin-bottom: 8px; }
+  .modal .btn { width: 100%; }
+  .pts { font-weight: 700; color: var(--pink-dark); font-size: 14px; }
+  .order-row { font-size: 12px; color: var(--text-light); padding: 4px 0; }
+  .stats-bar { display: flex; gap: 20px; font-size: 13px; color: var(--text-light); margin-bottom: 12px; }
+  .stats-bar span { background: var(--pink-light); padding: 4px 12px; border-radius: 20px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div id="login-screen" class="card" style="max-width:320px;margin:80px auto;">
+    <div class="card-title">🔐 Admin</div>
+    <input type="password" id="admin-pw" placeholder="Password" style="width:100%;margin-bottom:8px;">
+    <button class="btn btn-primary" onclick="adminLogin()" style="width:100%;">Login</button>
+  </div>
+
+  <div id="admin-panel" class="hidden">
+    <div class="header">
+      <h1>🎀 Admin · KOC Redemption</h1>
+      <button class="btn btn-outline" onclick="adminLogout()">Logout</button>
+    </div>
+
+    <div class="card">
+      <div class="row" style="margin-bottom:4px;">
+        <input type="text" id="new-discord" placeholder="Discord name" style="width:160px;">
+        <input type="text" id="new-uid" placeholder="UID" style="width:140px;">
+        <button class="btn btn-primary" onclick="addKOC()">+ Add KOC</button>
+      </div>
+      <div class="row">
+        <input type="text" id="search-input" placeholder="Search by Discord or UID..." class="search-box" oninput="renderTable()">
+        <span id="koc-count" style="font-size:12px;color:var(--text-light);"></span>
+      </div>
+    </div>
+
+    <div class="card" style="padding:12px 20px;">
+      <table>
+        <thead><tr>
+          <th style="width:28%;">Discord</th>
+          <th style="width:22%;">UID</th>
+          <th style="width:10%;">Points</th>
+          <th style="width:20%;">Orders</th>
+          <th style="width:20%;">Actions</th>
+        </tr></thead>
+        <tbody id="koc-table"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+
+<div id="point-modal" class="modal-overlay hidden" onclick="if(event.target===this)closePointModal()">
+  <div class="modal">
+    <h3 id="modal-title">✏️ Adjust Points</h3>
+    <select id="modal-action">
+      <option value="">Select...</option>
+      <option value="add">➕ Add points</option>
+      <option value="deduct">➖ Deduct points</option>
+    </select>
+    <input type="number" id="modal-points" placeholder="Points" min="1">
+    <input type="text" id="modal-reason" placeholder="Reason (e.g. June settlement)">
+    <button class="btn btn-primary" onclick="submitPoints()">Confirm</button>
+    <button class="btn btn-outline" onclick="closePointModal()">Cancel</button>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_oyewqnQ8AnitAOD94Qg0nA_v6Zqkr7r';
+const ADMIN_PASSWORD = 'yoyo2026';
+
+let allKocs = [];
+let allOrders = [];
+let editingUid = null;
+
+function supabaseFetch(url, opts = {}) {
+  return fetch(url, { ...opts, headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json', ...opts.headers } });
+}
+
+function showToast(m, t = '') {
+  const x = document.getElementById('toast');
+  x.textContent = m; x.className = 'toast ' + t + ' show';
+  setTimeout(() => x.classList.remove('show'), 2500);
+}
+
+function adminLogin() {
+  if (document.getElementById('admin-pw').value === ADMIN_PASSWORD) {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('admin-panel').classList.remove('hidden');
+    loadData();
+  } else { showToast('Wrong password', 'error'); }
+}
+
+function adminLogout() {
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('admin-panel').classList.add('hidden');
+  document.getElementById('admin-pw').value = '';
+}
+
+async function loadData() {
+  try {
+    const [kocRes, ordRes] = await Promise.all([
+      supabaseFetch(`${SUPABASE_URL}/rest/v1/kocs?order=discord_name.asc&select=*`),
+      supabaseFetch(`${SUPABASE_URL}/rest/v1/redemption_orders?order=created_at.desc&limit=200&select=*`)
+    ]);
+    allKocs = await kocRes.json();
+    allOrders = await ordRes.json();
+    renderTable();
+  } catch (e) { showToast('Error loading data', 'error'); }
+}
+
+async function getBalance(uid) {
+  try {
+    const r = await supabaseFetch(`${SUPABASE_URL}/rest/v1/point_logs?uid=eq.${encodeURIComponent(uid)}&order=created_at.desc&limit=1`);
+    const d = await r.json();
+    return d.length ? d[0].balance_after : 0;
+  } catch { return 0; }
+}
+
+function renderTable() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const filtered = allKocs.filter(k =>
+    k.discord_name.toLowerCase().includes(q) || k.uid.toLowerCase().includes(q)
+  );
+  document.getElementById('koc-count').textContent = `${filtered.length} creators`;
+
+  const tbody = document.getElementById('koc-table');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(k => {
+    const orders = allOrders.filter(o => o.uid === k.uid);
+    const pendingOrders = orders.filter(o => o.status === 'pending');
+    return `<tr>
+      <td><strong>${k.discord_name}</strong></td>
+      <td style="font-family:monospace;font-size:12px;color:var(--text-light);">${k.uid}</td>
+      <td><span class="pts" id="pts-${k.uid}">⋯</span></td>
+      <td>
+        ${pendingOrders.length > 0 ? `<span class="badge badge-pending" style="cursor:pointer;" onclick="toggleOrders('${k.uid}')">${pendingOrders.length} pending</span>` : '<span style="color:var(--text-light);font-size:12px;">0</span>'}
+        <div id="orders-${k.uid}" class="hidden" style="margin-top:4px;">
+          ${orders.slice(0,5).map(o => `<div class="order-row">${o.option_name} · <span class="badge badge-${o.status}">${o.status}</span> ${o.status === 'pending' ? `<span class="btn btn-success btn-sm" onclick="shipOrder(${o.id})">✓</span>` : ''}</div>`).join('')}
+          ${orders.length > 5 ? `<div style="font-size:11px;color:var(--text-light);">+${orders.length-5} more</div>` : ''}
+        </div>
+      </td>
+      <td>
+        <button class="btn btn-primary btn-sm" onclick="openPointModal('${k.uid}','${k.discord_name}')">+/-</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Load balances
+  filtered.forEach(k => {
+    getBalance(k.uid).then(p => {
+      const el = document.getElementById('pts-' + k.uid);
+      if (el) el.textContent = p;
+    });
+  });
+}
+
+function toggleOrders(uid) {
+  const el = document.getElementById('orders-' + uid);
+  if (el) el.classList.toggle('hidden');
+}
+
+// === POINT MODAL ===
+function openPointModal(uid, discord) {
+  editingUid = uid;
+  document.getElementById('modal-title').textContent = '✏️ ' + discord;
+  document.getElementById('modal-points').value = '';
+  document.getElementById('modal-reason').value = '';
+  document.getElementById('modal-action').value = '';
+  document.getElementById('point-modal').classList.remove('hidden');
+}
+
+function closePointModal() {
+  document.getElementById('point-modal').classList.add('hidden');
+  editingUid = null;
+}
+
+async function submitPoints() {
+  const action = document.getElementById('modal-action').value;
+  const pts = parseInt(document.getElementById('modal-points').value);
+  const reason = document.getElementById('modal-reason').value.trim();
+  if (!action || !pts || pts < 1 || !reason) { showToast('Fill in all fields', 'error'); return; }
+
+  const change = action === 'add' ? pts : -pts;
+  try {
+    const bal = await getBalance(editingUid);
+    const newBal = Math.max(0, bal + change);
+    await supabaseFetch(`${SUPABASE_URL}/rest/v1/point_logs`, {
+      method: 'POST',
+      body: JSON.stringify({ uid: editingUid, change, balance_after: newBal, source: 'manual', reason, created_by: 'admin', created_at: new Date().toISOString() })
+    });
+    showToast(`✅ ${change > 0 ? '+' : ''}${change} pts`, 'success');
+    closePointModal();
+    renderTable();
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// === ADD KOC ===
+async function addKOC() {
+  const discord = document.getElementById('new-discord').value.trim();
+  const uid = document.getElementById('new-uid').value.trim();
+  if (!discord || !uid) { showToast('Discord name and UID required', 'error'); return; }
+  try {
+    await supabaseFetch(`${SUPABASE_URL}/rest/v1/kocs`, {
+      method: 'POST',
+      body: JSON.stringify({ uid, discord_name: discord, status: 'active', created_at: new Date().toISOString() })
+    });
+    showToast('✅ Added ' + discord, 'success');
+    document.getElementById('new-discord').value = '';
+    document.getElementById('new-uid').value = '';
+    loadData();
+  } catch (e) { showToast('Error: maybe UID exists', 'error'); }
+}
+
+// === SHIP ORDER ===
+async function shipOrder(id) {
+  try {
+    await supabaseFetch(`${SUPABASE_URL}/rest/v1/redemption_orders?id=eq.${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'shipped', processed_at: new Date().toISOString(), processed_by: 'admin' })
+    });
+    showToast('✅ Shipped', 'success');
+    loadData();
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
+</script>
+</body>
+</html>
