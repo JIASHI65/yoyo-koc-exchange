@@ -319,6 +319,39 @@ async function redeem() {
   }
   btn.disabled = false; btn.textContent = 'Confirm Redemption';
 }
+
+async function loadOrders() {
+  if (!currentUser) return;
+  try {
+    const res = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,option_type,option_name,points_spent,status,reward_amount,created_at');
+    if (!res.ok) return;
+    const orders = await res.json();
+    const container = document.getElementById('orders-list');
+    const card = document.getElementById('orders-card');
+    if (!container) return;
+    if (!orders || orders.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-light);font-size:13px;">No orders yet</div>';
+      if (card) card.style.display = 'none';
+      return;
+    }
+    if (card) card.style.display = 'block';
+    container.innerHTML = orders.map(function(o) {
+      var statusClass = o.status === 'shipped' ? 'badge-shipped' : o.status === 'pending' ? 'badge-pending' : 'badge-cancelled';
+      return '<div class="order-item">' +
+        '<div style="display:flex;justify-content:space-between;">' +
+        '<span>' + esc(o.option_name || o.option_type) + '</span>' +
+        '<span>' + o.points_spent + ' pts</span>' +
+        '</div>' +
+        '<div class="order-meta">' +
+        '<span class="badge ' + statusClass + '">' + o.status + '</span>' +
+        ' · ' + new Date(o.created_at).toLocaleDateString() +
+        '</div></div>';
+    }).join('');
+  } catch(e) {
+    console.error('loadOrders error:', e);
+  }
+}
+
 function logout() {
   currentUser = null;
   document.getElementById('step-login').classList.remove('hidden');
