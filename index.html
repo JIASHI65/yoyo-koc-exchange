@@ -158,21 +158,23 @@ async function login() {
   if (statusEl) statusEl.textContent = 'Looking up your info...';
 
   try {
-    // Try exact match first (10s timeout)
-    let c1 = new AbortController();
-    let t1 = setTimeout(() => c1.abort(), 10000);
-    let res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid) + '&discord_name=eq.' + encodeURIComponent(discord) + '&select=uid,discord_name,name,status', { signal: c1.signal });
-    clearTimeout(t1);
+    let res = await fetchWithTimeout(
+      SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid) +
+      '&discord_name=eq.' + encodeURIComponent(discord) +
+      '&select=uid,discord_name,name,status',
+      {}, 15000
+    );
+    if (!res.ok) throw new Error('Server error: ' + res.status);
     let data = await res.json();
 
-    // Fallback: if exact match fails, try UID-only
     if (!data || data.length === 0) {
       if (statusEl) statusEl.textContent = 'Trying UID match...';
-      let c2 = new AbortController();
-      let t2 = setTimeout(() => c2.abort(), 10000);
-      res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid) + '&select=uid,discord_name,name,status', { signal: c2.signal });
-      clearTimeout(t2);
-      data = await res.json();
+      let res2 = await fetchWithTimeout(
+        SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid) +
+        '&select=uid,discord_name,name,status',
+        {}, 15000
+      );
+      if (res2.ok) data = await res2.json();
     }
 
     if (!data || data.length === 0) {
@@ -184,22 +186,6 @@ async function login() {
 
     if (statusEl) statusEl.textContent = 'Loading your points...';
     const koc = data[0];
-
-    // Check deadline from config
-    try {
-      const cfgRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
-      const cfgData = await cfgRes.json();
-      if (cfgData && cfgData.length > 0 && cfgData[0].notes) {
-        const cfg = JSON.parse(cfgData[0].notes);
-        if (cfg.submission_deadline_date) {
-          const deadline = new Date(cfg.submission_deadline_date + 'T' + (cfg.submission_deadline_time || '23:59'));
-          if (new Date() > deadline) {
-            if (statusEl) statusEl.innerHTML = '\u26A0\uFE0F Submission period closed on ' + cfg.submission_deadline_date;
-          }
-        }
-      }
-    } catch(e) {}
-
     const points = await getBalance(uid);
     const pendingRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&status=eq.pending&select=points_spent');
     const pendingOrders = await pendingRes.json();
@@ -208,7 +194,8 @@ async function login() {
     if (statusEl) statusEl.textContent = '';
     showDashboard();
   } catch (e) {
-    showToast(e.name === 'AbortError' ? 'Connection timed out. Please try again.' : 'Error: ' + e.message, 'error');
+    console.error('login error:', e);
+    showToast(e.name === 'AbortError' ? 'Connection timed out. Try again.' : 'Error: ' + e.message, 'error');
     btn.disabled = false; btn.textContent = 'Check My Points';
     if (statusEl) statusEl.textContent = '';
   }

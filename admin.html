@@ -102,17 +102,24 @@
   .toggle-cb:checked + .toggle-label::after { transform: translateX(16px); }
 
   .deadline-box { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px; background: #faf5f7; border-radius: 8px; font-size: 13px; }
-  .deadline-box input[type="date"] { width: 150px; }
-  .deadline-box input[type="time"] { width: 110px; }
-  .cc-badge { font-size: 10px;
-  .month-section { margin-bottom: 20px; }
+ .deadline-box input[type="date"] { width: 150px; }
+ .deadline-box input[type="time"] { width: 110px; }
+  .cc-badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; background: var(--pink-light); color: var(--pink-dark); }
+  .month-section { margin-bottom: 24px; }
   .month-header { 
-    font-size: 15px; font-weight: 700; padding: 10px 16px; 
-    background: var(--pink-light); border-radius: 10px; 
-    margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+    font-size: 16px; font-weight: 700; padding: 14px 18px; 
+    background: linear-gradient(135deg, var(--pink-light), #fff);
+    border-radius: 12px 12px 0 0;
+    margin-bottom: 0; display: flex; align-items: center; gap: 10px;
+    border: 1.5px solid var(--border); border-bottom: none;
   }
   .month-header .count { font-size: 12px; font-weight: 400; color: var(--text-light); }
-  .month-table { margin-bottom: 0; } padding: 1px 6px; border-radius: 10px; background: var(--pink-light); color: var(--pink-dark); }
+  .month-header .month-icon { font-size: 22px; line-height: 1; }
+  .month-table { width: 100%; border-collapse: collapse; font-size: 13px; border: 1.5px solid var(--border); border-radius: 0 0 12px 12px; overflow: hidden; }
+  .month-table th { text-align: left; padding: 8px 6px; border-bottom: 2px solid var(--border); font-weight: 600; color: var(--text-light); font-size: 11px; white-space: nowrap; background: #faf5f7; }
+  .month-table td { padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .month-table tr:last-child td { border-bottom: none; }
+  .month-table tr:hover td { background: #fef6f9; }
   .section-divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
   .empty-state { text-align: center; padding: 40px 20px; color: var(--text-light); font-size: 14px; }
   .truncate { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle; }
@@ -678,14 +685,10 @@ function fmtDate(d) {
 }
 
 function getMonthGroup(o) {
-  var notes = o.admin_notes || '';
-  var m = notes.match(/(\\d+)月/);
-  if (m) {
-    var n = parseInt(m[1]);
-    return n + '月';
-  }
   var d = new Date(o.created_at);
-  return (d.getMonth() + 1) + '月';
+  var y = d.getFullYear();
+  var m = d.getMonth() + 1;
+  return y + '年' + m + '月';
 }
 
 function groupByMonth(arr) {
@@ -696,9 +699,14 @@ function groupByMonth(arr) {
     groups[label].push(o);
   });
   // Sort month labels descending (most recent first)
-  var sorted = Object.keys(groups).sort(function(a, b) {
-    var ma = parseInt(a), mb = parseInt(b);
-    return mb - ma;
+  var sorted = Object.keys(groups).sort();
+  sorted.sort(function(a, b) {
+    var pa = a.match(/(\d+)年(\d+)月/);
+    var pb = b.match(/(\d+)年(\d+)月/);
+    if (!pa || !pb) return 0;
+    var ka = parseInt(pa[1]) * 12 + parseInt(pa[2]);
+    var kb = parseInt(pb[1]) * 12 + parseInt(pb[2]);
+    return kb - ka;
   });
   var result = [];
   sorted.forEach(function(label) {
@@ -718,24 +726,27 @@ function renderMerchTab() {
   }
   var groups = groupByMonth(merchOrders);
   container.innerHTML = groups.map(function(g) {
-    return '<div class="month-section">' +
-      '<div class="month-header">' + g.label + ' <span class="count">(' + g.items.length + ')' +
-      ' <button class="btn btn-sm btn-outline export-btn" data-type="merch" data-label="' + g.label + '" style="margin-left:auto;">\uD83D\uDCCB Export</button></span></div>' +
-      '<table class="month-table"><thead><tr>' +
-        '<th>Discord</th><th>UID</th><th>Date</th><th>Reward</th><th>Address</th><th>Phone</th>' +
-      '</tr></thead><tbody>' +
-      g.items.map(function(o) {
-        var koc = kmap[o.uid];
-        var addr = koc ? (koc.address || '') : '';
-        var parsed = parseAddress(addr);
-        return '<tr>' +
-          '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
-          '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
-          '<td style="font-size:12px;">' + fmtDate(o.created_at) + '</td>' +
+   return '<div class="month-section">' +
+      '<div class="month-header">' +
+      '<span class="month-icon">\uD83D\uDCC5</span>' +
+      '<span>' + g.label + '</span>' +
+      '<span class="count">(' + g.items.length + ' orders)</span>' +
+      '<div style="margin-left:auto;display:flex;gap:6px;">' +
+      '<button class="btn btn-primary btn-sm export-btn" data-type="merch" data-label="' + g.label + '" style="border-radius:20px;padding:5px 14px;">\uD83D\uDCCB \u5BFC\u51FA\u8868\u683C</button>' +
+      '</div>' +
+      '</div>' +
+     '<table class="month-table"><thead><tr>' +
+        '<th>Discord</th><th>UID</th><th>Address</th><th>Reward</th>' +
+     '</tr></thead><tbody>' +
+     g.items.map(function(o) {
+       var koc = kmap[o.uid];
+       var addr = koc ? (koc.address || '') : '';
+       return '<tr>' +
+         '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+         '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
+          '<td style="font-size:12px;white-space:pre-wrap;word-break:break-all;max-width:350px;">' + (esc(koc ? koc.address : '-') || '-') + '</td>' +
           '<td>' + esc(o.option_name) + '</td>' +
-          '<td style="font-size:12px;white-space:pre-wrap;word-break:break-all;max-width:350px;">' + (esc(parsed.address) || '-') + '</td>' +
-          '<td style="font-size:12px;">' + (esc(parsed.phone) || '-') + '</td>' +
-        '</tr>';
+       '</tr>';
       }).join('') +
       '</tbody></table></div>';
   }).join('');
@@ -752,22 +763,27 @@ function renderDiamondTab() {
   }
   var groups = groupByMonth(orders);
   container.innerHTML = groups.map(function(g) {
-    return '<div class="month-section">' +
-      '<div class="month-header">' + g.label + ' <span class="count">(' + g.items.length + ')' +
-      ' <button class="btn btn-sm btn-outline export-btn" data-type="diamonds" data-label="' + g.label + '" style="margin-left:auto;">\uD83D\uDCCB Export</button></span></div>' +
-      '<table class="month-table"><thead><tr>' +
-        '<th>Discord</th><th>UID</th><th>Date</th><th>Reward</th><th>Account ID</th><th>Server</th>' +
-      '</tr></thead><tbody>' +
-      g.items.map(function(o) {
-        var koc = kmap[o.uid];
-        return '<tr>' +
-          '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
-          '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
-          '<td style="font-size:12px;">' + fmtDate(o.created_at) + '</td>' +
+   return '<div class="month-section">' +
+      '<div class="month-header">' +
+      '<span class="month-icon">\uD83D\uDCC5</span>' +
+      '<span>' + g.label + '</span>' +
+      '<span class="count">(' + g.items.length + ' orders)</span>' +
+      '<div style="margin-left:auto;display:flex;gap:6px;">' +
+      '<button class="btn btn-primary btn-sm export-btn" data-type="diamonds" data-label="' + g.label + '" style="border-radius:20px;padding:5px 14px;">\uD83D\uDCCB \u5BFC\u51FA\u8868\u683C</button>' +
+      '</div>' +
+      '</div>' +
+     '<table class="month-table"><thead><tr>' +
+        '<th>Discord</th><th>UID</th><th>Account ID</th><th>Server</th><th>Reward</th>' +
+     '</tr></thead><tbody>' +
+     g.items.map(function(o) {
+       var koc = kmap[o.uid];
+       return '<tr>' +
+         '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+         '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
+         '<td style="font-family:monospace;font-size:12px;">' + (esc(koc ? koc.account_id : '-') || '-') + '</td>' +
+         '<td style="font-size:12px;">' + (esc(koc ? koc.server : '-') || '-') + '</td>' +
           '<td>' + esc(o.option_name) + '</td>' +
-          '<td style="font-family:monospace;font-size:12px;">' + (esc(koc ? koc.account_id : '-') || '-') + '</td>' +
-          '<td style="font-size:12px;">' + (esc(koc ? koc.server : '-') || '-') + '</td>' +
-        '</tr>';
+       '</tr>';
       }).join('') +
       '</tbody></table></div>';
   }).join('');
@@ -784,21 +800,26 @@ function renderGplayTab() {
   }
   var groups = groupByMonth(orders);
   container.innerHTML = groups.map(function(g) {
-    return '<div class="month-section">' +
-      '<div class="month-header">' + g.label + ' <span class="count">(' + g.items.length + ')' +
-      ' <button class="btn btn-sm btn-outline export-btn" data-type="gplay" data-label="' + g.label + '" style="margin-left:auto;">\uD83D\uDCCB Export</button></span></div>' +
-      '<table class="month-table"><thead><tr>' +
-        '<th>Discord</th><th>UID</th><th>Date</th><th>Reward</th><th>Region / Country</th>' +
-      '</tr></thead><tbody>' +
-      g.items.map(function(o) {
-        var koc = kmap[o.uid];
-        return '<tr>' +
-          '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
-          '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
-          '<td style="font-size:12px;">' + fmtDate(o.created_at) + '</td>' +
+   return '<div class="month-section">' +
+      '<div class="month-header">' +
+      '<span class="month-icon">\uD83D\uDCC5</span>' +
+      '<span>' + g.label + '</span>' +
+      '<span class="count">(' + g.items.length + ' orders)</span>' +
+      '<div style="margin-left:auto;display:flex;gap:6px;">' +
+      '<button class="btn btn-primary btn-sm export-btn" data-type="gplay" data-label="' + g.label + '" style="border-radius:20px;padding:5px 14px;">\uD83D\uDCCB \u5BFC\u51FA\u8868\u683C</button>' +
+      '</div>' +
+      '</div>' +
+     '<table class="month-table"><thead><tr>' +
+        '<th>Discord</th><th>UID</th><th>Region / Country</th><th>Reward</th>' +
+     '</tr></thead><tbody>' +
+     g.items.map(function(o) {
+       var koc = kmap[o.uid];
+       return '<tr>' +
+         '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+         '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
+         '<td style="font-size:12px;">' + (esc(koc ? koc.region : '-') || '-') + '</td>' +
           '<td>' + esc(o.option_name) + '</td>' +
-          '<td style="font-size:12px;">' + (esc(koc ? koc.region : '-') || '-') + '</td>' +
-        '</tr>';
+       '</tr>';
       }).join('') +
       '</tbody></table></div>';
   }).join('');
