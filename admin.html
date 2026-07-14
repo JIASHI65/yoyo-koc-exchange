@@ -293,7 +293,9 @@ async function shipOrder(id) {
     // Check if points already deducted (old system)
     const lRes = await supabaseFetch(\`\${SUPABASE_URL}/rest/v1/point_logs?uid=eq.\${order.uid}&change=eq.\${-order.points_spent}&source=eq.redemption&order=created_at.desc&limit=1\`);
     const logs = await lRes.json();
-    const alreadyDeducted = logs.length > 0;
+    // Check by time proximity: old system created point_logs at the same time as the order
+    const alreadyDeducted = logs.length > 0 && 
+      (Math.abs(new Date(logs[0].created_at).getTime() - new Date(order.created_at).getTime()) < 10000);
 
     // Ship the order
     await supabaseFetch(\`\${SUPABASE_URL}/rest/v1/redemption_orders?id=eq.\${id}\`, {
