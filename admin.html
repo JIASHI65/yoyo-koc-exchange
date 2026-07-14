@@ -715,7 +715,7 @@ function renderMerchTab() {
        return '<tr>' +
          '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
          '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
-          '<td style="font-size:12px;white-space:pre-wrap;word-break:break-all;max-width:350px;">' + (esc(koc ? koc.address : '-') || '-') + '</td>' +
+          '<td style="font-size:12px;white-space:pre-wrap;min-width:300px;">' + (esc(koc ? koc.address : '-') || '-') + '</td>' +
           '<td>' + esc(o.option_name) + '</td>' +
        '</tr>';
       }).join('') +
@@ -826,12 +826,11 @@ function exportMonth(type, label) {
   
   var header, rows;
   if (type === 'merch') {
-    header = 'Discord\tUID\tReward\tAddress\tPhone';
+    header = 'Discord\tUID\tReward\tAddress';
     rows = orders.map(function(o) {
       var koc = kmap[o.uid];
       var addr = koc ? (koc.address || '') : '';
-      var parsed = parseAddress(addr);
-      return clean(esc(o.discord_name)) + '\t' + o.uid + '\t' + clean(esc(o.option_name)) + '\t' + clean(esc(parsed.address)) + '\t' + clean(esc(parsed.phone));
+      return clean(esc(o.discord_name)) + '\t' + o.uid + '\t' + clean(esc(o.option_name)) + '\t' + clean(esc(addr));
     }).join('\n');
   } else if (type === 'diamonds') {
     header = 'Discord\tUID\tReward\tAccount ID\tServer';
