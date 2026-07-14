@@ -155,7 +155,7 @@
         <div class="row" style="margin-bottom:4px;">
           <input type="text" id="new-discord" placeholder="Discord name" style="width:150px;">
           <input type="text" id="new-uid" placeholder="UID" style="width:130px;">
-          <button class="btn btn-primary btn-sm" onclick="addKOC()">+ Add KOC</button>
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="cb-welcome" checked> 🎁 Welcome gift</label><button class="btn btn-primary btn-sm" onclick="addKOC()">+ Add KOC</button>
         </div>
         <div class="row">
           <input type="text" id="search-input" placeholder="Search Discord or UID..." style="width:220px;" oninput="renderKocTable()">
@@ -487,7 +487,25 @@ async function addKOC() {
       method: 'POST',
       body: JSON.stringify({ uid: uid, discord_name: discord, name: discord, status: 'active', created_at: new Date().toISOString() })
     });
-    showToast('\u2705 Added ' + discord, 'success');
+    
+    // Auto-create welcome gift if checkbox is checked
+    var sendGift = document.getElementById('cb-welcome') && document.getElementById('cb-welcome').checked;
+    if (sendGift) {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          uid: uid, discord_name: discord, koc_name: discord,
+          option_type: 'merch', option_name: '\uD83C\uDF81 \u65B0\u4EBA\u5165\u804C\u5468\u8FB9',
+          points_spent: 0, reward_amount: '\u968F\u673A\u5468\u8FB9 \u00D7 1',
+          contact_info: '', status: 'pending',
+          admin_notes: 'Welcome gift - auto created',
+          created_at: new Date().toISOString()
+        })
+      });
+      showToast('\u2705 Added ' + discord + ' + welcome gift', 'success');
+    } else {
+      showToast('\u2705 Added ' + discord, 'success');
+    }
     document.getElementById('new-discord').value = '';
     document.getElementById('new-uid').value = '';
     loadData();
