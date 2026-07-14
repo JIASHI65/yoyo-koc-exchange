@@ -719,7 +719,8 @@ function renderMerchTab() {
   var groups = groupByMonth(merchOrders);
   container.innerHTML = groups.map(function(g) {
     return '<div class="month-section">' +
-      '<div class="month-header">' + g.label + ' <span class="count">(' + g.items.length + ')</span></div>' +
+      '<div class="month-header">' + g.label + ' <span class="count">(' + g.items.length + ')' +
+      ' <button class="btn btn-sm btn-outline export-btn" data-type="merch" data-label="' + g.label + '" style="margin-left:auto;">\uD83D\uDCCB Export</button></span></div>' +
       '<table class="month-table"><thead><tr>' +
         '<th>Discord</th><th>UID</th><th>Date</th><th>Reward</th><th>Address</th><th>Phone</th>' +
       '</tr></thead><tbody>' +
@@ -732,7 +733,7 @@ function renderMerchTab() {
           '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
           '<td style="font-size:12px;">' + fmtDate(o.created_at) + '</td>' +
           '<td>' + esc(o.option_name) + '</td>' +
-          '<td style="font-size:12px;max-width:280px;"><div class="truncate" title="' + escAttr(parsed.address) + '">' + (esc(parsed.address) || '-') + '</div></td>' +
+          '<td style="font-size:12px;white-space:pre-wrap;word-break:break-all;max-width:350px;">' + (esc(parsed.address) || '-') + '</td>' +
           '<td style="font-size:12px;">' + (esc(parsed.phone) || '-') + '</td>' +
         '</tr>';
       }).join('') +
@@ -752,7 +753,8 @@ function renderDiamondTab() {
   var groups = groupByMonth(orders);
   container.innerHTML = groups.map(function(g) {
     return '<div class="month-section">' +
-      '<div class="month-header">' + g.label + ' <span class="count">(' + g.items.length + ')</span></div>' +
+      '<div class="month-header">' + g.label + ' <span class="count">(' + g.items.length + ')' +
+      ' <button class="btn btn-sm btn-outline export-btn" data-type="diamonds" data-label="' + g.label + '" style="margin-left:auto;">\uD83D\uDCCB Export</button></span></div>' +
       '<table class="month-table"><thead><tr>' +
         '<th>Discord</th><th>UID</th><th>Date</th><th>Reward</th><th>Account ID</th><th>Server</th>' +
       '</tr></thead><tbody>' +
@@ -783,7 +785,8 @@ function renderGplayTab() {
   var groups = groupByMonth(orders);
   container.innerHTML = groups.map(function(g) {
     return '<div class="month-section">' +
-      '<div class="month-header">' + g.label + ' <span class="count">(' + g.items.length + ')</span></div>' +
+      '<div class="month-header">' + g.label + ' <span class="count">(' + g.items.length + ')' +
+      ' <button class="btn btn-sm btn-outline export-btn" data-type="gplay" data-label="' + g.label + '" style="margin-left:auto;">\uD83D\uDCCB Export</button></span></div>' +
       '<table class="month-table"><thead><tr>' +
         '<th>Discord</th><th>UID</th><th>Date</th><th>Reward</th><th>Region / Country</th>' +
       '</tr></thead><tbody>' +
@@ -801,6 +804,68 @@ function renderGplayTab() {
   }).join('');
 }
 
+
+// ===== EXPORT FUNCTIONS =====
+function exportToClipboard(text, count) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() {
+      showToast('\uD83D\uDCCB Exported ' + count + ' orders', 'success');
+    }).catch(function() { fallbackCopy(text, count); });
+  } else { fallbackCopy(text, count); }
+}
+function fallbackCopy(text, count) {
+  var ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+  document.body.appendChild(ta); ta.select();
+  document.execCommand('copy'); document.body.removeChild(ta);
+  showToast('\uD83D\uDCCB Exported ' + count + ' orders', 'success');
+}
+
+function exportMonth(type, label) {
+  if (typeof type === 'object' && type !== null) {
+    label = type.getAttribute('data-label');
+    type = type.getAttribute('data-type');
+  }
+  var kmap = getKocMap();
+  var orders = allOrders.filter(function(o) {
+    return o.option_type === type && o.status === 'shipped' && getMonthGroup(o) === label;
+  });
+  if (!orders.length) { showToast('No orders to export', 'error'); return; }
+  
+  var header, rows;
+  if (type === 'merch') {
+    header = 'Discord\tUID\tReward\tAddress\tPhone';
+    rows = orders.map(function(o) {
+      var koc = kmap[o.uid];
+      var addr = koc ? (koc.address || '') : '';
+      var parsed = parseAddress(addr);
+      return clean(esc(o.discord_name)) + '\t' + o.uid + '\t' + clean(esc(o.option_name)) + '\t' + clean(esc(parsed.address)) + '\t' + clean(esc(parsed.phone));
+    }).join('\n');
+  } else if (type === 'diamonds') {
+    header = 'Discord\tUID\tReward\tAccount ID\tServer';
+    rows = orders.map(function(o) {
+      var koc = kmap[o.uid];
+      return clean(esc(o.discord_name)) + '\t' + o.uid + '\t' + clean(esc(o.option_name)) + '\t' + (koc ? koc.account_id : '-') + '\t' + (koc ? koc.server : '-');
+    }).join('\n');
+  } else if (type === 'gplay') {
+    header = 'Discord\tUID\tReward\tRegion';
+    rows = orders.map(function(o) {
+      var koc = kmap[o.uid];
+      return clean(esc(o.discord_name)) + '\t' + o.uid + '\t' + clean(esc(o.option_name)) + '\t' + (koc ? koc.region : '-');
+    }).join('\n');
+  }
+  var text = header + '\n' + rows;
+  exportToClipboard(text, orders.length);
+}
+
+function clean(s) { return s || '-'; }
+// Global click handler for export buttons
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.export-btn');
+  if (btn) {
+    exportMonth(btn.getAttribute('data-type'), btn.getAttribute('data-label'));
+  }
+});
 // ===== DEADLINE =====
 async function loadDeadline() {
   try {
