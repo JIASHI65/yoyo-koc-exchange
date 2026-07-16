@@ -1381,9 +1381,13 @@ async function importScoreResult(text) {
     msg += '\n💬 Mochi notified ' + notifiedCount + ' creators via DM';
   }
 
-  // Refresh
+  // Refresh all related tabs
   loadSubmissions();
   renderKocTable();
+  renderScoringTable();
+  renderMerchTab();
+  renderDiamondTab();
+  renderGplayTab();
   // Show the agent output card
   document.getElementById('agent-output-card').style.display = 'block';
 }
