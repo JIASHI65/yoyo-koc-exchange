@@ -229,6 +229,9 @@
         <input type="text" id="submit-game-uid" placeholder="Letter string UID">
         <label>Feedback <span style="color:var(--text-light);font-size:11px;">(Optional)</span></label>
         <textarea id="submit-feedback" placeholder="Have our new rules benefited you? We'd love to hear your thoughts." style="min-height:60px;"></textarea>
+        <div id="submit-countdown" style="background:#fce4ec;border:1px solid #f8bbd0;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:13px;color:#880e4f;text-align:center;font-weight:600;">
+          📌 你有 <strong id="submit-remaining">2</strong> 次提交机会，检查好链接后再提交
+        </div>
         <button class="btn btn-primary" id="btn-submit" onclick="submitWorks()">📤 Submit Works</button>
         <div id="submit-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
         </div>
@@ -793,29 +796,39 @@ async function registerCreator() {
 async function submitWorks() {
   var discord = document.getElementById('submit-discord').value.trim();
   var links = document.getElementById('submit-links').value.trim().split('\n').filter(Boolean);
-  var address = document.getElementById('submit-address').value.trim();
-  var gameUid = document.getElementById('submit-game-uid').value.trim();
   var server = document.getElementById('submit-server').value;
   var status = document.getElementById('submit-status');
   var btn = document.getElementById('btn-submit');
 
-  if (!discord) { status.textContent = '❌ Please enter your Discord username'; status.style.color = '#e74c3c'; return; }
-  if (!server) { status.textContent = '❌ Please select your server'; status.style.color = '#e74c3c'; return; }
-  if (links.length === 0) { status.textContent = '❌ Please paste at least one content link'; status.style.color = '#e74c3c'; return; }
+  if (!discord) { status.textContent = '❌ Discord username required'; status.style.color = '#e74c3c'; return; }
+  if (!server) { status.textContent = '❌ Please select server'; status.style.color = '#e74c3c'; return; }
+  if (links.length === 0) { status.textContent = '❌ Paste at least one link'; status.style.color = '#e74c3c'; return; }
 
   btn.disabled = true;
   btn.textContent = '⏳ Submitting...';
   status.textContent = '';
 
   try {
+    // Check existing submissions
+    var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id');
+    var existingSubs = checkRes.ok ? await checkRes.json() : [];
+    var existingCount = (existingSubs && existingSubs.length) || 0;
+    
+    if (existingCount >= 2) {
+      status.innerHTML = '⚠️ 已达 <strong>2 次</strong>提交上限<br><span style="font-size:11px;">联系管理员处理</span>';
+      status.style.color = '#e65100';
+      document.getElementById('submit-form-area').style.opacity = '0.4';
+      document.getElementById('submit-form-area').style.pointerEvents = 'none';
+      btn.disabled = true;
+      btn.textContent = '🔒 已锁定';
+      return;
+    }
+    
     var payload = [{
       discord_name: discord,
       uid: currentUser ? currentUser.uid : null,
       server: server,
       links_engagement: links.join('\n'),
-      links_views: '',
-      address: address || null,
-      game_uid: gameUid || null,
       status: 'pending',
       created_at: new Date().toISOString()
     }];
@@ -824,31 +837,41 @@ async function submitWorks() {
       method: 'POST',
       body: JSON.stringify(payload)
     });
-    if (!resp.ok) {
-      var errText = await resp.text();
-      throw new Error(errText.substring(0, 100) || 'Submit failed');
-    }
+    if (!resp.ok) throw new Error((await resp.text()).substring(0, 80));
 
-    status.innerHTML = '✅ <strong>' + links.length + ' links submitted!</strong> You can continue to submit more links.';
-    status.style.color = '#4caf50';
-    status.style.textAlign = 'center';
-    status.style.padding = '10px';
-    status.style.background = '#e8f5e9';
-    status.style.borderRadius = '10px';
-    status.style.marginTop = '8px';
+    var newCount = existingCount + 1;
+    var remaining = 2 - newCount;
     
-    // Clear links field for next submission
+    status.innerHTML = '✅ ' + links.length + ' links submitted!（第 ' + newCount + '/2 次）';
+    if (remaining > 0) {
+      status.innerHTML += '<br><span style="font-size:11px;">📌 还剩 <strong>' + remaining + '</strong> 次</span>';
+    }
+    status.style.color = '#4caf50';
+    
+    var remEl = document.getElementById('submit-remaining');
+    if (remEl) remEl.textContent = remaining;
+    
     document.getElementById('submit-links').value = '';
+    
+    if (remaining <= 0) {
+      document.getElementById('submit-form-area').style.opacity = '0.4';
+      document.getElementById('submit-form-area').style.pointerEvents = 'none';
+      btn.disabled = true;
+      btn.textContent = '🔒 已用完机会';
+      var cd = document.getElementById('submit-countdown');
+      if (cd) { cd.innerHTML = '⚠️ 已用完 2 次提交机会'; cd.style.background = '#fbe9e7'; }
+    }
 
     showToast('✅ ' + links.length + ' links submitted!', 'success');
     loadMySubmissions();
   } catch(e) {
-    status.textContent = '❌ Submit failed: ' + e.message;
+    status.textContent = '❌ ' + e.message;
     status.style.color = '#e74c3c';
   }
   btn.disabled = false;
   btn.textContent = '📤 Submit Works';
 }
+
 
 // ===== LOAD MY SUBMISSIONS =====
 async function loadMySubmissions() {
