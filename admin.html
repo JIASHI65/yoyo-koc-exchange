@@ -487,7 +487,7 @@ function setMochiToken(token) {
   MOCHI_TOKEN = token;
   localStorage.setItem('mochi_token', token);
   showToast('✅ Mochi token saved', 'success');
-}<｜end▁of▁thinking｜>
+}
 
 // -- Drag-and-Drop Reorder --
 function loadSortableJS() {
@@ -535,7 +535,7 @@ function adminLogout() {
 function getTierBadge(tier) {
   var map = {'platinum':'💎 铂金创作官','gold':'🟡 金级创作官','certified':'✅ 认证创作官'};
   var cls = {'platinum':'tier-platinum','gold':'tier-gold','certified':'tier-certified'};
-  return '<span class=\'tier-badge \\' + (cls[tier]||\'tier-certified\') + \'\'>' + (map[tier]||'✅ 认证创作官') + '</span>';
+  return `<span class='tier-badge ${cls[tier]||"tier-certified"}'>${map[tier]||"✅ 认证创作官"}</span>`;
 }
 
 async function renderTiersTable() {
@@ -553,7 +553,7 @@ async function renderTiersTable() {
       if (l.change > 0) currentMonthPoints[l.uid] = (currentMonthPoints[l.uid] || 0) + l.change;
     }
   });
-  var stats = {platinum:0, gold:0, newbie:0, :0};
+  var stats = {platinum:0, gold:0, newbie:0};
   var html = kocs.filter(function(k) { return k.uid !== '__config__'; }).map(function(k) {
     var tier = k.tier || 'certified';
     stats[tier] = (stats[tier]||0) + 1;
@@ -575,14 +575,14 @@ async function renderTiersTable() {
           '<option value=\'platinum\'' + (tier==='platinum'?' selected':'') + '>💎 铂金创作官</option>' +
           
         '</select>' +
-        '<button class=\'btn btn-primary btn-sm\' onclick=\'updateKocTier(\\'' + k.uid + '\\')\'>Save</button>' +
+        '<button class="btn btn-primary btn-sm" onclick="updateKocTier(\'' + k.uid + '\')">Save</button>' +
       '</td>' +
       '</tr>';
   }).join('');
   container.innerHTML = html || '<tr><td colspan=\'7\' style=\'text-align:center;padding:20px;color:var(--text-light);\'>No KOCs found</td></tr>';
   document.getElementById('tier-stat-platinum').textContent = '💎 铂金创作官: ' + (stats.platinum||0);
   document.getElementById('tier-stat-gold').textContent = '🟡 金级创作官: ' + (stats.gold||0);
-  document.getElementById('tier-stat-new').textContent = '✅ 认证创作官: ' + ((stats.newbie||0)+(stats.||0));
+  document.getElementById('tier-stat-new').textContent = '✅ 认证创作官: ' + ((stats.newbie||0)+(stats.certified||0));
 }
 
 async function updateKocTier(uid) {
@@ -618,7 +618,7 @@ async function autoUpgradeTiers() {
       if (history[i].monthly_points >= 5) consecutive++; else break;
     }
     var newTier = 'certified';
-    if (consecutive >= 6) newTier = ;
+    if (consecutive >= 6) newTier = "platinum";
     else if (consecutive >= 3) newTier = 'platinum';
     else if (consecutive >= 2) newTier = 'gold';
     if (newTier !== k.tier) {
