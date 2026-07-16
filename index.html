@@ -267,40 +267,34 @@ var currentPeriod = now.getFullYear() + '-' + String(now.getMonth() + 1).padStar
 let currentUser = null;
 let selections = {};
 
-// Auto-login from localStorage
-(function() {
+// Auto-login from localStorage (defined here, called after DOM+functions ready)
+function tryAutoLogin() {
   var saved = localStorage.getItem('koc_session');
-  if (saved) {
+  if (!saved) return;
+  var session;
+  try { session = JSON.parse(saved); } catch(e) { return; }
+  if (!session || !session.uid || !session.discord_name) return;
+  
+  (async function() {
     try {
-      var session = JSON.parse(saved);
-      if (session && session.uid && session.discord_name) {
-        currentUser = session;
-      }
-    } catch(e) {}
-  }
-  if (currentUser) {
-    // Restore session - fetch fresh data
-    (async function() {
-      try {
-        var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=*');
-        if (!res.ok) { localStorage.removeItem('koc_session'); return; }
-        var data = await res.json();
-        if (!data || data.length === 0) { localStorage.removeItem('koc_session'); return; }
-        var koc = data[0];
-        var points = await getBalance(currentUser.uid);
-        var pendingRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(currentUser.uid) + '&status=eq.pending&select=points_spent');
-        var pendingOrders = pendingRes.ok ? await pendingRes.json() : [];
-        var pendingTotal = pendingOrders.reduce(function(s, o) { return s + (o.points_spent || 0); }, 0);
-        currentUser = { ...koc, points: points - pendingTotal };
-        localStorage.setItem('koc_session', JSON.stringify({ uid: currentUser.uid, discord_name: currentUser.discord_name }));
-        showDashboard();
-        checkDeadline();
-        var submitDiscord = document.getElementById('submit-discord');
-        if (submitDiscord && koc.discord_name) submitDiscord.value = typeof koc.discord_name === 'string' ? koc.discord_name : '';
-      } catch(e) { localStorage.removeItem('koc_session'); }
-    })();
-  }
-})();
+      var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(session.uid) + '&select=*');
+      if (!res.ok) { localStorage.removeItem('koc_session'); return; }
+      var data = await res.json();
+      if (!data || data.length === 0) { localStorage.removeItem('koc_session'); return; }
+      var koc = data[0];
+      var points = await getBalance(session.uid);
+      var pendingRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(session.uid) + '&status=eq.pending&select=points_spent');
+      var pendingOrders = pendingRes.ok ? await pendingRes.json() : [];
+      var pendingTotal = pendingOrders.reduce(function(s, o) { return s + (o.points_spent || 0); }, 0);
+      currentUser = { ...koc, points: points - pendingTotal };
+      localStorage.setItem('koc_session', JSON.stringify({ uid: currentUser.uid, discord_name: currentUser.discord_name }));
+      showDashboard();
+      checkDeadline();
+      var submitDiscord = document.getElementById('submit-discord');
+      if (submitDiscord && koc.discord_name) submitDiscord.value = typeof koc.discord_name === 'string' ? koc.discord_name : '';
+    } catch(e) { localStorage.removeItem('koc_session'); }
+  })();
+}
 
 function initSelections() { selections = {}; REWARDS.forEach(r => selections[r.id] = 0); }
 function getSelCount() { return Object.values(selections).filter(q => q > 0).length; }
@@ -896,6 +890,7 @@ function logout() {
   document.getElementById('entry-buttons').style.display = 'block';
   document.querySelector('.header').style.display = 'block';
 }
+document.addEventListener('DOMContentLoaded', tryAutoLogin);
 </script>
 </body>
 </html>
