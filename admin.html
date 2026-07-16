@@ -393,23 +393,31 @@ Elite: 连续 6 个月达到 5 分</textarea>
           <button class="btn btn-sm" style="background:#43b581;color:white;" onclick="toggleAutoWelcome()" id="btn-auto-welcome">🟢 自动欢迎 关</button>
           </div>
                 </div>
-        <!-- 算分结果导入（内联） -->
-        <div style="background:#fff8e1;border:1px solid #ffd54f;border-radius:12px;padding:14px;margin-bottom:12px;">
-          <div style="font-size:14px;font-weight:600;margin-bottom:8px;">🤖 算分结果导入</div>
-          <textarea id="agent-score-input" style="width:100%;min-height:120px;border:2px solid #ffe082;border-radius:8px;padding:10px;font-size:12px;font-family:monospace;" placeholder="粘贴 Agent 输出的 JSON 结果到此处，然后点击「预览」"></textarea>
-          <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap;">
-            <button class="btn btn-primary btn-sm" onclick="pasteScoreResult()">📥 预览</button>
-            <button class="btn btn-success btn-sm" onclick="document.getElementById('import-file-input').click()">📁 上传文件</button>
+        <!-- 算分结果导入（直接可见，无需点击） -->
+        <div style="background:#fff8e1;border:2px solid #f9a825;border-radius:14px;padding:16px;margin-bottom:12px;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:10px;color:#e65100;">🤖 算分结果导入</div>
+          
+          <textarea id="agent-score-input" style="width:100%;min-height:130px;border:2px solid #ffe082;border-radius:8px;padding:12px;font-size:13px;font-family:monospace;background:white;" placeholder="把算分结果 JSON 粘贴到此处..."></textarea>
+          
+          <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;">
+            <button class="btn btn-primary" style="padding:10px 28px;font-size:14px;font-weight:700;background:#f9a825;color:white;border:none;border-radius:10px;cursor:pointer;box-shadow:0 2px 8px rgba(249,168,37,0.3);" onclick="pasteScoreResult()">📥 预览</button>
+            <button class="btn" style="padding:10px 20px;font-size:13px;background:white;border:2px solid #f9a825;border-radius:10px;cursor:pointer;color:#e65100;font-weight:600;" onclick="document.getElementById('import-file-input').click()">📁 上传 JSON 文件</button>
           </div>
-          <div id="paste-status" style="font-size:12px;color:var(--text-light);margin-top:6px;"></div>
-          <div id="score-preview-area" style="display:none;margin-top:8px;background:white;border:1px solid #ffe082;border-radius:8px;padding:10px;">
-            <div style="font-size:12px;font-weight:600;margin-bottom:6px;">📋 预览</div>
-            <div id="score-preview-stats" style="font-size:12px;margin-bottom:6px;"></div>
-            <div id="score-preview-detail" style="max-height:150px;overflow-y:auto;font-size:11px;font-family:monospace;"></div>
+          
+          <div id="paste-status" style="font-size:13px;color:var(--text-light);margin-top:8px;min-height:20px;"></div>
+          
+          <!-- 预览区 -->
+          <div id="score-preview-area" style="display:none;margin-top:10px;background:white;border:2px solid #a5d6a7;border-radius:10px;padding:14px;">
+            <div style="font-size:14px;font-weight:700;margin-bottom:8px;color:#2e7d32;">📋 预览</div>
+            <div id="score-preview-stats" style="font-size:13px;margin-bottom:8px;"></div>
+            <div id="score-preview-detail" style="max-height:180px;overflow-y:auto;font-size:12px;font-family:monospace;background:#fafafa;border:1px solid #eee;border-radius:6px;padding:8px;"></div>
           </div>
-          <div id="import-action-bar" style="display:none;margin-top:8px;text-align:center;">
-            <button class="btn btn-success" id="btn-confirm-import" onclick="confirmScoreImport()" style="padding:12px 40px;font-size:15px;font-weight:700;background:#43b581;color:white;border:none;border-radius:10px;cursor:pointer;">✅ 确认应用积分</button>
-            <button class="btn btn-outline" id="btn-cancel-import" onclick="cancelScoreImport()" style="padding:10px 24px;font-size:13px;margin-left:8px;border:1px solid #ccc;border-radius:8px;background:white;cursor:pointer;">✖ 取消</button>
+          
+          <!-- 确认按钮（预览后出现） -->
+          <div id="import-action-bar" style="display:none;margin-top:12px;padding:16px;background:#e8f5e9;border-radius:12px;border:2px solid #66bb6a;text-align:center;">
+            <div style="font-size:14px;color:#2e7d32;margin-bottom:10px;font-weight:600;">📊 预览就绪，确认后自动更新积分</div>
+            <button class="btn btn-success" id="btn-confirm-import" onclick="confirmScoreImport()" style="padding:14px 50px;font-size:17px;font-weight:800;background:#43b581;color:white;border:none;border-radius:12px;cursor:pointer;box-shadow:0 4px 16px rgba(67,181,129,0.3);">✅ 确认应用积分</button>
+            <button class="btn btn-outline" id="btn-cancel-import" onclick="cancelScoreImport()" style="padding:10px 28px;font-size:14px;margin-left:12px;border:2px solid #ccc;border-radius:10px;background:white;cursor:pointer;">✖ 取消</button>
           </div>
         </div>
         <div class="row" style="margin-bottom:8px;"><div class="row" style="margin-bottom:8px;">
