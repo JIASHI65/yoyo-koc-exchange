@@ -527,7 +527,7 @@ Elite: 连续 6 个月达到 5 分</textarea>
 
 <div id="toast" class="toast"></div>
 
-<script>
+<script>/* v1784200691 */
 const SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_oyewqnQ8AnitAOD94Qg0nA_v6Zqkr7r';
 const ADMIN_PASSWORD = 'yoyo2026';
@@ -1695,7 +1695,22 @@ async function loadData() {
     ]);
     allKocs = await kocRes.json();
     allOrders = await ordRes.json();
-    renderKocTable();
+    // Re-render current active tab
+    var activeTab = document.querySelector('.tab-content:not([style*="display: none"]), .tab-content.active');
+    if (activeTab) {
+      var id = activeTab.id;
+      if (id === 'tab-koc-ledger') renderKocTable();
+      else if (id === 'tab-scoring') renderScoringTable();
+      else if (id === 'tab-merch') renderMerchTab();
+      else if (id === 'tab-diamond') renderDiamondTab();
+      else if (id === 'tab-gplay') renderGplayTab();
+      else if (id === 'tab-submissions') loadSubmissions();
+      else if (id === 'tab-tiers') renderTiersTable();
+      else if (id === 'tab-rules') loadCampaignConfig();
+      else renderKocTable();
+    } else {
+      renderKocTable();
+    }
     loadDeadline();
   } catch (e) { showToast('Error loading data', 'error'); }
 }
