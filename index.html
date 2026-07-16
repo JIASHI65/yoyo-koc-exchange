@@ -486,7 +486,9 @@ function showDashboard() {
         var t = td[0].tier;
         var tm = {'platinum':'💎 铂金创作官','gold':'🟡 金级创作官','certified':'✅ 认证创作官'};
         var cm = {'platinum':'tier-platinum','gold':'tier-gold','certified':'tier-certified'};
-        te.innerHTML = '<span class=\'tier-badge \\' + (cm[t]||'tier-certified') + '\'>' + (tm[t]||'✅ 认证创作官') + '</span>';
+        var badgeClass = cm[t] || 'tier-certified';
+        var badgeText = tm[t] || '✅ 认证创作官';
+        te.innerHTML = '<span class=\"tier-badge ' + badgeClass + '\">' + badgeText + '</span>';
       }
     })();
   } catch(e) {}
