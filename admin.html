@@ -189,7 +189,9 @@
         <div class="row" style="margin-bottom:4px;">
           <input type="text" id="new-discord" placeholder="Discord name" style="width:150px;">
           <input type="text" id="new-uid" placeholder="UID" style="width:130px;">
-          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="cb-welcome" checked> 🎁 Welcome gift</label><button class="btn btn-primary btn-sm" onclick="addKOC()">+ Add KOC</button>
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="cb-welcome" checked> 🎁 Welcome gift</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="cb-new-creator" checked> 🆕 New Creator</label>
+          <button class="btn btn-primary btn-sm" onclick="addKOC()">+ Add KOC</button>
         </div>
         <div class="row">
           <input type="text" id="search-input" placeholder="Search Discord or UID..." style="width:220px;" oninput="renderKocTable()">
