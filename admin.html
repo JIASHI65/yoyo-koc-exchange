@@ -1402,18 +1402,35 @@ async function importScoreResult(text) {
 }
 
 async function pasteScoreResult() {
-  var text = document.getElementById('agent-score-input').value.trim();
-  if (!text) {
-    showToast('请先粘贴算分结果', 'error');
-    return;
-  }
   try {
+    var input = document.getElementById('agent-score-input');
+    if (!input) { showToast('输入框未找到！', 'error'); return; }
+    var text = input.value.trim();
+    if (!text) {
+      showToast('请先粘贴算分结果', 'error');
+      return;
+    }
+    // Show preview
+    var result;
+    try { result = JSON.parse(text); } catch(e) {
+      var m = text.match(/`{3,}json\s*([\s\S]*?)`{3,}/);
+      if (m) try { result = JSON.parse(m[1].trim()); } catch(e2) {}
+    }
+    if (!result || !result.submissions) {
+      document.getElementById('paste-status').textContent = '❌ JSON 格式无效，需要包含 submissions 数组';
+      document.getElementById('paste-status').style.color = '#e74c3c';
+      return;
+    }
     previewScoreResult(text);
+    // Force show the action bar
+    document.getElementById('score-preview-area').style.display = 'block';
+    document.getElementById('import-action-bar').style.display = 'block';
+    document.getElementById('btn-confirm-import').disabled = false;
     showToast('✅ 预览已就绪，请确认后点击"确认应用积分"', 'success');
   } catch(e) {
-    document.getElementById('paste-status').textContent = 'Error: ' + e.message;
+    document.getElementById('paste-status').textContent = '❌ ' + e.message;
     document.getElementById('paste-status').style.color = '#e74c3c';
-    console.error('previewScoreResult error:', e);
+    console.error('pasteScoreResult error:', e);
   }
 }
 
