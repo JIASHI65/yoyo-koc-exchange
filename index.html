@@ -421,7 +421,8 @@ function showDashboard() {
   var spl = document.getElementById('sub-period-label'); if (spl) spl.textContent = currentPeriod.replace('-', '年') + '月';
   document.getElementById('current-period-label').textContent = currentPeriod.replace('-', '年') + '月';
   initSubmitTab();
-  switchCreatorTab('submit');
+  var savedTab = localStorage.getItem('koc_active_tab');
+  switchCreatorTab(savedTab === 'history' || savedTab === 'redeem' ? savedTab : 'submit');
   // Fetch and show tier badge
   try {
     (async function() {
@@ -587,6 +588,7 @@ async function loadOrders() {
 
 // ===== CREATOR TAB SWITCHING =====
 function switchCreatorTab(name) {
+  localStorage.setItem('koc_active_tab', name);
   document.querySelectorAll('#step-dashboard .tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('#step-dashboard .tab-content').forEach(c => c.classList.remove('active'));
   document.querySelector('#step-dashboard .tab[onclick*="' + name + '"]').classList.add('active');
