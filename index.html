@@ -155,8 +155,15 @@
       <button class="tab" onclick="switchCreatorTab('history')">📋 My Submissions</button>
       <button class="tab" onclick="switchCreatorTab('redeem')">🎁 Redeem Rewards</button>
     </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <button class="btn btn-sm btn-outline" onclick="logout()" style="padding:4px 12px;font-size:11px;">🔙 Back to Home</button>
+      <span id="display-user" style="font-size:13px;font-weight:600;"></span>
+    </div>
     <!-- Redeem Tab -->
     <div id="creator-tab-redeem" class="tab-content">
+      <div style="margin-bottom:8px;">
+        <button class="btn btn-sm btn-outline" onclick="logout()" style="padding:3px 10px;font-size:11px;">🔙 Home</button>
+      </div>
       <div class="card">
         <div class="points-display">
           <div class="points-number" id="display-points">--</div>
@@ -184,6 +191,9 @@
 
     <!-- Submit Tab -->
     <div id="creator-tab-submit" class="tab-content">
+      <div style="margin-bottom:8px;">
+        <button class="btn btn-sm btn-outline" onclick="logout()" style="padding:3px 10px;font-size:11px;">🔙 Home</button>
+      </div>
       <div class="card">
         <div class="card-title">🎨 Submit Your Works</div>
         <label>Discord Username</label>
@@ -215,6 +225,9 @@
 
     <!-- History Tab -->
     <div id="creator-tab-history" class="tab-content">
+      <div style="margin-bottom:8px;">
+        <button class="btn btn-sm btn-outline" onclick="logout()" style="padding:3px 10px;font-size:11px;">🔙 Home</button>
+      </div>
       <div class="card">
         <div class="card-title">📋 My Submissions</div>
         <div id="submissions-list"><div style="color:var(--text-light);font-size:13px;">Loading...</div></div>
@@ -733,7 +746,9 @@ function logout() {
   document.getElementById('input-discord').value = '';
   document.getElementById('input-uid').value = '';
   document.getElementById('btn-login').disabled = false;
-  document.getElementById('btn-login').textContent = 'Check My Points';
+  // Reset to entry view (hide both forms)
+  document.getElementById('new-creator-form').style.display = 'none';
+  document.getElementById('existing-login-form').style.display = 'none';
 }
 </script>
 </body>
