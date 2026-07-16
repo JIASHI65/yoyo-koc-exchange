@@ -269,15 +269,11 @@ let selections = {};
 
 // Auto-login from localStorage (defined here, called after DOM+functions ready)
 function tryAutoLogin() {
-  console.log('[AutoLogin] checking localStorage...');
   var saved = localStorage.getItem('koc_session');
-  if (!saved) { console.log('[AutoLogin] no session found'); return; }
-  console.log('[AutoLogin] session found:', saved.substring(0, 80));
+  if (!saved) return;
   var session;
-  try { session = JSON.parse(saved); } catch(e) { console.log('[AutoLogin] parse failed'); return; }
-  if (!session || !session.uid || !session.discord_name) { console.log('[AutoLogin] invalid session'); return; }
-  console.log('[AutoLogin] restoring uid:', session.uid);
-  
+  try { session = JSON.parse(saved); } catch(e) { return; }
+  if (!session || !session.uid || !session.discord_name) return;
   (async function() {
     try {
       var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(session.uid) + '&select=*');
@@ -295,7 +291,7 @@ function tryAutoLogin() {
       checkDeadline();
       var submitDiscord = document.getElementById('submit-discord');
       if (submitDiscord && koc.discord_name) submitDiscord.value = typeof koc.discord_name === 'string' ? koc.discord_name : '';
-    } catch(e) { console.log('[AutoLogin] error:', e.message); localStorage.removeItem('koc_session'); }
+    } catch(e) { localStorage.removeItem('koc_session'); }
   })();
 }
 
@@ -893,7 +889,8 @@ function logout() {
   document.getElementById('entry-buttons').style.display = 'block';
   document.querySelector('.header').style.display = 'block';
 }
-document.addEventListener('DOMContentLoaded', tryAutoLogin);
+// Auto-login after all functions defined
+tryAutoLogin();
 </script>
 </body>
 </html>
