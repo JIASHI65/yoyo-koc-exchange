@@ -187,6 +187,9 @@
           <label>Shipping Info (name, address, phone)</label>
           <input type="text" id="input-contact" placeholder="Required for merch delivery">
         </div>
+        <div id="redeem-locked-msg" style="display:none;background:#fff3e0;border:1px solid #ffe082;border-radius:10px;padding:12px;text-align:center;font-size:13px;color:#e65100;margin-bottom:8px;">
+          🔒 暂不开放兑换<br><span style="font-size:11px;">请静静等待积分计算结束，结束后会通知你兑换奖励</span>
+        </div>
         <button class="btn btn-primary" id="btn-redeem" onclick="redeem()" disabled>Confirm Redemption</button>
       </div>
 
@@ -264,6 +267,7 @@ const REWARDS = [
 var now = new Date();
 var currentPeriod = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
 let currentUser = null;
+let redemptionOpen = false;
 let selections = {};
 
 // Auto-login from localStorage (defined here, called after DOM+functions ready)
@@ -410,6 +414,22 @@ function initSubmitTab() {
 }
 
 function showDashboard() {
+  // Fetch redemption status from config
+  (async function() {
+    try {
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+      if (r.ok) {
+        var d = await r.json();
+        if (d && d.length > 0 && d[0].notes) {
+          try { var cfg = JSON.parse(d[0].notes); redemptionOpen = cfg.redemption_open === true; } catch(e) {}
+        }
+      }
+    } catch(e) {}
+    var lockEl = document.getElementById('redeem-locked-msg');
+    var btnEl = document.getElementById('btn-redeem');
+    if (lockEl) lockEl.style.display = redemptionOpen ? 'none' : 'block';
+    if (btnEl) btnEl.disabled = !redemptionOpen;
+  })();
   document.getElementById('step-login').classList.add('hidden');
   document.getElementById('step-dashboard').classList.remove('hidden');
   document.getElementById('display-points').textContent = currentUser.points;
@@ -492,7 +512,7 @@ function updateUI() {
 
   const hasMerch = (selections.merch || 0) > 0;
   document.getElementById('reward-fields').classList.toggle('hidden', !hasMerch);
-  document.getElementById('btn-redeem').disabled = totalCost === 0;
+  document.getElementById('btn-redeem').disabled = !redemptionOpen || totalCost === 0;
 }
 
 function changeQty(id, d) {
@@ -505,6 +525,7 @@ function changeQty(id, d) {
   selections[id] = nxt; updateUI();
 }
 async function redeem() {
+  if (!redemptionOpen) { showToast('🔒 兑换暂未开放，请等待通知', 'error'); return; }
   const totalCost = getTotalCost();
   if (totalCost === 0 || !currentUser) return;
   if (totalCost > currentUser.points) { showToast('Insufficient points', 'error'); return; }

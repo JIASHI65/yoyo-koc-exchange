@@ -214,6 +214,7 @@
           <input type="month" id="settle-month" style="width:160px;padding:4px 8px;border:1.5px solid var(--pink);border-radius:6px;font-size:13px;">
           <span id="settle-label" style="font-size:12px;color:var(--text-light);margin-left:4px;"></span>
           <span style="margin-left:12px;font-size:12px;color:var(--text-light);">🗓️ 选择的月份将全局过滤所有板块的数据</span>
+          <button class="btn btn-sm" id="btn-toggle-redeem" style="margin-left:auto;background:#43b581;color:white;" onclick="toggleRedemption()">🔓 开放兑换</button>
         </div>
         <div class="stats-bar" id="stats-bar">
           <span id="stat-total">Loading...</span>
@@ -1712,6 +1713,30 @@ function filterByPeriod(orders) {
     return ym === currentPeriod;
   });
 }
+async function toggleRedemption() {
+  try {
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+    var data = await res.json();
+    var notes = {};
+    if (data && data.length > 0 && data[0].notes) {
+      try { notes = JSON.parse(data[0].notes); } catch(e) {}
+    }
+    var currentlyOpen = notes.redemption_open === true;
+    var newState = !currentlyOpen;
+    notes.redemption_open = newState;
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__', {
+      method: 'PATCH',
+      body: JSON.stringify({ notes: JSON.stringify(notes) })
+    });
+    var btn = document.getElementById('btn-toggle-redeem');
+    if (btn) {
+      btn.textContent = newState ? '🔒 关闭兑换' : '🔓 开放兑换';
+      btn.style.background = newState ? '#e74c3c' : '#43b581';
+    }
+    showToast(newState ? '✅ 兑换已开放，创作者现在可以兑换' : '🔒 兑换已关闭', 'success');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
 function changeSettlePeriod() {
   currentPeriod = document.getElementById('settle-month').value;
   document.getElementById('settle-label').textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
@@ -1847,6 +1872,25 @@ function renderKocTable() {
 
 
 function renderScoringTable() {
+  // Load redemption state
+  (async function() {
+    try {
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+      if (r.ok) {
+        var d = await r.json();
+        if (d && d.length > 0 && d[0].notes) {
+          try { var cfg = JSON.parse(d[0].notes); 
+            var btn = document.getElementById('btn-toggle-redeem');
+            if (btn) {
+              var open = cfg.redemption_open === true;
+              btn.textContent = open ? '🔒 关闭兑换' : '🔓 开放兑换';
+              btn.style.background = open ? '#e74c3c' : '#43b581';
+            }
+          } catch(e) {}
+        }
+      }
+    } catch(e) {}
+  })();
   var tbody = document.getElementById('scoring-table');
   if (!tbody) return;
   if (!allKocs.length) {
