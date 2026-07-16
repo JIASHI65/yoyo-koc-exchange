@@ -177,7 +177,7 @@
           <div class="points-number" id="display-points">--</div>
           <div class="points-label">Available Points</div>
         </div>
-        <div style="font-size:13px;text-align:center;color:var(--text-light);" id="display-user"></div>
+        <div style="font-size:13px;text-align:center;color:var(--text-light);" id="display-user-redeem"></div>
 <div style="text-align:center;margin-top:4px;" id="display-tier"></div>
       </div>
 
@@ -198,7 +198,7 @@
     </div>
 
     <!-- Submit Tab -->
-    <div id="creator-tab-submit" class="tab-content">
+    <div id="creator-tab-submit" class="tab-content active">
       <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">🎨 Submit Works</span></div>
       <div class="card">
         <div class="card-title">🎨 Submit Works · 📅 <span id="current-period-label"></span></div>
@@ -341,6 +341,12 @@ async function login() {
     currentUser = { ...koc, points: points - pendingTotal };
     if (statusEl) statusEl.textContent = '';
     showDashboard();
+    checkDeadline();
+    // Fill submit discord field
+    var submitDiscord = document.getElementById('submit-discord');
+    if (submitDiscord && koc.discord_name) {
+      submitDiscord.value = typeof koc.discord_name === 'string' ? koc.discord_name : '';
+    }
   } catch (e) {
     console.error('login error:', e);
     showToast(e.name === 'AbortError' ? 'Connection timed out. Try again.' : 'Error: ' + e.message, 'error');
@@ -581,12 +587,7 @@ async function checkDeadline() {
   } catch(e) {}
 }
 
-// Replace the login function to call checkDeadline
-var _origLogin = login;
-login = function() {
-  _origLogin();
-  checkDeadline();
-};
+
 
 // ===== SUBMIT WORKS =====
 
@@ -837,17 +838,7 @@ async function loadMySubmissions() {
   }
 }
 
-// Override the original login to fill submit discord field
-var __origLogin = login;
-login = async function() {
-  await __origLogin();
-  // After login, fill the submit form
-  var discordInput = document.getElementById('input-discord');
-  var submitDiscord = document.getElementById('submit-discord');
-  if (discordInput && submitDiscord) {
-    submitDiscord.value = discordInput.value;
-  }
-};
+
 
 function logout() {
   currentUser = null;
