@@ -709,6 +709,7 @@ async function submitWorks() {
 async function loadMySubmissions() {
   if (!currentUser) return;
   var container = document.getElementById('submissions-list');
+  var countEl = document.getElementById('submission-count');
   if (!container) return;
   try {
     var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,created_at,status,link,points_earned,total_engagement_count,total_view_count,scored_at');
@@ -716,23 +717,84 @@ async function loadMySubmissions() {
     var subs = await res.json();
     if (!subs || subs.length === 0) {
       container.innerHTML = '<div style="color:var(--text-light);font-size:13px;text-align:center;padding:20px;">No submissions yet</div>';
+      if (countEl) countEl.textContent = '';
       return;
     }
-    container.innerHTML = subs.map(function(s) {
-      var totalLinks = s.link ? 1 : 0;
+    
+    // Count stats
+    var pendingCount = subs.filter(function(s) { return s.status === 'pending'; }).length;
+    var scoredCount = subs.filter(function(s) { return s.status === 'scored'; }).length;
+    var totalPoints = subs.reduce(function(sum, s) { return sum + (s.points_earned || 0); }, 0);
+    var totalLinks = subs.length;
+    
+    // Calculate CC status (15 posts for Consistent Creation Reward)
+    var ccProgress = Math.min(totalLinks, 15);
+    var ccRemaining = Math.max(0, 15 - totalLinks);
+    
+    // Calculate tier progress (5 points = Gold/Platinum threshold)
+    var tierThreshold = 5;
+    var tierProgress = Math.min(totalPoints, tierThreshold);
+    var tierRemaining = Math.max(0, tierThreshold - totalPoints);
+    var currentTier = currentUser.tier || 'certified';
+    var nextTier = '';
+    var tierHint = '';
+    if (currentTier === 'certified' || currentTier === 'gold') {
+      nextTier = currentTier === 'certified' ? '🟡 Gold Creator' : '💎 Platinum Creator';
+      tierHint = 'Reach ' + tierThreshold + ' points this month to qualify';
+    }
+    
+    // Build status bar
+    var statsHtml = '<div style="background:#faf5f7;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;">' +
+      '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
+      '<span>📎 Total: <strong>' + totalLinks + '</strong> links</span>' +
+      '<span>⏳ Pending: <strong>' + pendingCount + '</strong></span>' +
+      '<span>✅ Scored: <strong>' + scoredCount + '</strong></span>' +
+      '<span>🏆 Points: <strong>' + totalPoints + '</strong></span>' +
+      '</div>';
+    
+    // CC reminder
+    if (ccRemaining > 0) {
+      statsHtml += '<div style="background:#fff8e1;border-radius:6px;padding:5px 8px;margin-bottom:4px;">' +
+        '💡 You need <strong>' + ccRemaining + ' more</strong> submission' + (ccRemaining > 1 ? 's' : '') + ' to reach 15 and claim the <strong>Consistent Creation Reward</strong> 🎁' +
+        '</div>';
+    } else {
+      statsHtml += '<div style="background:#e8f5e9;border-radius:6px;padding:5px 8px;margin-bottom:4px;">' +
+        '✅ You\'ve reached 15+ submissions! You qualify for the <strong>Consistent Creation Reward</strong> 🎁' +
+        '</div>';
+    }
+    
+    // Tier reminder
+    if (tierRemaining > 0 && currentTier !== 'platinum') {
+      statsHtml += '<div style="background:#f3e5f5;border-radius:6px;padding:5px 8px;">' +
+        '⭐ You need <strong>' + tierRemaining + ' more point' + (tierRemaining > 1 ? 's' : '') + '</strong> to reach <strong>' + nextTier + '</strong>! ' + tierHint +
+        '</div>';
+    } else if (currentTier !== 'platinum') {
+      statsHtml += '<div style="background:#e8f5e9;border-radius:6px;padding:5px 8px;">' +
+        '⭐ You have enough points to qualify for <strong>' + nextTier + '</strong>! 🎉' +
+        '</div>';
+    }
+    
+    statsHtml += '</div>';
+    
+    // Build submission list
+    var listHtml = subs.map(function(s) {
       var statusEmoji = s.status === 'scored' ? '✅' : s.status === 'pending' ? '⏳' : '❌';
       var statusClass = s.status === 'scored' ? 'badge-shipped' : s.status === 'pending' ? 'badge-pending' : 'badge-cancelled';
       var dateStr = new Date(s.created_at).toLocaleDateString();
       var scoredStr = s.scored_at ? ' · Scored: ' + new Date(s.scored_at).toLocaleDateString() : '';
+      var linkShort = s.link ? (s.link.length > 60 ? s.link.substring(0, 60) + '...' : s.link) : '';
       return '<div class="submission-item">' +
         '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
         '<span style="font-weight:600;">' + statusEmoji + ' ' + dateStr + '</span>' +
         '<span class="badge ' + statusClass + '">' + s.status + '</span>' +
         '</div>' +
-        '<div class="link-line">📎 ' + totalLinks + ' links submitted</div>' +
+        '<div class="link-line">📎 <a href="' + escAttr(s.link || '') + '" target="_blank" rel="noopener">' + esc(linkShort) + '</a></div>' +
         (s.status === 'scored' ? '<div class="link-line">🏆 Points: <strong>' + s.points_earned + '</strong> · Engagement: ' + (s.total_engagement_count||0) + ' · Views: ' + (s.total_view_count||0) + scoredStr + '</div>' : '') +
         '</div>';
     }).join('');
+    
+    container.innerHTML = statsHtml + listHtml;
+    if (countEl) countEl.textContent = totalLinks + ' submissions, ' + totalPoints + ' pts';
   } catch(e) {
     container.innerHTML = '<div style="color:#e74c3c;font-size:13px;">Error loading submissions</div>';
   }
