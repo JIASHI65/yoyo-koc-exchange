@@ -754,29 +754,25 @@ async function submitWorks() {
       throw new Error(errText.substring(0, 100) || 'Submit failed');
     }
 
-    // Lock the submit form permanently
-    var formArea = document.getElementById('submit-form-area');
-    if (formArea) {
-      formArea.style.pointerEvents = 'none';
-      formArea.style.opacity = '0.4';
-    }
-    btn.style.display = 'none';
-    status.innerHTML = '✅ <strong>提交成功！</strong>请等待系统审核评分。<br><span style="font-size:11px;">⚠️ 注意：提交过后不能再次提交，请提前检查好所有链接。</span>';
+    status.innerHTML = '✅ <strong>' + links.length + ' links submitted!</strong> You can continue to submit more links.';
     status.style.color = '#4caf50';
     status.style.textAlign = 'center';
-    status.style.padding = '16px';
+    status.style.padding = '10px';
     status.style.background = '#e8f5e9';
     status.style.borderRadius = '10px';
     status.style.marginTop = '8px';
+    
+    // Clear links field for next submission
+    document.getElementById('submit-links').value = '';
 
     showToast('✅ ' + links.length + ' links submitted!', 'success');
     loadMySubmissions();
   } catch(e) {
     status.textContent = '❌ Submit failed: ' + e.message;
     status.style.color = '#e74c3c';
-    btn.disabled = false;
-    btn.textContent = '📤 Submit Works';
   }
+  btn.disabled = false;
+  btn.textContent = '📤 Submit Works';
 }
 
 // ===== LOAD MY SUBMISSIONS =====
