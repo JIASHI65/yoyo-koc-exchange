@@ -350,7 +350,10 @@ function showDashboard() {
   document.getElementById('step-login').classList.add('hidden');
   document.getElementById('step-dashboard').classList.remove('hidden');
   document.getElementById('display-points').textContent = currentUser.points;
-  document.getElementById('display-user').textContent = 'Welcome, ' + currentUser.discord_name;
+  // Fix display - discord_name might be nested
+  var displayName = currentUser.discord_name;
+  if (typeof displayName === 'object' && displayName !== null) displayName = displayName.discord_name || 'Unknown';
+  document.getElementById('display-user').textContent = 'Welcome, ' + displayName;
   loadMySubmissions();
   // Fetch and show tier badge
   try {
@@ -377,13 +380,7 @@ function renderOptions() {
   document.getElementById('reward-fields').classList.add('hidden');
   initSelections();
 
-  const affordable = REWARDS.filter(r => currentUser.points >= r.cost);
-  if (affordable.length === 0) {
-    container.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:16px;">Insufficient points. Keep creating!</div>';
-    return;
-  }
-
-  affordable.forEach(opt => {
+  REWARDS.forEach(function(opt) {
     const row = document.createElement('div');
     row.className = 'reward-row';
     row.innerHTML = '<div><div class="reward-name">' + opt.name + '</div><div class="reward-desc">' + opt.desc + '</div></div>' +
