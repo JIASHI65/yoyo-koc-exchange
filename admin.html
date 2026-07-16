@@ -427,7 +427,7 @@ Elite: 连续 6 个月达到 5 分</textarea>
           <span>🤖 Agent 算分结果导入</span>
           <div style="display:flex;gap:6px;">
             <button class="btn btn-success btn-sm" onclick="document.getElementById('import-file-input').click()">📁 打开文件导入</button>
-            <button class="btn btn-primary btn-sm" onclick="pasteScoreResult()">📥 粘贴后导入</button>
+            <button class="btn btn-primary btn-sm" onclick="pasteScoreResult()">📥 预览</button>
           </div>
         </div>
         <textarea id="agent-score-input" style="width:100%;min-height:200px;font-family:monospace;font-size:11px;" placeholder="方式一：直接粘贴 Agent 输出的 JSON 结果到此处，点击「粘贴后导入」
@@ -1409,11 +1409,12 @@ async function importScoreResult(text) {
 async function pasteScoreResult() {
   var text = document.getElementById('agent-score-input').value.trim();
   if (!text) {
-    showToast('Please paste the scoring result first', 'error');
+    showToast('请先粘贴算分结果', 'error');
     return;
   }
   try {
     previewScoreResult(text);
+    showToast('✅ 预览已就绪，请确认后点击"确认应用积分"', 'success');
   } catch(e) {
     document.getElementById('paste-status').textContent = 'Error: ' + e.message;
     document.getElementById('paste-status').style.color = '#e74c3c';
