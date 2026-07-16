@@ -1234,6 +1234,40 @@ async function importScoreResult(text) {
   var successCount = 0;
   var errors = [];
 
+  
+  // ===== MERGE same-uid submissions =====
+  var merged = {};
+  result.submissions.forEach(function(sub) {
+    var key = sub.uid || sub.discord_name || 'unknown_' + sub.id;
+    if (!merged[key]) {
+      merged[key] = JSON.parse(JSON.stringify(sub));
+    } else {
+      // Merge links
+      if (sub.engagement_links && merged[key].engagement_links) {
+        merged[key].engagement_links = merged[key].engagement_links.concat(sub.engagement_links);
+      } else if (sub.engagement_links) {
+        merged[key].engagement_links = sub.engagement_links;
+      }
+      if (sub.view_links && merged[key].view_links) {
+        merged[key].view_links = merged[key].view_links.concat(sub.view_links);
+      } else if (sub.view_links) {
+        merged[key].view_links = sub.view_links;
+      }
+      // Merge points
+      merged[key].points_earned = (merged[key].points_earned || 0) + (sub.points_earned || 0);
+      // Merge engagement/views
+      merged[key].total_engagement = (merged[key].total_engagement || 0) + (sub.total_engagement || 0);
+      merged[key].total_views = (merged[key].total_views || 0) + (sub.total_views || 0);
+      // Keep the first submission's id for DB update
+      if (sub.id) {
+        merged[key].links_engagement = ((merged[key].links_engagement || '') + '\n' + (sub.links_engagement || '')).trim();
+        merged[key].merged_ids = (merged[key].merged_ids || [merged[key].id]).concat([sub.id]);
+      }
+    }
+  });
+  result.submissions = Object.values(merged);
+  // ===== END MERGE =====
+
   for (var i = 0; i < result.submissions.length; i++) {
     var sub = result.submissions[i];
     if (!sub.id) {
@@ -1261,6 +1295,18 @@ async function importScoreResult(text) {
       if (!resp.ok) {
         errors.push('Submission #' + sub.id + ': update failed (' + resp.status + ')');
         continue;
+      }
+      // Also mark any merged submissions as scored (no points, just status)
+      if (sub.merged_ids) {
+        for (var mi = 0; mi < sub.merged_ids.length; mi++) {
+          var mid = sub.merged_ids[mi];
+          if (mid !== sub.id) {
+            await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + mid, {
+              method: 'PATCH',
+              body: JSON.stringify({ status: 'scored', scored_at: new Date().toISOString() })
+            });
+          }
+        }
       }
 
       // Add points to koc's point_logs
