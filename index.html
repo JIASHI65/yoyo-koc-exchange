@@ -96,7 +96,8 @@
   <div id="step-dashboard" class="hidden">
     <!-- Creator Tabs -->
     <div class="tabs">
-      <button class="tab active" onclick="switchCreatorTab('submit')">🎨 Submit Works</button>
+      <button class="tab active" onclick="switchCreatorTab('register')">🎪 Register</button>
+      <button class="tab" onclick="switchCreatorTab('submit')">🎨 Submit Works</button>
       <button class="tab" onclick="switchCreatorTab('history')">📋 My Submissions</button>
       <button class="tab" onclick="switchCreatorTab('redeem')">🎁 Redeem Rewards</button>
     </div>
@@ -128,7 +129,41 @@
     </div>
 
     <!-- Submit Tab -->
-    <div id="creator-tab-submit" class="tab-content active">
+        <div id="creator-tab-register" class="tab-content active">
+      <div class="card">
+        <div class="card-title">🎪 Creator Registration</div>
+        <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;">New to Yoyo Town? Fill in your info below to get registered. Already registered? Switch to other tabs above.</p>
+        <select id="reg-type" style="width:100%;margin-bottom:12px;" onchange="toggleRegistrationForm()">
+          <option value="new">🆕 I'm new — register my info</option>
+          <option value="existing">✅ I'm already a registered creator</option>
+        </select>
+        <div id="reg-new-form">
+          <label>Discord Username *</label>
+          <input type="text" id="reg-discord" placeholder="Your Discord username" style="margin-bottom:8px;">
+          <label>Server *</label>
+          <select id="reg-server" style="width:100%;margin-bottom:8px;">
+            <option value="">Select your server...</option>
+            <option value="Asia">🌏 Asia (Sakura)</option>
+            <option value="America">🌎 America (Dawn)</option>
+            <option value="Europe">🌍 Europe (Aurora)</option>
+          </select>
+          <label>Game Name / Nickname</label>
+          <input type="text" id="reg-name" placeholder="Your in-game name" style="margin-bottom:8px;">
+          <label>Content Platforms <span style="font-weight:400;color:var(--text-light);">(e.g. TikTok, YouTube, Instagram, X, Pinterest)</span></label>
+          <input type="text" id="reg-platforms" placeholder="TikTok, YouTube, Instagram" style="margin-bottom:8px;">
+          <label>Shipping Address <span style="font-weight:400;color:var(--text-light);">(optional — needed for merch rewards)</span></label>
+          <input type="text" id="reg-address" placeholder="Country, full address, postal code, phone" style="margin-bottom:8px;">
+          <label>Account / UID <span style="font-weight:400;color:var(--text-light);">(optional)</span></label>
+          <input type="text" id="reg-uid" placeholder="Game UID" style="margin-bottom:12px;">
+          <button class="btn btn-primary" onclick="registerCreator()">📝 Submit Registration</button>
+          <div id="reg-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
+        </div>
+        <div id="reg-existing-msg" style="display:none;text-align:center;padding:20px;color:var(--text-light);font-size:13px;">
+          ✅ Great! Use the tabs above to submit works, check submissions, or redeem rewards.
+        </div>
+      </div>
+    </div>
+<div id="creator-tab-submit" class="tab-content">
       <div class="card">
         <div class="card-title">🎨 Submit Your Works</div>
         <label>Discord Username</label>
@@ -482,6 +517,79 @@ login = function() {
 };
 
 // ===== SUBMIT WORKS =====
+
+// ===== REGISTRATION =====
+function toggleRegistrationForm() {
+  var val = document.getElementById('reg-type').value;
+  document.getElementById('reg-new-form').style.display = val === 'new' ? 'block' : 'none';
+  document.getElementById('reg-existing-msg').style.display = val === 'existing' ? 'block' : 'none';
+}
+
+async function registerCreator() {
+  var discord = document.getElementById('reg-discord').value.trim();
+  var server = document.getElementById('reg-server').value;
+  var name = document.getElementById('reg-name').value.trim();
+  var platforms = document.getElementById('reg-platforms').value.trim();
+  var address = document.getElementById('reg-address').value.trim();
+  var uid = document.getElementById('reg-uid').value.trim();
+  var status = document.getElementById('reg-status');
+  var btn = document.getElementById('btn-register');
+
+  if (!discord) { status.textContent = '❌ Please enter your Discord username'; status.style.color = '#e74c3c'; return; }
+  if (!server) { status.textContent = '❌ Please select your server'; status.style.color = '#e74c3c'; return; }
+
+  try {
+    // Check if this discord name already exists
+    var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?discord_name=eq.' + encodeURIComponent(discord) + '&select=uid');
+    var existing = await checkRes.json();
+    if (existing && existing.length > 0) {
+      // Already registered — redirect to login
+      status.innerHTML = '✅ You\'re already registered! Log in with your UID: <strong>' + existing[0].uid + '</strong>';
+      status.style.color = '#4caf50';
+      return;
+    }
+
+    // Generate new UID
+    var countRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=uid&order=uid.desc&limit=1');
+    var countData = await countRes.json();
+    var nextNum = 1;
+    if (countData && countData.length > 0) {
+      var match = countData[0].uid.match(/YOYO-(\d+)/);
+      if (match) nextNum = parseInt(match[1]) + 1;
+    }
+    var newUid = 'YOYO-' + String(nextNum).padStart(3, '0');
+
+    var payload = {
+      uid: newUid,
+      discord_name: discord,
+      name: name || null,
+      server: server,
+      channel_tag: platforms || null,
+      address: address || null,
+      region: '',
+      account_id: uid || null,
+      notes: JSON.stringify({ registered_at: new Date().toISOString(), platforms: platforms }),
+      status: 'active'
+    };
+
+    var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) throw new Error('Registration failed');
+
+    status.innerHTML = '✅ Registration complete! Your UID: <strong>' + newUid + '</strong>. Save this UID to log in.';
+    status.style.color = '#4caf50';
+    // Auto-fill login fields
+    document.getElementById('input-discord').value = discord;
+    document.getElementById('input-uid').value = newUid;
+    showToast('✅ Registered! UID: ' + newUid + ' — save this to login', 'success');
+  } catch(e) {
+    status.textContent = '❌ Error: ' + e.message;
+    status.style.color = '#e74c3c';
+  }
+}
+
 async function submitWorks() {
   var discord = document.getElementById('submit-discord').value.trim();
   var links = document.getElementById('submit-links').value.trim().split('\n').filter(Boolean);
