@@ -1268,21 +1268,18 @@ async function importScoreResult(text) {
           })
         });
         
-        // Check for New Creator Bonus (新人任务): first month >= 5pts gets +2 bonus
+        // Check for New Creator Bonus (新人任务): newbie_month >= 5pts gets +2 bonus
         if (sub.points_earned >= 5 && sub.uid) {
           try {
-            // Check if this KOC already got newbie bonus
-            var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=created_at,notes');
+            var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=notes');
             var kocData = await kocRes.json();
             if (kocData && kocData.length > 0) {
               var koc = kocData[0];
-              var createdMonth = new Date(koc.created_at);
-              var createdYm = createdMonth.getFullYear() + '-' + String(createdMonth.getMonth() + 1).padStart(2, '0');
               var notes = koc.notes || '';
-              // First month = created_at month matches current settlement month
-              // AND hasn't already received bonus
-              if (createdYm === currentPeriod && notes.indexOf('newbie_bonus:' + currentPeriod) === -1) {
-                // Add +2 bonus
+              // Skip if old_creator (no newbie task)
+              if (notes.indexOf('old_creator') >= 0) { /* skip */ }
+              // Check if newbie_month matches current settlement period AND not already claimed
+              else if (notes.indexOf('newbie_month:' + currentPeriod) >= 0 && notes.indexOf('newbie_bonus:' + currentPeriod) === -1) {
                 var bonusBalance = newBalance + 2;
                 await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
                   method: 'POST',
@@ -1291,19 +1288,18 @@ async function importScoreResult(text) {
                     change: 2,
                     balance_after: bonusBalance,
                     source: 'auto_settlement',
-                    reason: 'New Creator Bonus (新人任务) - first month 5pts reach',
+                    reason: 'New Creator Bonus (新人任务) - ' + currentPeriod + ' 5pts reach',
                     period: currentPeriod,
                     created_by: 'agent'
                   })
                 });
-                // Mark as claimed
-                var updatedNotes = notes ? notes + ', newbie_bonus:' + currentPeriod : 'newbie_bonus:' + currentPeriod;
+                var updatedNotes = notes + ', newbie_bonus:' + currentPeriod;
                 await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
                   method: 'PATCH',
                   body: JSON.stringify({ notes: updatedNotes })
                 });
-                totalPoints += 2; // Count the bonus
-                sub.points_earned += 2; // Bump for display
+                totalPoints += 2;
+                sub.points_earned += 2;
               }
             }
           } catch(e) { console.error('newbie bonus error:', e); }
@@ -1440,7 +1436,7 @@ function sendDMPreset(type) {
   var msg = '';
   switch(type) {
     case 'welcome':
-      msg = '🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\nPlease complete your registration to receive points and rewards:\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\nClick "I\'m a New Creator" and fill in:\n1️⃣ Account ID (6-digit number)\n2️⃣ Game UID\n3️⃣ Full legal name\n4️⃣ Server (Beacon / Official)\n5️⃣ Full shipping address + phone\n\nAfter registration you\'ll get your UID and can start submitting works!';
+      msg = '🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\n📅 **下个月将是你首个新人活动月！**\n在下个月内投稿满 5 积分，即可额外获得 **+2 积分** 🎯\n\n📝 **现在请先完成注册：**\n1️⃣ 打开 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n2️⃣ 点击 "I\'m a New Creator"\n3️⃣ 填写信息：Account ID / Game UID / 姓名 / 服务器(正式服/灯塔服) / 完整收货地址+电话\n\n完成注册后你将获得 UID，之后就可以开始投稿了！\n\n📌 **投稿提醒：**\n• 把作品链接粘贴到 Submit Works\n• 每条链接一行，确保公开可见并带上 #myleisuretime\n• 8 月整月投稿达到 5 分，额外 +2 分！\n\n如有问题请在 🎫｜town-service-station 开帖询问';
       break;
     case 'collection':
       msg = '📥 Reminder! Link collection for this month is now open.\n\nPlease submit all your works via the portal before the 5th of next month:\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\nOnly links submitted through the form count toward your Points!';
@@ -1565,7 +1561,12 @@ async function checkNewMembers() {
             var existing = await checkRes.json();
             if (!existing || existing.length === 0) {
               // Send welcome DM
-              var welcomeMsg = '🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\nPlease complete your registration to receive points and rewards:\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\nClick "I\'m a New Creator" and fill in your info.\n\nAfter registration you\'ll get your UID and can start submitting works!';
+              // Calculate newbie month (next month)
+              var now = new Date();
+              var nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+              var newbieMonthStr = nextMonth.getFullYear() + '-' + String(nextMonth.getMonth() + 1).padStart(2, '0');
+              var newbieMonthLabel = nextMonth.getFullYear() + '年' + (nextMonth.getMonth() + 1) + '月';
+              var welcomeMsg = '🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\n📅 **' + newbieMonthLabel + ' 将是你首个新人活动月！**\n在 ' + newbieMonthLabel + ' 内投稿满 5 积分，即可额外获得 **+2 积分** 🎯\n\n📝 **现在请先完成注册：**\n1️⃣ 打开 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n2️⃣ 点击 "I\'m a New Creator"\n3️⃣ 填写信息：Account ID / Game UID / 姓名 / 服务器(正式服/灯塔服) / 完整收货地址+电话\n\n完成注册后你将获得 UID，之后就可以开始投稿了！\n\n📌 **投稿提醒：**\n• 把作品链接粘贴到 Submit Works\n• 每条链接一行，确保公开可见并带上 #myleisuretime\n• ' + newbieMonthLabel + ' 整月投稿达到 5 分，额外 +2 分！\n\n如有问题请在 🎫｜town-service-station 开帖询问';
               try {
                 // Create DM channel
                 var dmRes = await fetch('https://discord.com/api/v10/users/@me/channels', {
@@ -1845,6 +1846,7 @@ function renderKocTable() {
       createdYm = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     } catch(e) {}
     var hasNewbieBonus = notes.indexOf('newbie_bonus:') >= 0;
+    var hasNewbieMonth = (notes || '').indexOf('newbie_month:') >= 0;
     var isNewbie = createdYm && (createdYm === currentPeriod || (function(){
       var now = new Date();
       var currentYm = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
@@ -1864,7 +1866,8 @@ function renderKocTable() {
       '<td ondblclick="inlineEdit(this,\'server\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.server || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'address\',\'' + k.uid + '\')" title="Double-click to edit" style="font-size:12px;white-space:pre-wrap;max-width:200px;">' + esc(k.address || '-') + 
         (hasNewbieBonus ? '<br><span style="font-size:10px;color:#4caf50;">✅ 新人+2已领</span>' : 
-         isNewbie ? '<br><span style="font-size:10px;color:#ff9800;">🆕 本月新人</span>' : '') +
+         hasNewbieMonth ? '<br><span style="font-size:10px;color:#7b1fa2;">🆕 新人月</span>' :
+         isNewbie ? '<br><span style="font-size:10px;color:#ff9800;">🆕 未注册</span>' : '') +
       '</td>' +
     '</tr>';
   }).join('');
