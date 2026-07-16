@@ -1484,25 +1484,19 @@ async function importScoreResult(text) {
 async function pasteScoreResult() {
   try {
     var input = document.getElementById('agent-score-input');
-    if (!input) { alert('agent-score-input not found!'); return; }
+    if (!input) { showToast('输入框未找到', 'error'); return; }
     var text = input.value.trim();
-    if (!text) { alert('请先粘贴算分结果'); return; }
-    
-    // 1. Try to parse
+    if (!text) { showToast('请先粘贴算分结果', 'error'); return; }
     previewScoreResult(text);
-    
-    // 2. Force show EVERYTHING
     var previewArea = document.getElementById('score-preview-area');
     var actionBar = document.getElementById('import-action-bar');
     var confirmBtn = document.getElementById('btn-confirm-import');
-    
     if (previewArea) previewArea.style.display = 'block';
     if (actionBar) actionBar.style.display = 'block';
     if (confirmBtn) confirmBtn.disabled = false;
-    
-    alert('预览已显示！请往下滚动查看预览区和确认按钮');
+    showToast('预览已就绪', 'success');
   } catch(e) {
-    alert('错误: ' + e.message);
+    showToast('错误: ' + e.message, 'error');
   }
 }
 
