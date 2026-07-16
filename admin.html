@@ -690,11 +690,9 @@ async function loadCampaignConfig() {
       document.getElementById('cfg-points-cap').value = cfg.points_cap || 40;
       var rules = typeof cfg.rules_json === 'string' ? JSON.parse(cfg.rules_json) : cfg.rules_json;
       if (rules && rules.scoring) {
-        document.getElementById('cfg-tt-200').value = (rules.scoring.tiktok && rules.scoring.tiktok['200_views']) || 1;
-        document.getElementById('cfg-tt-400').value = (rules.scoring.tiktok && rules.scoring.tiktok['400_views']) || 2;
-        document.getElementById('cfg-yt-200').value = (rules.scoring.youtube && rules.scoring.youtube['200_views_20s_watchtime']) || 1;
-        document.getElementById('cfg-yt-400').value = (rules.scoring.youtube && rules.scoring.youtube['400_views']) || 2;
-        document.getElementById('cfg-eng-40').value = (rules.scoring.engagement && rules.scoring.engagement['40_engagements']) || 1;
+        document.getElementById('cfg-tt-per-point').value = (rules.scoring.tiktok && rules.scoring.tiktok.per_point) || 200;
+        document.getElementById('cfg-yt-per-point').value = (rules.scoring.youtube && rules.scoring.youtube.per_point) || 200;
+        document.getElementById('cfg-eng-per-point').value = (rules.scoring.engagement && rules.scoring.engagement.per_point) || 40;
         document.getElementById('cfg-eng-80').value = (rules.scoring.engagement && rules.scoring.engagement['80_engagements']) || 2;
       }
       document.getElementById('cfg-tier-threshold').value = (rules && rules.tier_upgrade_threshold) || 5;
@@ -1150,7 +1148,7 @@ async function importScoreResult(text) {
             balance_after: newBalance,
             source: 'auto_settlement',
             reason: 'July submission settlement',
-            period: '2026-07',
+            period: currentPeriod,
             created_by: 'agent'
           })
         });
@@ -1455,10 +1453,10 @@ function renderKocTable() {
       '<td><strong>' + esc(k.discord_name) + '</strong></td>' +
       '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.uid) + '</td>' +
       '<td><span class="pts" id="pts-' + k.uid + '">\u22EF</span></td>' +
-      '<td>' + esc(k.name || '-') + '</td>' +
-      '<td style="font-size:12px;">' + esc(k.region || '-') + '</td>' +
-      '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.account_id || '-') + '</td>' +
-      '<td style="font-size:12px;">' + esc(k.server || '-') + '</td>' +
+      '<td ondblclick="inlineEdit(this,\'name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.name || '-') + '</td>' +
+      '<td ondblclick="inlineEdit(this,\'region\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.region || '-') + '</td>' +
+      '<td ondblclick="inlineEdit(this,\'account_id\',\'' + k.uid + '\')" title="Double-click to edit" style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.account_id || '-') + '</td>' +
+      '<td ondblclick="inlineEdit(this,\'server\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.server || '-') + '</td>' +
       '<td style="text-align:center;">' +
         '<div class="toggle-wrap">' +
           '<input type="checkbox" class="toggle-cb" id="cc-' + k.uid + '" ' + (cc ? 'checked' : '') + ' onchange="toggleCC(\'' + k.uid + '\',\'' + escAttr(k.notes||'') + '\')">' +
