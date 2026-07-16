@@ -1407,7 +1407,13 @@ async function pasteScoreResult() {
     showToast('Please paste the scoring result first', 'error');
     return;
   }
-  previewScoreResult(text);
+  try {
+    previewScoreResult(text);
+  } catch(e) {
+    document.getElementById('paste-status').textContent = 'Error: ' + e.message;
+    document.getElementById('paste-status').style.color = '#e74c3c';
+    console.error('previewScoreResult error:', e);
+  }
 }
 
 
@@ -1438,6 +1444,7 @@ function previewScoreResult(text) {
   
   pendingScoreResult = result;
   
+  // Show buttons FIRST before any processing
   var preview = document.getElementById('score-preview-area');
   preview.style.display = 'block';
   document.getElementById('btn-confirm-import').style.display = 'inline-flex';
@@ -1453,36 +1460,39 @@ function previewScoreResult(text) {
     }
   });
   
+  var safeText = function(v) { return (v == null ? '' : String(v)).replace(/[&<>]/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]; }); };
+  
   document.getElementById('score-preview-stats').innerHTML =
     '📊 <strong>' + result.submissions.length + '</strong> submissions · ' +
     '🏆 <strong>' + totalPts + '</strong> total points · ' +
     '👥 <strong>' + Object.keys(creatorMap).length + '</strong> creators';
   
-  var newbieBonusCount = 0;
-  result.submissions.forEach(function(sub) {
-    if (sub.points_earned >= 5 && sub.uid) {
-      (allKocs || []).forEach(function(k) {
-        if (k.uid === sub.uid && k.notes && k.notes.indexOf('newbie_month:' + currentPeriod) >= 0 && k.notes.indexOf('newbie_bonus:' + currentPeriod) === -1 && k.notes.indexOf('old_creator') === -1) {
-          newbieBonusCount++;
-        }
-      });
-    }
-  });
-  
   var detailHtml = result.submissions.slice(0, 20).map(function(sub) {
-    var koc;
-    (allKocs || []).forEach(function(k) { if (k.uid === sub.uid) koc = k; });
-    var name = sub.discord_name || (koc ? koc.discord_name : '?');
+    var name = sub.discord_name || '?';
     return '<div style="display:flex;justify-content:space-between;padding:2px 0;">' +
-      '<span>' + esc(name) + '</span>' +
+      '<span>' + safeText(name) + '</span>' +
       '<span><strong>' + (sub.points_earned || 0) + ' pts</strong></span></div>';
   }).join('');
   if (result.submissions.length > 20) {
     detailHtml += '<div style="color:var(--text-light);font-size:10px;">...and ' + (result.submissions.length - 20) + ' more</div>';
   }
-  if (newbieBonusCount > 0) {
-    detailHtml += '<div style="color:#7b1fa2;font-size:11px;margin-top:4px;">🆕 ' + newbieBonusCount + ' creators will receive +2 New Creator Bonus!</div>';
-  }
+  // Check for newbie bonuses (using safe access)
+  try {
+    var newbieBonusCount = 0;
+    result.submissions.forEach(function(sub) {
+      if (sub.points_earned >= 5 && sub.uid) {
+        for (var j = 0; j < (allKocs || []).length; j++) {
+          var k = allKocs[j];
+          if (k.uid === sub.uid && k.notes && k.notes.indexOf('newbie_month') >= 0 && k.notes.indexOf('old_creator') === -1) {
+            newbieBonusCount++;
+          }
+        }
+      }
+    });
+    if (newbieBonusCount > 0) {
+      detailHtml += '<div style="color:#7b1fa2;font-size:11px;margin-top:4px;">🆕 ' + newbieBonusCount + ' creators will receive +2 New Creator Bonus!</div>';
+    }
+  } catch(e2) {}
   document.getElementById('score-preview-detail').innerHTML = detailHtml;
   
   status.textContent = '✅ Parsed ' + result.submissions.length + ' submissions. Review and click "确认应用积分" to apply.';
