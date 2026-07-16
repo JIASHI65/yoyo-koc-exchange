@@ -214,12 +214,8 @@
     <!-- ======== TAB: 积分计算 ======== -->
     <div id="tab-scoring" class="tab-content">
       <div class="card">
-        <div class="row" style="margin-bottom:8px;background:var(--pink-light);padding:8px 12px;border-radius:8px;align-items:center;">
-          <span style="font-size:13px;font-weight:600;">📅 Settlement Month:</span>
-          <input type="month" id="settle-month" style="width:160px;padding:4px 8px;border:1.5px solid var(--pink);border-radius:6px;font-size:13px;">
-          <span id="settle-label" style="font-size:12px;color:var(--text-light);margin-left:4px;"></span>
-          <span style="margin-left:12px;font-size:12px;color:var(--text-light);">🗓️ 选择的月份将全局过滤所有板块的数据</span>
-          <button class="btn btn-sm" id="btn-toggle-redeem" style="margin-left:auto;background:#43b581;color:white;" onclick="toggleRedemption()">🔓 开放兑换</button>
+        <div class="row" style="margin-bottom:8px;background:var(--pink-light);padding:8px 12px;border-radius:8px;align-items:center;justify-content:flex-end;">
+          <button class="btn btn-sm" id="btn-toggle-redeem" style="background:#43b581;color:white;font-weight:700;padding:8px 16px;" onclick="toggleRedemption()">🔓 开放兑换</button>
         </div>
         <div class="stats-bar" id="stats-bar">
           <span id="stat-total">Loading...</span>
