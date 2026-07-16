@@ -1372,23 +1372,48 @@ async function importScoreResult(text) {
       }
       totalPoints += sub.points_earned || 0;
       successCount++;
-      // Auto-check CC if creator has >=15 submissions this period
+      // Auto-check CC + create CC order if creator has >=15 submissions this period
       try {
         var cntRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(sub.uid) + '&status=eq.scored&select=id&limit=50');
         if (cntRes.ok) {
           var subs = await cntRes.json();
           if (subs && subs.length >= 15) {
-            var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=notes');
+            var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=notes,discord_name,name,server');
             if (kocRes.ok) {
               var kocs = await kocRes.json();
               if (kocs && kocs.length > 0) {
-                var notes = kocs[0].notes || '';
-                if (notes.indexOf('CC:' + currentPeriod) === -1) {
-                  notes = notes ? notes + ', CC:' + currentPeriod : 'CC:' + currentPeriod;
+                var koc = kocs[0];
+                var notes2 = koc.notes || '';
+                // Mark CC in notes
+                if (notes2.indexOf('CC:' + currentPeriod) === -1) {
+                  notes2 = notes2 ? notes2 + ', CC:' + currentPeriod : 'CC:' + currentPeriod;
                   await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
                     method: 'PATCH',
-                    body: JSON.stringify({ notes: notes })
+                    body: JSON.stringify({ notes: notes2 })
                   });
+                }
+                // Create CC order in redemption_orders (端内奖励: 月卡+蜗壳币+金币)
+                var checkOrder = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(sub.uid) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod) + '&select=id');
+                if (checkOrder.ok) {
+                  var existingOrders = await checkOrder.json();
+                  if (!existingOrders || existingOrders.length === 0) {
+                    await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        uid: sub.uid,
+                        discord_name: koc.discord_name || sub.discord_name || '',
+                        koc_name: koc.name || '',
+                        option_type: 'diamonds',
+                        option_name: 'CC:' + currentPeriod,
+                        points_spent: 0,
+                        reward_amount: '月卡x1 + 蜗壳币x500 + 金币x1000',
+                        status: 'pending',
+                        period: currentPeriod,
+                        admin_notes: 'CC:' + currentPeriod + ' - Consistent Creation Reward - ' + currentPeriod,
+                        created_at: new Date().toISOString()
+                      })
+                    });
+                  }
                 }
               }
             }
