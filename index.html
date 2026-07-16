@@ -349,6 +349,30 @@ async function login() {
   }
 }
 
+
+function initSubmitTab() {
+  if (!currentUser) return;
+  var discordEl = document.getElementById('submit-discord');
+  if (discordEl) discordEl.value = currentUser.discord_name || '';
+  var serverEl = document.getElementById('submit-server');
+  // Try to fill server from user data if available
+  if (serverEl && currentUser.server && !serverEl.value) {
+    serverEl.value = currentUser.server;
+  }
+  // Show period label
+  var periodLabel = document.getElementById('submit-period-label');
+  if (!periodLabel) {
+    var submitCard = document.querySelector('#creator-tab-submit .card-title');
+    if (submitCard) {
+      periodLabel = document.createElement('span');
+      periodLabel.id = 'submit-period-label';
+      periodLabel.style.cssText = 'font-size:12px;color:var(--text-light);font-weight:normal;margin-left:8px;';
+      submitCard.appendChild(periodLabel);
+    }
+  }
+  if (periodLabel) periodLabel.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
+}
+
 function showDashboard() {
   document.getElementById('step-login').classList.add('hidden');
   document.getElementById('step-dashboard').classList.remove('hidden');
@@ -358,8 +382,9 @@ function showDashboard() {
   if (typeof displayName === 'object' && displayName !== null) displayName = displayName.discord_name || 'Unknown';
   document.getElementById('display-user').textContent = 'Welcome, ' + displayName;
   var spl = document.getElementById('sub-period-label'); if (spl) spl.textContent = currentPeriod.replace('-', '年') + '月';
-  loadMySubmissions();
   document.getElementById('current-period-label').textContent = currentPeriod.replace('-', '年') + '月';
+  initSubmitTab();
+  switchCreatorTab('submit');
   // Fetch and show tier badge
   try {
     (async function() {
@@ -529,6 +554,7 @@ function switchCreatorTab(name) {
   document.querySelectorAll('#step-dashboard .tab-content').forEach(c => c.classList.remove('active'));
   document.querySelector('#step-dashboard .tab[onclick*="' + name + '"]').classList.add('active');
   document.getElementById('creator-tab-' + name).classList.add('active');
+  if (name === 'submit') initSubmitTab();
   if (name === 'history') loadMySubmissions();
 }
 
