@@ -1449,11 +1449,10 @@ function previewScoreResult(text) {
   
   pendingScoreResult = result;
   
-  // Show buttons FIRST before any processing
-  var preview = document.getElementById('score-preview-area');
-  preview.style.display = 'block';
-  document.getElementById('btn-confirm-import').style.display = 'inline-flex';
-  document.getElementById('btn-cancel-import').style.display = 'inline-flex';
+  // Show preview area and action bar
+  document.getElementById('score-preview-area').style.display = 'block';
+  document.getElementById('import-action-bar').style.display = 'block';
+  document.getElementById('btn-confirm-import').disabled = false;
   
   var totalPts = 0;
   var creatorMap = {};
@@ -1507,8 +1506,7 @@ function previewScoreResult(text) {
 function cancelScoreImport() {
   pendingScoreResult = null;
   document.getElementById('score-preview-area').style.display = 'none';
-  document.getElementById('btn-confirm-import').style.display = 'none';
-  document.getElementById('btn-cancel-import').style.display = 'none';
+  document.getElementById('import-action-bar').style.display = 'none';
   document.getElementById('paste-status').textContent = '';
 }
 
