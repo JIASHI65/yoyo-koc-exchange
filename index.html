@@ -201,7 +201,7 @@
     <div id="creator-tab-submit" class="tab-content">
       <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">🎨 Submit Works</span></div>
       <div class="card">
-        <div class="card-title">🎨 Submit Your Works</div>
+        <div class="card-title">🎨 Submit Works · 📅 <span id="current-period-label"></span></div>
         <label>Discord Username</label>
         <input type="text" id="submit-discord" placeholder="Your Discord name" disabled>
         <label>Server</label>
@@ -234,7 +234,7 @@
     <div id="creator-tab-history" class="tab-content">
       <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">📋 My Submissions</span></div>
       <div class="card">
-        <div class="card-title">📋 My Submissions</div>
+        <div class="card-title">📋 My Submissions · 📅 <span id="sub-period-label"></span></div><div id="submission-count" style="font-size:11px;color:var(--text-light);"></div>
         <div id="submissions-list"><div style="color:var(--text-light);font-size:13px;">Loading...</div></div>
       </div>
     </div>
@@ -357,7 +357,9 @@ function showDashboard() {
   var displayName = currentUser.discord_name;
   if (typeof displayName === 'object' && displayName !== null) displayName = displayName.discord_name || 'Unknown';
   document.getElementById('display-user').textContent = 'Welcome, ' + displayName;
+  var spl = document.getElementById('sub-period-label'); if (spl) spl.textContent = currentPeriod.replace('-', '年') + '月';
   loadMySubmissions();
+  document.getElementById('current-period-label').textContent = currentPeriod.replace('-', '年') + '月';
   // Fetch and show tier badge
   try {
     (async function() {
@@ -486,17 +488,25 @@ async function loadOrders() {
   try {
     const res = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,option_type,option_name,points_spent,status,reward_amount,created_at');
     if (!res.ok) return;
-    const orders = await res.json();
+    var allOrders = await res.json();
     const container = document.getElementById('orders-list');
     const card = document.getElementById('orders-card');
     if (!container) return;
+    // Filter to current month only
+    var currentMonth = currentPeriod || (new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0'));
+    var orders = allOrders.filter(function(o) {
+      var d = new Date(o.created_at);
+      var ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      return ym === currentMonth;
+    });
     if (!orders || orders.length === 0) {
-      container.innerHTML = '<div style="color:var(--text-light);font-size:13px;">No orders yet</div>';
+      container.innerHTML = '<div style="color:var(--text-light);font-size:13px;">📅 ' + currentMonth.replace('-', '年') + '月 暂无兑换记录</div>';
       if (card) card.style.display = 'none';
       return;
     }
     if (card) card.style.display = 'block';
-    container.innerHTML = orders.map(function(o) {
+    container.innerHTML = '<div style="font-size:12px;color:var(--text-light);margin-bottom:6px;">📅 ' + currentMonth.replace('-', '年') + '月 兑换记录</div>' +
+    orders.map(function(o) {
       var statusClass = o.status === 'shipped' ? 'badge-shipped' : o.status === 'pending' ? 'badge-pending' : 'badge-cancelled';
       return '<div class="order-item">' +
         '<div style="display:flex;justify-content:space-between;">' +
@@ -718,7 +728,7 @@ async function loadMySubmissions() {
     var subs = await res.json();
     if (!subs || subs.length === 0) {
       container.innerHTML = '<div style="color:var(--text-light);font-size:13px;text-align:center;padding:20px;">No submissions yet</div>';
-      if (countEl) countEl.textContent = '';
+      if (countEl) countEl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
       return;
     }
     
@@ -795,7 +805,7 @@ async function loadMySubmissions() {
     }).join('');
     
     container.innerHTML = statsHtml + listHtml;
-    if (countEl) countEl.textContent = totalLinks + ' submissions, ' + totalPoints + ' pts';
+    if (countEl) countEl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月 · ' + totalLinks + ' links, ' + totalPoints + ' pts';
   } catch(e) {
     container.innerHTML = '<div style="color:#e74c3c;font-size:13px;">Error loading submissions</div>';
   }

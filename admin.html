@@ -186,6 +186,7 @@
           <span id="stat-total">Loading...</span>
           <span id="stat-shipped">Loading...</span>
           <span id="stat-pending">Loading...</span>
+          <span id="stat-cc" style="margin-left:12px;font-size:12px;color:var(--text-light);"></span>
         </div>
         <div class="row" style="margin-bottom:4px;">
           <input type="text" id="new-discord" placeholder="Discord name" style="width:150px;">
@@ -1162,6 +1163,29 @@ async function importScoreResult(text) {
       }
       totalPoints += sub.points_earned || 0;
       successCount++;
+      // Auto-check CC if creator has >=15 submissions this period
+      try {
+        var cntRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(sub.uid) + '&status=eq.scored&select=id&limit=50');
+        if (cntRes.ok) {
+          var subs = await cntRes.json();
+          if (subs && subs.length >= 15) {
+            var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=notes');
+            if (kocRes.ok) {
+              var kocs = await kocRes.json();
+              if (kocs && kocs.length > 0) {
+                var notes = kocs[0].notes || '';
+                if (notes.indexOf('CC:' + currentPeriod) === -1) {
+                  notes = notes ? notes + ', CC:' + currentPeriod : 'CC:' + currentPeriod;
+                  await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
+                    method: 'PATCH',
+                    body: JSON.stringify({ notes: notes })
+                  });
+                }
+              }
+            }
+          }
+        }
+      } catch(e2) { /* non-blocking */ }
     } catch(e) {
       errors.push('Submission #' + (sub.id || i+1) + ': ' + e.message);
     }
@@ -1678,6 +1702,11 @@ function renderKocTable() {
     '</tr>';
   }).join('');
 
+
+  // Show CC count for current period
+  var ccCount = allKocs.filter(function(k) { return k.status === 'active' && (k.notes || '').includes('CC:' + currentPeriod); }).length;
+  var ccEl = document.getElementById('stat-cc');
+  if (ccEl) ccEl.textContent = '🎁 CC: ' + ccCount + ' creators';
   // Load balances
   filtered.forEach(function(k) {
     getBalance(k.uid).then(function(p) {
