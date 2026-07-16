@@ -91,8 +91,10 @@
       <h2 style="font-size:24px;margin-bottom:4px;">🎀 Yoyo Town</h2>
       <p style="font-size:13px;color:var(--text-light);">Creator Portal</p>
     </div>
-    <button class="btn btn-primary" onclick="showNewCreatorForm()" style="margin-bottom:10px;">🆕 I'm a New Creator</button>
-    <button class="btn btn-outline" onclick="showExistingLogin()" style="width:100%;padding:12px 24px;border:2px solid var(--pink);border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;background:transparent;color:var(--pink-dark);">✅ I'm Already Registered</button>
+    <div id="entry-buttons">
+      <button class="btn btn-primary" onclick="showNewCreatorForm()" style="margin-bottom:10px;">🆕 I'm a New Creator</button>
+      <button class="btn btn-outline" onclick="showExistingLogin()" style="width:100%;padding:12px 24px;border:2px solid var(--pink);border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;background:transparent;color:var(--pink-dark);">✅ I'm Already Registered</button>
+    </div>
 
     <!-- New Creator Form (hidden) — 二级菜单 -->
     <div id="new-creator-form" style="display:none;margin-top:16px;padding-top:16px;border-top:2px solid var(--border);">
@@ -556,14 +558,20 @@ login = function() {
 function showEntryScreen() {
   document.getElementById('new-creator-form').style.display = 'none';
   document.getElementById('existing-login-form').style.display = 'none';
+  document.getElementById('entry-buttons').style.display = 'block';
+  document.querySelector('.header').style.display = 'block';
 }
 function showNewCreatorForm() {
   document.getElementById('new-creator-form').style.display = 'block';
   document.getElementById('existing-login-form').style.display = 'none';
+  document.getElementById('entry-buttons').style.display = 'none';
+  document.querySelector('.header').style.display = 'none';
 }
 function showExistingLogin() {
   document.getElementById('new-creator-form').style.display = 'none';
   document.getElementById('existing-login-form').style.display = 'block';
+  document.getElementById('entry-buttons').style.display = 'none';
+  document.querySelector('.header').style.display = 'none';
 }
 async function registerCreator() {
   var discord = document.getElementById('reg-discord').value.trim();
@@ -752,9 +760,10 @@ function logout() {
   document.getElementById('input-discord').value = '';
   document.getElementById('input-uid').value = '';
   document.getElementById('btn-login').disabled = false;
-  // Reset to entry view (hide both forms)
   document.getElementById('new-creator-form').style.display = 'none';
   document.getElementById('existing-login-form').style.display = 'none';
+  document.getElementById('entry-buttons').style.display = 'block';
+  document.querySelector('.header').style.display = 'block';
 }
 </script>
 </body>
