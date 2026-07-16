@@ -164,29 +164,19 @@
 
     <!-- Tab Navigation -->
     <div class="tabs" id="tab-nav">
-      <button class="tab active" onclick="switchTab('koc-ledger')">📋 KOC台账</button>
+      <button class="tab active" onclick="switchTab('koc-ledger')">📋 KOC信息库</button>
+      <button class="tab" onclick="switchTab('scoring')">🧮 积分计算</button>
+      <button class="tab" onclick="switchTab('submissions')">📋 作品审核</button>
       <button class="tab" onclick="switchTab('merch')">📦 周边发货</button>
       <button class="tab" onclick="switchTab('diamond')">💎 端内奖励</button>
       <button class="tab" onclick="switchTab('gplay')">🎮 谷歌卡</button>
-      <button class="tab" onclick="switchTab('submissions')">📋 作品审核</button>
       <button class="tab" onclick="switchTab('rules')">📐 规则配置</button>
     </div>
 
-    <!-- ======== TAB: KOC台账 ======== -->
+    <!-- ======== TAB: KOC信息库 ======== -->
     <div id="tab-koc-ledger" class="tab-content active">
       <div class="card">
-        <div class="row" style="margin-bottom:8px;background:var(--pink-light);padding:8px 12px;border-radius:8px;align-items:center;">
-          <span style="font-size:13px;font-weight:600;">📅 Settlement Month:</span>
-          <input type="month" id="settle-month" style="width:160px;padding:4px 8px;border:1.5px solid var(--pink);border-radius:6px;font-size:13px;">
-          <span id="settle-label" style="font-size:12px;color:var(--text-light);margin-left:4px;"></span>
-          <span style="margin-left:12px;font-size:12px;color:var(--text-light);">🗓️ 选择的月份将全局过滤所有板块的数据</span>
-        </div>
-        <div class="stats-bar" id="stats-bar">
-          <span id="stat-total">Loading...</span>
-          <span id="stat-shipped">Loading...</span>
-          <span id="stat-pending">Loading...</span>
-          <span id="stat-cc" style="margin-left:12px;font-size:12px;color:var(--text-light);"></span>
-        </div>
+        <div class="card-title">📋 KOC信息库 <span style="font-size:12px;color:var(--text-light);font-weight:normal;">— 所有板块的信息源，双击可编辑</span></div>
         <div class="row" style="margin-bottom:4px;">
           <input type="text" id="new-discord" placeholder="Discord name" style="width:150px;">
           <input type="text" id="new-uid" placeholder="UID" style="width:130px;">
@@ -204,17 +194,45 @@
             <th>Discord</th>
             <th>UID</th>
             <th>⭐ 等级</th>
-            <th>Pts</th>
             <th>Name</th>
             <th>Region</th>
             <th>Account ID</th>
             <th>Server</th>
             <th>Address</th>
+          </tr></thead>
+          <tbody id="koc-table"></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======== TAB: 积分计算 ======== -->
+    <div id="tab-scoring" class="tab-content">
+      <div class="card">
+        <div class="row" style="margin-bottom:8px;background:var(--pink-light);padding:8px 12px;border-radius:8px;align-items:center;">
+          <span style="font-size:13px;font-weight:600;">📅 Settlement Month:</span>
+          <input type="month" id="settle-month" style="width:160px;padding:4px 8px;border:1.5px solid var(--pink);border-radius:6px;font-size:13px;">
+          <span id="settle-label" style="font-size:12px;color:var(--text-light);margin-left:4px;"></span>
+          <span style="margin-left:12px;font-size:12px;color:var(--text-light);">🗓️ 选择的月份将全局过滤所有板块的数据</span>
+        </div>
+        <div class="stats-bar" id="stats-bar">
+          <span id="stat-total">Loading...</span>
+          <span id="stat-shipped">Loading...</span>
+          <span id="stat-pending">Loading...</span>
+          <span id="stat-cc" style="margin-left:12px;font-size:12px;color:var(--text-light);"></span>
+        </div>
+        <div style="overflow-x:auto;">
+        <table>
+          <thead><tr>
+            <th>Discord</th>
+            <th>UID</th>
+            <th>Pts</th>
+            <th>Name</th>
             <th style="text-align:center;">CC ✓</th>
             <th style="width:90px;">积分操作</th>
             <th>Orders</th>
           </tr></thead>
-          <tbody id="koc-table"></tbody>
+          <tbody id="scoring-table"></tbody>
         </table>
         </div>
       </div>
@@ -1274,6 +1292,7 @@ function switchTab(name) {
   document.getElementById('tab-' + name).classList.add('active');
   // Refresh tab content
   if (name === 'koc-ledger') renderKocTable();
+  if (name === 'scoring') renderScoringTable();
   if (name === 'merch') renderMerchTab();
   if (name === 'diamond') renderDiamondTab();
   if (name === 'gplay') renderGplayTab();
@@ -1664,24 +1683,13 @@ function renderKocTable() {
   var filtered = allKocs.filter(function(k) {
     return (k.discord_name || '').toLowerCase().includes(q) || (k.uid || '').toLowerCase().includes(q);
   });
-
   document.getElementById('koc-count').textContent = filtered.length + ' creators';
-  document.getElementById('stat-total').textContent = '\uD83D\uDC65 Total: ' + allKocs.length;
-  var shipped = allOrders.filter(function(o) { return o.status === 'shipped'; }).length;
-  var pending = allOrders.filter(function(o) { return o.status === 'pending'; }).length;
-  document.getElementById('stat-shipped').textContent = '\u2705 Shipped: ' + shipped;
-  document.getElementById('stat-pending').textContent = '\u23F3 Pending: ' + pending;
-
   var tbody = document.getElementById('koc-table');
   if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
     return;
   }
-
   tbody.innerHTML = filtered.map(function(k) {
-    var orders = allOrders.filter(function(o) { return o.uid === k.uid; });
-    var pendingOrders = orders.filter(function(o) { return o.status === 'pending'; });
-    var cc = hasCC(k.notes);
     return '<tr>' +
       '<td><strong>' + esc(k.discord_name) + '</strong></td>' +
       '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.uid) + '</td>' +
@@ -1690,18 +1698,48 @@ function renderKocTable() {
         '<option value="gold"' + (k.tier==='gold'?' selected':'') + '>🟡 金级创作官</option>' +
         '<option value="platinum"' + (k.tier==='platinum'?' selected':'') + '>💎 铂金创作官</option>' +
       '</select></td>' +
-      '<td><span class="pts" id="pts-' + k.uid + '">\u22EF</span></td>' +
       '<td ondblclick="inlineEdit(this,\'name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.name || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'region\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.region || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'account_id\',\'' + k.uid + '\')" title="Double-click to edit" style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.account_id || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'server\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.server || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'address\',\'' + k.uid + '\')" title="Double-click to edit" style="font-size:12px;white-space:pre-wrap;max-width:200px;">' + esc(k.address || '-') + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+
+function renderScoringTable() {
+  var tbody = document.getElementById('scoring-table');
+  if (!tbody) return;
+  if (!allKocs.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
+    return;
+  }
+  document.getElementById('stat-total').textContent = '\uD83D\uDC65 Total: ' + allKocs.length;
+  var shipped = allOrders.filter(function(o) { return o.status === 'shipped'; }).length;
+  var pending = allOrders.filter(function(o) { return o.status === 'pending'; }).length;
+  document.getElementById('stat-shipped').textContent = '\u2705 Shipped: ' + shipped;
+  document.getElementById('stat-pending').textContent = '\u23F3 Pending: ' + pending;
+  var ccCount = allKocs.filter(function(k) { return k.status === 'active' && (k.notes || '').includes('CC:' + currentPeriod); }).length;
+  var ccEl = document.getElementById('stat-cc');
+  if (ccEl) ccEl.textContent = '🎁 CC: ' + ccCount + ' creators';
+  
+  tbody.innerHTML = allKocs.map(function(k) {
+    var orders = allOrders.filter(function(o) { return o.uid === k.uid; });
+    var pendingOrders = orders.filter(function(o) { return o.status === 'pending'; });
+    var cc = hasCC(k.notes);
+    return '<tr>' +
+      '<td><strong>' + esc(k.discord_name) + '</strong></td>' +
+      '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.uid) + '</td>' +
+      '<td><span class="pts" id="spts-' + k.uid + '">\u22EF</span></td>' +
+      '<td>' + esc(k.name || '-') + '</td>' +
       '<td style="text-align:center;">' +
         '<div class="toggle-wrap">' +
           '<input type="checkbox" class="toggle-cb" id="cc-' + k.uid + '" ' + (cc ? 'checked' : '') + ' onchange="toggleCC(\'' + k.uid + '\',\'' + escAttr(k.notes||'') + '\')">' +
           '<label class="toggle-label" for="cc-' + k.uid + '"></label>' +
         '</div>' +
       '</td>' +
+      '<td><button class="btn btn-sm" style="background:#e8e0ff;color:#6a3de8;" onclick="openPointsModal(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">💳 积分</button></td>' +
       '<td>' +
         (pendingOrders.length > 0 ? '<span class="badge badge-pending" style="cursor:pointer;" onclick="toggleOrders(\'' + k.uid + '\')">' + pendingOrders.length + ' pending</span>' : '<span style="color:var(--text-light);font-size:12px;">0</span>') +
         '<div id="orders-' + k.uid + '" class="hidden" style="margin-top:4px;max-width:240px;">' +
@@ -1713,16 +1751,10 @@ function renderKocTable() {
       '</td>' +
     '</tr>';
   }).join('');
-
-
-  // Show CC count for current period
-  var ccCount = allKocs.filter(function(k) { return k.status === 'active' && (k.notes || '').includes('CC:' + currentPeriod); }).length;
-  var ccEl = document.getElementById('stat-cc');
-  if (ccEl) ccEl.textContent = '🎁 CC: ' + ccCount + ' creators';
   // Load balances
-  filtered.forEach(function(k) {
+  allKocs.forEach(function(k) {
     getBalance(k.uid).then(function(p) {
-      var el = document.getElementById('pts-' + k.uid);
+      var el = document.getElementById('spts-' + k.uid);
       if (el) el.textContent = p;
     });
   });
@@ -2037,16 +2069,19 @@ function renderDiamondTab() {
       '<div class="month-header" style="background:#e8f5e9;">' +
       '<span class="month-icon">🎁</span><span>' + label + ' · 连续创作奖励 (CC)</span>' +
       '<span class="count">(' + ccCreators.length + ' creators)</span>' +
-      '</div>' +
+      '<div style="margin-left:auto;display:flex;gap:6px;">' +
+      '<button class="btn btn-primary btn-sm export-btn" data-type="diamonds-cc" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
+      '</div></div>' +
       '<table class="month-table"><thead><tr>' +
-      '<th>Discord</th><th>UID</th><th>Name</th><th>Server</th><th>Reward</th>' +
+      '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Account ID</th><th>Server</th><th>Reward</th>' +
       '</tr></thead><tbody>' +
       ccCreators.map(function(k) {
         return '<tr>' +
+          '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
           '<td><strong>' + esc(k.discord_name) + '</strong></td>' +
           '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.uid) + '</td>' +
-          '<td>' + esc(k.name || '-') + '</td>' +
-          '<td>' + esc(k.server || '-') + '</td>' +
+          '<td style="font-family:monospace;font-size:12px;">' + esc(k.account_id || '-') + '</td>' +
+          '<td style="font-size:12px;">' + esc(k.server || '-') + '</td>' +
           '<td>🎁 月卡×1 + 🪙 蜗壳币×500 + 💰 金币×1000</td>' +
         '</tr>';
       }).join('') +
