@@ -2217,15 +2217,6 @@ function editOrderRow(orderId, field) {
       });
     } else {
       // Update kocs table
-      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + orderId, {
-        method: 'PATCH',
-        body: JSON.stringify((function(){ var o = {}; o[field] = newVal; return o; })())
-      }).then(function(r) {
-        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); loadData(); }
-        else showToast('Failed to update', 'error');
-      });
-    } else {
-      // Update kocs table
       supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(order.uid), {
         method: 'PATCH',
         body: JSON.stringify((function(){ var o = {}; o[field] = newVal; return o; })())
