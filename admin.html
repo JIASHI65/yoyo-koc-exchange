@@ -1398,7 +1398,108 @@ async function pasteScoreResult() {
     showToast('Please paste the scoring result first', 'error');
     return;
   }
-  await importScoreResult(text);
+  await previewScoreResult(text);
+}
+
+
+// ===== PREVIEW & CONFIRM SCORE IMPORT =====
+var pendingScoreResult = null;
+
+function previewScoreResult(text) {
+  pendingScoreResult = null;
+  var status = document.getElementById('paste-status');
+  status.textContent = 'Parsing...';
+  status.style.color = 'var(--text-light)';
+  
+  var result;
+  try {
+    result = JSON.parse(text);
+  } catch(e) {
+    var match = text.match(/\x60{3,}json\s*([\s\S]*?)\x60{3,}/);
+    if (match) {
+      try { result = JSON.parse(match[1].trim()); } catch(e2) {}
+    }
+  }
+  
+  if (!result || !result.submissions || !Array.isArray(result.submissions)) {
+    status.textContent = '❌ Invalid format. Expected JSON with "submissions" array.';
+    status.style.color = '#e74c3c';
+    return;
+  }
+  
+  pendingScoreResult = result;
+  
+  var preview = document.getElementById('score-preview-area');
+  preview.style.display = 'block';
+  document.getElementById('btn-confirm-import').style.display = 'inline-flex';
+  document.getElementById('btn-cancel-import').style.display = 'inline-flex';
+  
+  var totalPts = 0;
+  var creatorMap = {};
+  result.submissions.forEach(function(sub) {
+    totalPts += sub.points_earned || 0;
+    if (sub.uid) {
+      if (!creatorMap[sub.uid]) creatorMap[sub.uid] = 0;
+      creatorMap[sub.uid] += sub.points_earned || 0;
+    }
+  });
+  
+  document.getElementById('score-preview-stats').innerHTML =
+    '📊 <strong>' + result.submissions.length + '</strong> submissions · ' +
+    '🏆 <strong>' + totalPts + '</strong> total points · ' +
+    '👥 <strong>' + Object.keys(creatorMap).length + '</strong> creators';
+  
+  var newbieBonusCount = 0;
+  result.submissions.forEach(function(sub) {
+    if (sub.points_earned >= 5 && sub.uid) {
+      (allKocs || []).forEach(function(k) {
+        if (k.uid === sub.uid && k.notes && k.notes.indexOf('newbie_month:' + currentPeriod) >= 0 && k.notes.indexOf('newbie_bonus:' + currentPeriod) === -1 && k.notes.indexOf('old_creator') === -1) {
+          newbieBonusCount++;
+        }
+      });
+    }
+  });
+  
+  var detailHtml = result.submissions.slice(0, 20).map(function(sub) {
+    var koc;
+    (allKocs || []).forEach(function(k) { if (k.uid === sub.uid) koc = k; });
+    var name = sub.discord_name || (koc ? koc.discord_name : '?');
+    return '<div style="display:flex;justify-content:space-between;padding:2px 0;">' +
+      '<span>' + esc(name) + '</span>' +
+      '<span><strong>' + (sub.points_earned || 0) + ' pts</strong></span></div>';
+  }).join('');
+  if (result.submissions.length > 20) {
+    detailHtml += '<div style="color:var(--text-light);font-size:10px;">...and ' + (result.submissions.length - 20) + ' more</div>';
+  }
+  if (newbieBonusCount > 0) {
+    detailHtml += '<div style="color:#7b1fa2;font-size:11px;margin-top:4px;">🆕 ' + newbieBonusCount + ' creators will receive +2 New Creator Bonus!</div>';
+  }
+  document.getElementById('score-preview-detail').innerHTML = detailHtml;
+  
+  status.textContent = '✅ Parsed ' + result.submissions.length + ' submissions. Review and click "确认应用积分" to apply.';
+  status.style.color = '#4caf50';
+}
+
+function cancelScoreImport() {
+  pendingScoreResult = null;
+  document.getElementById('score-preview-area').style.display = 'none';
+  document.getElementById('btn-confirm-import').style.display = 'none';
+  document.getElementById('btn-cancel-import').style.display = 'none';
+  document.getElementById('paste-status').textContent = '';
+}
+
+async function confirmScoreImport() {
+  if (!pendingScoreResult) { showToast('No result to import', 'error'); return; }
+  document.getElementById('btn-confirm-import').disabled = true;
+  document.getElementById('btn-confirm-import').textContent = '⏳ Applying...';
+  try {
+    await importScoreResult(JSON.stringify(pendingScoreResult));
+  } finally {
+    document.getElementById('btn-confirm-import').disabled = false;
+    document.getElementById('btn-confirm-import').textContent = '✅ 确认应用积分';
+  }
+  pendingScoreResult = null;
+  document.getElementById('score-preview-area').style.display = 'none';
 }
 
 function importScoreFile(event) {
