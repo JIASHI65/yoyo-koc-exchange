@@ -375,7 +375,8 @@ Elite: 连续 6 个月达到 5 分</textarea>
         <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
           <span>📋 作品审核 <span id="submission-count" style="font-size:12px;color:var(--text-light);"></span></span>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button class="btn btn-primary btn-sm" onclick="copyAgentTemplate()">📋 一键复制 Agent 输入</button>
+            <button class="btn btn-primary btn-sm" onclick="exportSubmissionsFile()">📥 导出待审核文件</button>
+            <button class="btn btn-outline btn-sm" onclick="copyAgentPrompt()">📋 复制提示词</button>
             <button class="btn btn-success btn-sm" onclick="document.getElementById('import-file-input').click()">📥 导入算分结果</button>
             <input type="file" id="import-file-input" accept=".json,.txt" style="display:none" onchange="importScoreFile(event)">
             <button class="btn btn-sm" style="background:#5865F2;color:white;" onclick="openMochiBroadcast()">💬 Mochi 广播</button>
@@ -1062,6 +1063,83 @@ function generateAgentTemplate() {
 
   lines.push('--- END ---');
   return lines.join('\n');
+}
+
+async function exportSubmissionsFile() {
+  var pending = allSubmissions.filter(function(s) { return s.status === 'pending'; });
+  if (pending.length === 0) {
+    showToast('No pending submissions to export', 'error');
+    return;
+  }
+  // Build compact JSON with just the essential data
+  var data = {
+    batch: currentPeriod,
+    rules: SCORING_RULES_TEXT,
+    submissions: pending.map(function(s) {
+      var links = (s.links_engagement || '').split('\n').filter(Boolean);
+      return {
+        id: s.id,
+        discord_name: s.discord_name,
+        uid: s.uid,
+        links: links
+      };
+    })
+  };
+  var json = JSON.stringify(data, null, 2);
+  // Download as file
+  var blob = new Blob([json], {type: 'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'koc-submissions-' + currentPeriod + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ 已导出 ' + pending.length + ' 条待审核到文件', 'success');
+}
+
+async function copyAgentPrompt() {
+  var pending = allSubmissions.filter(function(s) { return s.status === 'pending'; });
+  if (pending.length === 0) {
+    showToast('No pending submissions', 'error');
+    return;
+  }
+  var filename = 'koc-submissions-' + currentPeriod + '.json';
+  var prompt = [
+    '# Yoyo KOC Exchange · Agent 算分任务',
+    '',
+    '## 规则',
+    SCORING_RULES_TEXT,
+    '',
+    '## 操作步骤',
+    '1. 打开我给你的文件: ' + filename,
+    '2. 文件里每个 submission 有 id / discord_name / uid / links 字段',
+    '3. 用浏览器打开 links 里的每条链接，查看真实互动数/播放量',
+    '4. 按上方规则计算每条 submission 的积分',
+    '5. 输出 JSON 结果给我',
+    '',
+    '## 输出格式',
+    '```json',
+    '{',
+    '  "submissions": [',
+    '    {',
+    '      "id": 提交ID,',
+    '      "discord_name": "用户名",',
+    '      "uid": "UID",',
+    '      "total_engagement": N,',
+    '      "total_views": N,',
+    '      "points_earned": N',
+    '    }',
+    '  ]',
+    '}',
+    '```'
+  ].join('\n');
+  
+  try {
+    await navigator.clipboard.writeText(prompt);
+    showToast('✅ 提示词已复制! 共 ' + pending.length + ' 条，文件名为 ' + filename, 'success');
+  } catch(e) {
+    showToast('复制失败: ' + e.message, 'error');
+  }
 }
 
 async function copyAgentTemplate() {
