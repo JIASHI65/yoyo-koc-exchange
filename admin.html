@@ -157,6 +157,11 @@
     <div class="header">
       <h1>🎀 Admin · KOC Redemption</h1>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;background:#fce4ec;padding:6px 14px;border-radius:10px;border:2px solid var(--pink);">
+          <span style="font-size:13px;font-weight:600;color:var(--pink-dark);">📅 结算月份</span>
+          <input type="month" id="settle-month" style="width:150px;padding:4px 8px;border:1.5px solid var(--pink);border-radius:6px;font-size:13px;font-weight:600;" onchange="changeSettlePeriod()">
+          <span id="settle-label" style="font-size:12px;font-weight:600;color:var(--pink-dark);margin-left:2px;"></span>
+        </div>
         <span id="deadline-show" style="font-size:12px;color:var(--text-light);"></span>
         <button class="btn btn-outline btn-sm" onclick="adminLogout()">Logout</button>
       </div>
@@ -1977,17 +1982,10 @@ function changeSettlePeriod() {
   document.getElementById('settle-label').textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
   // 全局切换月份，重绘所有板块
   renderKocTable();
-  var activeTab = document.querySelector('.tab-btn.active');
-  if (activeTab) {
-    var name = activeTab.getAttribute('onclick');
-    if (name) {
-      name = name.match(/'([^']+)'/);
-      if (name) name = name[1];
-      if (name === 'merch') renderMerchTab();
-      else if (name === 'diamond') renderDiamondTab();
-      else if (name === 'gplay') renderGplayTab();
-    }
-  }
+  renderScoringTable();
+  renderMerchTab();
+  renderDiamondTab();
+  renderGplayTab();
   showToast('📅 切换到 ' + currentPeriod.replace('-', '年') + '月', 'success');
 }
 
