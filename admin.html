@@ -342,19 +342,25 @@
           例如 TikTok 设 200 = 200 views 达到 200 views 得 1 分，400 views 得 2 分。
         </div>
         <label>TikTok 算分规则（一分 = 多少 views）</label>
-        <div class="row">
-          <input type="number" id="cfg-tt-per-point" value="200" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">views = 1 分</span>
-          <input type="number" id="cfg-tt-400" value="400" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">views = 2 分</span>
+        <div class="row" style="gap:8px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:500;">一分 = </span>
+          <input type="number" id="cfg-tt-per-point" value="200" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">views</span>
+          <span style="font-size:13px;font-weight:500;margin-left:8px;">两分 = </span>
+          <input type="number" id="cfg-tt-400" value="400" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">views</span>
         </div>
         <label>YouTube 算分规则（一分 = 多少 views + 20s watch time）</label>
-        <div class="row">
-          <input type="number" id="cfg-yt-per-point" value="200" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">views = 1 分</span>
-          <input type="number" id="cfg-yt-400" value="400" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">views = 2 分</span>
+        <div class="row" style="gap:8px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:500;">一分 = </span>
+          <input type="number" id="cfg-yt-per-point" value="200" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">views</span>
+          <span style="font-size:13px;font-weight:500;margin-left:8px;">两分 = </span>
+          <input type="number" id="cfg-yt-400" value="400" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">views</span>
         </div>
         <label>社交平台算分规则（一分 = 多少 engagements）</label>
-        <div class="row">
-          <input type="number" id="cfg-eng-per-point" value="40" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">engagements = 1 分</span>
-          <input type="number" id="cfg-eng-80" value="80" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">engagements = 2 分</span>
+        <div class="row" style="gap:8px;flex-wrap:wrap;">
+          <span style="font-size:13px;font-weight:500;">一分 = </span>
+          <input type="number" id="cfg-eng-per-point" value="40" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">engagements</span>
+          <span style="font-size:13px;font-weight:500;margin-left:8px;">两分 = </span>
+          <input type="number" id="cfg-eng-80" value="80" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">engagements</span>
         </div>
         <label>等级制度说明（显示在创作者端）</label>
         <textarea id="cfg-tier-description" style="min-height:100px;width:100%;">认证创作官: 默认等级，所有人进来都是
@@ -2189,7 +2195,7 @@ function editOrderRow(orderId, field) {
       // Update redemption_orders
       supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + orderId, {
         method: 'PATCH',
-        body: JSON.stringify({ option_name: newVal })
+        body: JSON.stringify((function(){ var o = {}; o[field] = newVal; return o; })())
       }).then(function(r) {
         if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); loadData(); }
         else showToast('Failed to update', 'error');
@@ -2249,6 +2255,51 @@ function editKocField(uid, name, field) {
 }
 
 // ===== RENDER SHIPPING TABS =====
+
+
+
+// ===== INLINE EDIT for Points (积分计算板块) =====
+function inlineEditPts(uid, discord) {
+  getBalance(uid).then(function(curPts) {
+    var newVal = prompt('Edit points for ' + discord + ':', curPts);
+    if (newVal === null) return;
+    newVal = parseInt(newVal);
+    if (isNaN(newVal)) { showToast('Invalid number', 'error'); return; }
+    var diff = newVal - curPts;
+    if (diff === 0) { showToast('No change', 'info'); return; }
+    supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+      method: 'POST',
+      body: JSON.stringify({
+        uid: uid, change: diff,
+        balance_after: newVal,
+        source: 'admin_fix', reason: 'Manual adjustment by admin',
+        created_at: new Date().toISOString()
+      })
+    }).then(function(r) {
+      if (r.ok) { showToast('✅ Points updated to ' + newVal, 'success'); loadData(); }
+      else showToast('Failed to update points', 'error');
+    });
+  });
+}
+
+// ===== INLINE EDIT for KOC信息库 (double-click cells) =====
+function inlineEdit(cell, field, uid) {
+  var currentVal = cell.textContent.trim();
+  if (currentVal === '-') currentVal = '';
+  var newVal = prompt('Edit ' + field + ':', currentVal);
+  if (newVal === null) return;
+  newVal = newVal.trim();
+  var update = {};
+  update[field] = newVal;
+  supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
+    method: 'PATCH',
+    body: JSON.stringify(update)
+  }).then(function(r) {
+    if (r.ok) { showToast('✅ ' + field + ' updated', 'success'); loadData(); }
+    else showToast('Failed to update', 'error');
+  });
+}
+
 function getKocMap() {
   var m = {};
   allKocs.forEach(function(k) { m[k.uid] = k; });

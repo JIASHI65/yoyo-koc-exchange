@@ -178,7 +178,7 @@
           <div class="points-label">Available Points</div>
         </div>
         <div style="font-size:13px;text-align:center;color:var(--text-light);" id="display-user-redeem"></div>
-<div style="text-align:center;margin-top:10px;" id="display-tier"></div>
+<div style="text-align:center;margin-top:14px;margin-bottom:4px;" id="display-tier"></div>
       </div>
 
       <div class="card">
@@ -310,9 +310,19 @@ function tryAutoLogin() {
       currentUser = { ...koc, points: points - pendingTotal };
       localStorage.setItem('koc_session', JSON.stringify({ uid: currentUser.uid, discord_name: currentUser.discord_name }));
       showDashboard();
+      // Restore saved tab after refresh - override switchCreatorTab default
+      var savedTab = localStorage.getItem('koc_active_tab');
+      if (savedTab && ['submit','history','redeem','faq'].indexOf(savedTab) >= 0) {
+        setTimeout(function() { switchCreatorTab(savedTab); }, 100);
+      }
       checkDeadline();
       var submitDiscord = document.getElementById('submit-discord');
       if (submitDiscord && koc.discord_name) submitDiscord.value = typeof koc.discord_name === 'string' ? koc.discord_name : '';
+      // Force re-render submit tab
+      setTimeout(function() {
+        var tab = document.getElementById('creator-tab-submit');
+        if (tab) initSubmitTab();
+      }, 50);
     } catch(e) { localStorage.removeItem('koc_session'); }
   })();
 }
@@ -400,6 +410,11 @@ async function login() {
     if (submitDiscord && koc.discord_name) {
       submitDiscord.value = typeof koc.discord_name === 'string' ? koc.discord_name : '';
     }
+    // Force re-render submit tab after everything is set
+    setTimeout(function() {
+      var tab = document.getElementById('creator-tab-submit');
+      if (tab) initSubmitTab();
+    }, 50);
   } catch (e) {
     console.error('login error:', e);
     showToast(e.name === 'AbortError' ? 'Connection timed out. Try again.' : 'Error: ' + e.message, 'error');
@@ -736,6 +751,8 @@ async function registerCreator() {
       address: fullAddress,
       phone: phone,
       notes: JSON.stringify({ registered_at: new Date().toISOString(), account_id: accountId, game_uid: gameUid, fullname: fullname, street: street, city: city, state: state, zip: zip, country: country, phone: phone }),
+      // Auto-set newbie_month = next month
+      __newbie_notes: 'newbie_month:' + (function(){ var d=new Date(); var m=d.getMonth()+2; var y=d.getFullYear(); if(m>12){m=1;y+=1;} return y+'-'+String(m).padStart(2,'0'); })(),
       status: 'active'
     };
 
@@ -750,6 +767,17 @@ async function registerCreator() {
     document.getElementById('input-discord').value = discord;
     document.getElementById('input-uid').value = newUid;
     showToast('✅ Registered! UID: ' + newUid + ' — save this to login', 'success');
+    // Set newbie_month tag on the newly registered KOC
+    try {
+      var nbMonth = (function(){ var d=new Date(); var m=d.getMonth()+2; var y=d.getFullYear(); if(m>12){m=1;y+=1;} return y+'-'+String(m).padStart(2,'0'); })();
+      var curNotes = JSON.parse(notesJson); // re-read
+      curNotes.newbie_month = nbMonth;
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(newUid), {
+        method: 'PATCH',
+        body: JSON.stringify({ notes: JSON.stringify(curNotes) })
+      });
+    } catch(e) { console.error('Failed to set newbie_month', e); }
+
   } catch(e) {
     status.textContent = '❌ Error: ' + e.message;
     status.style.color = '#e74c3c';
