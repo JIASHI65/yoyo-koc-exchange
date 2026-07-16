@@ -1686,6 +1686,11 @@ function renderKocTable() {
     return '<tr>' +
       '<td><strong>' + esc(k.discord_name) + '</strong></td>' +
       '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.uid) + '</td>' +
+      '<td>' + getTierBadge(k.tier || 'certified') + '<br><select id="koc-tier-select-' + k.uid + '" style="width:100px;font-size:11px;margin-top:2px;" onchange="updateKocTierInline(\'' + k.uid + '\')" class="tier-select">' +
+        '<option value="certified"' + ((k.tier||'certified')==='certified'?' selected':'') + '>✅ 认证创作官</option>' +
+        '<option value="gold"' + (k.tier==='gold'?' selected':'') + '>🟡 金级创作官</option>' +
+        '<option value="platinum"' + (k.tier==='platinum'?' selected':'') + '>💎 铂金创作官</option>' +
+      '</select></td>' +
       '<td><span class="pts" id="pts-' + k.uid + '">\u22EF</span></td>' +
       '<td ondblclick="inlineEdit(this,\'name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.name || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'region\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.region || '-') + '</td>' +
