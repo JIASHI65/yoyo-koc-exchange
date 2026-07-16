@@ -2523,7 +2523,13 @@ function inlineEdit(cell, field, uid) {
     }).then(async function(r) {
       if (r.ok) { 
         showToast('\u2705 ' + field + ' updated', 'success'); 
-        await loadData(); 
+        await loadData();
+        // Refresh all tabs
+        renderKocTable();
+        renderScoringTable();
+        try { renderMerchTab(); } catch(e) {}
+        try { renderDiamondTab(); } catch(e) {}
+        try { renderGplayTab(); } catch(e) {}
       } else {
         cell.textContent = currentVal || '-';
         var errText = await r.text().catch(function(){return '';});
@@ -2576,7 +2582,7 @@ function editOrderInline(cell, field, orderId, uid) {
         method: 'PATCH',
         body: JSON.stringify(update)
       }).then(async function(r) {
-        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); await loadData(); }
+        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); await loadData(); renderKocTable(); renderScoringTable(); try{renderMerchTab()}catch(e){} try{renderDiamondTab()}catch(e){} try{renderGplayTab()}catch(e){} }
         else { cell.textContent = currentVal || '-'; var et=await r.text().catch(function(){return '';}); showToast('Failed: '+et.substring(0,60), 'error'); }
       }).catch(function(e) { cell.textContent = currentVal || '-'; showToast('Error: '+e.message, 'error'); });
     } else if (field === 'uid') {
@@ -2597,7 +2603,7 @@ function editOrderInline(cell, field, orderId, uid) {
       supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
         method: 'PATCH', body: JSON.stringify(update)
       }).then(async function(r) {
-        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); await loadData(); }
+        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); await loadData(); renderKocTable(); renderScoringTable(); try{renderMerchTab()}catch(e){} try{renderDiamondTab()}catch(e){} try{renderGplayTab()}catch(e){} }
         else { cell.textContent = currentVal || '-'; showToast('Failed', 'error'); }
       }).catch(function(e) { cell.textContent = currentVal || '-'; });
     }
