@@ -259,6 +259,7 @@ const REWARDS = [
   { id: 'merch', name: '📦 Merch Pack', cost: 5, desc: '5 Points = 3 random items', amount: 'Random Merch ×3' }
 ];
 
+var currentPeriod = (new Date()).getFullYear() + '-' + String((new Date()).getMonth()).padStart(2, '0');
 let currentUser = null;
 let selections = {};
 
@@ -671,7 +672,7 @@ async function submitWorks() {
         link: link.trim(),
         address: address || null,
         game_uid: gameUid || null,
-        period: '2026-07',
+        period: currentPeriod,
         status: 'pending',
         created_at: new Date().toISOString()
       };

@@ -1561,6 +1561,7 @@ function toggleCC(uid, notes) {
                 discord_name: discordName,
                 koc_name: discordName,
                 option_type: 'diamond',
+                period: currentPeriod,
                 option_name: 'CC:' + currentPeriod,
                 points_spent: 0,
                 reward_amount: 'Premium Monthly Card x1 + Shelly Coins x500 + Gold x1000',
@@ -1847,6 +1848,10 @@ function fmtDate(d) {
 }
 
 function getMonthGroup(o) {
+  if (o.period) {
+    var parts = o.period.split('-');
+    if (parts.length === 2) return parts[0] + '年' + parseInt(parts[1]) + '月';
+  }
   var d = new Date(o.created_at);
   var y = d.getFullYear();
   var m = d.getMonth() + 1;
