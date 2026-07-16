@@ -411,16 +411,17 @@ Elite: 连续 6 个月达到 5 分</textarea>
         </div>
       </div>
 
-      <!-- Agent Output Preview -->
-      <div class="card" id="agent-output-card" style="display:none;">
+      <!-- Agent 算分结果导入 -->
+      <div class="card">
         <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-          <span>🤖 Agent 输出预览</span>
+          <span>🤖 Agent 算分结果导入</span>
           <div style="display:flex;gap:6px;">
-            <button class="btn btn-primary btn-sm" onclick="pasteScoreResult()">📥 粘贴导入</button>
-            <button class="btn btn-sm" style="background:var(--pink-light);color:var(--text);" onclick="document.getElementById('agent-output-card').style.display='none'">✖ Close</button>
+            <button class="btn btn-success btn-sm" onclick="document.getElementById('import-file-input').click()">📁 打开文件导入</button>
+            <button class="btn btn-primary btn-sm" onclick="pasteScoreResult()">📥 粘贴后导入</button>
           </div>
         </div>
-        <textarea id="agent-score-input" style="width:100%;min-height:200px;font-family:monospace;font-size:11px;" placeholder="Paste the Agent's scoring result here..."></textarea>
+        <textarea id="agent-score-input" style="width:100%;min-height:200px;font-family:monospace;font-size:11px;" placeholder="方式一：直接粘贴 Agent 输出的 JSON 结果到此处，点击「粘贴后导入」
+方式二：点击「打开文件导入」选择 JSON 文件自动填充到此处"></textarea>
         <div id="paste-status" style="font-size:12px;color:var(--text-light);margin-top:4px;"></div>
       </div>
 
