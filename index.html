@@ -61,10 +61,10 @@
   select { width: 100%; padding: 12px 14px; border: 2px solid var(--border); border-radius: 10px; font-size: 14px; outline: none; background: #faf5f7; font-family: inherit; margin-bottom: 12px; }
   select:focus { border-color: var(--pink); }
   .deadline-bar { background: #fff8e1; border: 1.5px solid #ffe082; border-radius: 10px; padding: 8px 12px; font-size: 12px; text-align: center; margin-bottom: 12px; color: #6d4c00; }
-  .tier-badge { display: inline-flex; align-items: center; gap: 8px; padding: 10px 26px; border-radius: 30px; font-size: 18px; font-weight: 800; letter-spacing: 0.5px; box-shadow: 0 4px 14px rgba(0,0,0,0.08); }
-  .tier-platinum { background: linear-gradient(135deg,#ede7f6,#d1c4e9); color: #4527a0; border: 2.5px solid #b39ddb; box-shadow: 0 3px 12px rgba(106,61,232,0.2); }
-  .tier-gold { background: linear-gradient(135deg,#fff8e1,#ffecb3); color: #bf6f00; border: 2.5px solid #ffd54f; box-shadow: 0 3px 12px rgba(255,193,7,0.2); }
-  .tier-certified { background: linear-gradient(135deg,#e8f5e9,#c8e6c9); color: #1b5e20; border: 2.5px solid #a5d6a7; box-shadow: 0 3px 12px rgba(76,175,80,0.2); }
+  .tier-badge { display: inline-flex; align-items: center; gap: 10px; padding: 12px 32px; border-radius: 40px; font-size: 20px; font-weight: 900; letter-spacing: 1px; box-shadow: 0 6px 20px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.5); }
+  .tier-platinum { background: linear-gradient(145deg,#e8e0ff 0%,#d1c4e9 40%,#b39ddb 100%); color: #311b92; border: 2px solid #9575cd; box-shadow: 0 6px 20px rgba(106,61,232,0.25), inset 0 1px 0 rgba(255,255,255,0.6); text-shadow: 0 1px 0 rgba(255,255,255,0.3); }
+  .tier-gold { background: linear-gradient(145deg,#fff8e1 0%,#ffecb3 40%,#ffd54f 100%); color: #b26500; border: 2px solid #ffc107; box-shadow: 0 6px 20px rgba(255,193,7,0.25), inset 0 1px 0 rgba(255,255,255,0.6); text-shadow: 0 1px 0 rgba(255,255,255,0.3); }
+  .tier-certified { background: linear-gradient(145deg,#e8f5e9 0%,#c8e6c9 40%,#a5d6a7 100%); color: #0d5302; border: 2px solid #66bb6a; box-shadow: 0 6px 20px rgba(76,175,80,0.25), inset 0 1px 0 rgba(255,255,255,0.6); text-shadow: 0 1px 0 rgba(255,255,255,0.3); }
   .tier- { background: linear-gradient(135deg,#e8e0ff,#fff8e1); color: #6a3de8; border: 1.5px solid #ce93d8; }
   .nav-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1.5px solid var(--border); }
   .nav-back { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; background: var(--pink-light); color: var(--pink-dark); transition: all 0.15s; }
@@ -441,7 +441,7 @@ function showDashboard() {
   document.getElementById('current-period-label').textContent = currentPeriod.replace('-', '年') + '月';
   initSubmitTab();
   var savedTab = localStorage.getItem('koc_active_tab');
-  switchCreatorTab(savedTab === 'history' || savedTab === 'redeem' ? savedTab : 'submit');
+  switchCreatorTab(savedTab && ['submit','history','redeem'].indexOf(savedTab) >= 0 ? savedTab : 'submit');
   // Fetch and show tier badge
   try {
     (async function() {
