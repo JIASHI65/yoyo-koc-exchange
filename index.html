@@ -67,6 +67,11 @@
   .tier-certified { background: #e8f5e9; color: #2e7d32; border: 1.5px solid #a5d6a7; }
   .tier- { background: linear-gradient(135deg,#e8e0ff,#fff8e1); color: #6a3de8; border: 1.5px solid #ce93d8; }
   .footer { text-align: center; padding: 24px 0 40px; font-size: 12px; color: var(--text-light); line-height: 1.5; }
+  .breadcrumb { font-size: 12px; color: var(--text-light); margin-bottom: 8px; display: flex; align-items: center; gap: 4px; }
+  .breadcrumb a { color: var(--pink-dark); cursor: pointer; text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+  .breadcrumb .sep { color: #ccc; }
+  .level-1-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
 </style>
 </head>
 <body>
@@ -79,8 +84,9 @@
   <!-- Deadline Info -->
   <div id="deadline-bar" class="deadline-bar hidden"></div>
 
-  <!-- Entry: Choose new or existing -->
+  <!-- ===== 一级菜单：首页 ===== -->
   <div id="step-login" class="card">
+    <div class="breadcrumb"><a onclick="showEntryScreen()">🏠 Home</a></div>
     <div style="text-align:center;padding:10px 0 20px;">
       <h2 style="font-size:24px;margin-bottom:4px;">🎀 Yoyo Town</h2>
       <p style="font-size:13px;color:var(--text-light);">Creator Portal</p>
@@ -88,9 +94,10 @@
     <button class="btn btn-primary" onclick="showNewCreatorForm()" style="margin-bottom:10px;">🆕 I'm a New Creator</button>
     <button class="btn btn-outline" onclick="showExistingLogin()" style="width:100%;padding:12px 24px;border:2px solid var(--pink);border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;background:transparent;color:var(--pink-dark);">✅ I'm Already Registered</button>
 
-    <!-- New Creator Form (hidden) -->
+    <!-- New Creator Form (hidden) — 二级菜单 -->
     <div id="new-creator-form" style="display:none;margin-top:16px;padding-top:16px;border-top:2px solid var(--border);">
-      <div class="card-title">🆕 New Creator Registration</div>
+      <div class="breadcrumb"><a onclick="showEntryScreen()">🏠 Home</a><span class="sep">›</span><span>🆕 New Registration</span></div>
+      <div class="level-1-title">🆕 New Creator Registration</div>
       <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">A warm welcome! Please fill in all info below so we can send your points & rewards.</p>
       
       <label>Discord Username *</label>
@@ -131,9 +138,10 @@
       <div id="reg-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
     </div>
 
-    <!-- Existing Creator Login (hidden) -->
+    <!-- Existing Creator Login (hidden) — 二级菜单 -->
     <div id="existing-login-form" style="display:none;margin-top:16px;padding-top:16px;border-top:2px solid var(--border);">
-      <div class="card-title">🔑 Creator Login</div>
+      <div class="breadcrumb"><a onclick="showEntryScreen()">🏠 Home</a><span class="sep">›</span><span>🔑 Login</span></div>
+      <div class="level-1-title">🔑 Creator Login</div>
       <label>Discord Username</label>
       <input type="text" id="input-discord" placeholder="Your Discord username" autocomplete="off" style="margin-bottom:8px;">
       <label>UID</label>
@@ -147,8 +155,9 @@
     </div>
   </div>
 
-  <!-- Dashboard -->
+  <!-- ===== 二级菜单：创作者功能 ===== -->
   <div id="step-dashboard" class="hidden">
+    <div class="breadcrumb"><a onclick="logout()">🏠 Home</a><span class="sep">›</span><span>📊 Dashboard</span></div>
     <!-- Creator Tabs -->
     <div class="tabs">
       <button class="tab active" onclick="switchCreatorTab('submit')">🎨 Submit Works</button>
@@ -156,14 +165,11 @@
       <button class="tab" onclick="switchCreatorTab('redeem')">🎁 Redeem Rewards</button>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <button class="btn btn-sm btn-outline" onclick="logout()" style="padding:4px 12px;font-size:11px;">🔙 Back to Home</button>
       <span id="display-user" style="font-size:13px;font-weight:600;"></span>
     </div>
     <!-- Redeem Tab -->
     <div id="creator-tab-redeem" class="tab-content">
-      <div style="margin-bottom:8px;">
-        <button class="btn btn-sm btn-outline" onclick="logout()" style="padding:3px 10px;font-size:11px;">🔙 Home</button>
-      </div>
+      <div class="breadcrumb"><a onclick="logout()">🏠 Home</a><span class="sep">›</span><span>📊 Dashboard</span><span class="sep">›</span><span>🎁 Redeem Rewards</span></div>
       <div class="card">
         <div class="points-display">
           <div class="points-number" id="display-points">--</div>
@@ -191,9 +197,7 @@
 
     <!-- Submit Tab -->
     <div id="creator-tab-submit" class="tab-content">
-      <div style="margin-bottom:8px;">
-        <button class="btn btn-sm btn-outline" onclick="logout()" style="padding:3px 10px;font-size:11px;">🔙 Home</button>
-      </div>
+      <div class="breadcrumb"><a onclick="logout()">🏠 Home</a><span class="sep">›</span><span>📊 Dashboard</span><span class="sep">›</span><span>🎨 Submit Works</span></div>
       <div class="card">
         <div class="card-title">🎨 Submit Your Works</div>
         <label>Discord Username</label>
@@ -225,9 +229,7 @@
 
     <!-- History Tab -->
     <div id="creator-tab-history" class="tab-content">
-      <div style="margin-bottom:8px;">
-        <button class="btn btn-sm btn-outline" onclick="logout()" style="padding:3px 10px;font-size:11px;">🔙 Home</button>
-      </div>
+      <div class="breadcrumb"><a onclick="logout()">🏠 Home</a><span class="sep">›</span><span>📊 Dashboard</span><span class="sep">›</span><span>📋 My Submissions</span></div>
       <div class="card">
         <div class="card-title">📋 My Submissions</div>
         <div id="submissions-list"><div style="color:var(--text-light);font-size:13px;">Loading...</div></div>
@@ -551,6 +553,10 @@ login = function() {
 // ===== SUBMIT WORKS =====
 
 // ===== REGISTRATION =====
+function showEntryScreen() {
+  document.getElementById('new-creator-form').style.display = 'none';
+  document.getElementById('existing-login-form').style.display = 'none';
+}
 function showNewCreatorForm() {
   document.getElementById('new-creator-form').style.display = 'block';
   document.getElementById('existing-login-form').style.display = 'none';
