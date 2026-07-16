@@ -201,7 +201,7 @@
     </div>
 
     <!-- Submit Tab -->
-    <div id="creator-tab-submit" class="tab-content active">
+    <div id="creator-tab-submit" class="tab-content">
       <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">🎨 Submit Works</span></div>
       <div class="card">
         <div class="card-title">🎨 Submit Works · 📅 <span id="current-period-label"></span></div>
@@ -310,20 +310,24 @@ function tryAutoLogin() {
       currentUser = { ...koc, points: points - pendingTotal };
       localStorage.setItem('koc_session', JSON.stringify({ uid: currentUser.uid, discord_name: currentUser.discord_name }));
       showDashboard();
-      // Restore saved tab after refresh - override switchCreatorTab default
-      var savedTab = localStorage.getItem('koc_active_tab');
-      if (savedTab && ['submit','history','redeem','faq'].indexOf(savedTab) >= 0) {
-        setTimeout(function() { switchCreatorTab(savedTab); }, 100);
-      }
       checkDeadline();
       var submitDiscord = document.getElementById('submit-discord');
       if (submitDiscord && koc.discord_name) submitDiscord.value = typeof koc.discord_name === 'string' ? koc.discord_name : '';
-      // Force re-render submit tab
-      setTimeout(function() {
-        var tab = document.getElementById('creator-tab-submit');
-        if (tab) initSubmitTab();
-      }, 50);
-    } catch(e) { localStorage.removeItem('koc_session'); }
+      // Restore saved tab after refresh
+      var savedTab = localStorage.getItem('koc_active_tab');
+      if (savedTab && ['submit','history','redeem','faq'].indexOf(savedTab) >= 0) {
+        switchCreatorTab(savedTab);
+      }
+      initSubmitTab();
+    } catch(e) { 
+      console.error('Auto-login failed:', e);
+      // Don't clear session on transient errors - try again on next interaction
+      if (e.name === 'AbortError' || (e.message && e.message.includes('Failed to fetch'))) {
+        // Network error, keep session and retry on next page load
+        return;
+      }
+      localStorage.removeItem('koc_session'); 
+    }
   })();
 }
 
@@ -410,11 +414,7 @@ async function login() {
     if (submitDiscord && koc.discord_name) {
       submitDiscord.value = typeof koc.discord_name === 'string' ? koc.discord_name : '';
     }
-    // Force re-render submit tab after everything is set
-    setTimeout(function() {
-      var tab = document.getElementById('creator-tab-submit');
-      if (tab) initSubmitTab();
-    }, 50);
+    initSubmitTab();
   } catch (e) {
     console.error('login error:', e);
     showToast(e.name === 'AbortError' ? 'Connection timed out. Try again.' : 'Error: ' + e.message, 'error');
@@ -645,10 +645,14 @@ function switchCreatorTab(name) {
   localStorage.setItem('koc_active_tab', name);
   document.querySelectorAll('#step-dashboard .tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('#step-dashboard .tab-content').forEach(c => c.classList.remove('active'));
-  document.querySelector('#step-dashboard .tab[onclick*="' + name + '"]').classList.add('active');
-  document.getElementById('creator-tab-' + name).classList.add('active');
-  if (name === 'submit') initSubmitTab();
+  // Use safer selector - try onclick first, then fallback to tab text
+  var tabBtn = document.querySelector('#step-dashboard .tab[onclick*="' + name + '"]');
+  if (tabBtn) tabBtn.classList.add('active');
+  var tabContent = document.getElementById('creator-tab-' + name);
+  if (tabContent) tabContent.classList.add('active');
+  if (name === 'submit') { initSubmitTab(); loadMySubmissions(); }
   if (name === 'history') loadMySubmissions();
+  if (name === 'redeem') { renderOptions(); loadOrders(); }
 }
 
 // ===== DEADLINE CHECK =====
