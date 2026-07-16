@@ -429,15 +429,6 @@ Elite: 连续 6 个月达到 5 分</textarea>
         <textarea id="agent-score-input" style="width:100%;min-height:200px;font-family:monospace;font-size:11px;" placeholder="方式一：直接粘贴 Agent 输出的 JSON 结果到此处，点击「粘贴后导入」
 方式二：点击「打开文件导入」选择 JSON 文件自动填充到此处"></textarea>
         <div id="paste-status" style="font-size:12px;color:var(--text-light);margin-top:4px;"></div>
-        <div id="score-preview-area" style="display:none;margin-top:8px;background:#f5f5f5;border:1px solid #ddd;border-radius:8px;padding:12px;">
-          <div style="font-size:13px;font-weight:600;margin-bottom:8px;">📋 导入预览</div>
-          <div id="score-preview-stats" style="font-size:12px;margin-bottom:8px;"></div>
-          <div style="max-height:200px;overflow-y:auto;font-size:11px;font-family:monospace;background:white;border:1px solid #eee;border-radius:4px;padding:8px;margin-bottom:8px;" id="score-preview-detail"></div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-success" id="btn-confirm-import" onclick="confirmScoreImport()" style="display:none;">✅ 确认应用积分</button>
-            <button class="btn btn-outline" id="btn-cancel-import" onclick="cancelScoreImport()" style="display:none;">✖ 取消</button>
-          </div>
-        </div>
       </div>
 
       <!-- Copy success area -->
@@ -1203,26 +1194,202 @@ async function importFromPaste() {
   await importScoreResult(text);
 }
 async function importScoreResult(text) {
-  // Direct import (used by file upload)
+  var status = document.getElementById('paste-status');
+  status.textContent = 'Processing...';
+  status.style.color = 'var(--text-light)';
+
+  // Try parsing as JSON
   var result;
   try {
     result = JSON.parse(text);
   } catch(e) {
+    // Try extracting JSON from markdown code block
     var match = text.match(/\x60{3,}json\s*([\s\S]*?)\x60{3,}/);
     if (match) {
-      try { result = JSON.parse(match[1].trim()); } catch(e2) {}
+      try { result = JSON.parse(match[1].trim()); } catch(e2) { /* fail */ }
     }
   }
+
   if (!result || !result.submissions || !Array.isArray(result.submissions)) {
-    document.getElementById('paste-status').textContent = '❌ Invalid format. Expected JSON with "submissions" array.';
-    document.getElementById('paste-status').style.color = '#e74c3c';
+    status.textContent = '❌ Invalid format. Expected JSON with "submissions" array.';
+    status.style.color = '#e74c3c';
     return;
   }
-  // Preview then immediately confirm for file import
-  pendingScoreResult = result;
-  previewScoreResult(text);
-  // Auto-confirm for file import flow
-  await confirmScoreImport();
+
+  var batch = result.batch || '2026-07';
+  var totalPoints = 0;
+  var successCount = 0;
+  var errors = [];
+
+  for (var i = 0; i < result.submissions.length; i++) {
+    var sub = result.submissions[i];
+    if (!sub.id) {
+      errors.push('Submission #' + (i+1) + ': missing id');
+      continue;
+    }
+    try {
+      // Update submissions table
+      var scoreDetails = JSON.stringify({
+        engagement_links: sub.engagement_links || [],
+        view_links: sub.view_links || []
+      });
+      var updatePayload = {
+        score_details: scoreDetails,
+        total_engagement_count: sub.total_engagement || 0,
+        total_view_count: sub.total_views || 0,
+        points_earned: sub.points_earned || 0,
+        status: 'scored',
+        scored_at: new Date().toISOString()
+      };
+      var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + sub.id, {
+        method: 'PATCH',
+        body: JSON.stringify(updatePayload)
+      });
+      if (!resp.ok) {
+        errors.push('Submission #' + sub.id + ': update failed (' + resp.status + ')');
+        continue;
+      }
+
+      // Add points to koc's point_logs
+      if (sub.points_earned && sub.points_earned > 0 && sub.uid) {
+        // Get current balance
+        var balRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/rpc/get_balance', {
+          method: 'POST',
+          body: JSON.stringify({ p_uid: sub.uid })
+        });
+        var currentBalance = 0;
+        if (balRes.ok) { currentBalance = parseInt(await balRes.text()) || 0; }
+        
+        var newBalance = currentBalance + sub.points_earned;
+        await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+          method: 'POST',
+          body: JSON.stringify({
+            uid: sub.uid,
+            change: sub.points_earned,
+            balance_after: newBalance,
+            source: 'auto_settlement',
+            reason: 'July submission settlement',
+            period: currentPeriod,
+            created_by: 'agent'
+          })
+        });
+        
+        // Check for New Creator Bonus (新人任务): newbie_month >= 5pts gets +2 bonus
+        if (sub.points_earned >= 5 && sub.uid) {
+          try {
+            var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=notes');
+            var kocData = await kocRes.json();
+            if (kocData && kocData.length > 0) {
+              var koc = kocData[0];
+              var notes = koc.notes || '';
+              // Skip if old_creator (no newbie task)
+              if (notes.indexOf('old_creator') >= 0) { /* skip */ }
+              // Check if newbie_month matches current settlement period AND not already claimed
+              else if (notes.indexOf('newbie_month:' + currentPeriod) >= 0 && notes.indexOf('newbie_bonus:' + currentPeriod) === -1) {
+                var bonusBalance = newBalance + 2;
+                await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    uid: sub.uid,
+                    change: 2,
+                    balance_after: bonusBalance,
+                    source: 'auto_settlement',
+                    reason: 'New Creator Bonus (新人任务) - ' + currentPeriod + ' 5pts reach',
+                    period: currentPeriod,
+                    created_by: 'agent'
+                  })
+                });
+                var updatedNotes = notes + ', newbie_bonus:' + currentPeriod;
+                await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
+                  method: 'PATCH',
+                  body: JSON.stringify({ notes: updatedNotes })
+                });
+                totalPoints += 2;
+                sub.points_earned += 2;
+              }
+            }
+          } catch(e) { console.error('newbie bonus error:', e); }
+        }
+      }
+      totalPoints += sub.points_earned || 0;
+      successCount++;
+      // Auto-check CC if creator has >=15 submissions this period
+      try {
+        var cntRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(sub.uid) + '&status=eq.scored&select=id&limit=50');
+        if (cntRes.ok) {
+          var subs = await cntRes.json();
+          if (subs && subs.length >= 15) {
+            var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=notes');
+            if (kocRes.ok) {
+              var kocs = await kocRes.json();
+              if (kocs && kocs.length > 0) {
+                var notes = kocs[0].notes || '';
+                if (notes.indexOf('CC:' + currentPeriod) === -1) {
+                  notes = notes ? notes + ', CC:' + currentPeriod : 'CC:' + currentPeriod;
+                  await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
+                    method: 'PATCH',
+                    body: JSON.stringify({ notes: notes })
+                  });
+                }
+              }
+            }
+          }
+        }
+      } catch(e2) { /* non-blocking */ }
+    } catch(e) {
+      errors.push('Submission #' + (sub.id || i+1) + ': ' + e.message);
+    }
+  }
+
+  // Record import
+  try {
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/score_imports', {
+      method: 'POST',
+      body: JSON.stringify({
+        batch_id: batch,
+        total_submissions: successCount,
+        total_points_added: totalPoints,
+        source: 'agent',
+        import_data: JSON.stringify(result),
+        imported_by: 'admin'
+      })
+    });
+  } catch(e) {}
+
+  // Show result
+  var msg = '✅ Imported ' + successCount + '/' + result.submissions.length + ' submissions, ' + totalPoints + ' points added';
+  if (errors.length > 0) msg += '\n⚠️ Errors: ' + errors.slice(0, 5).join('\n');
+  status.textContent = msg;
+  status.style.color = errors.length > 0 ? '#ff9800' : '#4caf50';
+
+  // Send Discord DM notifications via Mochi
+  var notifiedCount = 0;
+  for (var i = 0; i < result.submissions.length; i++) {
+    var sub = result.submissions[i];
+    if (sub.points_earned && sub.points_earned > 0) {
+      try {
+        var dmResult = await sendMochiDM(sub.discord_name, 
+          '🎉 Your July submission has been scored!\n' +
+          '📊 Engagement: ' + (sub.total_engagement || 0) + ' | Views: ' + (sub.total_views || 0) + '\n' +
+          '🏆 Points Earned: **' + sub.points_earned + '**\n\n' +
+          '👉 Check your balance and redeem rewards: https://jiashi65.github.io/yoyo-koc-exchange/');
+        if (dmResult) notifiedCount++;
+      } catch(e) { console.error('DM failed for', sub.discord_name, e); }
+    }
+  }
+  if (notifiedCount > 0) {
+    msg += '\n💬 Mochi notified ' + notifiedCount + ' creators via DM';
+  }
+
+  // Refresh all related tabs
+  loadSubmissions();
+  renderKocTable();
+  renderScoringTable();
+  renderMerchTab();
+  renderDiamondTab();
+  renderGplayTab();
+  // Show the agent output card
+  document.getElementById('agent-output-card').style.display = 'block';
 }
 
 async function pasteScoreResult() {
@@ -1238,16 +1405,15 @@ function importScoreFile(event) {
   var file = event.target.files[0];
   if (!file) return;
   var reader = new FileReader();
-  reader.onload = function(e) {
-    var text = e.target.result;
-    document.getElementById('agent-score-input').value = text;
-    previewScoreResult(text);
+  reader.onload = async function(e) {
+    document.getElementById('agent-score-input').value = e.target.result;
+    document.getElementById('agent-output-card').style.display = 'block';
+    showToast('File loaded. Click "Paste & Import" to process.', 'success');
   };
   reader.readAsText(file);
-  // Open the card with preview
-  var preview = document.getElementById('score-preview-area');
-  if (preview) preview.style.display = 'block';
+  event.target.value = '';
 }
+
 // Override switchTab to also load submissions
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
