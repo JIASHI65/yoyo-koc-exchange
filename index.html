@@ -259,7 +259,8 @@ const REWARDS = [
   { id: 'merch', name: '📦 Merch Pack', cost: 5, desc: '5 Points = 3 random items', amount: 'Random Merch ×3' }
 ];
 
-var currentPeriod = (new Date()).getFullYear() + '-' + String((new Date()).getMonth()).padStart(2, '0');
+var now = new Date();
+var currentPeriod = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
 let currentUser = null;
 let selections = {};
 
@@ -663,22 +664,20 @@ async function submitWorks() {
   status.textContent = '';
 
   try {
-    // Write each link as a separate submission row
-    var payload = links.map(function(link) {
-      return {
-        discord_name: discord,
-        uid: currentUser ? currentUser.uid : null,
-        server: server,
-        link: link.trim(),
-        address: address || null,
-        game_uid: gameUid || null,
-        period: currentPeriod,
-        status: 'pending',
-        created_at: new Date().toISOString()
-      };
-    });
+    // Create a single submission row with all links
+    var payload = [{
+      discord_name: discord,
+      uid: currentUser ? currentUser.uid : null,
+      server: server,
+      links_engagement: links.join('\n'),
+      links_views: '',
+      address: address || null,
+      game_uid: gameUid || null,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    }];
 
-    // Batch insert
+    // Insert single submission
     var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions', {
       method: 'POST',
       body: JSON.stringify(payload)
@@ -688,14 +687,14 @@ async function submitWorks() {
       throw new Error(errText.substring(0, 100) || 'Submit failed');
     }
 
-    status.textContent = '✅ ' + links.length + ' works submitted successfully!';
+    status.textContent = '✅ ' + links.length + ' links submitted successfully!';
     status.style.color = '#4caf50';
     // Clear form
     document.getElementById('submit-links').value = '';
     document.getElementById('submit-address').value = '';
     document.getElementById('submit-game-uid').value = '';
     document.getElementById('submit-server').value = '';
-    showToast('✅ ' + links.length + ' works submitted!', 'success');
+    showToast('✅ ' + links.length + ' links submitted!', 'success');
     // Refresh My Submissions
     loadMySubmissions();
   } catch(e) {
@@ -713,7 +712,7 @@ async function loadMySubmissions() {
   var countEl = document.getElementById('submission-count');
   if (!container) return;
   try {
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,created_at,status,link,points_earned,total_engagement_count,total_view_count,scored_at');
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,created_at,status,links_engagement,points_earned,total_engagement_count,total_view_count,scored_at');
     if (!res.ok) throw new Error('Failed');
     var subs = await res.json();
     if (!subs || subs.length === 0) {
@@ -726,7 +725,7 @@ async function loadMySubmissions() {
     var pendingCount = subs.filter(function(s) { return s.status === 'pending'; }).length;
     var scoredCount = subs.filter(function(s) { return s.status === 'scored'; }).length;
     var totalPoints = subs.reduce(function(sum, s) { return sum + (s.points_earned || 0); }, 0);
-    var totalLinks = subs.length;
+    var totalLinks = subs.reduce(function(sum, s) { return sum + (s.links_engagement || '').split('\n').filter(Boolean).length; }, 0);
     
     // Calculate CC status (15 posts for Consistent Creation Reward)
     var ccProgress = Math.min(totalLinks, 15);
@@ -783,13 +782,13 @@ async function loadMySubmissions() {
       var statusClass = s.status === 'scored' ? 'badge-shipped' : s.status === 'pending' ? 'badge-pending' : 'badge-cancelled';
       var dateStr = new Date(s.created_at).toLocaleDateString();
       var scoredStr = s.scored_at ? ' · Scored: ' + new Date(s.scored_at).toLocaleDateString() : '';
-      var linkShort = s.link ? (s.link.length > 60 ? s.link.substring(0, 60) + '...' : s.link) : '';
+      var linkShort = s.links_engagement ? (s.links_engagement.length > 60 ? s.links_engagement.substring(0, 60) + '...' : s.links_engagement) : '';
       return '<div class="submission-item">' +
         '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
         '<span style="font-weight:600;">' + statusEmoji + ' ' + dateStr + '</span>' +
         '<span class="badge ' + statusClass + '">' + s.status + '</span>' +
         '</div>' +
-        '<div class="link-line">📎 <a href="' + escAttr(s.link || '') + '" target="_blank" rel="noopener">' + esc(linkShort) + '</a></div>' +
+        '<div class="link-line">📎 ' + (s.links_engagement || '') + '</div>' +
         (s.status === 'scored' ? '<div class="link-line">🏆 Points: <strong>' + s.points_earned + '</strong> · Engagement: ' + (s.total_engagement_count||0) + ' · Views: ' + (s.total_view_count||0) + scoredStr + '</div>' : '') +
         '</div>';
     }).join('');

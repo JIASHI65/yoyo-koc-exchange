@@ -818,7 +818,8 @@ async function sendMochiBroadcast(channelId, message) {
 }
 
 // ===== SUBMISSIONS: Render table =====
-var currentPeriod = (new Date()).getFullYear() + '-' + String((new Date()).getMonth()).padStart(2, '0');
+var now = new Date();
+var currentPeriod = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
 if (new Date().getDate() <= 5) {
   var d = new Date();
   d.setMonth(d.getMonth() - 1);
@@ -1561,13 +1562,12 @@ function toggleCC(uid, notes) {
                 discord_name: discordName,
                 koc_name: discordName,
                 option_type: 'diamond',
-                period: currentPeriod,
                 option_name: 'CC:' + currentPeriod,
                 points_spent: 0,
                 reward_amount: 'Premium Monthly Card x1 + Shelly Coins x500 + Gold x1000',
                 contact_info: currentPeriod,
                 status: 'pending',
-                admin_notes: 'Consistent Creation Reward - ' + currentPeriod,
+                admin_notes: 'CC:' + currentPeriod + ' - Consistent Creation Reward - ' + currentPeriod,
                 created_at: new Date().toISOString()
               })
             });
