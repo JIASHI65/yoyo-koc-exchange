@@ -437,10 +437,11 @@ Elite: 连续 6 个月达到 5 分</textarea>
           <div style="font-size:13px;font-weight:600;margin-bottom:8px;">📋 导入预览</div>
           <div id="score-preview-stats" style="font-size:12px;margin-bottom:8px;"></div>
           <div style="max-height:200px;overflow-y:auto;font-size:11px;font-family:monospace;background:white;border:1px solid #eee;border-radius:4px;padding:8px;margin-bottom:8px;" id="score-preview-detail"></div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-success" id="btn-confirm-import" onclick="confirmScoreImport()" style="display:none;padding:10px 30px;font-size:15px;font-weight:700;">✅ 确认应用积分</button>
-            <button class="btn btn-outline" id="btn-cancel-import" onclick="cancelScoreImport()" style="display:none;padding:10px 20px;font-size:14px;">✖ 取消</button>
-          </div>
+        </div>
+        <div id="import-action-bar" style="display:none;margin-top:12px;text-align:center;padding:16px;background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border-radius:12px;border:2px solid #a5d6a7;">
+          <div style="font-size:13px;color:#2e7d32;margin-bottom:8px;">📊 预览已就绪，确认后自动更新积分和所有板块</div>
+          <button class="btn btn-success" id="btn-confirm-import" onclick="confirmScoreImport()" style="padding:14px 48px;font-size:16px;font-weight:800;background:#43b581;color:white;border:none;border-radius:12px;cursor:pointer;box-shadow:0 4px 12px rgba(67,181,129,0.3);">✅ 确认应用积分</button>
+          <button class="btn btn-outline" id="btn-cancel-import" onclick="cancelScoreImport()" style="padding:10px 24px;font-size:14px;margin-left:10px;border:2px solid #ccc;border-radius:8px;background:white;cursor:pointer;">✖ 取消</button>
         </div>
       </div>
 
