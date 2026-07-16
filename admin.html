@@ -180,6 +180,10 @@
           <span style="font-size:13px;font-weight:600;">📅 Settlement Month:</span>
           <input type="month" id="settle-month" style="width:160px;padding:4px 8px;border:1.5px solid var(--pink);border-radius:6px;font-size:13px;">
           <span id="settle-label" style="font-size:12px;color:var(--text-light);margin-left:4px;"></span>
+          <label style="margin-left:12px;font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;">
+            <input type="checkbox" id="cb-calendar-mode" style="accent-color:var(--pink-dark);" onchange="toggleCalendarMode()">
+            🗓️ Calendar mode (show only this month's orders in Merch/Diamond/Gplay tabs)
+          </label>
         </div>
         <div class="stats-bar" id="stats-bar">
           <span id="stat-total">Loading...</span>
@@ -1512,10 +1516,56 @@ async function getBalance(uid) {
 }
 
 // ===== SETTLEMENT PERIOD =====
+
+// ===== CALENDAR MODE =====
+var calendarMode = false;
+function toggleCalendarMode() {
+  calendarMode = document.getElementById('cb-calendar-mode').checked;
+  // Re-render all order tabs if visible
+  var activeTab = document.querySelector('.tab-btn.active');
+  if (activeTab) {
+    var name = activeTab.getAttribute('onclick');
+    if (name) {
+      name = name.match(/'([^']+)'/);
+      if (name) name = name[1];
+      if (name === 'merch') renderMerchTab();
+      else if (name === 'diamond') renderDiamondTab();
+      else if (name === 'gplay') renderGplayTab();
+    }
+  }
+  showToast(calendarMode ? '🗓️ Calendar mode ON — only showing ' + currentPeriod : '🗓️ Calendar mode OFF', 'info');
+}
+
+// Filter orders by currentPeriod when calendar mode is active
+function filterByPeriod(orders) {
+  if (!calendarMode) return orders;
+  return orders.filter(function(o) {
+    // Try period field first (future-proof for after migration)
+    if (o.period) return o.period === currentPeriod;
+    // Fallback to created_at
+    var d = new Date(o.created_at);
+    var ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    return ym === currentPeriod;
+  });
+}
 function changeSettlePeriod() {
   currentPeriod = document.getElementById('settle-month').value;
   document.getElementById('settle-label').textContent = 'Active: ' + currentPeriod;
   renderKocTable();
+  // If calendar mode is on, re-render order tabs too
+  if (calendarMode) {
+    var activeTab = document.querySelector('.tab-btn.active');
+    if (activeTab) {
+      var name = activeTab.getAttribute('onclick');
+      if (name) {
+        name = name.match(/'([^']+)'/);
+        if (name) name = name[1];
+        if (name === 'merch') renderMerchTab();
+        else if (name === 'diamond') renderDiamondTab();
+        else if (name === 'gplay') renderGplayTab();
+      }
+    }
+  }
   showToast('📅 Switched to ' + currentPeriod, 'success');
 }
 
@@ -1884,11 +1934,11 @@ function groupByMonth(arr) {
 
 function renderMerchTab() {
   var kmap = getKocMap();
-  var merchOrders = allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; });
-  document.getElementById('merch-count').textContent = '(' + merchOrders.length + ' orders)';
+  var merchOrders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }));
+  document.getElementById('merch-count').textContent = (calendarMode ? '📅 ' + currentPeriod + ' ' : '') + '(' + merchOrders.length + ' orders)';
   var container = document.getElementById('merch-table');
   if (!merchOrders.length) {
-    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">No shipped merch orders yet</div>';
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">' + (calendarMode ? 'No shipped merch orders for ' + currentPeriod : 'No shipped merch orders yet') + '</div>';
     return;
   }
   var groups = groupByMonth(merchOrders);
@@ -1924,11 +1974,11 @@ function renderMerchTab() {
 
 function renderDiamondTab() {
   var kmap = getKocMap();
-  var orders = allOrders.filter(function(o) { return o.option_type === 'diamonds' && o.status === 'shipped'; });
-  document.getElementById('diamond-count').textContent = '(' + orders.length + ' orders)';
+  var orders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'diamonds' && o.status === 'shipped'; }));
+  document.getElementById('diamond-count').textContent = (calendarMode ? '📅 ' + currentPeriod + ' ' : '') + '(' + orders.length + ' orders)';
   var container = document.getElementById('diamond-table');
   if (!orders.length) {
-    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">No shipped diamond rewards yet</div>';
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">' + (calendarMode ? 'No shipped diamond rewards for ' + currentPeriod : 'No shipped diamond rewards yet') + '</div>';
     return;
   }
   var groups = groupByMonth(orders);
@@ -1964,11 +2014,11 @@ function renderDiamondTab() {
 
 function renderGplayTab() {
   var kmap = getKocMap();
-  var orders = allOrders.filter(function(o) { return o.option_type === 'gplay' && o.status === 'shipped'; });
-  document.getElementById('gplay-count').textContent = '(' + orders.length + ' orders)';
+  var orders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'gplay' && o.status === 'shipped'; }));
+  document.getElementById('gplay-count').textContent = (calendarMode ? '📅 ' + currentPeriod + ' ' : '') + '(' + orders.length + ' orders)';
   var container = document.getElementById('gplay-table');
   if (!orders.length) {
-    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">No shipped Google Play cards yet</div>';
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">' + (calendarMode ? 'No shipped Google Play cards for ' + currentPeriod : 'No shipped Google Play cards yet') + '</div>';
     return;
   }
   var groups = groupByMonth(orders);
