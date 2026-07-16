@@ -1527,22 +1527,60 @@ function hasCC(notes) {
 function toggleCC(uid, notes) {
   const tag = 'CC:' + currentPeriod;
   let updated = notes || '';
-  if (hasCC(notes)) {
-    updated = updated.replace(new RegExp(',?\\s*' + tag, 'g'), '');
+  var wasChecked = hasCC(notes);
+  
+  if (wasChecked) {
+    updated = updated.replace(new RegExp(',?\\s*' + tag.replace(':', '\\:'), 'g'), '');
+    updated = updated.replace(/^,\s*/, '').replace(/,\s*$/, '');
   } else {
     updated = updated ? updated + ', ' + tag : tag;
   }
   updated = updated.replace(/^,\s*/, '').replace(/,\s*$/, '');
-  // Update via API
+  
+  var koc = allKocs.find(function(k) { return k.uid === uid; });
+  var discordName = koc ? koc.discord_name || koc.name || 'Unknown' : 'Unknown';
+  
   supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
     method: 'PATCH',
     body: JSON.stringify({ notes: updated })
-  }).then(function(r) {
+  }).then(async function(r) {
     if (r.ok) {
-      var koc = allKocs.find(function(k) { return k.uid === uid; });
       if (koc) koc.notes = updated;
       renderKocTable();
-      showToast('CC updated', 'success');
+      
+      try {
+        if (!wasChecked) {
+          // CC checked: create CC reward order for this period
+          var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod) + '&select=id');
+          var existing = await checkRes.json();
+          if (!existing || existing.length === 0) {
+            await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
+              method: 'POST',
+              body: JSON.stringify({
+                uid: uid,
+                discord_name: discordName,
+                koc_name: discordName,
+                option_type: 'diamond',
+                option_name: 'CC:' + currentPeriod,
+                points_spent: 0,
+                reward_amount: 'Premium Monthly Card x1 + Shelly Coins x500 + Gold x1000',
+                contact_info: currentPeriod,
+                status: 'pending',
+                admin_notes: 'Consistent Creation Reward - ' + currentPeriod,
+                created_at: new Date().toISOString()
+              })
+            });
+          }
+          showToast('✅ CC enabled for ' + currentPeriod, 'success');
+        } else {
+          await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod), {
+            method: 'DELETE'
+          });
+          showToast('CC removed for ' + currentPeriod, 'info');
+        }
+      } catch(e) {
+        console.error('CC order error:', e);
+      }
     } else {
       showToast('Failed to update CC', 'error');
     }
