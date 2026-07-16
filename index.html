@@ -202,6 +202,7 @@
       <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">🎨 Submit Works</span></div>
       <div class="card">
         <div class="card-title">🎨 Submit Works · 📅 <span id="current-period-label"></span></div>
+        <div id="submit-form-area">
         <label>Discord Username</label>
         <input type="text" id="submit-discord" placeholder="Your Discord name" disabled>
         <label>Server</label>
@@ -227,6 +228,7 @@
         <textarea id="submit-feedback" placeholder="Have our new rules benefited you? We'd love to hear your thoughts." style="min-height:60px;"></textarea>
         <button class="btn btn-primary" id="btn-submit" onclick="submitWorks()">📤 Submit Works</button>
         <div id="submit-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
+        </div>
       </div>
     </div>
 
@@ -702,7 +704,6 @@ async function submitWorks() {
   status.textContent = '';
 
   try {
-    // Create a single submission row with all links
     var payload = [{
       discord_name: discord,
       uid: currentUser ? currentUser.uid : null,
@@ -715,7 +716,6 @@ async function submitWorks() {
       created_at: new Date().toISOString()
     }];
 
-    // Insert single submission
     var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions', {
       method: 'POST',
       body: JSON.stringify(payload)
@@ -725,22 +725,29 @@ async function submitWorks() {
       throw new Error(errText.substring(0, 100) || 'Submit failed');
     }
 
-    status.textContent = '✅ ' + links.length + ' links submitted successfully!';
+    // Lock the submit form permanently
+    var formArea = document.getElementById('submit-form-area');
+    if (formArea) {
+      formArea.style.pointerEvents = 'none';
+      formArea.style.opacity = '0.4';
+    }
+    btn.style.display = 'none';
+    status.innerHTML = '✅ <strong>提交成功！</strong>请等待系统审核评分。<br><span style="font-size:11px;">⚠️ 注意：提交过后不能再次提交，请提前检查好所有链接。</span>';
     status.style.color = '#4caf50';
-    // Clear form
-    document.getElementById('submit-links').value = '';
-    document.getElementById('submit-address').value = '';
-    document.getElementById('submit-game-uid').value = '';
-    document.getElementById('submit-server').value = '';
+    status.style.textAlign = 'center';
+    status.style.padding = '16px';
+    status.style.background = '#e8f5e9';
+    status.style.borderRadius = '10px';
+    status.style.marginTop = '8px';
+
     showToast('✅ ' + links.length + ' links submitted!', 'success');
-    // Refresh My Submissions
     loadMySubmissions();
   } catch(e) {
     status.textContent = '❌ Submit failed: ' + e.message;
     status.style.color = '#e74c3c';
+    btn.disabled = false;
+    btn.textContent = '📤 Submit Works';
   }
-  btn.disabled = false;
-  btn.textContent = '📤 Submit Works';
 }
 
 // ===== LOAD MY SUBMISSIONS =====
@@ -754,104 +761,91 @@ async function loadMySubmissions() {
     if (!res.ok) throw new Error('Failed');
     var subs = await res.json();
     if (!subs || subs.length === 0) {
-      container.innerHTML = '<div style="color:var(--text-light);font-size:13px;text-align:center;padding:30px;">📝 你还没有提交过作品<br><span style="font-size:11px;">去 Submit Works 提交你的链接吧</span></div>';
-      if (countEl) countEl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
+      container.innerHTML = '<div style="color:var(--text-light);font-size:13px;text-align:center;padding:30px;">\uD83D\uDCDD 你还没有提交过作品<br><span style="font-size:11px;">去 Submit Works 提交你的链接吧</span></div>';
+      if (countEl) countEl.textContent = '\uD83D\uDCC5 ' + currentPeriod.replace('-', '\u5E74') + '\u6708';
       return;
     }
     
-    var pendingCount = subs.filter(function(s) { return s.status === 'pending'; }).length;
-    var scoredCount = subs.filter(function(s) { return s.status === 'scored'; }).length;
     var totalLinks = subs.reduce(function(sum, s) { return sum + (s.links_engagement || '').split('\n').filter(Boolean).length; }, 0);
-    var totalSubmissions = subs.length;
+    var ccRemaining = Math.max(0, 15 - totalLinks);
+    var currentTier = currentUser.tier || 'certified';
     
     var html = '';
     
-    // --- Hero status card ---
-    html += '<div style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:16px;padding:16px;margin-bottom:12px;border:1px solid #f8bbd0;">';
-    html += '<div style="font-size:15px;font-weight:700;color:#880e4f;margin-bottom:4px;">✅ 我们已收到你的作品链接！</div>';
-    html += '<div style="font-size:13px;color:#ad1457;line-height:1.5;">请静静等待系统审核评分，算分完成后会通知你～</div>';
+    // --- Hero card: simple & clear ---
+    html += '<div style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:16px;padding:18px;margin-bottom:10px;border:1px solid #f8bbd0;">';
+    html += '<div style="font-size:16px;font-weight:700;color:#880e4f;margin-bottom:2px;">\u2705 \u6211\u4EEC\u5DF2\u6536\u5230\u4F60\u7684\u4F5C\u54C1\u94FE\u63A5\uFF01</div>';
+    html += '<div style="font-size:28px;font-weight:800;color:#ad1457;margin:4px 0;">' + totalLinks + ' \u6761</div>';
+    html += '<div style="font-size:13px;color:#880e4f;">\u8BF7\u9759\u9759\u7B49\u5F85\u7CFB\u7EDF\u5BA1\u6838\u8BC4\u5206\uFF0C\u7B97\u5206\u5B8C\u6210\u540E\u4F1A\u901A\u77E5\u4F60\uFF5E</div>';
     html += '</div>';
     
-    // --- Simple stats ---
-    html += '<div style="background:#faf5f7;border-radius:14px;padding:14px;margin-bottom:10px;">';
-    html += '<div style="display:flex;justify-content:space-around;text-align:center;margin-bottom:8px;">';
-    html += '<div><div style="font-size:22px;font-weight:800;color:var(--pink-dark);">' + totalLinks + '</div><div style="font-size:11px;color:var(--text-light);">📎 已提交链接</div></div>';
-    html += '<div><div style="font-size:22px;font-weight:800;color:' + (pendingCount>0?'#ff9800':'#4caf50') + ';">' + pendingCount + '</div><div style="font-size:11px;color:var(--text-light);">⏳ 待审核</div></div>';
-    html += '<div><div style="font-size:22px;font-weight:800;color:#4caf50;">' + scoredCount + '</div><div style="font-size:11px;color:var(--text-light);">✅ 已评分</div></div>';
-    html += '</div>';
-    
-    // CC progress bar
-    var ccRemaining = Math.max(0, 15 - totalLinks);
-    var ccPct = Math.min(100, Math.round(totalLinks / 15 * 100));
-    html += '<div style="margin:8px 0 0;">';
-    html += '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">';
-    html += '<span style="font-weight:600;">🎁 连续创作奖励</span>';
-    html += '<span style="color:var(--text-light);">' + totalLinks + ' / 15 条</span>';
-    html += '</div>';
-    html += '<div style="background:#e0e0e0;border-radius:8px;height:8px;overflow:hidden;">';
-    html += '<div style="background:linear-gradient(90deg,#f06292,#ec407a);width:' + ccPct + '%;height:100%;border-radius:8px;"></div>';
-    html += '</div>';
-    if (ccRemaining > 0) {
-      html += '<div style="font-size:11px;color:#e65100;margin-top:3px;">📌 再投 <strong>' + ccRemaining + ' 条</strong>即可获得 🎁 月卡×1 + 🪙 蜗壳币×500 + 💰 金币×1000</div>';
-    } else {
-      html += '<div style="font-size:11px;color:#2e7d32;margin-top:3px;">✅ 已达 15 条，符合连续创作奖励条件！</div>';
-    }
-    html += '</div>';
-    
-    // 40分冲击提醒 - only if >= 15 submissions
-    if (totalLinks >= 15) {
-      html += '<div style="background:#fff3e0;border:1px solid #ffe082;border-radius:10px;padding:10px;margin-top:10px;font-size:12px;color:#e65100;">';
-      html += '🔥 检测到你投递的作品非常多！再冲一下 <strong>40 分</strong>可以全额结算哦～<br>';
-      html += '<span style="font-size:11px;">(超过 20 分未达 40 分只能算 20 分，达到 40 分按 40 分结算)</span>';
-      html += '</div>';
-    }
-    
-    
-    // --- Grade progress hint (no points shown, just consecutive months) ---
-    var currentTier = currentUser.tier || 'certified';
-    if (currentTier === 'certified') {
-      html += '<div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:10px;padding:10px;margin-top:8px;font-size:12px;color:#6a1b9a;">';
-      html += '⭐ <strong>升级提示</strong><br>';
-      html += '7 月投稿达标 → 8 月再投达标 → <strong>🟡 金级创作官</strong> 🎉<br>';
-      html += '<span style="font-size:11px;">(连续 2 个月每月 ≥ 5 分即可升级)</span>';
-      html += '</div>';
-    } else if (currentTier === 'gold') {
-      html += '<div style="background:#fff8e1;border:1px solid #ffd54f;border-radius:10px;padding:10px;margin-top:8px;font-size:12px;color:#b8860b;">';
-      html += '⭐ <strong>升级提示</strong><br>';
-      html += '7 月投稿达标 → 8 月再投达标 → 9 月再投达标 → <strong>💎 铂金创作官</strong> 🎉<br>';
-      html += '<span style="font-size:11px;">(连续 3 个月每月 ≥ 5 分即可升级)</span>';
-      html += '</div>';
-    }
-    
-    html += '</div>'; // close stats card
-    
-    // --- Submission list (no points shown) ---
-    html += '<div style="margin-top:8px;">';
-    subs.forEach(function(s) {
-      var statusEmoji = s.status === 'scored' ? '✅' : s.status === 'pending' ? '⏳' : '❌';
-      var statusClass = s.status === 'scored' ? 'badge-shipped' : s.status === 'pending' ? 'badge-pending' : 'badge-cancelled';
-      var dateStr = new Date(s.created_at).toLocaleDateString();
-      var linkCount = (s.links_engagement || '').split('\n').filter(Boolean).length;
-      var linksPreview = s.links_engagement ? (s.links_engagement.length > 80 ? s.links_engagement.substring(0, 80) + '…' : s.links_engagement) : '';
+    // --- CC progress + 40pt hint (combined card) ---
+    if (totalLinks > 0) {
+      html += '<div style="background:#faf5f7;border-radius:14px;padding:14px;margin-bottom:10px;">';
       
-      html += '<div class="submission-item" style="margin-bottom:6px;">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">';
-      html += '<span style="font-weight:600;font-size:13px;">' + statusEmoji + ' ' + dateStr + ' · ' + linkCount + ' 条链接</span>';
-      html += '<span class="badge ' + statusClass + '" style="font-size:11px;">' + (s.status==='pending'?'待审核':s.status==='scored'?'已评分':'已拒绝') + '</span>';
+      // CC progress bar
+      var ccPct = Math.min(100, Math.round(totalLinks / 15 * 100));
+      html += '<div style="margin-bottom:6px;">';
+      html += '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">';
+      html += '<span style="font-weight:600;">\uD83C\uDF81 \u8FDE\u7EED\u521B\u4F5C\u5956\u52B1</span>';
+      html += '<span style="color:var(--text-light);">' + totalLinks + ' / 15 \u6761</span>';
       html += '</div>';
-      html += '<div class="link-line" style="font-size:11px;">' + esc(linksPreview) + '</div>';
+      html += '<div style="background:#e0e0e0;border-radius:8px;height:8px;overflow:hidden;">';
+      html += '<div style="background:linear-gradient(90deg,#f06292,#ec407a);width:' + ccPct + '%;height:100%;border-radius:8px;"></div>';
+      html += '</div>';
+      if (ccRemaining > 0) {
+        html += '<div style="font-size:11px;color:#e65100;margin-top:3px;">\uD83D\uDCCC \u518D\u6295 <strong>' + ccRemaining + ' \u6761</strong>\u5373\u53EF\u83B7\u5F97 \uD83C\uDF81 \u6708\u5361\u00D71 + \uD83E\uDE99 \u8717\u58F3\u5E01\u00D7500 + \uD83D\uDCB0 \u91D1\u5E01\u00D71000</div>';
+      } else {
+        html += '<div style="font-size:11px;color:#2e7d32;margin-top:3px;">\u2705 \u5DF2\u8FBE 15 \u6761\uFF0C\u7B26\u5408\u8FDE\u7EED\u521B\u4F5C\u5956\u52B1\u6761\u4EF6\uFF01</div>';
+      }
+      html += '</div>';
+      
+      // 40pt push hint - only if >= 15
+      if (totalLinks >= 15) {
+        html += '<div style="background:#fff3e0;border:1px solid #ffe082;border-radius:8px;padding:8px 10px;font-size:12px;color:#e65100;">';
+        html += '\uD83D\uDD25 \u68C0\u6D4B\u5230\u4F60\u6295\u9012\u7684\u4F5C\u54C1\u975E\u5E38\u591A\uFF01\u518D\u51B2\u4E00\u4E0B <strong>40 \u5206</strong>\u53EF\u4EE5\u5168\u989D\u7ED3\u7B97\u54E6\uFF5E<br>';
+        html += '<span style="font-size:11px;">(\u8D85\u8FC7 20 \u5206\u672A\u8FBE 40 \u5206\u53EA\u80FD\u7B97 20 \u5206\uFF0C\u8FBE\u5230 40 \u5206\u6309 40 \u5206\u7ED3\u7B97)</span>';
+        html += '</div>';
+      }
+      
+      // Grade progress hint
+      if (currentTier === 'certified') {
+        html += '<div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12px;color:#6a1b9a;">';
+        html += '\u2B50 <strong>\u5347\u7EA7\u63D0\u793A</strong><br>';
+        html += '7 \u6708\u6295\u7A3F\u8FBE\u6807 \u2192 8 \u6708\u518D\u6295\u8FBE\u6807 \u2192 <strong>\uD83D\uDFE1 \u91D1\u7EA7\u521B\u4F5C\u5B98</strong> \uD83C\uDF89<br>';
+        html += '<span style="font-size:11px;">(\u8FDE\u7EED 2 \u4E2A\u6708\u6BCF\u6708 \u2265 5 \u5206\u5373\u53EF\u5347\u7EA7)</span>';
+        html += '</div>';
+      } else if (currentTier === 'gold') {
+        html += '<div style="background:#fff8e1;border:1px solid #ffd54f;border-radius:8px;padding:8px 10px;margin-top:6px;font-size:12px;color:#b8860b;">';
+        html += '\u2B50 <strong>\u5347\u7EA7\u63D0\u793A</strong><br>';
+        html += '7 \u6708\u6295\u7A3F\u8FBE\u6807 \u2192 8 \u6708\u8FBE\u6807 \u2192 9 \u6708\u8FBE\u6807 \u2192 <strong>\uD83D\uDC8E \u94C2\u91D1\u521B\u4F5C\u5B98</strong> \uD83C\uDF89<br>';
+        html += '<span style="font-size:11px;">(\u8FDE\u7EED 3 \u4E2A\u6708\u6BCF\u6708 \u2265 5 \u5206\u5373\u53EF\u5347\u7EA7)</span>';
+        html += '</div>';
+      }
+      
+      html += '</div>'; // close info card
+    }
+    
+    // --- Submission list ---
+    html += '<div style="margin-top:6px;">';
+    subs.forEach(function(s) {
+      var statusText = s.status === 'pending' ? '\u5F85\u5BA1\u6838' : s.status === 'scored' ? '\u5DF2\u8BC4\u5206' : '\u5DF2\u62D2\u7EDD';
+      var linkCount = (s.links_engagement || '').split('\n').filter(Boolean).length;
+      var dateStr = new Date(s.created_at).toLocaleDateString();
+      
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">';
+      html += '<div style="font-size:13px;color:var(--text);">\uD83D\uDCC5 ' + dateStr + ' \u00B7 ' + linkCount + ' \u6761\u94FE\u63A5</div>';
+      html += '<span class="badge badge-pending" style="font-size:11px;">' + statusText + '</span>';
       html += '</div>';
     });
     html += '</div>';
     
     container.innerHTML = html;
-    if (countEl) countEl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月 · ' + totalLinks + ' 条链接';
+    if (countEl) countEl.textContent = '\uD83D\uDCC5 ' + currentPeriod.replace('-', '\u5E74') + '\u6708 \u00B7 ' + totalLinks + ' \u6761\u94FE\u63A5';
   } catch(e) {
-    container.innerHTML = '<div style="color:#e74c3c;font-size:13px;">加载失败</div>';
+    container.innerHTML = '<div style="color:#e74c3c;font-size:13px;">\u52A0\u8F7D\u5931\u8D25</div>';
   }
 }
-
-
 
 function logout() {
   currentUser = null;
