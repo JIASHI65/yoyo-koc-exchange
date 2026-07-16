@@ -349,6 +349,7 @@ Elite: 连续 6 个月达到 5 分</textarea>
             <button class="btn btn-success btn-sm" onclick="document.getElementById('import-file-input').click()">📥 导入算分结果</button>
             <input type="file" id="import-file-input" accept=".json,.txt" style="display:none" onchange="importScoreFile(event)">
             <button class="btn btn-sm" style="background:#5865F2;color:white;" onclick="openMochiBroadcast()">💬 Mochi 广播</button>
+          <button class="btn btn-sm" style="background:#43b581;color:white;" onclick="toggleAutoWelcome()" id="btn-auto-welcome">🟢 自动欢迎 关</button>
           </div>
         </div>
         <div class="row" style="margin-bottom:8px;">
@@ -1313,6 +1314,129 @@ async function sendMochiDMPreset() {
   
   status.textContent = '✅ Sent to ' + successCount + ' creators' + (failCount > 0 ? ', ' + failCount + ' failed' : '');
   status.style.color = successCount > 0 ? '#4caf50' : '#e74c3c';
+}
+
+// ===== AUTO WELCOME (poll join-leave-log channel) =====
+var autoWelcomeInterval = null;
+var lastCheckedJoinId = null;
+
+async function toggleAutoWelcome() {
+  var btn = document.getElementById('btn-auto-welcome');
+  if (autoWelcomeInterval) {
+    clearInterval(autoWelcomeInterval);
+    autoWelcomeInterval = null;
+    btn.textContent = '🟢 自动欢迎 关';
+    btn.style.background = '#43b581';
+    showToast('Auto welcome stopped', 'info');
+  } else {
+    if (!MOCHI_TOKEN && !document.getElementById('mochi-token-input').value) {
+      showToast('Please set bot token first in Mochi settings', 'error');
+      return;
+    }
+    if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
+    
+    // Initialize lastCheckedJoinId
+    try {
+      var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+      var data = await res.json();
+      if (data && data.length > 0 && data[0].notes) {
+        var cfg = JSON.parse(data[0].notes);
+        lastCheckedJoinId = cfg._last_welcome_id || null;
+      }
+    } catch(e) {}
+    
+    btn.textContent = '🔴 自动欢迎 开';
+    btn.style.background = '#e74c3c';
+    autoWelcomeInterval = setInterval(checkNewMembers, 5 * 60 * 1000); // every 5 min
+    showToast('Auto welcome started (checking every 5 min)', 'success');
+    // Run immediately
+    checkNewMembers();
+  }
+}
+
+async function checkNewMembers() {
+  try {
+    var res = await fetch('https://discord.com/api/v10/channels/1458357258676211762/messages?limit=10', {
+      headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN }
+    });
+    if (!res.ok) return;
+    var msgs = await res.json();
+    
+    var welcomedAny = false;
+    for (var i = msgs.length - 1; i >= 0; i--) {
+      var m = msgs[i];
+      var embeds = m.embeds || [];
+      for (var j = 0; j < embeds.length; j++) {
+        var e = embeds[j];
+        if (e.title === 'Member joined') {
+          var msgId = m.id;
+          // Skip if we already checked this one
+          if (lastCheckedJoinId && msgId <= lastCheckedJoinId) continue;
+          if (!lastCheckedJoinId) { lastCheckedJoinId = msgId; continue; }
+          
+          // Extract Discord user ID from description <@ID>
+          var desc = e.description || '';
+          var idMatch = desc.match(/<@(\d+)>/);
+          var name = (e.author && e.author.name) || 'Unknown';
+          var discordId = idMatch ? idMatch[1] : null;
+          
+          if (discordId) {
+            // Check if already registered in KOC
+            var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?discord_name=eq.' + encodeURIComponent(name) + '&select=uid');
+            var existing = await checkRes.json();
+            if (!existing || existing.length === 0) {
+              // Send welcome DM
+              var welcomeMsg = '🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\nPlease complete your registration to receive points and rewards:\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\nClick "I\'m a New Creator" and fill in your info.\n\nAfter registration you\'ll get your UID and can start submitting works!';
+              try {
+                // Create DM channel
+                var dmRes = await fetch('https://discord.com/api/v10/users/@me/channels', {
+                  method: 'POST',
+                  headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ recipient_id: discordId })
+                });
+                if (dmRes.ok) {
+                  var dm = await dmRes.json();
+                  await fetch('https://discord.com/api/v10/channels/' + dm.id + '/messages', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: welcomeMsg })
+                  });
+                  welcomedAny = true;
+                }
+              } catch(e) { /* skip if DM fails (e.g. user has DMs disabled) */ }
+            }
+          }
+          
+          if (msgId > (lastCheckedJoinId || '')) {
+            lastCheckedJoinId = msgId;
+          }
+        }
+      }
+    }
+    
+    // Save lastCheckedJoinId
+    if (lastCheckedJoinId) {
+      try {
+        var readRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+        var readData = await readRes.json();
+        var notes = {};
+        if (readData && readData.length > 0 && readData[0].notes) {
+          try { notes = JSON.parse(readData[0].notes); } catch(e) {}
+        }
+        notes._last_welcome_id = lastCheckedJoinId;
+        await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__', {
+          method: 'PATCH',
+          body: JSON.stringify({ notes: JSON.stringify(notes) })
+        });
+      } catch(e) {}
+    }
+    
+    if (welcomedAny) {
+      showToast('✅ Auto welcomed new members', 'success');
+    }
+  } catch(e) {
+    console.error('checkNewMembers error:', e);
+  }
 }
 
 function openMochiBroadcast() {
