@@ -135,6 +135,12 @@
     th, td { font-size: 12px; padding: 6px 4px; }
     .truncate { max-width: 100px; }
   }
+
+  .tier-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .tier-platinum { background: #e8e0ff; color: #6a3de8; border: 1.5px solid #b39ddb; }
+  .tier-gold { background: #fff8e1; color: #b8860b; border: 1.5px solid #ffd54f; }
+  .tier-certified { background: #e8f5e9; color: #2e7d32; border: 1.5px solid #a5d6a7; }
+  .tier- { background: linear-gradient(135deg,#e8e0ff,#fff8e1); color: #6a3de8; border: 1.5px solid #ce93d8; }
 </style>
 </head>
 <body>
@@ -162,6 +168,9 @@
       <button class="tab" onclick="switchTab('merch')">📦 周边发货</button>
       <button class="tab" onclick="switchTab('diamond')">💎 端内奖励</button>
       <button class="tab" onclick="switchTab('gplay')">🎮 谷歌卡</button>
+      <button class="tab" onclick="switchTab('submissions')">📋 作品审核</button>
+      <button class="tab" onclick="switchTab('tiers')">⭐ 等级管理</button>
+      <button class="tab" onclick="switchTab('rules')">📐 规则配置</button>
     </div>
 
     <!-- ======== TAB: KOC台账 ======== -->
@@ -233,12 +242,157 @@
     </div>
 
     <!-- ======== TAB: 谷歌卡 ======== -->
+    <!-- ======== TAB: 作品审核 ======== -->
     <div id="tab-gplay" class="tab-content">
       <div class="card">
         <div class="card-title">🎮 Google Play 礼品卡清单 <span id="gplay-count" style="font-size:12px;color:var(--text-light);"></span></div>
        <div style="overflow-x:auto;">
          <div id="gplay-table"></div>
        </div>
+      </div>
+    </div>
+
+    <!-- ======== TAB: 等级管理 ======== -->
+    <div id="tab-tiers" class="tab-content">
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>⭐ 创作者等级管理</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-success btn-sm" onclick="autoUpgradeTiers()">🔄 一键自动升降级</button>
+            <button class="btn btn-sm" style="background:#5865F2;color:white;" onclick="syncTiersFromDiscord()">💬 从 Discord 同步</button>
+          </div>
+        </div>
+        <div class="stats-bar">
+          <span id="tier-stat-platinum">💎 铂金创作官: --</span>
+          <span id="tier-stat-gold">🟡 金级创作官: --</span>
+          <span id="tier-stat-new">✅ 认证创作官: --</span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="submission-table">
+            <thead><tr>
+              <th>Discord</th>
+              <th>UID</th>
+              <th style="width:60px;">Current Tier</th>
+              <th style="width:60px;">Last Month Pts</th>
+              <th style="width:60px;">This Month Pts</th>
+              <th style="width:60px;">Consecutive Months</th>
+              <th style="width:120px;">Actions</th>
+            </tr></thead>
+            <tbody id="tiers-table"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======== TAB: 规则配置 ======== -->
+    <div id="tab-rules" class="tab-content">
+      <div class="card">
+        <div class="card-title">📐 积分规则配置</div>
+        <div class="row">
+          <label>活动周期</label>
+          <select id="cfg-period" onchange="loadCampaignConfig()" style="width:200px;">
+            <option value="2026-07">2026-07 (July)</option>
+          </select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label>月积分上限</label>
+            <input type="number" id="cfg-points-cap" value="40" min="1" max="100">
+          </div>
+          <div>
+            <label>等级升级门槛（月基础分）</label>
+            <input type="number" id="cfg-tier-threshold" value="5" min="1" max="20">
+          </div>
+        </div>
+        <label>TikTok 算分规则</label>
+        <div class="row">
+          <input type="number" id="cfg-tt-200" value="1" style="width:70px;" placeholder="分"> <span style="font-size:12px;color:var(--text-light);">分 = 200 views</span>
+          <input type="number" id="cfg-tt-400" value="2" style="width:70px;" placeholder="分"> <span style="font-size:12px;color:var(--text-light);">分 = 400 views</span>
+        </div>
+        <label>YouTube 算分规则</label>
+        <div class="row">
+          <input type="number" id="cfg-yt-200" value="1" style="width:70px;" placeholder="分"> <span style="font-size:12px;color:var(--text-light);">分 = 200 views + 20s watch time</span>
+          <input type="number" id="cfg-yt-400" value="2" style="width:70px;" placeholder="分"> <span style="font-size:12px;color:var(--text-light);">分 = 400 views</span>
+        </div>
+        <label>社交平台算分规则</label>
+        <div class="row">
+          <input type="number" id="cfg-eng-40" value="1" style="width:70px;" placeholder="分"> <span style="font-size:12px;color:var(--text-light);">分 = 40 engagements</span>
+          <input type="number" id="cfg-eng-80" value="2" style="width:70px;" placeholder="分"> <span style="font-size:12px;color:var(--text-light);">分 = 80 engagements</span>
+        </div>
+        <label>等级制度说明（显示在创作者端）</label>
+        <textarea id="cfg-tier-description" style="min-height:100px;width:100%;">认证创作官: 默认等级，所有人进来都是
+金级创作官: 连续 2 个月达到 5 分
+铂金创作官: 连续 3 个月达到 5 分
+Elite: 连续 6 个月达到 5 分</textarea>
+        <div class="row" style="margin-top:8px;">
+          <button class="btn btn-primary btn-sm" onclick="saveCampaignConfig()">💾 保存配置</button>
+          <button class="btn btn-outline btn-sm" onclick="updateAgentRulesFromConfig()">📋 同步到 Agent 模板</button>
+          <span id="cfg-status" style="font-size:12px;color:var(--text-light);"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======== TAB: 作品审核 ======== -->
+    <div id="tab-submissions" class="tab-content">
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>📋 作品审核 <span id="submission-count" style="font-size:12px;color:var(--text-light);"></span></span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="copyAgentTemplate()">📋 一键复制 Agent 输入</button>
+            <button class="btn btn-success btn-sm" onclick="document.getElementById('import-file-input').click()">📥 导入算分结果</button>
+            <input type="file" id="import-file-input" accept=".json,.txt" style="display:none" onchange="importScoreFile(event)">
+            <button class="btn btn-sm" style="background:#5865F2;color:white;" onclick="openMochiBroadcast()">💬 Mochi 广播</button>
+          </div>
+        </div>
+        <div class="row" style="margin-bottom:8px;">
+          <input type="text" id="submission-search" placeholder="Search Discord name..." style="width:200px;" oninput="renderSubmissions()">
+          <select id="submission-filter" onchange="renderSubmissions()" style="width:140px;">
+            <option value="pending">⏳ Pending</option>
+            <option value="scored">✅ Scored</option>
+            <option value="all">All</option>
+          </select>
+          <span id="submission-stat" style="font-size:12px;color:var(--text-light);"></span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="submission-table">
+            <thead><tr>
+              <th style="width:30px;">#</th>
+              <th style="width:90px;">Discord</th>
+              <th style="width:60px;">UID</th>
+              <th style="width:40px;">Links</th>
+              <th style="width:40px;">Status</th>
+              <th>Eng Links</th>
+              <th>View Links</th>
+              <th style="width:50px;">Pts</th>
+              <th style="width:60px;">Date</th>
+              <th style="width:60px;">Actions</th>
+            </tr></thead>
+            <tbody id="submissions-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Agent Output Preview -->
+      <div class="card" id="agent-output-card" style="display:none;">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>🤖 Agent 输出预览</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-primary btn-sm" onclick="pasteScoreResult()">📥 粘贴导入</button>
+            <button class="btn btn-sm" style="background:var(--pink-light);color:var(--text);" onclick="document.getElementById('agent-output-card').style.display='none'">✖ Close</button>
+          </div>
+        </div>
+        <textarea id="agent-score-input" style="width:100%;min-height:200px;font-family:monospace;font-size:11px;" placeholder="Paste the Agent's scoring result here..."></textarea>
+        <div id="paste-status" style="font-size:12px;color:var(--text-light);margin-top:4px;"></div>
+      </div>
+
+      <!-- Copy success area -->
+      <div class="card" id="agent-template-card" style="display:none;">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>📋 Agent 输入模板已复制到剪贴板</span>
+          <button class="btn btn-sm" style="background:var(--pink-light);color:var(--text);" onclick="document.getElementById('agent-template-card').style.display='none'">✖ Close</button>
+        </div>
+        <div class="agent-template-box" id="agent-template-preview"></div>
+        <div style="font-size:11px;color:var(--text-light);margin-top:4px;">💡 打开一个新的 Codex 对话，粘贴模板即可开始算分</div>
       </div>
     </div>
   </div>
@@ -293,12 +447,47 @@
   </div>
 </div>
 
+<!-- ===== MODAL: Mochi Broadcast ===== -->
+<div id="mochi-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeMochiModal()">
+  <div class="modal">
+    <h3>💬 Mochi Broadcast</h3>
+    <label>Channel</label>
+    <select id="mochi-channel" style="width:100%;margin-bottom:8px;">
+      <option value="1458347958389965035">📢 yoyo-bulletin-board</option>
+      <option value="1458347827012046960">📒 yoyo-reward-rules</option>
+      <option value="1519180265396637776">📚 yoyo-rules-faq</option>
+      <option value="1458348802397442149">💡 official-inspirations</option>
+      <option value="1458349180748828757">🎨 creators-exchange</option>
+    </select>
+    <label>Bot Token <span style="font-size:11px;color:var(--text-light);">(required first time)</span></label>
+    <input type="password" id="mochi-token-input" style="width:100%;margin-bottom:8px;" placeholder="Enter Mochi Bot Token">
+    <label>Message</label>
+    <textarea id="mochi-message" style="width:100%;min-height:120px;margin-bottom:8px;" placeholder="Type your announcement..."></textarea>
+    <div class="row" style="margin-top:6px;">
+      <button class="btn btn-primary" onclick="sendMochiBroadcastFromModal()" style="flex:1;background:#5865F2;">💬 Send</button>
+      <button class="btn btn-outline" onclick="closeMochiModal()" style="flex:1;">Cancel</button>
+    </div>
+    <div id="mochi-status" style="font-size:12px;color:var(--text-light);margin-top:4px;"></div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
 const SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_oyewqnQ8AnitAOD94Qg0nA_v6Zqkr7r';
 const ADMIN_PASSWORD = 'yoyo2026';
+
+// ===== Mochi Discord Bot =====
+const DISCORD_GUILD_ID = '1458340952358785193';
+// ⚠️ Token is stored in localStorage for security. Enter it once in the Mochi settings.
+var MOCHI_TOKEN = localStorage.getItem('mochi_token') || '';
+
+function setMochiToken(token) {
+  MOCHI_TOKEN = token;
+  localStorage.setItem('mochi_token', token);
+  showToast('✅ Mochi token saved', 'success');
+}<｜end▁of▁thinking｜>
 
 // -- Drag-and-Drop Reorder --
 function loadSortableJS() {
@@ -341,6 +530,667 @@ function adminLogout() {
 }
 
 // ===== TABS =====
+
+// ===== TIER MANAGEMENT =====
+function getTierBadge(tier) {
+  var map = {'platinum':'💎 铂金创作官','gold':'🟡 金级创作官','certified':'✅ 认证创作官'};
+  var cls = {'platinum':'tier-platinum','gold':'tier-gold','certified':'tier-certified'};
+  return '<span class=\'tier-badge \\' + (cls[tier]||\'tier-certified\') + \'\'>' + (map[tier]||'✅ 认证创作官') + '</span>';
+}
+
+async function renderTiersTable() {
+  var container = document.getElementById('tiers-table');
+  if (!container) return;
+  var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=*&order=discord_name.asc');
+  if (!res.ok) return;
+  var kocs = await res.json();
+  var month = '2026-07';
+  var plRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?select=uid,change,period,created_at&order=created_at.desc');
+  var logs = plRes.ok ? await plRes.json() : [];
+  var currentMonthPoints = {};
+  logs.forEach(function(l) {
+    if ((l.period || '').indexOf('2026-07') >= 0 || (!l.period && new Date(l.created_at).getMonth() === 6)) {
+      if (l.change > 0) currentMonthPoints[l.uid] = (currentMonthPoints[l.uid] || 0) + l.change;
+    }
+  });
+  var stats = {platinum:0, gold:0, newbie:0, :0};
+  var html = kocs.filter(function(k) { return k.uid !== '__config__'; }).map(function(k) {
+    var tier = k.tier || 'certified';
+    stats[tier] = (stats[tier]||0) + 1;
+    var thisMonth = currentMonthPoints[k.uid] || 0;
+    var history = [];
+    try { history = JSON.parse(k.tier_history || '[]'); } catch(e) {}
+    var consecutiveMonths = history.length;
+    return '<tr>' +
+      '<td><strong>' + esc(k.discord_name) + '</strong></td>' +
+      '<td>' + esc(k.uid) + '</td>' +
+      '<td>' + getTierBadge(tier) + '</td>' +
+      '<td>' + (history.length > 0 ? history[history.length-1].monthly_points || 0 : 0) + '</td>' +
+      '<td style="font-weight:700;">' + thisMonth + '</td>' +
+      '<td>' + consecutiveMonths + 'm</td>' +
+      '<td>' +
+        '<select id=\'tier-select-' + k.uid + '\' style=\'width:100px;margin-bottom:2px;\'>' +
+          '<option value=\'new\'' + (tier==='certified'?' selected':'') + '>✅ 认证创作官</option>' +
+          '<option value=\'gold\'' + (tier==='gold'?' selected':'') + '>🟡 金级创作官</option>' +
+          '<option value=\'platinum\'' + (tier==='platinum'?' selected':'') + '>💎 铂金创作官</option>' +
+          
+        '</select>' +
+        '<button class=\'btn btn-primary btn-sm\' onclick=\'updateKocTier(\\'' + k.uid + '\\')\'>Save</button>' +
+      '</td>' +
+      '</tr>';
+  }).join('');
+  container.innerHTML = html || '<tr><td colspan=\'7\' style=\'text-align:center;padding:20px;color:var(--text-light);\'>No KOCs found</td></tr>';
+  document.getElementById('tier-stat-platinum').textContent = '💎 铂金创作官: ' + (stats.platinum||0);
+  document.getElementById('tier-stat-gold').textContent = '🟡 金级创作官: ' + (stats.gold||0);
+  document.getElementById('tier-stat-new').textContent = '✅ 认证创作官: ' + ((stats.newbie||0)+(stats.||0));
+}
+
+async function updateKocTier(uid) {
+  var tier = document.getElementById('tier-select-' + uid).value;
+  try {
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + uid, {
+      method: 'PATCH',
+      body: JSON.stringify({ tier: tier, tier_updated_at: new Date().toISOString() })
+    });
+    showToast('✅ ' + uid + ' tier updated to ' + tier, 'success');
+    renderTiersTable();
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function autoUpgradeTiers() {
+  if (!confirm('Run auto tier upgrade for all active KOCs?')) return;
+  var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=*');
+  if (!res.ok) return;
+  var kocs = await res.json();
+  var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?order=created_at.desc&select=*');
+  var subs = subRes.ok ? await subRes.json() : [];
+  var upgraded = 0;
+  for (var k of kocs) {
+    if (k.uid === '__config__') continue;
+    var monthlyPoints = subs.filter(function(s) { return s.uid === k.uid && s.status === 'scored'; })
+      .reduce(function(sum, s) { return sum + (s.points_earned || 0); }, 0);
+    var history = [];
+    try { history = JSON.parse(k.tier_history || '[]'); } catch(e) {}
+    history.push({month: '2026-07', tier: k.tier || 'certified', monthly_points: monthlyPoints});
+    if (history.length > 12) history = history.slice(-12);
+    var consecutive = 0;
+    for (var i = history.length - 1; i >= 0; i--) {
+      if (history[i].monthly_points >= 5) consecutive++; else break;
+    }
+    var newTier = 'certified';
+    if (consecutive >= 6) newTier = ;
+    else if (consecutive >= 3) newTier = 'platinum';
+    else if (consecutive >= 2) newTier = 'gold';
+    if (newTier !== k.tier) {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + k.uid, {
+        method: 'PATCH',
+        body: JSON.stringify({ tier: newTier, tier_history: JSON.stringify(history), tier_updated_at: new Date().toISOString() })
+      });
+      upgraded++;
+    } else {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + k.uid, {
+        method: 'PATCH',
+        body: JSON.stringify({ tier_history: JSON.stringify(history) })
+      });
+    }
+  }
+  showToast('✅ Auto upgrade done! ' + upgraded + ' changed.', 'success');
+  renderTiersTable();
+}
+
+async function syncTiersFromDiscord() {
+  if (!confirm('Sync tier data from Discord?')) return;
+  var discordTiers = { 'platinum': ['Achiru', 'diana', 'Janie', 'taylor'], 'gold': ['Ema', 'maished', 'Mia'] };
+  var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=*');
+  if (!res.ok) return;
+  var kocs = await res.json();
+  var updated = 0;
+  for (var k of kocs) {
+    if (k.uid === '__config__') continue;
+    var name = (k.discord_name || '').toLowerCase();
+    var tier = 'certified';
+    if (discordTiers.platinum.some(function(n) { return name.indexOf(n.toLowerCase()) >= 0; })) tier = 'platinum';
+    else if (discordTiers.gold.some(function(n) { return name.indexOf(n.toLowerCase()) >= 0; })) tier = 'gold';
+    if (tier !== 'certified') {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + k.uid, {
+        method: 'PATCH',
+        body: JSON.stringify({ tier: tier, tier_updated_at: new Date().toISOString() })
+      });
+      updated++;
+    }
+  }
+  showToast('✅ Sync complete. Updated ' + updated + ' KOCs.', 'success');
+  setTimeout(renderTiersTable, 1000);
+}
+
+// ===== CAMPAIGN / RULES CONFIG =====
+async function loadCampaignConfig() {
+  var period = document.getElementById('cfg-period').value;
+  try {
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + period + '&select=*');
+    if (!res.ok) return;
+    var data = await res.json();
+    if (data && data.length > 0) {
+      var cfg = data[0];
+      document.getElementById('cfg-points-cap').value = cfg.points_cap || 40;
+      var rules = typeof cfg.rules_json === 'string' ? JSON.parse(cfg.rules_json) : cfg.rules_json;
+      if (rules && rules.scoring) {
+        document.getElementById('cfg-tt-200').value = (rules.scoring.tiktok && rules.scoring.tiktok['200_views']) || 1;
+        document.getElementById('cfg-tt-400').value = (rules.scoring.tiktok && rules.scoring.tiktok['400_views']) || 2;
+        document.getElementById('cfg-yt-200').value = (rules.scoring.youtube && rules.scoring.youtube['200_views_20s_watchtime']) || 1;
+        document.getElementById('cfg-yt-400').value = (rules.scoring.youtube && rules.scoring.youtube['400_views']) || 2;
+        document.getElementById('cfg-eng-40').value = (rules.scoring.engagement && rules.scoring.engagement['40_engagements']) || 1;
+        document.getElementById('cfg-eng-80').value = (rules.scoring.engagement && rules.scoring.engagement['80_engagements']) || 2;
+      }
+      document.getElementById('cfg-tier-threshold').value = (rules && rules.tier_upgrade_threshold) || 5;
+    }
+  } catch(e) { console.error('loadCampaignConfig:', e); }
+}
+
+async function saveCampaignConfig() {
+  var period = document.getElementById('cfg-period').value;
+  var pointsCap = parseInt(document.getElementById('cfg-points-cap').value) || 40;
+  var tierThreshold = parseInt(document.getElementById('cfg-tier-threshold').value) || 5;
+  var rules = {
+    scoring: {
+      tiktok: { '200_views': parseInt(document.getElementById('cfg-tt-200').value) || 1, '400_views': parseInt(document.getElementById('cfg-tt-400').value) || 2 },
+      youtube: { '200_views_20s_watchtime': parseInt(document.getElementById('cfg-yt-200').value) || 1, '400_views': parseInt(document.getElementById('cfg-yt-400').value) || 2 },
+      engagement: { '40_engagements': parseInt(document.getElementById('cfg-eng-40').value) || 1, '80_engagements': parseInt(document.getElementById('cfg-eng-80').value) || 2 }
+    },
+    points_cap: pointsCap,
+    tier_upgrade_threshold: tierThreshold,
+    tier_description: document.getElementById('cfg-tier-description').value,
+    consistent_creation_bonus: { min_days: 5, min_posts: 15 }
+  };
+  try {
+    var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + period + '&select=id');
+    var existing = await checkRes.json();
+    if (existing && existing.length > 0) {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?id=eq.' + existing[0].id, {
+        method: 'PATCH',
+        body: JSON.stringify({ rules_json: JSON.stringify(rules), points_cap: pointsCap, updated_at: new Date().toISOString() })
+      });
+    } else {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config', {
+        method: 'POST',
+        body: JSON.stringify({ period: period, name: period + ' Settlement', rules_json: JSON.stringify(rules), points_cap: pointsCap, is_active: true })
+      });
+    }
+    document.getElementById('cfg-status').textContent = '✅ Saved!';
+    document.getElementById('cfg-status').style.color = '#4caf50';
+    showToast('✅ Campaign config saved!', 'success');
+  } catch(e) {
+    document.getElementById('cfg-status').textContent = 'Error: ' + e.message;
+    document.getElementById('cfg-status').style.color = '#e74c3c';
+  }
+}
+
+function updateAgentRulesFromConfig() {
+  var cap = document.getElementById('cfg-points-cap').value;
+  var tt200 = document.getElementById('cfg-tt-200').value;
+  var tt400 = document.getElementById('cfg-tt-400').value;
+  var yt200 = document.getElementById('cfg-yt-200').value;
+  var yt400 = document.getElementById('cfg-yt-400').value;
+  var eng40 = document.getElementById('cfg-eng-40').value;
+  var eng80 = document.getElementById('cfg-eng-80').value;
+  var rulesText = '## Scoring Rules (Current Campaign)\n\n' +
+    '### TikTok\n  ' + tt200 + ' Point = 200 views; ' + tt400 + ' Points = 400 views\n\n' +
+    '### YouTube\n  ' + yt200 + ' Point = 200 views + 20s watch time; ' + yt400 + ' Points = 400 views\n\n' +
+    '### Social Platforms (Pinterest/FB/IG/X/Reddit)\n  ' + eng40 + ' Point = 40 engagements; ' + eng80 + ' Points = 80 engagements\n\n' +
+    '### Monthly Cap\n  Total points capped at ' + cap + '. Below 20 = actual; 20-39 = 20; 40 = full 40.';
+  SCORING_RULES_TEXT = rulesText;
+  showToast('✅ Agent template synced with current config!', 'success');
+}
+
+// ===== MOCHI DISCORD BOT FUNCTIONS =====
+// Send a DM to a user by their Discord username (resolves member first)
+async function sendMochiDM(discordUsername, message) {
+  if (!discordUsername) return false;
+  try {
+    // Find member by username in the guild
+    var membersRes = await fetch('https://discord.com/api/v10/guilds/' + DISCORD_GUILD_ID + '/members?limit=1000', {
+      headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN }
+    });
+    if (!membersRes.ok) { console.error('Failed to fetch members'); return false; }
+    var members = await membersRes.json();
+    
+    // Match by username (case-insensitive)
+    var targetName = discordUsername.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    var member = members.find(function(m) {
+      var un = (m.user.username || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+      var nick = (m.nick || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
+      return un === targetName || nick === targetName;
+    });
+    if (!member) {
+      console.warn('Could not find Discord user:', discordUsername);
+      return false;
+    }
+    
+    // Create DM channel
+    var dmRes = await fetch('https://discord.com/api/v10/users/@me/channels', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ recipient_id: member.user.id })
+    });
+    if (!dmRes.ok) { console.error('Failed to create DM channel'); return false; }
+    var dm = await dmRes.json();
+    
+    // Send message
+    var msgRes = await fetch('https://discord.com/api/v10/channels/' + dm.id + '/messages', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: message })
+    });
+    return msgRes.ok;
+  } catch(e) {
+    console.error('sendMochiDM error:', e);
+    return false;
+  }
+}
+
+// Send a broadcast message to a text channel
+async function sendMochiBroadcast(channelId, message) {
+  try {
+    var res = await fetch('https://discord.com/api/v10/channels/' + channelId + '/messages', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: message })
+    });
+    return res.ok;
+  } catch(e) {
+    console.error('sendMochiBroadcast error:', e);
+    return false;
+  }
+}
+
+// ===== SUBMISSIONS: Render table =====
+var allSubmissions = [];
+async function loadSubmissions() {
+  try {
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?order=created_at.desc&select=*');
+    if (!res.ok) return;
+    allSubmissions = await res.json();
+    renderSubmissions();
+  } catch(e) { console.error('loadSubmissions:', e); }
+}
+
+function renderSubmissions() {
+  var search = (document.getElementById('submission-search').value || '').toLowerCase().trim();
+  var filter = document.getElementById('submission-filter').value;
+  var container = document.getElementById('submissions-table');
+  if (!container) return;
+  var filtered = allSubmissions.filter(function(s) {
+    if (filter !== 'all' && s.status !== filter) return false;
+    if (search && (s.discord_name || '').toLowerCase().indexOf(search) === -1) return false;
+    return true;
+  });
+  var stats = document.getElementById('submission-stat');
+  if (stats) stats.textContent = filtered.length + '/' + allSubmissions.length + ' submissions';
+  if (filtered.length === 0) {
+    container.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-light);">No submissions found</td></tr>';
+    return;
+  }
+  container.innerHTML = filtered.map(function(s, i) {
+    var engLinksCount = (s.links_engagement || '').split('\n').filter(Boolean).length;
+    var viewLinksCount = (s.links_views || '').split('\n').filter(Boolean).length;
+    var totalLinks = engLinksCount + viewLinksCount;
+    var statusBadge = s.status === 'scored' ? '<span class="badge badge-shipped">✅ Scored</span>' 
+                     : s.status === 'pending' ? '<span class="badge badge-pending">⏳ Pending</span>' 
+                     : '<span class="badge badge-cancelled">❌ Rejected</span>';
+    var engPreview = (s.links_engagement || '').split('\n').filter(Boolean).slice(0, 2).join('\n');
+    var viewPreview = (s.links_views || '').split('\n').filter(Boolean).slice(0, 2).join('\n');
+    var dateStr = new Date(s.created_at).toLocaleDateString();
+    var hasMoreEng = engLinksCount > 2;
+    var hasMoreView = viewLinksCount > 2;
+    return '<tr>' +
+      '<td>' + (i + 1) + '</td>' +
+      '<td><strong>' + esc(s.discord_name) + '</strong></td>' +
+      '<td>' + esc(s.uid) + '</td>' +
+      '<td>' + totalLinks + '</td>' +
+      '<td>' + statusBadge + '</td>' +
+      '<td class="link-cell">' + esc(engPreview) + (hasMoreEng ? '\n... (+' + (engLinksCount - 2) + ' more)' : '') + '</td>' +
+      '<td class="link-cell">' + esc(viewPreview) + (hasMoreView ? '\n... (+' + (viewLinksCount - 2) + ' more)' : '') + '</td>' +
+      '<td style="font-weight:700;color:' + (s.points_earned > 0 ? 'var(--pink-dark)' : 'inherit') + ';">' + (s.points_earned || 0) + '</td>' +
+      '<td style="font-size:10px;color:var(--text-light);">' + dateStr + '</td>' +
+      '<td>' +
+        '<button class="btn btn-outline btn-sm" onclick="viewSubmission(' + s.id + ')" style="margin-bottom:2px;width:100%;">👁️ View</button>' +
+        (s.status === 'pending' ? '<button class="btn btn-danger btn-sm" onclick="rejectSubmission(' + s.id + ')" style="width:100%;">✖ Reject</button>' : '') +
+      '</td>' +
+      '</tr>';
+  }).join('');
+}
+
+function viewSubmission(id) {
+  var s = allSubmissions.find(function(x) { return x.id === id; });
+  if (!s) return;
+  var engLinks = (s.links_engagement || '').split('\n').filter(Boolean);
+  var viewLinks = (s.links_views || '').split('\n').filter(Boolean);
+  var msg = '=== Submission #' + s.id + ' ===\n' +
+    'Discord: ' + s.discord_name + ' (UID: ' + s.uid + ')\n' +
+    'Server: ' + s.server + '\n' +
+    'Status: ' + s.status + '\n' +
+    'Date: ' + new Date(s.created_at).toLocaleString() + '\n' +
+    '--- Engagement Links (' + engLinks.length + ') ---\n' +
+    (engLinks.length ? engLinks.join('\n') : '(none)') + '\n' +
+    '--- View Links (' + viewLinks.length + ') ---\n' +
+    (viewLinks.length ? viewLinks.join('\n') : '(none)') + '\n' +
+    (s.address ? 'Address: ' + s.address + '\n' : '') +
+    (s.account_id ? 'Account ID: ' + s.account_id + '\n' : '') +
+    (s.game_uid ? 'Game UID: ' + s.game_uid + '\n' : '') +
+    (s.feedback ? 'Feedback: ' + s.feedback : '');
+  alert(msg);
+}
+
+async function rejectSubmission(id) {
+  if (!confirm('Reject submission #' + id + '?')) return;
+  try {
+    var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + id, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'rejected' })
+    });
+    if (resp.ok) {
+      showToast('✅ Submission rejected', 'success');
+      loadSubmissions();
+    }
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ===== AGENT INPUT TEMPLATE =====
+var SCORING_RULES_TEXT = `# Yoyo Creator Studio · Official Incentive Rules (July 2026)
+
+## How to Submit
+Based on your topic, post on TikTok / YouTube / Pinterest / Facebook / Instagram / X / Reddit with the designated tag (#myleisuretime).
+
+## Reward Basis
+Incentives are based on: posting frequency, engagement, view count, and watch time.
+
+## Content Topics
+Home decor, guides, outfits, official news, fan art or cosplay.
+
+## I. How Points Are Counted
+
+### 1. Video platforms (TikTok, YouTube)
+All posts (video, image, or mixed) earn Points by view count:
+  - TikTok: 200 views = 1 Point; 400 views = 2 Points
+  - YouTube: 20 sec watch time AND 200 views = 1 Point; 400 views = 2 Points
+
+### 2. Image/social platforms (Pinterest / Facebook / Instagram / X / Reddit)
+Points by total engagement (likes + comments + shares + saves):
+  - 40 engagements = 1 Point; 80 engagements = 2 Points
+
+## II. Consistent Creation Reward (rules unchanged)
+Post on at least 5 separate days in a month AND reach 15 total posts for the month (any platform) to claim:
+Premium Monthly Card x1 + Shelly Coins x500 + Gold x1000
+
+## III. Points Cap
+Monthly Points are capped at 20 for settlement.
+- If your monthly total is above 20 but below 40, it still counts as 20 (the excess is not counted).
+- If it reaches 40, the full 40 are settled.
+- In short: 20 is the cap unless you reach 40 — so aim for 40 to unlock full settlement.
+  (e.g. 26→20; 38→20; 40→40)
+
+## IV. Important Notes
+- Only links submitted via the form count toward Points.
+- Content meeting the designated platform and format requirements qualifies for Points.
+- Points accumulate permanently and never reset.
+- Each redemption lets you pick only 1 reward type.
+- KOCs who go 2 consecutive months without posting qualifying content automatically lose their official creator status.
+- The Consistent Creation Reward and Points rewards are stackable.
+- Entries submitted to other official call-for-entries events also count toward monthly Points.
+
+## V. Agent Task Instructions
+- Use browser to open each link and read the real engagement/view count from the page.
+- Do NOT fabricate or guess numbers.
+- If a link is inaccessible, mark as "N/A" and note the reason.
+- TikTok: read view count from the video page.
+- YouTube: read view count AND check if watch time meets 20 sec minimum.
+- For image platforms: read likes, comments, shares, saves and sum them.`;
+
+function generateAgentTemplate() {
+  var pending = allSubmissions.filter(function(s) { return s.status === 'pending'; });
+  if (pending.length === 0) {
+    showToast('No pending submissions to score', 'error');
+    return null;
+  }
+
+  var lines = [
+    '# Yoyo KOC Exchange · Agent Scoring Task',
+    '',
+    SCORING_RULES_TEXT,
+    '',
+    '## 任务',
+    '请用浏览器打开以下每个链接，查看该帖子的互动数（点赞/评论/分享/收藏）或播放量。',
+    '不要凭空编造数据。如果链接无法访问，请标注 "N/A"。',
+    '',
+    '## 输出格式要求',
+    '输出一个 JSON 格式的结果，严格按照以下结构：',
+    '',
+    '```json',
+    '{',
+    '  "batch": "2026-07",',
+    '  "submissions": [',
+    '    {',
+    '      "id": 提交ID,',
+    '      "discord_name": "Discord用户名",',
+    '      "uid": "UID",',
+    '      "engagement_links": [',
+    '        { "url": "链接地址", "likes": N, "comments": N, "shares": N, "saves": N, "engagement_total": N }',
+    '      ],',
+    '      "view_links": [',
+    '        { "url": "链接地址", "view_count": N }',
+    '      ],',
+    '      "total_engagement": N,',
+    '      "total_views": N,',
+    '      "points_earned": N,',
+    '      "points_detail": "40-99=1pt, 100-199=2pt, ..."',
+    '    }',
+    '  ]',
+    '}',
+    '```',
+    '',
+    '## 作品列表',
+    ''
+  ];
+
+  pending.forEach(function(s, i) {
+    var engLinks = (s.links_engagement || '').split('\n').filter(Boolean);
+    var viewLinks = (s.links_views || '').split('\n').filter(Boolean);
+    lines.push('--- Submission #' + s.id + ' | ' + s.discord_name + ' (UID: ' + s.uid + ') ---');
+    lines.push('');
+    if (engLinks.length > 0) {
+      lines.push('### Engagement Links (互动平台):');
+      engLinks.forEach(function(url) { lines.push(url); });
+      lines.push('');
+    }
+    if (viewLinks.length > 0) {
+      lines.push('### View Links (播放平台):');
+      viewLinks.forEach(function(url) { lines.push(url); });
+      lines.push('');
+    }
+  });
+
+  lines.push('--- END ---');
+  return lines.join('\n');
+}
+
+async function copyAgentTemplate() {
+  var template = generateAgentTemplate();
+  if (!template) return;
+
+  // Show preview
+  var previewBox = document.getElementById('agent-template-preview');
+  var card = document.getElementById('agent-template-card');
+  if (previewBox) previewBox.textContent = template;
+  if (card) card.style.display = 'block';
+
+  try {
+    await navigator.clipboard.writeText(template);
+    showToast('✅ Agent 输入模板已复制到剪贴板（' + allSubmissions.filter(function(s){return s.status==='pending';}).length + ' 条待审核）', 'success');
+  } catch(e) {
+    // Fallback
+    showToast('⚠️ 请手动复制上方内容', 'error');
+  }
+}
+
+// ===== IMPORT SCORE RESULTS =====
+async function importScoreResult(text) {
+  var status = document.getElementById('paste-status');
+  status.textContent = 'Processing...';
+  status.style.color = 'var(--text-light)';
+
+  // Try parsing as JSON
+  var result;
+  try {
+    result = JSON.parse(text);
+  } catch(e) {
+    // Try extracting JSON from markdown code block
+    var match = text.match(/\x60{3,}json\s*([\s\S]*?)\x60{3,}/);
+    if (match) {
+      try { result = JSON.parse(match[1].trim()); } catch(e2) { /* fail */ }
+    }
+  }
+
+  if (!result || !result.submissions || !Array.isArray(result.submissions)) {
+    status.textContent = '❌ Invalid format. Expected JSON with "submissions" array.';
+    status.style.color = '#e74c3c';
+    return;
+  }
+
+  var batch = result.batch || '2026-07';
+  var totalPoints = 0;
+  var successCount = 0;
+  var errors = [];
+
+  for (var i = 0; i < result.submissions.length; i++) {
+    var sub = result.submissions[i];
+    if (!sub.id) {
+      errors.push('Submission #' + (i+1) + ': missing id');
+      continue;
+    }
+    try {
+      // Update submissions table
+      var scoreDetails = JSON.stringify({
+        engagement_links: sub.engagement_links || [],
+        view_links: sub.view_links || []
+      });
+      var updatePayload = {
+        score_details: scoreDetails,
+        total_engagement_count: sub.total_engagement || 0,
+        total_view_count: sub.total_views || 0,
+        points_earned: sub.points_earned || 0,
+        status: 'scored',
+        scored_at: new Date().toISOString()
+      };
+      var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + sub.id, {
+        method: 'PATCH',
+        body: JSON.stringify(updatePayload)
+      });
+      if (!resp.ok) {
+        errors.push('Submission #' + sub.id + ': update failed (' + resp.status + ')');
+        continue;
+      }
+
+      // Add points to koc's point_logs
+      if (sub.points_earned && sub.points_earned > 0 && sub.uid) {
+        // Get current balance
+        var balRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/rpc/get_balance', {
+          method: 'POST',
+          body: JSON.stringify({ p_uid: sub.uid })
+        });
+        var currentBalance = 0;
+        if (balRes.ok) { currentBalance = parseInt(await balRes.text()) || 0; }
+        
+        var newBalance = currentBalance + sub.points_earned;
+        await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+          method: 'POST',
+          body: JSON.stringify({
+            uid: sub.uid,
+            change: sub.points_earned,
+            balance_after: newBalance,
+            source: 'auto_settlement',
+            reason: 'July submission settlement',
+            period: '2026-07',
+            created_by: 'agent'
+          })
+        });
+      }
+      totalPoints += sub.points_earned || 0;
+      successCount++;
+    } catch(e) {
+      errors.push('Submission #' + (sub.id || i+1) + ': ' + e.message);
+    }
+  }
+
+  // Record import
+  try {
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/score_imports', {
+      method: 'POST',
+      body: JSON.stringify({
+        batch_id: batch,
+        total_submissions: successCount,
+        total_points_added: totalPoints,
+        source: 'agent',
+        import_data: JSON.stringify(result),
+        imported_by: 'admin'
+      })
+    });
+  } catch(e) {}
+
+  // Show result
+  var msg = '✅ Imported ' + successCount + '/' + result.submissions.length + ' submissions, ' + totalPoints + ' points added';
+  if (errors.length > 0) msg += '\n⚠️ Errors: ' + errors.slice(0, 5).join('\n');
+  status.textContent = msg;
+  status.style.color = errors.length > 0 ? '#ff9800' : '#4caf50';
+
+  // Send Discord DM notifications via Mochi
+  var notifiedCount = 0;
+  for (var i = 0; i < result.submissions.length; i++) {
+    var sub = result.submissions[i];
+    if (sub.points_earned && sub.points_earned > 0) {
+      try {
+        var dmResult = await sendMochiDM(sub.discord_name, 
+          '🎉 Your July submission has been scored!\n' +
+          '📊 Engagement: ' + (sub.total_engagement || 0) + ' | Views: ' + (sub.total_views || 0) + '\n' +
+          '🏆 Points Earned: **' + sub.points_earned + '**\n\n' +
+          '👉 Check your balance and redeem rewards: https://jiashi65.github.io/yoyo-koc-exchange/');
+        if (dmResult) notifiedCount++;
+      } catch(e) { console.error('DM failed for', sub.discord_name, e); }
+    }
+  }
+  if (notifiedCount > 0) {
+    msg += '\n💬 Mochi notified ' + notifiedCount + ' creators via DM';
+  }
+
+  // Refresh
+  loadSubmissions();
+  renderKocTable();
+  // Show the agent output card
+  document.getElementById('agent-output-card').style.display = 'block';
+}
+
+async function pasteScoreResult() {
+  var text = document.getElementById('agent-score-input').value.trim();
+  if (!text) {
+    showToast('Please paste the scoring result first', 'error');
+    return;
+  }
+  await importScoreResult(text);
+}
+
+function importScoreFile(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = async function(e) {
+    document.getElementById('agent-score-input').value = e.target.result;
+    document.getElementById('agent-output-card').style.display = 'block';
+    showToast('File loaded. Click "Paste & Import" to process.', 'success');
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// Override switchTab to also load submissions
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -351,7 +1201,65 @@ function switchTab(name) {
   if (name === 'merch') renderMerchTab();
   if (name === 'diamond') renderDiamondTab();
   if (name === 'gplay') renderGplayTab();
+  if (name === 'submissions') loadSubmissions();
+  if (name === 'tiers') renderTiersTable();
+  if (name === 'rules') loadCampaignConfig();
 }
+
+// Init submissions on page load
+document.addEventListener('DOMContentLoaded', function() {
+  // We'll load submissions after admin logs in, via loadData
+});
+
+// ===== MOCHI BROADCAST MODAL =====
+function openMochiBroadcast() {
+  document.getElementById('mochi-modal').classList.remove('hidden');
+  document.getElementById('mochi-message').value = '';
+  document.getElementById('mochi-status').textContent = '';
+}
+
+function closeMochiModal() {
+  document.getElementById('mochi-modal').classList.add('hidden');
+}
+
+async function sendMochiBroadcastFromModal() {
+  var tokenInput = document.getElementById('mochi-token-input');
+  if (tokenInput && tokenInput.value.trim()) {
+    setMochiToken(tokenInput.value.trim());
+    tokenInput.value = '';
+  }
+  var channelId = document.getElementById('mochi-channel').value;
+  var message = document.getElementById('mochi-message').value.trim();
+  var status = document.getElementById('mochi-status');
+  var btn = document.querySelector('#mochi-modal .btn-primary');
+  
+  if (!MOCHI_TOKEN) { status.textContent = 'Please enter the bot token first'; status.style.color = '#e74c3c'; return; }
+  if (!message) { status.textContent = 'Please enter a message'; status.style.color = '#e74c3c'; return; }
+  
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+  status.textContent = '';
+  
+  var ok = await sendMochiBroadcast(channelId, message);
+  if (ok) {
+    status.textContent = '✅ Message sent!';
+    status.style.color = '#4caf50';
+    showToast('✅ Broadcast sent!', 'success');
+    setTimeout(closeMochiModal, 1500);
+  } else {
+    status.textContent = '❌ Failed to send. Check bot permissions.';
+    status.style.color = '#e74c3c';
+  }
+  btn.disabled = false;
+  btn.textContent = '💬 Send';
+}
+
+// Patch loadData to also load submissions
+var _origLoadData = loadData;
+loadData = function() {
+  _origLoadData();
+  loadSubmissions();
+};
 
 // ===== DATA LOADING =====
 async function loadData() {
@@ -990,4 +1898,3 @@ function updateDeadlineDisplay(date, time) {
 </script>
 </body>
 </html>
-      '<td><button class="btn btn-outline btn-sm" onclick="openEditModal(\'' + k.uid + '\')">\u270E</button> <button class="btn btn-primary btn-sm" onclick="openPointModal(\'' + k.uid + '\',\'' + escAttr(k.discord_name) + '\')">+/-</button></td>' +

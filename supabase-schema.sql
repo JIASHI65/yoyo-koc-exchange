@@ -97,3 +97,103 @@ RETURNS INTEGER AS $$
   ORDER BY created_at DESC, id DESC
   LIMIT 1;
 $$ LANGUAGE SQL;
+
+-- ============================================================
+-- 新增：作品提交表（创作者端投稿 / 管理员审核）
+-- 2026-07 月结活动
+-- ============================================================
+
+-- 5. 作品提交表
+CREATE TABLE submissions (
+  id BIGSERIAL PRIMARY KEY,
+  discord_name TEXT NOT NULL,           -- 投稿人 Discord 用户名
+  uid TEXT NOT NULL REFERENCES kocs(uid), -- KOC UID
+  server TEXT NOT NULL DEFAULT '',       -- Beacon Server / Official Server
+  address TEXT DEFAULT '',               -- 收货地址（可选）
+  account_id TEXT DEFAULT '',            -- Account ID（可选）
+  game_uid TEXT DEFAULT '',              -- Game UID（可选）
+  feedback TEXT DEFAULT '',              -- 反馈意见（可选）
+  links_engagement TEXT NOT NULL DEFAULT '',     -- 互动平台链接（Pinterest/FB/IG/X/Reddit），逗号分隔
+  links_views TEXT NOT NULL DEFAULT '',          -- 播放平台链接（TikTok/YouTube），逗号分隔
+  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','scored','rejected')),
+  -- 算分结果（由 Agent 填写 / 导入时填充）
+  score_details TEXT DEFAULT '',          -- JSON: 每条链接的互动数/播放量详情
+  total_engagement_count INTEGER DEFAULT 0,  -- 总互动量
+  total_view_count INTEGER DEFAULT 0,        -- 总播放量
+  points_earned INTEGER DEFAULT 0,           -- 本次投稿获得积分
+  scored_at TIMESTAMPTZ,                     -- 算分时间
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_submissions_status ON submissions(status);
+CREATE INDEX idx_submissions_uid ON submissions(uid);
+CREATE INDEX idx_submissions_created ON submissions(created_at DESC);
+
+-- ============================================================
+-- 新增：积分导入记录表（追踪 Agent 算分导入历史）
+-- ============================================================
+CREATE TABLE score_imports (
+  id BIGSERIAL PRIMARY KEY,
+  batch_id TEXT NOT NULL,               -- 批次标识（如 "2026-07"）
+  total_submissions INTEGER NOT NULL DEFAULT 0,
+  total_points_added INTEGER NOT NULL DEFAULT 0,
+  source TEXT NOT NULL DEFAULT 'agent', -- agent / manual
+  import_data TEXT,                     -- 导入的原始 JSON 数据（审计用）
+  imported_by TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_score_imports_batch ON score_imports(batch_id);
+
+-- 更新 koc_balances 视图（submissions 表的积分也计入）
+-- DROP VIEW IF EXISTS koc_balances;
+-- CREATE VIEW koc_balances AS
+-- SELECT 
+--   k.uid, k.discord_name, k.name, k.channel_tag, k.status,
+--   COALESCE((
+--     SELECT balance_after FROM point_logs 
+--     WHERE uid = k.uid 
+--     ORDER BY created_at DESC, id DESC 
+--     LIMIT 1
+--   ), 0) AS current_points
+-- FROM kocs k
+-- WHERE k.status = 'active';
+
+-- ============================================================
+-- 2026-07-16 新增：等级体系 + 积分规则配置
+-- ============================================================
+
+-- 6. KOC 表新增等级字段
+ALTER TABLE kocs ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'new' 
+  CHECK(tier IN ('certified','gold','platinum'));
+ALTER TABLE kocs ADD COLUMN IF NOT EXISTS tier_updated_at TIMESTAMPTZ;
+ALTER TABLE kocs ADD COLUMN IF NOT EXISTS tier_history TEXT DEFAULT '[]';
+-- tier_history 格式: [{"month":"2026-07","tier":"platinum","monthly_points":35}]
+
+-- 7. 活动/规则配置表（支持多期活动）
+CREATE TABLE IF NOT EXISTS campaign_config (
+  id SERIAL PRIMARY KEY,
+  period TEXT NOT NULL UNIQUE,          -- "2026-07", "2026-08"
+  name TEXT NOT NULL DEFAULT '',        -- "July Settlement"
+  rules_json TEXT NOT NULL DEFAULT '{}', -- 完整规则 JSON
+  points_cap INTEGER NOT NULL DEFAULT 40,  -- 月上限（统一40）
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 默认插入 7 月配置
+INSERT INTO campaign_config (period, name, rules_json, points_cap)
+VALUES ('2026-07', 'July Settlement', '{
+  "engagement_platforms": ["Pinterest","Facebook","Instagram","X","Reddit"],
+  "video_platforms": ["TikTok","YouTube"],
+  "scoring": {
+    "tiktok": {"200_views": 1, "400_views": 2},
+    "youtube": {"200_views_20s_watchtime": 1, "400_views": 2},
+    "engagement": {"40_engagements": 1, "80_engagements": 2}
+  },
+  "points_cap": 40,
+  "consistent_creation_bonus": {"min_days": 5, "min_posts": 15},
+  "tier_upgrade_threshold": 5
+}', 40)
+ON CONFLICT (period) DO NOTHING;

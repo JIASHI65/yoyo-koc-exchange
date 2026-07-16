@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Yoyo Town · Creator Redemption</title>
+<title>Yoyo Town · Creator Portal</title>
 <style>
   :root { --pink: #f2a6c4; --pink-light: #fce4ec; --pink-dark: #d4749a; --bg: #fef6f9; --card: #ffffff; --text: #3d2b36; --text-light: #8a7a83; --border: #f0dae4; --shadow: 0 4px 20px rgba(210,120,150,0.12); --radius: 16px; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -46,6 +46,26 @@
   .banner { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; margin-bottom: 16px; text-align: center; }
   .banner a { color: var(--pink-dark); text-decoration: none; font-weight: 600; }
   .banner a:hover { text-decoration: underline; }
+
+  .tabs { display: flex; gap: 2px; margin-bottom: 16px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px; }
+  .tab { flex: 1; padding: 10px 8px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-light); text-align: center; }
+  .tab:hover { background: var(--pink-light); color: var(--text); }
+  .tab.active { background: var(--pink); color: white; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .submission-item { padding: 12px; border: 2px solid var(--border); border-radius: 12px; margin-bottom: 8px; background: #faf5f7; }
+  .submission-item .link-line { font-size: 12px; color: var(--text-light); word-break: break-all; margin-bottom: 3px; }
+  .submission-item .link-line a { color: var(--pink-dark); }
+  textarea { width: 100%; padding: 12px 14px; border: 2px solid var(--border); border-radius: 10px; font-size: 14px; outline: none; transition: border 0.2s; background: #faf5f7; font-family: inherit; resize: vertical; min-height: 120px; }
+  textarea:focus { border-color: var(--pink); }
+  select { width: 100%; padding: 12px 14px; border: 2px solid var(--border); border-radius: 10px; font-size: 14px; outline: none; background: #faf5f7; font-family: inherit; margin-bottom: 12px; }
+  select:focus { border-color: var(--pink); }
+  .deadline-bar { background: #fff8e1; border: 1.5px solid #ffe082; border-radius: 10px; padding: 8px 12px; font-size: 12px; text-align: center; margin-bottom: 12px; color: #6d4c00; }
+  .tier-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-left: 6px; }
+  .tier-platinum { background: #e8e0ff; color: #6a3de8; border: 1.5px solid #b39ddb; }
+  .tier-gold { background: #fff8e1; color: #b8860b; border: 1.5px solid #ffd54f; }
+  .tier-certified { background: #e8f5e9; color: #2e7d32; border: 1.5px solid #a5d6a7; }
+  .tier- { background: linear-gradient(135deg,#e8e0ff,#fff8e1); color: #6a3de8; border: 1.5px solid #ce93d8; }
   .footer { text-align: center; padding: 24px 0 40px; font-size: 12px; color: var(--text-light); line-height: 1.5; }
 </style>
 </head>
@@ -55,6 +75,9 @@
     <h1>🎀 Yoyo Town</h1>
     <p>Creator Reward Redemption</p>
   </div>
+
+  <!-- Deadline Info -->
+  <div id="deadline-bar" class="deadline-bar hidden"></div>
 
   <!-- Login -->
   <div id="step-login" class="card">
@@ -71,27 +94,77 @@
 
   <!-- Dashboard -->
   <div id="step-dashboard" class="hidden">
-    <div class="card">
-      <div class="points-display">
-        <div class="points-number" id="display-points">--</div>
-        <div class="points-label">Available Points</div>
+    <!-- Creator Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchCreatorTab('redeem')">🎁 Redeem Rewards</button>
+      <button class="tab" onclick="switchCreatorTab('submit')">🎨 Submit Works</button>
+      <button class="tab" onclick="switchCreatorTab('history')">📋 My Submissions</button>
+    </div>
+    <!-- Redeem Tab -->
+    <div id="creator-tab-redeem" class="tab-content active">
+      <div class="card">
+        <div class="points-display">
+          <div class="points-number" id="display-points">--</div>
+          <div class="points-label">Available Points</div>
+        </div>
+        <div style="font-size:13px;text-align:center;color:var(--text-light);" id="display-user"></div>
+<div style="text-align:center;margin-top:4px;" id="display-tier"></div>
       </div>
-      <div style="font-size:13px;text-align:center;color:var(--text-light);" id="display-user"></div>
+
+      <div class="card">
+        <div class="card-title">🎁 Select Your Reward</div>
+        <div id="options-container"></div>
+        <div id="reward-fields" class="hidden" style="margin-top:8px;">
+          <label>Shipping Info (name, address, phone)</label>
+          <input type="text" id="input-contact" placeholder="Required for merch delivery">
+        </div>
+        <button class="btn btn-primary" id="btn-redeem" onclick="redeem()" disabled>Confirm Redemption</button>
+      </div>
+
+      <div class="card" id="orders-card" style="display:none;">
+        <div class="card-title">📋 My Orders</div>
+        <div id="orders-list"><div style="color:var(--text-light);font-size:13px;">No orders yet</div></div>
+      </div>
     </div>
 
-    <div class="card">
-      <div class="card-title">🎁 Select Your Reward</div>
-      <div id="options-container"></div>
-      <div id="reward-fields" class="hidden" style="margin-top:8px;">
-        <label>Shipping Info (name, address, phone)</label>
-        <input type="text" id="input-contact" placeholder="Required for merch delivery">
+    <!-- Submit Tab -->
+    <div id="creator-tab-submit" class="tab-content">
+      <div class="card">
+        <div class="card-title">🎨 Submit Your Works</div>
+        <label>Discord Username</label>
+        <input type="text" id="submit-discord" placeholder="Your Discord name" disabled>
+        <label>Server</label>
+        <select id="submit-server">
+          <option value="">Select your server...</option>
+          <option value="Official Server">Official Server</option>
+          <option value="Beacon Server">Beacon Server</option>
+        </select>
+        <div style="background:#fff3e0;border:1.5px solid #ffe082;border-radius:10px;padding:10px;font-size:12px;margin-bottom:12px;color:#6d4c00;">
+          📌 Enter one link per line. Make sure posts are publicly visible and include #myleisuretime
+        </div>
+        <label>Image/Text/Video Links (Pinterest / Facebook / Instagram / X / Reddit)</label>
+        <textarea id="submit-links-engagement" placeholder="https://pinterest.com/pin/...&#10;https://instagram.com/p/...&#10;https://x.com/user/status/...&#10;(one per line — scored by engagement: likes+comments+shares+saves)"></textarea>
+        <label>Video Links (TikTok / YouTube)</label>
+        <textarea id="submit-links-views" placeholder="https://tiktok.com/@user/video/...&#10;https://youtube.com/watch?v=...&#10;(one per line — scored by view count)"></textarea>
+        <label>Shipping Address <span style="color:var(--text-light);font-size:11px;">(Optional — for sending merch/gift cards)</span></label>
+        <input type="text" id="submit-address" placeholder="Country, full address, postal code, phone">
+        <label>Account ID <span style="color:var(--text-light);font-size:11px;">(Optional)</span></label>
+        <input type="text" id="submit-account-id" placeholder="6-digit account ID">
+        <label>Game UID <span style="color:var(--text-light);font-size:11px;">(Optional)</span></label>
+        <input type="text" id="submit-game-uid" placeholder="Letter string UID">
+        <label>Feedback <span style="color:var(--text-light);font-size:11px;">(Optional)</span></label>
+        <textarea id="submit-feedback" placeholder="Have our new rules benefited you? We'd love to hear your thoughts." style="min-height:60px;"></textarea>
+        <button class="btn btn-primary" id="btn-submit" onclick="submitWorks()">📤 Submit Works</button>
+        <div id="submit-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
       </div>
-      <button class="btn btn-primary" id="btn-redeem" onclick="redeem()" disabled>Confirm Redemption</button>
     </div>
 
-    <div class="card" id="orders-card" style="display:none;">
-      <div class="card-title">📋 My Orders</div>
-      <div id="orders-list"><div style="color:var(--text-light);font-size:13px;">No orders yet</div></div>
+    <!-- History Tab -->
+    <div id="creator-tab-history" class="tab-content">
+      <div class="card">
+        <div class="card-title">📋 My Submissions</div>
+        <div id="submissions-list"><div style="color:var(--text-light);font-size:13px;">Loading...</div></div>
+      </div>
     </div>
 
     <button class="btn" style="width:100%;border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--card);font-size:14px;color:var(--text-light);cursor:pointer;" onclick="logout()">← Switch Account</button>
@@ -207,6 +280,20 @@ function showDashboard() {
   document.getElementById('step-dashboard').classList.remove('hidden');
   document.getElementById('display-points').textContent = currentUser.points;
   document.getElementById('display-user').textContent = 'Welcome, ' + currentUser.discord_name;
+  // Fetch and show tier badge
+  try {
+    (async function() {
+      var tr = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + currentUser.uid + '&select=tier');
+      var td = await tr.json();
+      var te = document.getElementById('display-tier');
+      if (td && td.length > 0 && td[0].tier && te) {
+        var t = td[0].tier;
+        var tm = {'platinum':'💎 铂金创作官','gold':'🟡 金级创作官','certified':'✅ 认证创作官'};
+        var cm = {'platinum':'tier-platinum','gold':'tier-gold','certified':'tier-certified'};
+        te.innerHTML = '<span class=\'tier-badge \\' + (cm[t]||'tier-certified') + '\'>' + (tm[t]||'✅ 认证创作官') + '</span>';
+      }
+    })();
+  } catch(e) {}
   renderOptions();
   loadOrders();
 }
@@ -353,6 +440,168 @@ async function loadOrders() {
     console.error('loadOrders error:', e);
   }
 }
+
+// ===== CREATOR TAB SWITCHING =====
+function switchCreatorTab(name) {
+  document.querySelectorAll('#step-dashboard .tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#step-dashboard .tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('#step-dashboard .tab[onclick*="' + name + '"]').classList.add('active');
+  document.getElementById('creator-tab-' + name).classList.add('active');
+  if (name === 'history') loadMySubmissions();
+}
+
+// ===== DEADLINE CHECK =====
+async function checkDeadline() {
+  try {
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+    var data = await res.json();
+    if (data && data.length > 0 && data[0].notes) {
+      var cfg = JSON.parse(data[0].notes);
+      if (cfg.submission_deadline_date) {
+        var deadline = new Date(cfg.submission_deadline_date + 'T' + (cfg.submission_deadline_time || '23:59'));
+        var bar = document.getElementById('deadline-bar');
+        bar.classList.remove('hidden');
+        if (new Date() > deadline) {
+          bar.innerHTML = '⏰ Submission closed on ' + cfg.submission_deadline_date + ' ' + (cfg.submission_deadline_time || '23:59');
+          bar.style.background = '#fbe9e7';
+          bar.style.borderColor = '#ef9a9a';
+        } else {
+          bar.innerHTML = '⏰ Submit your works before ' + cfg.submission_deadline_date + ' ' + (cfg.submission_deadline_time || '23:59');
+        }
+      }
+    }
+  } catch(e) {}
+}
+
+// Replace the login function to call checkDeadline
+var _origLogin = login;
+login = function() {
+  _origLogin();
+  checkDeadline();
+};
+
+// ===== SUBMIT WORKS =====
+async function submitWorks() {
+  var discord = document.getElementById('submit-discord').value.trim();
+  var server = document.getElementById('submit-server').value;
+  var linksEng = document.getElementById('submit-links-engagement').value.trim();
+  var linksViews = document.getElementById('submit-links-views').value.trim();
+  var address = document.getElementById('submit-address').value.trim();
+  var accountId = document.getElementById('submit-account-id').value.trim();
+  var gameUid = document.getElementById('submit-game-uid').value.trim();
+  var feedback = document.getElementById('submit-feedback').value.trim();
+  var status = document.getElementById('submit-status');
+  var btn = document.getElementById('btn-submit');
+
+  if (!discord) { status.textContent = 'Please login first'; return; }
+  if (!linksEng && !linksViews) { status.textContent = 'Please enter at least one work link'; return; }
+  if (!server) { status.textContent = 'Please select your server'; return; }
+
+  // Check deadline
+  try {
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+    var data = await res.json();
+    if (data && data.length > 0 && data[0].notes) {
+      var cfg = JSON.parse(data[0].notes);
+      if (cfg.submission_deadline_date) {
+        var deadline = new Date(cfg.submission_deadline_date + 'T' + (cfg.submission_deadline_time || '23:59'));
+        if (new Date() > deadline) {
+          status.textContent = '⛔ Submission deadline has passed (' + cfg.submission_deadline_date + ')';
+          status.style.color = '#e74c3c';
+          return;
+        }
+      }
+    }
+  } catch(e) {}
+
+  btn.disabled = true;
+  btn.textContent = 'Submitting...';
+  status.textContent = '';
+
+  try {
+    var payload = {
+      discord_name: discord,
+      uid: currentUser.uid,
+      server: server,
+      address: address,
+      account_id: accountId,
+      game_uid: gameUid,
+      feedback: feedback,
+      links_engagement: linksEng,
+      links_views: linksViews,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    };
+    var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) throw new Error('Submit failed');
+    status.textContent = '✅ Works submitted successfully!';
+    status.style.color = '#4caf50';
+    // Clear form
+    document.getElementById('submit-links-engagement').value = '';
+    document.getElementById('submit-links-views').value = '';
+    document.getElementById('submit-address').value = '';
+    document.getElementById('submit-account-id').value = '';
+    document.getElementById('submit-game-uid').value = '';
+    document.getElementById('submit-feedback').value = '';
+    document.getElementById('submit-server').value = '';
+    showToast('✅ Works submitted! We will score them soon.', 'success');
+  } catch(e) {
+    status.textContent = 'Error: ' + e.message;
+    status.style.color = '#e74c3c';
+  }
+  btn.disabled = false;
+  btn.textContent = '📤 Submit Works';
+}
+
+// ===== LOAD MY SUBMISSIONS =====
+async function loadMySubmissions() {
+  if (!currentUser) return;
+  var container = document.getElementById('submissions-list');
+  if (!container) return;
+  try {
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,created_at,status,links_engagement,links_views,points_earned,total_engagement_count,total_view_count,scored_at');
+    if (!res.ok) throw new Error('Failed');
+    var subs = await res.json();
+    if (!subs || subs.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-light);font-size:13px;text-align:center;padding:20px;">No submissions yet</div>';
+      return;
+    }
+    container.innerHTML = subs.map(function(s) {
+      var engLinks = (s.links_engagement || '').split('\n').filter(Boolean).length;
+      var viewLinks = (s.links_views || '').split('\n').filter(Boolean).length;
+      var totalLinks = engLinks + viewLinks;
+      var statusEmoji = s.status === 'scored' ? '✅' : s.status === 'pending' ? '⏳' : '❌';
+      var statusClass = s.status === 'scored' ? 'badge-shipped' : s.status === 'pending' ? 'badge-pending' : 'badge-cancelled';
+      var dateStr = new Date(s.created_at).toLocaleDateString();
+      var scoredStr = s.scored_at ? ' · Scored: ' + new Date(s.scored_at).toLocaleDateString() : '';
+      return '<div class="submission-item">' +
+        '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
+        '<span style="font-weight:600;">' + statusEmoji + ' ' + dateStr + '</span>' +
+        '<span class="badge ' + statusClass + '">' + s.status + '</span>' +
+        '</div>' +
+        '<div class="link-line">📎 ' + totalLinks + ' links submitted</div>' +
+        (s.status === 'scored' ? '<div class="link-line">🏆 Points: <strong>' + s.points_earned + '</strong> · Engagement: ' + (s.total_engagement_count||0) + ' · Views: ' + (s.total_view_count||0) + scoredStr + '</div>' : '') +
+        '</div>';
+    }).join('');
+  } catch(e) {
+    container.innerHTML = '<div style="color:#e74c3c;font-size:13px;">Error loading submissions</div>';
+  }
+}
+
+// Override the original login to fill submit discord field
+var __origLogin = login;
+login = async function() {
+  await __origLogin();
+  // After login, fill the submit form
+  var discordInput = document.getElementById('input-discord');
+  var submitDiscord = document.getElementById('submit-discord');
+  if (discordInput && submitDiscord) {
+    submitDiscord.value = discordInput.value;
+  }
+};
 
 function logout() {
   currentUser = null;
