@@ -754,87 +754,106 @@ async function loadMySubmissions() {
     if (!res.ok) throw new Error('Failed');
     var subs = await res.json();
     if (!subs || subs.length === 0) {
-      container.innerHTML = '<div style="color:var(--text-light);font-size:13px;text-align:center;padding:20px;">No submissions yet</div>';
+      container.innerHTML = '<div style="color:var(--text-light);font-size:13px;text-align:center;padding:30px;">📝 你还没有提交过作品<br><span style="font-size:11px;">去 Submit Works 提交你的链接吧</span></div>';
       if (countEl) countEl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
       return;
     }
     
-    // Count stats
     var pendingCount = subs.filter(function(s) { return s.status === 'pending'; }).length;
     var scoredCount = subs.filter(function(s) { return s.status === 'scored'; }).length;
     var totalPoints = subs.reduce(function(sum, s) { return sum + (s.points_earned || 0); }, 0);
     var totalLinks = subs.reduce(function(sum, s) { return sum + (s.links_engagement || '').split('\n').filter(Boolean).length; }, 0);
     
-    // Calculate CC status (15 posts for Consistent Creation Reward)
-    var ccProgress = Math.min(totalLinks, 15);
     var ccRemaining = Math.max(0, 15 - totalLinks);
-    
-    // Calculate tier progress (5 points = Gold/Platinum threshold)
     var tierThreshold = 5;
-    var tierProgress = Math.min(totalPoints, tierThreshold);
     var tierRemaining = Math.max(0, tierThreshold - totalPoints);
     var currentTier = currentUser.tier || 'certified';
-    var nextTier = '';
-    var tierHint = '';
-    if (currentTier === 'certified' || currentTier === 'gold') {
-      nextTier = currentTier === 'certified' ? '🟡 Gold Creator' : '💎 Platinum Creator';
-      tierHint = 'Reach ' + tierThreshold + ' points this month to qualify';
-    }
+    var displayTier = {'platinum':'💎 铂金创作官','gold':'🟡 金级创作官','certified':'✅ 认证创作官'};
     
-    // Build status bar
-    var statsHtml = '<div style="background:#faf5f7;border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:12px;">' +
-      '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
-      '<span>📎 Total: <strong>' + totalLinks + '</strong> links</span>' +
-      '<span>⏳ Pending: <strong>' + pendingCount + '</strong></span>' +
-      '<span>✅ Scored: <strong>' + scoredCount + '</strong></span>' +
-      '<span>🏆 Points: <strong>' + totalPoints + '</strong></span>' +
-      '</div>';
+    var html = '';
     
-    // CC reminder
+    // --- Hero status card ---
+    html += '<div style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:16px;padding:16px;margin-bottom:12px;border:1px solid #f8bbd0;">';
+    html += '<div style="font-size:15px;font-weight:700;color:#880e4f;margin-bottom:4px;">✅ 我们已收到你的作品链接！</div>';
+    html += '<div style="font-size:13px;color:#ad1457;line-height:1.5;">请静静等待系统审核评分，算分完成后会通知你～</div>';
+    html += '</div>';
+    
+    // --- Stats card ---
+    html += '<div style="background:#faf5f7;border-radius:14px;padding:14px;margin-bottom:10px;">';
+    html += '<div style="display:flex;justify-content:space-around;text-align:center;margin-bottom:8px;">';
+    html += '<div><div style="font-size:22px;font-weight:800;color:var(--pink-dark);">' + totalLinks + '</div><div style="font-size:11px;color:var(--text-light);">📎 已提交链接</div></div>';
+    html += '<div><div style="font-size:22px;font-weight:800;color:' + (pendingCount>0?'#ff9800':'#4caf50') + ';">' + pendingCount + '</div><div style="font-size:11px;color:var(--text-light);">⏳ 待审核</div></div>';
+    html += '<div><div style="font-size:22px;font-weight:800;color:#4caf50;">' + scoredCount + '</div><div style="font-size:11px;color:var(--text-light);">✅ 已评分</div></div>';
+    html += '<div><div style="font-size:22px;font-weight:800;color:#7b1fa2;">' + totalPoints + '</div><div style="font-size:11px;color:var(--text-light);">🏆 获得积分</div></div>';
+    html += '</div>';
+    
+    // --- Progress bars ---
+    // CC progress
+    var ccPct = Math.min(100, Math.round(totalLinks / 15 * 100));
+    html += '<div style="margin:8px 0 4px;">';
+    html += '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">';
+    html += '<span style="font-weight:600;">🎁 连续创作奖励</span>';
+    html += '<span style="color:var(--text-light);">' + totalLinks + ' / 15 条</span>';
+    html += '</div>';
+    html += '<div style="background:#e0e0e0;border-radius:8px;height:8px;overflow:hidden;">';
+    html += '<div style="background:linear-gradient(90deg,#f06292,#ec407a);width:' + ccPct + '%;height:100%;border-radius:8px;"></div>';
+    html += '</div>';
     if (ccRemaining > 0) {
-      statsHtml += '<div style="background:#fff8e1;border-radius:6px;padding:5px 8px;margin-bottom:4px;">' +
-        '💡 You need <strong>' + ccRemaining + ' more</strong> submission' + (ccRemaining > 1 ? 's' : '') + ' to reach 15 and claim the <strong>Consistent Creation Reward</strong> 🎁' +
-        '</div>';
+      html += '<div style="font-size:11px;color:#e65100;margin-top:3px;">📌 再投 <strong>' + ccRemaining + ' 条</strong>即可获得 🎁 月卡×1 + 🪙 蜗壳币×500 + 💰 金币×1000</div>';
     } else {
-      statsHtml += '<div style="background:#e8f5e9;border-radius:6px;padding:5px 8px;margin-bottom:4px;">' +
-        '✅ You\'ve reached 15+ submissions! You qualify for the <strong>Consistent Creation Reward</strong> 🎁' +
-        '</div>';
+      html += '<div style="font-size:11px;color:#2e7d32;margin-top:3px;">✅ 已达 15 条，符合连续创作奖励条件！</div>';
+    }
+    html += '</div>';
+    
+    // Tier progress
+    if (currentTier !== 'platinum') {
+      var tierPct = Math.min(100, Math.round(totalPoints / tierThreshold * 100));
+      var nextTierName = currentTier === 'certified' ? '🟡 金级创作官' : '💎 铂金创作官';
+      html += '<div style="margin:8px 0 0;">';
+      html += '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">';
+      html += '<span style="font-weight:600;">⭐ ' + nextTierName + '</span>';
+      html += '<span style="color:var(--text-light);">' + totalPoints + ' / ' + tierThreshold + ' 分</span>';
+      html += '</div>';
+      html += '<div style="background:#e0e0e0;border-radius:8px;height:8px;overflow:hidden;">';
+      html += '<div style="background:linear-gradient(90deg,#ce93d8,#ab47bc);width:' + tierPct + '%;height:100%;border-radius:8px;"></div>';
+      html += '</div>';
+      if (tierRemaining > 0) {
+        html += '<div style="font-size:11px;color:#6a1b9a;margin-top:3px;">⭐ 再得 <strong>' + tierRemaining + ' 分</strong>即可升级为 ' + nextTierName + '</div>';
+      } else {
+        html += '<div style="font-size:11px;color:#2e7d32;margin-top:3px;">✅ 已达到' + nextTierName + '门槛！</div>';
+      }
+      html += '</div>';
     }
     
-    // Tier reminder
-    if (tierRemaining > 0 && currentTier !== 'platinum') {
-      statsHtml += '<div style="background:#f3e5f5;border-radius:6px;padding:5px 8px;">' +
-        '⭐ You need <strong>' + tierRemaining + ' more point' + (tierRemaining > 1 ? 's' : '') + '</strong> to reach <strong>' + nextTier + '</strong>! ' + tierHint +
-        '</div>';
-    } else if (currentTier !== 'platinum') {
-      statsHtml += '<div style="background:#e8f5e9;border-radius:6px;padding:5px 8px;">' +
-        '⭐ You have enough points to qualify for <strong>' + nextTier + '</strong>! 🎉' +
-        '</div>';
-    }
+    html += '</div>'; // close stats card
     
-    statsHtml += '</div>';
-    
-    // Build submission list
-    var listHtml = subs.map(function(s) {
+    // --- Submission list ---
+    html += '<div style="margin-top:8px;">';
+    subs.forEach(function(s) {
       var statusEmoji = s.status === 'scored' ? '✅' : s.status === 'pending' ? '⏳' : '❌';
       var statusClass = s.status === 'scored' ? 'badge-shipped' : s.status === 'pending' ? 'badge-pending' : 'badge-cancelled';
       var dateStr = new Date(s.created_at).toLocaleDateString();
-      var scoredStr = s.scored_at ? ' · Scored: ' + new Date(s.scored_at).toLocaleDateString() : '';
-      var linkShort = s.links_engagement ? (s.links_engagement.length > 60 ? s.links_engagement.substring(0, 60) + '...' : s.links_engagement) : '';
-      return '<div class="submission-item">' +
-        '<div style="display:flex;justify-content:space-between;margin-bottom:4px;">' +
-        '<span style="font-weight:600;">' + statusEmoji + ' ' + dateStr + '</span>' +
-        '<span class="badge ' + statusClass + '">' + s.status + '</span>' +
-        '</div>' +
-        '<div class="link-line">📎 ' + (s.links_engagement || '') + '</div>' +
-        (s.status === 'scored' ? '<div class="link-line">🏆 Points: <strong>' + s.points_earned + '</strong> · Engagement: ' + (s.total_engagement_count||0) + ' · Views: ' + (s.total_view_count||0) + scoredStr + '</div>' : '') +
-        '</div>';
-    }).join('');
+      var scoredStr = s.scored_at ? ' · 评分日期: ' + new Date(s.scored_at).toLocaleDateString() : '';
+      var linkCount = (s.links_engagement || '').split('\n').filter(Boolean).length;
+      var linksPreview = s.links_engagement ? (s.links_engagement.length > 80 ? s.links_engagement.substring(0, 80) + '…' : s.links_engagement) : '';
+      
+      html += '<div class="submission-item" style="margin-bottom:6px;">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">';
+      html += '<span style="font-weight:600;font-size:13px;">' + statusEmoji + ' ' + dateStr + ' · ' + linkCount + ' 条链接</span>';
+      html += '<span class="badge ' + statusClass + '" style="font-size:11px;">' + (s.status==='pending'?'待审核':s.status==='scored'?'已评分':'已拒绝') + '</span>';
+      html += '</div>';
+      html += '<div class="link-line" style="font-size:11px;">' + esc(linksPreview) + '</div>';
+      if (s.status === 'scored') {
+        html += '<div class="link-line" style="font-size:12px;color:#7b1fa2;margin-top:2px;">🏆 获得 <strong>' + s.points_earned + '</strong> 分 · 互动 ' + (s.total_engagement_count||0) + ' · 播放 ' + (s.total_view_count||0) + scoredStr + '</div>';
+      }
+      html += '</div>';
+    });
+    html += '</div>';
     
-    container.innerHTML = statsHtml + listHtml;
-    if (countEl) countEl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月 · ' + totalLinks + ' links, ' + totalPoints + ' pts';
+    container.innerHTML = html;
+    if (countEl) countEl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月 · ' + totalLinks + ' 条链接';
   } catch(e) {
-    container.innerHTML = '<div style="color:#e74c3c;font-size:13px;">Error loading submissions</div>';
+    container.innerHTML = '<div style="color:#e74c3c;font-size:13px;">加载失败</div>';
   }
 }
 
