@@ -1024,8 +1024,12 @@ async function copyAgentTemplate() {
   if (card) card.style.display = 'block';
 
   try {
+  if (allSubmissions.filter(function(s){return s.status==='pending';}).length > 0) {
     await navigator.clipboard.writeText(template);
     showToast('✅ Agent 输入模板已复制到剪贴板（' + allSubmissions.filter(function(s){return s.status==='pending';}).length + ' 条待审核）', 'success');
+  } else {
+    showToast('📋 模板已生成，但暂无待审核作品', 'warning');
+  }
   } catch(e) {
     // Fallback
     showToast('⚠️ 请手动复制上方内容', 'error');
@@ -1033,6 +1037,22 @@ async function copyAgentTemplate() {
 }
 
 // ===== IMPORT SCORE RESULTS =====
+function togglePasteBox() {
+  var ta = document.getElementById('paste-textarea');
+  var btn = document.getElementById('paste-submit-btn');
+  if (ta.style.display === 'none') {
+    ta.style.display = 'block';
+    btn.style.display = 'inline-flex';
+  } else {
+    ta.style.display = 'none';
+    btn.style.display = 'none';
+  }
+}
+async function importFromPaste() {
+  var text = document.getElementById('paste-textarea').value;
+  if (!text.trim()) { showToast('请粘贴内容', 'error'); return; }
+  await importScoreResult(text);
+}
 async function importScoreResult(text) {
   var status = document.getElementById('paste-status');
   status.textContent = 'Processing...';

@@ -96,12 +96,12 @@
   <div id="step-dashboard" class="hidden">
     <!-- Creator Tabs -->
     <div class="tabs">
-      <button class="tab active" onclick="switchCreatorTab('redeem')">🎁 Redeem Rewards</button>
-      <button class="tab" onclick="switchCreatorTab('submit')">🎨 Submit Works</button>
+      <button class="tab active" onclick="switchCreatorTab('submit')">🎨 Submit Works</button>
       <button class="tab" onclick="switchCreatorTab('history')">📋 My Submissions</button>
+      <button class="tab" onclick="switchCreatorTab('redeem')">🎁 Redeem Rewards</button>
     </div>
     <!-- Redeem Tab -->
-    <div id="creator-tab-redeem" class="tab-content active">
+    <div id="creator-tab-redeem" class="tab-content">
       <div class="card">
         <div class="points-display">
           <div class="points-number" id="display-points">--</div>
@@ -128,7 +128,7 @@
     </div>
 
     <!-- Submit Tab -->
-    <div id="creator-tab-submit" class="tab-content">
+    <div id="creator-tab-submit" class="tab-content active">
       <div class="card">
         <div class="card-title">🎨 Submit Your Works</div>
         <label>Discord Username</label>
@@ -280,6 +280,7 @@ function showDashboard() {
   document.getElementById('step-dashboard').classList.remove('hidden');
   document.getElementById('display-points').textContent = currentUser.points;
   document.getElementById('display-user').textContent = 'Welcome, ' + currentUser.discord_name;
+  loadMySubmissions();
   // Fetch and show tier badge
   try {
     (async function() {
@@ -483,73 +484,59 @@ login = function() {
 // ===== SUBMIT WORKS =====
 async function submitWorks() {
   var discord = document.getElementById('submit-discord').value.trim();
-  var server = document.getElementById('submit-server').value;
-  var linksEng = document.getElementById('submit-links-engagement').value.trim();
-  var linksViews = document.getElementById('submit-links-views').value.trim();
+  var links = document.getElementById('submit-links').value.trim().split('\n').filter(Boolean);
   var address = document.getElementById('submit-address').value.trim();
-  var accountId = document.getElementById('submit-account-id').value.trim();
   var gameUid = document.getElementById('submit-game-uid').value.trim();
-  var feedback = document.getElementById('submit-feedback').value.trim();
+  var server = document.getElementById('submit-server').value;
   var status = document.getElementById('submit-status');
   var btn = document.getElementById('btn-submit');
 
-  if (!discord) { status.textContent = 'Please login first'; return; }
-  if (!linksEng && !linksViews) { status.textContent = 'Please enter at least one work link'; return; }
-  if (!server) { status.textContent = 'Please select your server'; return; }
-
-  // Check deadline
-  try {
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
-    var data = await res.json();
-    if (data && data.length > 0 && data[0].notes) {
-      var cfg = JSON.parse(data[0].notes);
-      if (cfg.submission_deadline_date) {
-        var deadline = new Date(cfg.submission_deadline_date + 'T' + (cfg.submission_deadline_time || '23:59'));
-        if (new Date() > deadline) {
-          status.textContent = '⛔ Submission deadline has passed (' + cfg.submission_deadline_date + ')';
-          status.style.color = '#e74c3c';
-          return;
-        }
-      }
-    }
-  } catch(e) {}
+  if (!discord) { status.textContent = '❌ Please enter your Discord username'; status.style.color = '#e74c3c'; return; }
+  if (!server) { status.textContent = '❌ Please select your server'; status.style.color = '#e74c3c'; return; }
+  if (links.length === 0) { status.textContent = '❌ Please paste at least one content link'; status.style.color = '#e74c3c'; return; }
 
   btn.disabled = true;
-  btn.textContent = 'Submitting...';
+  btn.textContent = '⏳ Submitting...';
   status.textContent = '';
 
   try {
-    var payload = {
-      discord_name: discord,
-      uid: currentUser.uid,
-      server: server,
-      address: address,
-      account_id: accountId,
-      game_uid: gameUid,
-      feedback: feedback,
-      links_engagement: linksEng,
-      links_views: linksViews,
-      status: 'pending',
-      created_at: new Date().toISOString()
-    };
+    // Write each link as a separate submission row
+    var payload = links.map(function(link) {
+      return {
+        discord_name: discord,
+        uid: currentUser ? currentUser.uid : null,
+        server: server,
+        link: link.trim(),
+        address: address || null,
+        game_uid: gameUid || null,
+        period: '2026-07',
+        status: 'pending',
+        created_at: new Date().toISOString()
+      };
+    });
+
+    // Batch insert
     var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions', {
       method: 'POST',
       body: JSON.stringify(payload)
     });
-    if (!resp.ok) throw new Error('Submit failed');
-    status.textContent = '✅ Works submitted successfully!';
+    if (!resp.ok) {
+      var errText = await resp.text();
+      throw new Error(errText.substring(0, 100) || 'Submit failed');
+    }
+
+    status.textContent = '✅ ' + links.length + ' works submitted successfully!';
     status.style.color = '#4caf50';
     // Clear form
-    document.getElementById('submit-links-engagement').value = '';
-    document.getElementById('submit-links-views').value = '';
+    document.getElementById('submit-links').value = '';
     document.getElementById('submit-address').value = '';
-    document.getElementById('submit-account-id').value = '';
     document.getElementById('submit-game-uid').value = '';
-    document.getElementById('submit-feedback').value = '';
     document.getElementById('submit-server').value = '';
-    showToast('✅ Works submitted! We will score them soon.', 'success');
+    showToast('✅ ' + links.length + ' works submitted!', 'success');
+    // Refresh My Submissions
+    loadMySubmissions();
   } catch(e) {
-    status.textContent = 'Error: ' + e.message;
+    status.textContent = '❌ Submit failed: ' + e.message;
     status.style.color = '#e74c3c';
   }
   btn.disabled = false;
@@ -562,7 +549,7 @@ async function loadMySubmissions() {
   var container = document.getElementById('submissions-list');
   if (!container) return;
   try {
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,created_at,status,links_engagement,links_views,points_earned,total_engagement_count,total_view_count,scored_at');
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,created_at,status,link,points_earned,total_engagement_count,total_view_count,scored_at');
     if (!res.ok) throw new Error('Failed');
     var subs = await res.json();
     if (!subs || subs.length === 0) {
@@ -570,9 +557,7 @@ async function loadMySubmissions() {
       return;
     }
     container.innerHTML = subs.map(function(s) {
-      var engLinks = (s.links_engagement || '').split('\n').filter(Boolean).length;
-      var viewLinks = (s.links_views || '').split('\n').filter(Boolean).length;
-      var totalLinks = engLinks + viewLinks;
+      var totalLinks = s.link ? 1 : 0;
       var statusEmoji = s.status === 'scored' ? '✅' : s.status === 'pending' ? '⏳' : '❌';
       var statusClass = s.status === 'scored' ? 'badge-shipped' : s.status === 'pending' ? 'badge-pending' : 'badge-cancelled';
       var dateStr = new Date(s.created_at).toLocaleDateString();
