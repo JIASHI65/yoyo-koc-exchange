@@ -67,11 +67,11 @@
   .tier-certified { background: #e8f5e9; color: #2e7d32; border: 1.5px solid #a5d6a7; }
   .tier- { background: linear-gradient(135deg,#e8e0ff,#fff8e1); color: #6a3de8; border: 1.5px solid #ce93d8; }
   .footer { text-align: center; padding: 24px 0 40px; font-size: 12px; color: var(--text-light); line-height: 1.5; }
-  .breadcrumb { font-size: 12px; color: var(--text-light); margin-bottom: 8px; display: flex; align-items: center; gap: 4px; }
-  .breadcrumb a { color: var(--pink-dark); cursor: pointer; text-decoration: none; }
-  .breadcrumb a:hover { text-decoration: underline; }
-  .breadcrumb .sep { color: #ccc; }
-  .level-1-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .nav-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1.5px solid var(--border); }
+  .nav-back { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; background: var(--pink-light); color: var(--pink-dark); transition: all 0.15s; }
+  .nav-back:hover { background: var(--pink); color: white; }
+  .nav-title { font-size: 14px; font-weight: 600; color: var(--text); margin-left: 4px; }
+  .nav-sep { color: #ddd; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -86,7 +86,7 @@
 
   <!-- ===== 一级菜单：首页 ===== -->
   <div id="step-login" class="card">
-    <div class="breadcrumb"><a onclick="showEntryScreen()">🏠 Home</a></div>
+
     <div style="text-align:center;padding:10px 0 20px;">
       <h2 style="font-size:24px;margin-bottom:4px;">🎀 Yoyo Town</h2>
       <p style="font-size:13px;color:var(--text-light);">Creator Portal</p>
@@ -98,7 +98,7 @@
 
     <!-- New Creator Form (hidden) — 二级菜单 -->
     <div id="new-creator-form" style="display:none;margin-top:16px;padding-top:16px;border-top:2px solid var(--border);">
-      <div class="breadcrumb"><a onclick="showEntryScreen()">🏠 Home</a><span class="sep">›</span><span>🆕 New Registration</span></div>
+      <div class="nav-bar"><button class="nav-back" onclick="showEntryScreen()">‹ Back</button><span class="nav-title">🆕 New Registration</span></div>
       <div class="level-1-title">🆕 New Creator Registration</div>
       <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">A warm welcome! Please fill in all info below so we can send your points & rewards.</p>
       
@@ -142,7 +142,7 @@
 
     <!-- Existing Creator Login (hidden) — 二级菜单 -->
     <div id="existing-login-form" style="display:none;margin-top:16px;padding-top:16px;border-top:2px solid var(--border);">
-      <div class="breadcrumb"><a onclick="showEntryScreen()">🏠 Home</a><span class="sep">›</span><span>🔑 Login</span></div>
+      <div class="nav-bar"><button class="nav-back" onclick="showEntryScreen()">‹ Back</button><span class="nav-title">🔑 Login</span></div>
       <div class="level-1-title">🔑 Creator Login</div>
       <label>Discord Username</label>
       <input type="text" id="input-discord" placeholder="Your Discord username" autocomplete="off" style="margin-bottom:8px;">
@@ -159,7 +159,7 @@
 
   <!-- ===== 二级菜单：创作者功能 ===== -->
   <div id="step-dashboard" class="hidden">
-    <div class="breadcrumb"><a onclick="logout()">🏠 Home</a><span class="sep">›</span><span>📊 Dashboard</span></div>
+    <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">📊 Dashboard</span></div>
     <!-- Creator Tabs -->
     <div class="tabs">
       <button class="tab active" onclick="switchCreatorTab('submit')">🎨 Submit Works</button>
@@ -171,7 +171,7 @@
     </div>
     <!-- Redeem Tab -->
     <div id="creator-tab-redeem" class="tab-content">
-      <div class="breadcrumb"><a onclick="logout()">🏠 Home</a><span class="sep">›</span><span>📊 Dashboard</span><span class="sep">›</span><span>🎁 Redeem Rewards</span></div>
+      <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">🎁 Redeem Rewards</span></div>
       <div class="card">
         <div class="points-display">
           <div class="points-number" id="display-points">--</div>
@@ -199,7 +199,7 @@
 
     <!-- Submit Tab -->
     <div id="creator-tab-submit" class="tab-content">
-      <div class="breadcrumb"><a onclick="logout()">🏠 Home</a><span class="sep">›</span><span>📊 Dashboard</span><span class="sep">›</span><span>🎨 Submit Works</span></div>
+      <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">🎨 Submit Works</span></div>
       <div class="card">
         <div class="card-title">🎨 Submit Your Works</div>
         <label>Discord Username</label>
@@ -231,7 +231,7 @@
 
     <!-- History Tab -->
     <div id="creator-tab-history" class="tab-content">
-      <div class="breadcrumb"><a onclick="logout()">🏠 Home</a><span class="sep">›</span><span>📊 Dashboard</span><span class="sep">›</span><span>📋 My Submissions</span></div>
+      <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">📋 My Submissions</span></div>
       <div class="card">
         <div class="card-title">📋 My Submissions</div>
         <div id="submissions-list"><div style="color:var(--text-light);font-size:13px;">Loading...</div></div>
