@@ -951,6 +951,10 @@ async function rejectSubmission(id) {
 // ===== AGENT INPUT TEMPLATE =====
 var SCORING_RULES_TEXT = `# Yoyo Creator Studio · Official Incentive Rules (July 2026)
 
+## New Creator Bonus (新人任务)
+- New creators who reach 5 points in their FIRST month get an extra +2 points bonus.
+- The bonus is added automatically during settlement.
+
 ## How to Submit
 Based on your topic, post on TikTok / YouTube / Pinterest / Facebook / Instagram / X / Reddit with the designated tag (#myleisuretime).
 
@@ -1263,6 +1267,47 @@ async function importScoreResult(text) {
             created_by: 'agent'
           })
         });
+        
+        // Check for New Creator Bonus (新人任务): first month >= 5pts gets +2 bonus
+        if (sub.points_earned >= 5 && sub.uid) {
+          try {
+            // Check if this KOC already got newbie bonus
+            var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=created_at,notes');
+            var kocData = await kocRes.json();
+            if (kocData && kocData.length > 0) {
+              var koc = kocData[0];
+              var createdMonth = new Date(koc.created_at);
+              var createdYm = createdMonth.getFullYear() + '-' + String(createdMonth.getMonth() + 1).padStart(2, '0');
+              var notes = koc.notes || '';
+              // First month = created_at month matches current settlement month
+              // AND hasn't already received bonus
+              if (createdYm === currentPeriod && notes.indexOf('newbie_bonus:' + currentPeriod) === -1) {
+                // Add +2 bonus
+                var bonusBalance = newBalance + 2;
+                await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    uid: sub.uid,
+                    change: 2,
+                    balance_after: bonusBalance,
+                    source: 'auto_settlement',
+                    reason: 'New Creator Bonus (新人任务) - first month 5pts reach',
+                    period: currentPeriod,
+                    created_by: 'agent'
+                  })
+                });
+                // Mark as claimed
+                var updatedNotes = notes ? notes + ', newbie_bonus:' + currentPeriod : 'newbie_bonus:' + currentPeriod;
+                await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
+                  method: 'PATCH',
+                  body: JSON.stringify({ notes: updatedNotes })
+                });
+                totalPoints += 2; // Count the bonus
+                sub.points_earned += 2; // Bump for display
+              }
+            }
+          } catch(e) { console.error('newbie bonus error:', e); }
+        }
       }
       totalPoints += sub.points_earned || 0;
       successCount++;
@@ -1769,6 +1814,18 @@ function renderKocTable() {
     return;
   }
   tbody.innerHTML = filtered.map(function(k) {
+    var notes = k.notes || '';
+    var createdYm = '';
+    try {
+      var d = new Date(k.created_at);
+      createdYm = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    } catch(e) {}
+    var hasNewbieBonus = notes.indexOf('newbie_bonus:') >= 0;
+    var isNewbie = createdYm && (createdYm === currentPeriod || (function(){
+      var now = new Date();
+      var currentYm = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+      return createdYm === currentYm || createdYm === currentPeriod;
+    })());
     return '<tr>' +
       '<td><strong>' + esc(k.discord_name) + '</strong></td>' +
       '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.uid) + '</td>' +
@@ -1781,7 +1838,10 @@ function renderKocTable() {
       '<td ondblclick="inlineEdit(this,\'region\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.region || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'account_id\',\'' + k.uid + '\')" title="Double-click to edit" style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.account_id || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'server\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.server || '-') + '</td>' +
-      '<td ondblclick="inlineEdit(this,\'address\',\'' + k.uid + '\')" title="Double-click to edit" style="font-size:12px;white-space:pre-wrap;max-width:200px;">' + esc(k.address || '-') + '</td>' +
+      '<td ondblclick="inlineEdit(this,\'address\',\'' + k.uid + '\')" title="Double-click to edit" style="font-size:12px;white-space:pre-wrap;max-width:200px;">' + esc(k.address || '-') + 
+        (hasNewbieBonus ? '<br><span style="font-size:10px;color:#4caf50;">✅ 新人+2已领</span>' : 
+         isNewbie ? '<br><span style="font-size:10px;color:#ff9800;">🆕 本月新人</span>' : '') +
+      '</td>' +
     '</tr>';
   }).join('');
 }

@@ -806,6 +806,23 @@ async function loadMySubmissions() {
       html += '</div>';
     }
     
+    
+    // --- Grade progress hint (no points shown, just consecutive months) ---
+    var currentTier = currentUser.tier || 'certified';
+    if (currentTier === 'certified') {
+      html += '<div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:10px;padding:10px;margin-top:8px;font-size:12px;color:#6a1b9a;">';
+      html += '⭐ <strong>升级提示</strong><br>';
+      html += '7 月投稿达标 → 8 月再投达标 → <strong>🟡 金级创作官</strong> 🎉<br>';
+      html += '<span style="font-size:11px;">(连续 2 个月每月 ≥ 5 分即可升级)</span>';
+      html += '</div>';
+    } else if (currentTier === 'gold') {
+      html += '<div style="background:#fff8e1;border:1px solid #ffd54f;border-radius:10px;padding:10px;margin-top:8px;font-size:12px;color:#b8860b;">';
+      html += '⭐ <strong>升级提示</strong><br>';
+      html += '7 月投稿达标 → 8 月再投达标 → 9 月再投达标 → <strong>💎 铂金创作官</strong> 🎉<br>';
+      html += '<span style="font-size:11px;">(连续 3 个月每月 ≥ 5 分即可升级)</span>';
+      html += '</div>';
+    }
+    
     html += '</div>'; // close stats card
     
     // --- Submission list (no points shown) ---
