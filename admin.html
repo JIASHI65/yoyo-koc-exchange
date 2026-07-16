@@ -457,21 +457,29 @@ Elite: 连续 6 个月达到 5 分</textarea>
 <!-- ===== MODAL: Mochi Broadcast ===== -->
 <div id="mochi-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeMochiModal()">
   <div class="modal">
-    <h3>💬 Mochi Broadcast</h3>
-    <label>Channel</label>
-    <select id="mochi-channel" style="width:100%;margin-bottom:8px;">
-      <option value="1458347958389965035">📢 yoyo-bulletin-board</option>
-      <option value="1458347827012046960">📒 yoyo-reward-rules</option>
-      <option value="1519180265396637776">📚 yoyo-rules-faq</option>
-      <option value="1458348802397442149">💡 official-inspirations</option>
-      <option value="1458349180748828757">🎨 creators-exchange</option>
-    </select>
-    <label>Bot Token <span style="font-size:11px;color:var(--text-light);">(required first time)</span></label>
+    <h3>💬 Mochi 消息中心</h3>
+    <label>Bot Token <span style="font-size:11px;color:var(--text-light);">（首次使用填写）</span></label>
     <input type="password" id="mochi-token-input" style="width:100%;margin-bottom:8px;" placeholder="Enter Mochi Bot Token">
-    <label>Message</label>
-    <textarea id="mochi-message" style="width:100%;min-height:120px;margin-bottom:8px;" placeholder="Type your announcement..."></textarea>
-    <div class="row" style="margin-top:6px;">
-      <button class="btn btn-primary" onclick="sendMochiBroadcastFromModal()" style="flex:1;background:#5865F2;">💬 Send</button>
+    
+    <div style="font-size:13px;font-weight:600;margin:8px 0 4px;">📢 频道广播</div>
+    <select id="mochi-channel" style="width:100%;margin-bottom:6px;">
+      <option value="1458347958389965035">📢 yoyo-bulletin-board</option>
+      <option value="1458349180748828757">🎨 creators-exchange</option>
+      <option value="1458348802397442149">💡 official-inspirations</option>
+    </select>
+    <textarea id="mochi-message" style="width:100%;min-height:80px;margin-bottom:6px;" placeholder="输入自定义消息..."></textarea>
+    <button class="btn btn-primary btn-sm" onclick="sendMochiBroadcastFromModal()" style="width:100%;background:#5865F2;margin-bottom:8px;">💬 发送到频道</button>
+
+    <div style="font-size:13px;font-weight:600;margin:4px 0 4px;">✉️ 一键私信所有创作者</div>
+    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
+      <button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;text-align:left;" onclick="sendDMPreset('welcome')">🆕 ① 新人欢迎 — 发送注册链接</button>
+      <button class="btn btn-sm" style="background:#fff8e1;color:#b8860b;text-align:left;" onclick="sendDMPreset('collection')">📥 ② 催交链接 — 收集作品提醒</button>
+      <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;text-align:left;" onclick="sendDMPreset('scored')">✅ ③ 算分完成 — 通知积分结果</button>
+      <button class="btn btn-sm" style="background:#f3e5f5;color:#7b1fa2;text-align:left;" onclick="sendDMPreset('tierup')">⭐ ④ 等级变动 — 晋升通知</button>
+    </div>
+    <textarea id="mochi-preset-preview" style="width:100%;min-height:80px;margin-bottom:6px;font-size:12px;color:var(--text-light);" readonly placeholder="点击预设按钮预览消息内容..."></textarea>
+    <div class="row">
+      <button class="btn btn-primary" onclick="sendMochiDMPreset()" style="flex:1;background:#5865F2;">✉️ 发送私信</button>
       <button class="btn btn-outline" onclick="closeMochiModal()" style="flex:1;">Cancel</button>
     </div>
     <div id="mochi-status" style="font-size:12px;color:var(--text-light);margin-top:4px;"></div>
@@ -1245,6 +1253,70 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ===== MOCHI BROADCAST MODAL =====
+// ===== MOCHI DM PRESETS =====
+var mochiPresetType = '';
+var mochiPresetMessage = '';
+
+function sendDMPreset(type) {
+  var preview = document.getElementById('mochi-preset-preview');
+  var msg = '';
+  switch(type) {
+    case 'welcome':
+      msg = '🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\nPlease complete your registration to receive points and rewards:\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\nClick "I\'m a New Creator" and fill in:\n1️⃣ Account ID (6-digit number)\n2️⃣ Game UID\n3️⃣ Full legal name\n4️⃣ Server (Beacon / Official)\n5️⃣ Full shipping address + phone\n\nAfter registration you\'ll get your UID and can start submitting works!';
+      break;
+    case 'collection':
+      msg = '📥 Reminder! Link collection for this month is now open.\n\nPlease submit all your works via the portal before the 5th of next month:\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\nOnly links submitted through the form count toward your Points!';
+      break;
+    case 'scored':
+      msg = '✅ Your submission has been scored!\n\nCheck your points and redeem rewards here:\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\nReward options:\n• 1 Point = 450 Diamonds\n• 2 Points = $10 Google Play Gift Card\n• 5 Points = 3 random merch items';
+      break;
+    case 'tierup':
+      msg = '⭐ Congratulations! You\'ve been promoted!\n\nCheck your new tier and benefits on the portal. Keep creating to reach the next level! 💎';
+      break;
+  }
+  preview.value = msg;
+  mochiPresetType = type;
+  mochiPresetMessage = msg;
+}
+
+async function sendMochiDMPreset() {
+  if (!mochiPresetMessage) { showToast('Please select a preset first', 'error'); return; }
+  if (!MOCHI_TOKEN && !document.getElementById('mochi-token-input').value) { showToast('Please enter bot token first', 'error'); return; }
+  if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
+  
+  var status = document.getElementById('mochi-status');
+  status.textContent = 'Sending DMs...';
+  status.style.color = 'var(--text-light)';
+  
+  var successCount = 0;
+  var failCount = 0;
+  
+  for (var i = 0; i < allKocs.length; i++) {
+    var k = allKocs[i];
+    if (!k.discord_name || k.discord_name === '__config__') continue;
+    try {
+      var msg = mochiPresetMessage;
+      // Personalize for scored/tierup
+      if (mochiPresetType === 'scored') {
+        var pts = k.points || 0;
+        msg = '✅ Your submission has been scored!\n\nPoints earned: ' + pts + '\n\nRedeem here: 👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html';
+      } else if (mochiPresetType === 'tierup') {
+        var tierLabel = { platinum: '💎 Platinum Creator', gold: '🟡 Gold Creator', certified: '✅ Certified Creator' };
+        msg = '⭐ Congratulations ' + k.discord_name + '! You\'ve been promoted to ' + (tierLabel[k.tier] || k.tier) + '!\n\nKeep creating to unlock more rewards! 💎';
+      }
+      await sendMochiDM(k.discord_name, msg);
+      successCount++;
+    } catch(e) {
+      failCount++;
+    }
+    // Small delay to avoid rate limits
+    if (i % 5 === 4) await new Promise(r => setTimeout(r, 1000));
+  }
+  
+  status.textContent = '✅ Sent to ' + successCount + ' creators' + (failCount > 0 ? ', ' + failCount + ' failed' : '');
+  status.style.color = successCount > 0 ? '#4caf50' : '#e74c3c';
+}
+
 function openMochiBroadcast() {
   document.getElementById('mochi-modal').classList.remove('hidden');
   document.getElementById('mochi-message').value = '';
