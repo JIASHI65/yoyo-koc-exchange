@@ -438,8 +438,8 @@ Elite: 连续 6 个月达到 5 分</textarea>
           <div id="score-preview-stats" style="font-size:12px;margin-bottom:8px;"></div>
           <div style="max-height:200px;overflow-y:auto;font-size:11px;font-family:monospace;background:white;border:1px solid #eee;border-radius:4px;padding:8px;margin-bottom:8px;" id="score-preview-detail"></div>
           <div style="display:flex;gap:8px;">
-            <button class="btn btn-success" id="btn-confirm-import" onclick="confirmScoreImport()" style="display:none;">✅ 确认应用积分</button>
-            <button class="btn btn-outline" id="btn-cancel-import" onclick="cancelScoreImport()" style="display:none;">✖ 取消</button>
+            <button class="btn btn-success" id="btn-confirm-import" onclick="confirmScoreImport()" style="display:none;padding:10px 30px;font-size:15px;font-weight:700;">✅ 确认应用积分</button>
+            <button class="btn btn-outline" id="btn-cancel-import" onclick="cancelScoreImport()" style="display:none;padding:10px 20px;font-size:14px;">✖ 取消</button>
           </div>
         </div>
       </div>
@@ -1530,9 +1530,15 @@ function importScoreFile(event) {
   if (!file) return;
   var reader = new FileReader();
   reader.onload = async function(e) {
-    document.getElementById('agent-score-input').value = e.target.result;
+    var text = e.target.result;
+    document.getElementById('agent-score-input').value = text;
     document.getElementById('agent-output-card').style.display = 'block';
-    showToast('File loaded. Click "Paste & Import" to process.', 'success');
+    // Auto-preview after file load
+    try {
+      previewScoreResult(text);
+    } catch(err) {
+      showToast('Failed to parse: ' + err.message, 'error');
+    }
   };
   reader.readAsText(file);
   event.target.value = '';
