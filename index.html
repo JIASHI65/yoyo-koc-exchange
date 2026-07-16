@@ -79,16 +79,52 @@
   <!-- Deadline Info -->
   <div id="deadline-bar" class="deadline-bar hidden"></div>
 
-  <!-- Login -->
+  <!-- Entry: Choose new or existing -->
   <div id="step-login" class="card">
-    <div class="card-title">🔑 Verify Your Identity</div>
-    <label>Discord Name</label>
-    <input type="text" id="input-discord" placeholder="Your Discord username" autocomplete="off">
-    <label>UID</label>
-    <input type="text" id="input-uid" placeholder="Your UID" autocomplete="off">
-    <button class="btn btn-primary" id="btn-login" onclick="login()">Check My Points</button><div id="login-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
+    <div style="text-align:center;padding:10px 0 20px;">
+      <h2 style="font-size:24px;margin-bottom:4px;">🎀 Yoyo Town</h2>
+      <p style="font-size:13px;color:var(--text-light);">Creator Portal</p>
+    </div>
+    <button class="btn btn-primary" onclick="showNewCreatorForm()" style="margin-bottom:10px;">🆕 I'm a New Creator</button>
+    <button class="btn btn-outline" onclick="showExistingLogin()" style="width:100%;padding:12px 24px;border:2px solid var(--pink);border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;background:transparent;color:var(--pink-dark);">✅ I'm Already Registered</button>
+
+    <!-- New Creator Form (hidden) -->
+    <div id="new-creator-form" style="display:none;margin-top:16px;padding-top:16px;border-top:2px solid var(--border);">
+      <div class="card-title">🆕 New Creator Registration</div>
+      <label>Discord Username *</label>
+      <input type="text" id="reg-discord" placeholder="Your Discord username" style="margin-bottom:8px;">
+      <label>Server *</label>
+      <select id="reg-server" style="width:100%;margin-bottom:8px;">
+        <option value="">Select your server...</option>
+        <option value="Asia">🌏 Asia (Sakura)</option>
+        <option value="America">🌎 America (Dawn)</option>
+        <option value="Europe">🌍 Europe (Aurora)</option>
+      </select>
+      <label>Game Name / Nickname</label>
+      <input type="text" id="reg-name" placeholder="Your in-game name" style="margin-bottom:8px;">
+      <label>Content Platforms <span style="font-weight:400;color:var(--text-light);">(e.g. TikTok, YouTube, Instagram)</span></label>
+      <input type="text" id="reg-platforms" placeholder="TikTok, YouTube, Instagram" style="margin-bottom:8px;">
+      <label>Shipping Address <span style="font-weight:400;color:var(--text-light);">(optional)</span></label>
+      <input type="text" id="reg-address" placeholder="Country, full address, postal code, phone" style="margin-bottom:8px;">
+      <label>Game UID <span style="font-weight:400;color:var(--text-light);">(optional)</span></label>
+      <input type="text" id="reg-uid" placeholder="Game UID" style="margin-bottom:12px;">
+      <button class="btn btn-primary" onclick="registerCreator()">📝 Register</button>
+      <div id="reg-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
+    </div>
+
+    <!-- Existing Creator Login (hidden) -->
+    <div id="existing-login-form" style="display:none;margin-top:16px;padding-top:16px;border-top:2px solid var(--border);">
+      <div class="card-title">🔑 Creator Login</div>
+      <label>Discord Username</label>
+      <input type="text" id="input-discord" placeholder="Your Discord username" autocomplete="off" style="margin-bottom:8px;">
+      <label>UID</label>
+      <input type="text" id="input-uid" placeholder="Your UID (e.g. YOYO-001)" autocomplete="off" style="margin-bottom:8px;">
+      <button class="btn btn-primary" id="btn-login" onclick="login()">Login</button>
+      <div id="login-status" style="margin-top:6px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
+    </div>
+
     <div style="margin-top:14px;font-size:12px;color:var(--text-light);text-align:center;">
-      If you have any inquiries, please create a thread in the forum ｜town-service-station. Our team will reply to posts in submission order.
+      If you have any inquiries, please create a thread in the forum ｜town-service-station.
     </div>
   </div>
 
@@ -96,8 +132,7 @@
   <div id="step-dashboard" class="hidden">
     <!-- Creator Tabs -->
     <div class="tabs">
-      <button class="tab active" onclick="switchCreatorTab('register')">🎪 Register</button>
-      <button class="tab" onclick="switchCreatorTab('submit')">🎨 Submit Works</button>
+      <button class="tab active" onclick="switchCreatorTab('submit')">🎨 Submit Works</button>
       <button class="tab" onclick="switchCreatorTab('history')">📋 My Submissions</button>
       <button class="tab" onclick="switchCreatorTab('redeem')">🎁 Redeem Rewards</button>
     </div>
@@ -129,41 +164,7 @@
     </div>
 
     <!-- Submit Tab -->
-        <div id="creator-tab-register" class="tab-content active">
-      <div class="card">
-        <div class="card-title">🎪 Creator Registration</div>
-        <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;">New to Yoyo Town? Fill in your info below to get registered. Already registered? Switch to other tabs above.</p>
-        <select id="reg-type" style="width:100%;margin-bottom:12px;" onchange="toggleRegistrationForm()">
-          <option value="new">🆕 I'm new — register my info</option>
-          <option value="existing">✅ I'm already a registered creator</option>
-        </select>
-        <div id="reg-new-form">
-          <label>Discord Username *</label>
-          <input type="text" id="reg-discord" placeholder="Your Discord username" style="margin-bottom:8px;">
-          <label>Server *</label>
-          <select id="reg-server" style="width:100%;margin-bottom:8px;">
-            <option value="">Select your server...</option>
-            <option value="Asia">🌏 Asia (Sakura)</option>
-            <option value="America">🌎 America (Dawn)</option>
-            <option value="Europe">🌍 Europe (Aurora)</option>
-          </select>
-          <label>Game Name / Nickname</label>
-          <input type="text" id="reg-name" placeholder="Your in-game name" style="margin-bottom:8px;">
-          <label>Content Platforms <span style="font-weight:400;color:var(--text-light);">(e.g. TikTok, YouTube, Instagram, X, Pinterest)</span></label>
-          <input type="text" id="reg-platforms" placeholder="TikTok, YouTube, Instagram" style="margin-bottom:8px;">
-          <label>Shipping Address <span style="font-weight:400;color:var(--text-light);">(optional — needed for merch rewards)</span></label>
-          <input type="text" id="reg-address" placeholder="Country, full address, postal code, phone" style="margin-bottom:8px;">
-          <label>Account / UID <span style="font-weight:400;color:var(--text-light);">(optional)</span></label>
-          <input type="text" id="reg-uid" placeholder="Game UID" style="margin-bottom:12px;">
-          <button class="btn btn-primary" onclick="registerCreator()">📝 Submit Registration</button>
-          <div id="reg-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
-        </div>
-        <div id="reg-existing-msg" style="display:none;text-align:center;padding:20px;color:var(--text-light);font-size:13px;">
-          ✅ Great! Use the tabs above to submit works, check submissions, or redeem rewards.
-        </div>
-      </div>
-    </div>
-<div id="creator-tab-submit" class="tab-content">
+    <div id="creator-tab-submit" class="tab-content">
       <div class="card">
         <div class="card-title">🎨 Submit Your Works</div>
         <label>Discord Username</label>
@@ -519,12 +520,14 @@ login = function() {
 // ===== SUBMIT WORKS =====
 
 // ===== REGISTRATION =====
-function toggleRegistrationForm() {
-  var val = document.getElementById('reg-type').value;
-  document.getElementById('reg-new-form').style.display = val === 'new' ? 'block' : 'none';
-  document.getElementById('reg-existing-msg').style.display = val === 'existing' ? 'block' : 'none';
+function showNewCreatorForm() {
+  document.getElementById('new-creator-form').style.display = 'block';
+  document.getElementById('existing-login-form').style.display = 'none';
 }
-
+function showExistingLogin() {
+  document.getElementById('new-creator-form').style.display = 'none';
+  document.getElementById('existing-login-form').style.display = 'block';
+}
 async function registerCreator() {
   var discord = document.getElementById('reg-discord').value.trim();
   var server = document.getElementById('reg-server').value;
