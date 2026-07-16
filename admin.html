@@ -169,7 +169,6 @@
       <button class="tab" onclick="switchTab('diamond')">💎 端内奖励</button>
       <button class="tab" onclick="switchTab('gplay')">🎮 谷歌卡</button>
       <button class="tab" onclick="switchTab('submissions')">📋 作品审核</button>
-      <button class="tab" onclick="switchTab('tiers')">⭐ 等级管理</button>
       <button class="tab" onclick="switchTab('rules')">📐 规则配置</button>
     </div>
 
@@ -204,13 +203,16 @@
           <thead><tr>
             <th>Discord</th>
             <th>UID</th>
+            <th>⭐ 等级</th>
             <th>Pts</th>
             <th>Name</th>
             <th>Region</th>
             <th>Account ID</th>
+            <th>Game UID</th>
             <th>Server</th>
+            <th>Phone</th>
             <th style="text-align:center;">CC ✓</th>
-            <th>Edit</th>
+            <th style="width:90px;">积分操作</th>
             <th>Orders</th>
           </tr></thead>
           <tbody id="koc-table"></tbody>
@@ -219,7 +221,12 @@
       </div>
 
       <div class="card">
-        <div class="card-title">⏰ 提交截止时间</div>
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>⏰ 提交截止时间</span>
+          <span style="font-size:12px;color:var(--text-light);">
+            ⭐ 认证(默认) → 🟡 金级(连续2月≥5分) → 💎 铂金(连续3月≥5分)
+          </span>
+        </div>
         <div class="deadline-box">
           <span>Submission closes:</span>
           <input type="date" id="deadline-date">
@@ -261,8 +268,8 @@
       </div>
     </div>
 
-    <!-- ======== TAB: 等级管理 ======== -->
-    <div id="tab-tiers" class="tab-content">
+    <!-- ======== TAB: 等级管理 (已合并到KOC台账) ======== -->
+    <div id="tab-tiers" class="tab-content" style="display:none;">
       <div class="card">
         <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
           <span>⭐ 创作者等级管理</span>
@@ -1714,6 +1721,25 @@ function renderKocTable() {
       if (el) el.textContent = p;
     });
   });
+}
+
+function updateKocTierInline(uid) {
+  var select = document.getElementById('koc-tier-select-' + uid);
+  if (!select) return;
+  var tier = select.value;
+  supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
+    method: 'PATCH',
+    body: JSON.stringify({ tier: tier, tier_updated_at: new Date().toISOString() })
+  }).then(function(r) {
+    if (r.ok) {
+      showToast('✅ Tier updated to ' + tier, 'success');
+      // Update the tier badge in the same row
+      var badgeCell = select.closest('tr').querySelector('td:nth-child(3)');
+      if (badgeCell) badgeCell.innerHTML = getTierBadge(tier);
+    } else {
+      showToast('Failed to update tier', 'error');
+    }
+  }).catch(function(e) { showToast('Error: ' + e.message, 'error'); });
 }
 
 function esc(s) { return s == null ? '' : String(s).replace(/[&<>]/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]; }); }
