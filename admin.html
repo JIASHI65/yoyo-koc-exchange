@@ -2213,32 +2213,32 @@ function editOrderRow(orderId, field) {
       supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + orderId, {
         method: 'PATCH',
         body: JSON.stringify((function(){ var o = {}; o[field] = newVal; return o; })())
-      }).then(function(r) {
-        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); loadData(); }
-        else showToast('Failed to update', 'error');
-      });
+      }).then(async function(r) {
+        if (r.ok) { showToast('✅ ' + field + ' updated', 'success'); await loadData(); }
+        else { var et=await r.text().catch(function(){return '';}); showToast('Failed: '+et.substring(0,60), 'error'); }
+      }).catch(function(e) { showToast('Error: '+e.message, 'error'); });
     } else if (field === 'uid') {
       // Update both redemption_orders and kocs
       supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + orderId, {
         method: 'PATCH',
         body: JSON.stringify({ uid: newVal })
-      }).then(function(r) { return r; });
+      }).then(function(r) { return r; }).catch(function(e){});
       supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(order.uid), {
         method: 'PATCH',
         body: JSON.stringify((function(){ var o = {}; o[field] = newVal; return o; })())
-      }).then(function(r) {
-        if (r.ok) { showToast('✅ ' + field + ' updated', 'success'); loadData(); }
-        else showToast('Failed to update', 'error');
-      });
+      }).then(async function(r) {
+        if (r.ok) { showToast('✅ ' + field + ' updated', 'success'); await loadData(); }
+        else { var et=await r.text().catch(function(){return '';}); showToast('Failed: '+et.substring(0,60), 'error'); }
+      }).catch(function(e) { showToast('Error: '+e.message, 'error'); });
     } else {
       // Update kocs table
       supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(order.uid), {
         method: 'PATCH',
         body: JSON.stringify((function(){ var o = {}; o[field] = newVal; return o; })())
-      }).then(function(r) {
-        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); loadData(); }
-        else showToast('Failed to update', 'error');
-      });
+      }).then(async function(r) {
+        if (r.ok) { showToast('✅ ' + field + ' updated', 'success'); await loadData(); }
+        else { var et=await r.text().catch(function(){return '';}); showToast('Failed: '+et.substring(0,60), 'error'); }
+      }).catch(function(e) { showToast('Error: '+e.message, 'error'); });
     }
   } else {
     // Full row edit - show all fields
@@ -2278,9 +2278,18 @@ function editKocField(uid, name, field) {
   supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
     method: 'PATCH',
     body: JSON.stringify(update)
-  }).then(function(r) {
-    if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); loadData(); }
-    else showToast('Failed to update', 'error');
+  }).then(async function(r) {
+    if (r.ok) { 
+      showToast('✅ ' + field + ' updated for ' + name, 'success'); 
+      await loadData(); 
+    } else {
+      var errText = await r.text().catch(function(){return 'unknown';});
+      showToast('Failed: ' + errText.substring(0,80), 'error');
+      console.error('editKocField failed', r.status, errText);
+    }
+  }).catch(function(e) {
+    showToast('Error: ' + e.message, 'error');
+    console.error('editKocField error', e);
   });
 }
 
@@ -2324,9 +2333,18 @@ function inlineEdit(cell, field, uid) {
   supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
     method: 'PATCH',
     body: JSON.stringify(update)
-  }).then(function(r) {
-    if (r.ok) { showToast('✅ ' + field + ' updated', 'success'); loadData(); }
-    else showToast('Failed to update', 'error');
+  }).then(async function(r) {
+    if (r.ok) { 
+      showToast('✅ ' + field + ' updated to: ' + newVal, 'success'); 
+      await loadData(); 
+    } else {
+      var errText = await r.text().catch(function(){return 'unknown';});
+      showToast('Failed: ' + errText.substring(0,80), 'error');
+      console.error('PATCH failed', r.status, errText);
+    }
+  }).catch(function(e) {
+    showToast('Error: ' + e.message, 'error');
+    console.error('PATCH error', e);
   });
 }
 
