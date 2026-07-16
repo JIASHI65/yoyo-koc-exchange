@@ -269,11 +269,14 @@ let selections = {};
 
 // Auto-login from localStorage (defined here, called after DOM+functions ready)
 function tryAutoLogin() {
+  console.log('[AutoLogin] checking localStorage...');
   var saved = localStorage.getItem('koc_session');
-  if (!saved) return;
+  if (!saved) { console.log('[AutoLogin] no session found'); return; }
+  console.log('[AutoLogin] session found:', saved.substring(0, 80));
   var session;
-  try { session = JSON.parse(saved); } catch(e) { return; }
-  if (!session || !session.uid || !session.discord_name) return;
+  try { session = JSON.parse(saved); } catch(e) { console.log('[AutoLogin] parse failed'); return; }
+  if (!session || !session.uid || !session.discord_name) { console.log('[AutoLogin] invalid session'); return; }
+  console.log('[AutoLogin] restoring uid:', session.uid);
   
   (async function() {
     try {
@@ -292,7 +295,7 @@ function tryAutoLogin() {
       checkDeadline();
       var submitDiscord = document.getElementById('submit-discord');
       if (submitDiscord && koc.discord_name) submitDiscord.value = typeof koc.discord_name === 'string' ? koc.discord_name : '';
-    } catch(e) { localStorage.removeItem('koc_session'); }
+    } catch(e) { console.log('[AutoLogin] error:', e.message); localStorage.removeItem('koc_session'); }
   })();
 }
 
