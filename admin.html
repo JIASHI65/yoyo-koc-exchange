@@ -180,10 +180,7 @@
           <span style="font-size:13px;font-weight:600;">📅 Settlement Month:</span>
           <input type="month" id="settle-month" style="width:160px;padding:4px 8px;border:1.5px solid var(--pink);border-radius:6px;font-size:13px;">
           <span id="settle-label" style="font-size:12px;color:var(--text-light);margin-left:4px;"></span>
-          <label style="margin-left:12px;font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;">
-            <input type="checkbox" id="cb-calendar-mode" style="accent-color:var(--pink-dark);" onchange="toggleCalendarMode()">
-            🗓️ Calendar mode (show only this month's orders in Merch/Diamond/Gplay tabs)
-          </label>
+          <span style="margin-left:12px;font-size:12px;color:var(--text-light);">🗓️ 选择的月份将全局过滤所有板块的数据</span>
         </div>
         <div class="stats-bar" id="stats-bar">
           <span id="stat-total">Loading...</span>
@@ -315,20 +312,24 @@
             <input type="number" id="cfg-tier-threshold" value="5" min="1" max="20">
           </div>
         </div>
-        <label>TikTok 算分规则</label>
-        <div class="row">
-          <input type="number" id="cfg-tt-200" value="1" style="width:70px;" placeholder="分"> <span style="font-size:12px;color:var(--text-light);">分 = 200 views</span>
-          <input type="number" id="cfg-tt-400" value="2" style="width:70px;" placeholder="分"> <span style="font-size:12px;color:var(--text-light);">分 = 400 views</span>
+        <div style="background:#fff3e0;border:1px solid #ffe082;border-radius:8px;padding:10px;font-size:12px;color:#6d4c00;margin-bottom:8px;">
+          📐 修改的是"一分 = 多少"的标准值，不是固定写死的一分两分。
+          例如 TikTok 设 200 = 200 views 达到 200 views 得 1 分，400 views 得 2 分。
         </div>
-        <label>YouTube 算分规则</label>
+        <label>TikTok 算分规则（一分 = 多少 views）</label>
         <div class="row">
-          <input type="number" id="cfg-yt-200" value="1" style="width:70px;" placeholder="分"> <span style="font-size:12px;color:var(--text-light);">分 = 200 views + 20s watch time</span>
-          <input type="number" id="cfg-yt-400" value="2" style="width:70px;" placeholder="分"> <span style="font-size:12px;color:var(--text-light);">分 = 400 views</span>
+          <input type="number" id="cfg-tt-per-point" value="200" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">views = 1 分</span>
+          <input type="number" id="cfg-tt-400" value="400" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">views = 2 分</span>
         </div>
-        <label>社交平台算分规则</label>
+        <label>YouTube 算分规则（一分 = 多少 views + 20s watch time）</label>
         <div class="row">
-          <input type="number" id="cfg-eng-40" value="1" style="width:70px;" placeholder="分"> <span style="font-size:12px;color:var(--text-light);">分 = 40 engagements</span>
-          <input type="number" id="cfg-eng-80" value="2" style="width:70px;" placeholder="分"> <span style="font-size:12px;color:var(--text-light);">分 = 80 engagements</span>
+          <input type="number" id="cfg-yt-per-point" value="200" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">views = 1 分</span>
+          <input type="number" id="cfg-yt-400" value="400" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">views = 2 分</span>
+        </div>
+        <label>社交平台算分规则（一分 = 多少 engagements）</label>
+        <div class="row">
+          <input type="number" id="cfg-eng-per-point" value="40" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">engagements = 1 分</span>
+          <input type="number" id="cfg-eng-80" value="80" style="width:80px;"> <span style="font-size:12px;color:var(--text-light);">engagements = 2 分</span>
         </div>
         <label>等级制度说明（显示在创作者端）</label>
         <textarea id="cfg-tier-description" style="min-height:100px;width:100%;">认证创作官: 默认等级，所有人进来都是
@@ -473,7 +474,7 @@ Elite: 连续 6 个月达到 5 分</textarea>
       <option value="1458348802397442149">💡 official-inspirations</option>
     </select>
     <textarea id="mochi-message" style="width:100%;min-height:80px;margin-bottom:6px;" placeholder="输入自定义消息..."></textarea>
-    <button class="btn btn-primary btn-sm" onclick="sendMochiBroadcastFromModal()" style="width:100%;background:#5865F2;margin-bottom:8px;">💬 发送到频道</button>
+    <button class="btn btn-primary btn-sm" onclick="confirmMochiBroadcast()" style="width:100%;background:#5865F2;margin-bottom:8px;">💬 发送到频道</button>
 
     <div style="font-size:13px;font-weight:600;margin:4px 0 4px;">✉️ 一键私信所有创作者</div>
     <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
@@ -711,9 +712,9 @@ async function saveCampaignConfig() {
   var tierThreshold = parseInt(document.getElementById('cfg-tier-threshold').value) || 5;
   var rules = {
     scoring: {
-      tiktok: { '200_views': parseInt(document.getElementById('cfg-tt-200').value) || 1, '400_views': parseInt(document.getElementById('cfg-tt-400').value) || 2 },
-      youtube: { '200_views_20s_watchtime': parseInt(document.getElementById('cfg-yt-200').value) || 1, '400_views': parseInt(document.getElementById('cfg-yt-400').value) || 2 },
-      engagement: { '40_engagements': parseInt(document.getElementById('cfg-eng-40').value) || 1, '80_engagements': parseInt(document.getElementById('cfg-eng-80').value) || 2 }
+      tiktok: { per_point: parseInt(document.getElementById('cfg-tt-per-point').value) || 200, '400_views': parseInt(document.getElementById('cfg-tt-400').value) || 400 },
+      youtube: { per_point: parseInt(document.getElementById('cfg-yt-per-point').value) || 200, '400_views': parseInt(document.getElementById('cfg-yt-400').value) || 400 },
+      engagement: { per_point: parseInt(document.getElementById('cfg-eng-per-point').value) || 40, '80_engagements': parseInt(document.getElementById('cfg-eng-80').value) || 80 }
     },
     points_cap: pointsCap,
     tier_upgrade_threshold: tierThreshold,
@@ -745,11 +746,11 @@ async function saveCampaignConfig() {
 
 function updateAgentRulesFromConfig() {
   var cap = document.getElementById('cfg-points-cap').value;
-  var tt200 = document.getElementById('cfg-tt-200').value;
+  var tt200 = document.getElementById('cfg-tt-per-point').value;
   var tt400 = document.getElementById('cfg-tt-400').value;
-  var yt200 = document.getElementById('cfg-yt-200').value;
+  var yt200 = document.getElementById('cfg-yt-per-point').value;
   var yt400 = document.getElementById('cfg-yt-400').value;
-  var eng40 = document.getElementById('cfg-eng-40').value;
+  var eng40 = document.getElementById('cfg-eng-per-point').value;
   var eng80 = document.getElementById('cfg-eng-80').value;
   var rulesText = '## Scoring Rules (Current Campaign)\n\n' +
     '### TikTok\n  ' + tt200 + ' Point = 200 views; ' + tt400 + ' Points = 400 views\n\n' +
@@ -1454,6 +1455,18 @@ function closeMochiModal() {
   document.getElementById('mochi-modal').classList.add('hidden');
 }
 
+
+function confirmMochiBroadcast() {
+  var channelId = document.getElementById('mochi-channel').value;
+  var msg = document.getElementById('mochi-message').value;
+  if (!msg || !msg.trim()) { showToast('请输入消息内容', 'error'); return; }
+  var channelNames = {'1458347958389965035':'📢 yoyo-bulletin-board','1458349180748828757':'🎨 creators-exchange','1458348802397442149':'💡 official-inspirations'};
+  var channelName = channelNames[channelId] || channelId;
+  if (confirm('确认向 ' + channelName + ' 频道发送以下消息？\n\n' + msg.substring(0, 200) + (msg.length > 200 ? '...' : '') + '\n\n点击确定发送。')) {
+    sendMochiBroadcastFromModal();
+  }
+}
+
 async function sendMochiBroadcastFromModal() {
   var tokenInput = document.getElementById('mochi-token-input');
   if (tokenInput && tokenInput.value.trim()) {
@@ -1518,10 +1531,20 @@ async function getBalance(uid) {
 // ===== SETTLEMENT PERIOD =====
 
 // ===== CALENDAR MODE =====
-var calendarMode = false;
-function toggleCalendarMode() {
-  calendarMode = document.getElementById('cb-calendar-mode').checked;
-  // Re-render all order tabs if visible
+// Filter orders by currentPeriod - 日历逻辑：选月份即过滤所有板块
+function filterByPeriod(orders) {
+  return orders.filter(function(o) {
+    if (o.period) return o.period === currentPeriod;
+    var d = new Date(o.created_at);
+    var ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    return ym === currentPeriod;
+  });
+}
+function changeSettlePeriod() {
+  currentPeriod = document.getElementById('settle-month').value;
+  document.getElementById('settle-label').textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
+  // 全局切换月份，重绘所有板块
+  renderKocTable();
   var activeTab = document.querySelector('.tab-btn.active');
   if (activeTab) {
     var name = activeTab.getAttribute('onclick');
@@ -1533,40 +1556,7 @@ function toggleCalendarMode() {
       else if (name === 'gplay') renderGplayTab();
     }
   }
-  showToast(calendarMode ? '🗓️ Calendar mode ON — only showing ' + currentPeriod : '🗓️ Calendar mode OFF', 'info');
-}
-
-// Filter orders by currentPeriod when calendar mode is active
-function filterByPeriod(orders) {
-  if (!calendarMode) return orders;
-  return orders.filter(function(o) {
-    // Try period field first (future-proof for after migration)
-    if (o.period) return o.period === currentPeriod;
-    // Fallback to created_at
-    var d = new Date(o.created_at);
-    var ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-    return ym === currentPeriod;
-  });
-}
-function changeSettlePeriod() {
-  currentPeriod = document.getElementById('settle-month').value;
-  document.getElementById('settle-label').textContent = 'Active: ' + currentPeriod;
-  renderKocTable();
-  // If calendar mode is on, re-render order tabs too
-  if (calendarMode) {
-    var activeTab = document.querySelector('.tab-btn.active');
-    if (activeTab) {
-      var name = activeTab.getAttribute('onclick');
-      if (name) {
-        name = name.match(/'([^']+)'/);
-        if (name) name = name[1];
-        if (name === 'merch') renderMerchTab();
-        else if (name === 'diamond') renderDiamondTab();
-        else if (name === 'gplay') renderGplayTab();
-      }
-    }
-  }
-  showToast('📅 Switched to ' + currentPeriod, 'success');
+  showToast('📅 切换到 ' + currentPeriod.replace('-', '年') + '月', 'success');
 }
 
 // ===== CHECK CC STATUS =====
@@ -1935,122 +1925,134 @@ function groupByMonth(arr) {
 function renderMerchTab() {
   var kmap = getKocMap();
   var merchOrders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }));
-  document.getElementById('merch-count').textContent = (calendarMode ? '📅 ' + currentPeriod + ' ' : '') + '(' + merchOrders.length + ' orders)';
+  var label = currentPeriod.replace('-', '年') + '月';
+  document.getElementById('merch-count').textContent = '📅 ' + label + ' (' + merchOrders.length + ' orders)';
   var container = document.getElementById('merch-table');
   if (!merchOrders.length) {
-    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">' + (calendarMode ? 'No shipped merch orders for ' + currentPeriod : 'No shipped merch orders yet') + '</div>';
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无 ' + label + ' 的已发货周边</div>';
     return;
   }
-  var groups = groupByMonth(merchOrders);
-  groups.forEach(function(g) { g.items = applyOrder('merch', g.label, g.items); });
-  container.innerHTML = groups.map(function(g) {
-   return '<div class="month-section">' +
-      '<div class="month-header">' +
-      '<span class="month-icon">\uD83D\uDCC5</span>' +
-      '<span>' + g.label + '</span>' +
-      '<span class="count">(' + g.items.length + ' orders)</span>' +
-      '<div style="margin-left:auto;display:flex;gap:6px;">' +
-      '<button class="btn btn-primary btn-sm export-btn" data-type="merch" data-label="' + g.label + '" style="border-radius:20px;padding:5px 14px;">\uD83D\uDCCB \u5BFC\u51FA\u8868\u683C</button>' +
-      '</div>' +
-      '</div>' +
-     '<table class="month-table"><thead><tr>' +
-        '<th style="width:22px;">&#8944;</th><th>Discord</th><th>UID</th><th>Address</th><th>Reward</th>' +
-     '</tr></thead><tbody>' +
-     g.items.map(function(o) {
-       var koc = kmap[o.uid];
-       var addr = koc ? (koc.address || '') : '';
-       return '<tr' + ' data-order-id="' + o.id + '"' + '>' +
-         '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
-         '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
-         '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
-          '<td style="font-size:12px;white-space:pre-wrap;min-width:300px;">' + (esc(koc ? koc.address : '-') || '-') + '</td>' +
-          '<td>' + esc(o.option_name) + '</td>' +
-       '</tr>';
-      }).join('') +
-      '</tbody></table></div>';
-  }).join('');
+  container.innerHTML = '<div class="month-section">' +
+    '<div class="month-header">' +
+    '<span class="month-icon">📅</span><span>' + label + '</span>' +
+    '<span class="count">(' + merchOrders.length + ' orders)</span>' +
+    '<div style="margin-left:auto;display:flex;gap:6px;">' +
+    '<button class="btn btn-primary btn-sm export-btn" data-type="merch" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
+    '</div></div>' +
+    '<table class="month-table"><thead><tr>' +
+    '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Address</th><th>Reward</th>' +
+    '</tr></thead><tbody>' +
+    merchOrders.map(function(o) {
+      var koc = kmap[o.uid];
+      var addr = koc ? (koc.address || '') : '';
+      return '<tr data-order-id="' + o.id + '">' +
+        '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
+        '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+        '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
+        '<td style="font-size:12px;white-space:pre-wrap;min-width:300px;">' + (esc(addr) || '-') + '</td>' +
+        '<td>' + esc(o.option_name) + '</td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody></table></div>';
   setTimeout(function() { initSortable('merch'); }, 100);
 }
-
 function renderDiamondTab() {
   var kmap = getKocMap();
   var orders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'diamonds' && o.status === 'shipped'; }));
-  document.getElementById('diamond-count').textContent = (calendarMode ? '📅 ' + currentPeriod + ' ' : '') + '(' + orders.length + ' orders)';
+  var label = currentPeriod.replace('-', '年') + '月';
+  // Include CC creators for this month in end内奖励
+  var ccCreators = (allKocs || []).filter(function(k) {
+    return k.status === 'active' && (k.notes || '').includes('CC:' + currentPeriod);
+  });
+  document.getElementById('diamond-count').textContent = '📅 ' + label + ' (' + orders.length + ' 常规 + ' + ccCreators.length + ' CC)';
   var container = document.getElementById('diamond-table');
-  if (!orders.length) {
-    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">' + (calendarMode ? 'No shipped diamond rewards for ' + currentPeriod : 'No shipped diamond rewards yet') + '</div>';
+  if (!orders.length && !ccCreators.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无 ' + label + ' 的端内奖励数据</div>';
     return;
   }
-  var groups = groupByMonth(orders);
-  groups.forEach(function(g) { g.items = applyOrder('diamonds', g.label, g.items); });
-  container.innerHTML = groups.map(function(g) {
-   return '<div class="month-section">' +
-      '<div class="month-header">' +
-      '<span class="month-icon">\uD83D\uDCC5</span>' +
-      '<span>' + g.label + '</span>' +
-      '<span class="count">(' + g.items.length + ' orders)</span>' +
-      '<div style="margin-left:auto;display:flex;gap:6px;">' +
-      '<button class="btn btn-primary btn-sm export-btn" data-type="diamonds" data-label="' + g.label + '" style="border-radius:20px;padding:5px 14px;">\uD83D\uDCCB \u5BFC\u51FA\u8868\u683C</button>' +
+  var html = '';
+  // CC section
+  if (ccCreators.length) {
+    html += '<div class="month-section">' +
+      '<div class="month-header" style="background:#e8f5e9;">' +
+      '<span class="month-icon">🎁</span><span>' + label + ' · 连续创作奖励 (CC)</span>' +
+      '<span class="count">(' + ccCreators.length + ' creators)</span>' +
       '</div>' +
-      '</div>' +
-     '<table class="month-table"><thead><tr>' +
-        '<th style="width:22px;">&#8944;</th><th>Discord</th><th>UID</th><th>Account ID</th><th>Server</th><th>Reward</th>' +
-     '</tr></thead><tbody>' +
-     g.items.map(function(o) {
-       var koc = kmap[o.uid];
-       return '<tr' + ' data-order-id="' + o.id + '"' + '>' +
-         '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
-         '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
-         '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
-         '<td style="font-family:monospace;font-size:12px;">' + (esc(koc ? koc.account_id : '-') || '-') + '</td>' +
-         '<td style="font-size:12px;">' + (esc(koc ? koc.server : '-') || '-') + '</td>' +
-          '<td>' + esc(o.option_name) + '</td>' +
-       '</tr>';
+      '<table class="month-table"><thead><tr>' +
+      '<th>Discord</th><th>UID</th><th>Name</th><th>Server</th><th>Reward</th>' +
+      '</tr></thead><tbody>' +
+      ccCreators.map(function(k) {
+        return '<tr>' +
+          '<td><strong>' + esc(k.discord_name) + '</strong></td>' +
+          '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.uid) + '</td>' +
+          '<td>' + esc(k.name || '-') + '</td>' +
+          '<td>' + esc(k.server || '-') + '</td>' +
+          '<td>🎁 月卡×1 + 🪙 蜗壳币×500 + 💰 金币×1000</td>' +
+        '</tr>';
       }).join('') +
       '</tbody></table></div>';
-  }).join('');
+  }
+  // Regular diamond orders
+  if (orders.length) {
+    html += '<div class="month-section">' +
+      '<div class="month-header">' +
+      '<span class="month-icon">💎</span><span>' + label + ' · 钻石兑换</span>' +
+      '<span class="count">(' + orders.length + ' orders)</span>' +
+      '<div style="margin-left:auto;display:flex;gap:6px;">' +
+      '<button class="btn btn-primary btn-sm export-btn" data-type="diamonds" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
+      '</div></div>' +
+      '<table class="month-table"><thead><tr>' +
+      '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Account ID</th><th>Server</th><th>Reward</th>' +
+      '</tr></thead><tbody>' +
+      orders.map(function(o) {
+        var koc = kmap[o.uid];
+        return '<tr data-order-id="' + o.id + '">' +
+          '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
+          '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+          '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
+          '<td style="font-family:monospace;font-size:12px;">' + (esc(koc ? koc.account_id : '-') || '-') + '</td>' +
+          '<td style="font-size:12px;">' + (esc(koc ? koc.server : '-') || '-') + '</td>' +
+          '<td>' + esc(o.option_name) + '</td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>';
+  }
+  container.innerHTML = html;
   setTimeout(function() { initSortable('diamonds'); }, 100);
 }
-
 function renderGplayTab() {
   var kmap = getKocMap();
   var orders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'gplay' && o.status === 'shipped'; }));
-  document.getElementById('gplay-count').textContent = (calendarMode ? '📅 ' + currentPeriod + ' ' : '') + '(' + orders.length + ' orders)';
+  var label = currentPeriod.replace('-', '年') + '月';
+  document.getElementById('gplay-count').textContent = '📅 ' + label + ' (' + orders.length + ' orders)';
   var container = document.getElementById('gplay-table');
   if (!orders.length) {
-    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">' + (calendarMode ? 'No shipped Google Play cards for ' + currentPeriod : 'No shipped Google Play cards yet') + '</div>';
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无 ' + label + ' 的谷歌卡数据</div>';
     return;
   }
-  var groups = groupByMonth(orders);
-  groups.forEach(function(g) { g.items = applyOrder('gplay', g.label, g.items); });
-  container.innerHTML = groups.map(function(g) {
-   return '<div class="month-section">' +
-      '<div class="month-header">' +
-      '<span class="month-icon">\uD83D\uDCC5</span>' +
-      '<span>' + g.label + '</span>' +
-      '<span class="count">(' + g.items.length + ' orders)</span>' +
-      '<div style="margin-left:auto;display:flex;gap:6px;">' +
-      '<button class="btn btn-primary btn-sm export-btn" data-type="gplay" data-label="' + g.label + '" style="border-radius:20px;padding:5px 14px;">\uD83D\uDCCB \u5BFC\u51FA\u8868\u683C</button>' +
-      '</div>' +
-      '</div>' +
-     '<table class="month-table"><thead><tr>' +
-        '<th style="width:22px;">&#8944;</th><th>Discord</th><th>UID</th><th>Region / Country</th><th>Reward</th>' +
-     '</tr></thead><tbody>' +
-     g.items.map(function(o) {
-       var koc = kmap[o.uid];
-       return '<tr' + ' data-order-id="' + o.id + '"' + '>' +
-         '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
-         '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
-         '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
-         '<td style="font-size:12px;">' + (esc(koc ? koc.region : '-') || '-') + '</td>' +
-          '<td>' + esc(o.option_name) + '</td>' +
-       '</tr>';
-      }).join('') +
-      '</tbody></table></div>';
-  }).join('');
+  container.innerHTML = '<div class="month-section">' +
+    '<div class="month-header">' +
+    '<span class="month-icon">📅</span><span>' + label + '</span>' +
+    '<span class="count">(' + orders.length + ' orders)</span>' +
+    '<div style="margin-left:auto;display:flex;gap:6px;">' +
+    '<button class="btn btn-primary btn-sm export-btn" data-type="gplay" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
+    '</div></div>' +
+    '<table class="month-table"><thead><tr>' +
+    '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Region</th><th>Reward</th>' +
+    '</tr></thead><tbody>' +
+    orders.map(function(o) {
+      var koc = kmap[o.uid];
+      return '<tr data-order-id="' + o.id + '">' +
+        '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
+        '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+        '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
+        '<td style="font-size:12px;">' + (esc(koc ? koc.region : '-') || '-') + '</td>' +
+        '<td>' + esc(o.option_name) + '</td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody></table></div>';
   setTimeout(function() { initSortable('gplay'); }, 100);
 }
-
 
 // ===== EXPORT FUNCTIONS =====
 function exportToClipboard(text, count) {
