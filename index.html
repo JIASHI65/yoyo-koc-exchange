@@ -91,23 +91,42 @@
     <!-- New Creator Form (hidden) -->
     <div id="new-creator-form" style="display:none;margin-top:16px;padding-top:16px;border-top:2px solid var(--border);">
       <div class="card-title">🆕 New Creator Registration</div>
+      <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">A warm welcome! Please fill in all info below so we can send your points & rewards.</p>
+      
       <label>Discord Username *</label>
       <input type="text" id="reg-discord" placeholder="Your Discord username" style="margin-bottom:8px;">
+      
+      <label>Account ID (6-digit number) *</label>
+      <input type="text" id="reg-account-id" placeholder="6-digit Account ID" style="margin-bottom:8px;">
+      <span style="font-size:11px;color:var(--text-light);display:block;margin-bottom:8px;">Login Page → Customer Service Center → Ticket Center</span>
+      
+      <label>Game UID (letters + numbers) *</label>
+      <input type="text" id="reg-game-uid" placeholder="Your game UID" style="margin-bottom:8px;">
+      <span style="font-size:11px;color:var(--text-light);display:block;margin-bottom:8px;">Launch the game → tap your avatar → check profile page</span>
+      
+      <label>Full Legal Name *</label>
+      <input type="text" id="reg-fullname" placeholder="Full legal name" style="margin-bottom:8px;">
+      
       <label>Server *</label>
       <select id="reg-server" style="width:100%;margin-bottom:8px;">
-        <option value="">Select your server...</option>
-        <option value="Asia">🌏 Asia (Sakura)</option>
-        <option value="America">🌎 America (Dawn)</option>
-        <option value="Europe">🌍 Europe (Aurora)</option>
+        <option value="">Select one server...</option>
+        <option value="Beacon">🔹 Beacon Server (Test Server)</option>
+        <option value="Official">🔹 Official Server</option>
       </select>
-      <label>Game Name / Nickname</label>
-      <input type="text" id="reg-name" placeholder="Your in-game name" style="margin-bottom:8px;">
-      <label>Content Platforms <span style="font-weight:400;color:var(--text-light);">(e.g. TikTok, YouTube, Instagram)</span></label>
-      <input type="text" id="reg-platforms" placeholder="TikTok, YouTube, Instagram" style="margin-bottom:8px;">
-      <label>Shipping Address <span style="font-weight:400;color:var(--text-light);">(optional)</span></label>
-      <input type="text" id="reg-address" placeholder="Country, full address, postal code, phone" style="margin-bottom:8px;">
-      <label>Game UID <span style="font-weight:400;color:var(--text-light);">(optional)</span></label>
-      <input type="text" id="reg-uid" placeholder="Game UID" style="margin-bottom:12px;">
+      
+      <label style="margin-top:8px;">📦 Shipping Address</label>
+      
+      <input type="text" id="reg-street" placeholder="Street address *" style="margin-bottom:6px;">
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <input type="text" id="reg-city" placeholder="City *" style="flex:1;">
+        <input type="text" id="reg-state" placeholder="State / Province *" style="flex:1;">
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <input type="text" id="reg-zip" placeholder="Postal code *" style="flex:1;">
+        <input type="text" id="reg-country" placeholder="Country *" style="flex:1;">
+      </div>
+      <input type="text" id="reg-phone" placeholder="Contact phone number *" style="margin-bottom:12px;">
+      
       <button class="btn btn-primary" onclick="registerCreator()">📝 Register</button>
       <div id="reg-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
     </div>
@@ -530,23 +549,31 @@ function showExistingLogin() {
 }
 async function registerCreator() {
   var discord = document.getElementById('reg-discord').value.trim();
+  var accountId = document.getElementById('reg-account-id').value.trim();
+  var gameUid = document.getElementById('reg-game-uid').value.trim();
+  var fullname = document.getElementById('reg-fullname').value.trim();
   var server = document.getElementById('reg-server').value;
-  var name = document.getElementById('reg-name').value.trim();
-  var platforms = document.getElementById('reg-platforms').value.trim();
-  var address = document.getElementById('reg-address').value.trim();
-  var uid = document.getElementById('reg-uid').value.trim();
+  var street = document.getElementById('reg-street').value.trim();
+  var city = document.getElementById('reg-city').value.trim();
+  var state = document.getElementById('reg-state').value.trim();
+  var zip = document.getElementById('reg-zip').value.trim();
+  var country = document.getElementById('reg-country').value.trim();
+  var phone = document.getElementById('reg-phone').value.trim();
   var status = document.getElementById('reg-status');
-  var btn = document.getElementById('btn-register');
 
   if (!discord) { status.textContent = '❌ Please enter your Discord username'; status.style.color = '#e74c3c'; return; }
+  if (!accountId) { status.textContent = '❌ Please enter your Account ID'; status.style.color = '#e74c3c'; return; }
+  if (!gameUid) { status.textContent = '❌ Please enter your Game UID'; status.style.color = '#e74c3c'; return; }
+  if (!fullname) { status.textContent = '❌ Please enter your full legal name'; status.style.color = '#e74c3c'; return; }
   if (!server) { status.textContent = '❌ Please select your server'; status.style.color = '#e74c3c'; return; }
+  if (!street || !city || !state || !zip || !country) { status.textContent = '❌ Please fill in all shipping address fields'; status.style.color = '#e74c3c'; return; }
+  if (!phone) { status.textContent = '❌ Please enter your contact phone number'; status.style.color = '#e74c3c'; return; }
 
   try {
     // Check if this discord name already exists
     var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?discord_name=eq.' + encodeURIComponent(discord) + '&select=uid');
     var existing = await checkRes.json();
     if (existing && existing.length > 0) {
-      // Already registered — redirect to login
       status.innerHTML = '✅ You\'re already registered! Log in with your UID: <strong>' + existing[0].uid + '</strong>';
       status.style.color = '#4caf50';
       return;
@@ -562,16 +589,18 @@ async function registerCreator() {
     }
     var newUid = 'YOYO-' + String(nextNum).padStart(3, '0');
 
+    var fullAddress = street + ', ' + city + ', ' + state + ' ' + zip + ', ' + country + ' | Tel: ' + phone;
+
     var payload = {
       uid: newUid,
       discord_name: discord,
-      name: name || null,
+      name: fullname,
+      account_id: accountId,
+      game_uid: gameUid,
       server: server,
-      channel_tag: platforms || null,
-      address: address || null,
-      region: '',
-      account_id: uid || null,
-      notes: JSON.stringify({ registered_at: new Date().toISOString(), platforms: platforms }),
+      address: fullAddress,
+      phone: phone,
+      notes: JSON.stringify({ registered_at: new Date().toISOString(), account_id: accountId, game_uid: gameUid, fullname: fullname, street: street, city: city, state: state, zip: zip, country: country, phone: phone }),
       status: 'active'
     };
 
@@ -583,7 +612,6 @@ async function registerCreator() {
 
     status.innerHTML = '✅ Registration complete! Your UID: <strong>' + newUid + '</strong>. Save this UID to log in.';
     status.style.color = '#4caf50';
-    // Auto-fill login fields
     document.getElementById('input-discord').value = discord;
     document.getElementById('input-uid').value = newUid;
     showToast('✅ Registered! UID: ' + newUid + ' — save this to login', 'success');
