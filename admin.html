@@ -227,7 +227,6 @@
             <th>Discord</th>
             <th>UID</th>
             <th>Pts</th>
-            <th>Name</th>
             <th style="text-align:center;">CC ✓</th>
             <th style="width:90px;">积分操作</th>
             <th>Orders</th>
@@ -1871,7 +1870,6 @@ function renderScoringTable() {
       '<td><strong>' + esc(k.discord_name) + '</strong></td>' +
       '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.uid) + '</td>' +
       '<td><span class="pts" id="spts-' + k.uid + '">\u22EF</span></td>' +
-      '<td>' + esc(k.name || '-') + '</td>' +
       '<td style="text-align:center;">' +
         '<div class="toggle-wrap">' +
           '<input type="checkbox" class="toggle-cb" id="cc-' + k.uid + '" ' + (cc ? 'checked' : '') + ' onchange="toggleCC(\'' + k.uid + '\',\'' + escAttr(k.notes||'') + '\')">' +
@@ -2106,6 +2104,103 @@ async function saveEditKOC() {
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
 
+// ===== DOUBLE-CLICK INLINE EDIT for order rows =====
+function editOrderRow(orderId, field) {
+  // Find the order in allOrders
+  var order = null;
+  for (var i = 0; i < allOrders.length; i++) {
+    if (allOrders[i].id === orderId) { order = allOrders[i]; break; }
+  }
+  if (!order) { showToast('Order not found', 'error'); return; }
+  
+  if (field) {
+    // Single field edit - prompt
+    var currentVal = '';
+    if (field === 'discord_name') {
+      var koc = getKocMap()[order.uid];
+      currentVal = koc ? koc.discord_name : order.discord_name;
+    } else if (field === 'address') {
+      var koc = getKocMap()[order.uid];
+      currentVal = koc ? koc.address : '';
+    } else if (field === 'option_name') {
+      currentVal = order.option_name;
+    } else if (field === 'account_id') {
+      var koc = getKocMap()[order.uid];
+      currentVal = koc ? koc.account_id : '';
+    } else if (field === 'server') {
+      var koc = getKocMap()[order.uid];
+      currentVal = koc ? koc.server : '';
+    } else if (field === 'region') {
+      var koc = getKocMap()[order.uid];
+      currentVal = koc ? koc.region : '';
+    }
+    var newVal = prompt('Edit ' + field + ':', currentVal);
+    if (newVal === null) return;
+    newVal = newVal.trim();
+    
+    if (field === 'discord_name' || field === 'option_name') {
+      // Update redemption_orders
+      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + orderId, {
+        method: 'PATCH',
+        body: JSON.stringify({ option_name: newVal })
+      }).then(function(r) {
+        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); loadData(); }
+        else showToast('Failed to update', 'error');
+      });
+    } else {
+      // Update kocs table
+      supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(order.uid), {
+        method: 'PATCH',
+        body: JSON.stringify((function(){ var o = {}; o[field] = newVal; return o; })())
+      }).then(function(r) {
+        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); loadData(); }
+        else showToast('Failed to update', 'error');
+      });
+    }
+  } else {
+    // Full row edit - show all fields
+    var koc = getKocMap()[order.uid];
+    var info = '';
+    if (koc) {
+      info += 'Discord: ' + koc.discord_name + '\n';
+      info += 'UID: ' + koc.uid + '\n';
+      info += 'Address: ' + (koc.address || '-') + '\n';
+      info += 'Account ID: ' + (koc.account_id || '-') + '\n';
+      info += 'Server: ' + (koc.server || '-') + '\n';
+    }
+    info += 'Reward: ' + order.option_name + '\n';
+    info += 'Status: ' + order.status;
+    alert(info + '\n\nDouble-click any cell to edit it individually.');
+  }
+}
+
+function editKocField(uid, name, field) {
+  if (!field) {
+    alert('KOC: ' + name + ' (UID: ' + uid + ')\nDouble-click any cell to edit.');
+    return;
+  }
+  var koc = null;
+  for (var i = 0; i < allKocs.length; i++) {
+    if (allKocs[i].uid === uid) { koc = allKocs[i]; break; }
+  }
+  if (!koc) { showToast('KOC not found', 'error'); return; }
+  
+  var currentVal = koc[field] || '';
+  var newVal = prompt('Edit ' + field + ' for ' + name + ':', currentVal);
+  if (newVal === null) return;
+  newVal = newVal.trim();
+  
+  var update = {};
+  update[field] = newVal;
+  supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
+    method: 'PATCH',
+    body: JSON.stringify(update)
+  }).then(function(r) {
+    if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); loadData(); }
+    else showToast('Failed to update', 'error');
+  });
+}
+
 // ===== RENDER SHIPPING TABS =====
 function getKocMap() {
   var m = {};
@@ -2176,12 +2271,12 @@ function renderMerchTab() {
     merchOrders.map(function(o) {
       var koc = kmap[o.uid];
       var addr = koc ? (koc.address || '') : '';
-      return '<tr data-order-id="' + o.id + '">' +
+      return '<tr data-order-id="' + o.id + '" style="cursor:pointer;" ondblclick="editOrderRow(' + o.id + ')">' +
         '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
-        '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+        '<td><strong ondblclick="event.stopPropagation();editOrderRow(' + o.id + ',\'discord_name\')">' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
         '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
-        '<td style="font-size:12px;white-space:pre-wrap;min-width:300px;">' + (esc(addr) || '-') + '</td>' +
-        '<td>' + esc(o.option_name) + '</td>' +
+        '<td style="font-size:12px;white-space:pre-wrap;min-width:300px;" ondblclick="event.stopPropagation();editOrderRow(' + o.id + ',\'address\')">' + (esc(addr) || '-') + '</td>' +
+        '<td ondblclick="event.stopPropagation();editOrderRow(' + o.id + ',\'option_name\')">' + esc(o.option_name) + '</td>' +
       '</tr>';
     }).join('') +
     '</tbody></table></div>';
@@ -2215,12 +2310,12 @@ function renderDiamondTab() {
       '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Account ID</th><th>Server</th><th>Reward</th>' +
       '</tr></thead><tbody>' +
       ccCreators.map(function(k) {
-        return '<tr>' +
+        return '<tr ondblclick="editKocField(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">' +
           '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
-          '<td><strong>' + esc(k.discord_name) + '</strong></td>' +
+          '<td><strong ondblclick="event.stopPropagation();editKocField(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\',\'discord_name\')">' + esc(k.discord_name) + '</strong></td>' +
           '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.uid) + '</td>' +
-          '<td style="font-family:monospace;font-size:12px;">' + esc(k.account_id || '-') + '</td>' +
-          '<td style="font-size:12px;">' + esc(k.server || '-') + '</td>' +
+          '<td style="font-family:monospace;font-size:12px;" ondblclick="event.stopPropagation();editKocField(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\',\'account_id\')">' + esc(k.account_id || '-') + '</td>' +
+          '<td style="font-size:12px;" ondblclick="event.stopPropagation();editKocField(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\',\'server\')">' + esc(k.server || '-') + '</td>' +
           '<td>🎁 月卡×1 + 🪙 蜗壳币×500 + 💰 金币×1000</td>' +
         '</tr>';
       }).join('') +
@@ -2240,13 +2335,13 @@ function renderDiamondTab() {
       '</tr></thead><tbody>' +
       orders.map(function(o) {
         var koc = kmap[o.uid];
-        return '<tr data-order-id="' + o.id + '">' +
+        return '<tr data-order-id="' + o.id + '" ondblclick="editOrderRow(' + o.id + ')">' +
           '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
-          '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+          '<td><strong ondblclick="event.stopPropagation();editOrderRow(' + o.id + ',\'discord_name\')">' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
           '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
-          '<td style="font-family:monospace;font-size:12px;">' + (esc(koc ? koc.account_id : '-') || '-') + '</td>' +
-          '<td style="font-size:12px;">' + (esc(koc ? koc.server : '-') || '-') + '</td>' +
-          '<td>' + esc(o.option_name) + '</td>' +
+          '<td style="font-family:monospace;font-size:12px;" ondblclick="event.stopPropagation();editOrderRow(' + o.id + ',\'account_id\')">' + (esc(koc ? koc.account_id : '-') || '-') + '</td>' +
+          '<td style="font-size:12px;" ondblclick="event.stopPropagation();editOrderRow(' + o.id + ',\'server\')">' + (esc(koc ? koc.server : '-') || '-') + '</td>' +
+          '<td ondblclick="event.stopPropagation();editOrderRow(' + o.id + ',\'option_name\')">' + esc(o.option_name) + '</td>' +
         '</tr>';
       }).join('') +
       '</tbody></table></div>';
@@ -2276,12 +2371,12 @@ function renderGplayTab() {
     '</tr></thead><tbody>' +
     orders.map(function(o) {
       var koc = kmap[o.uid];
-      return '<tr data-order-id="' + o.id + '">' +
+      return '<tr data-order-id="' + o.id + '" ondblclick="editOrderRow(' + o.id + ')">' +
         '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
-        '<td><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+        '<td><strong ondblclick="event.stopPropagation();editOrderRow(' + o.id + ',\'discord_name\')">' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
         '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(o.uid) + '</td>' +
-        '<td style="font-size:12px;">' + (esc(koc ? koc.region : '-') || '-') + '</td>' +
-        '<td>' + esc(o.option_name) + '</td>' +
+        '<td style="font-size:12px;" ondblclick="event.stopPropagation();editOrderRow(' + o.id + ',\'region\')">' + (esc(koc ? koc.region : '-') || '-') + '</td>' +
+        '<td ondblclick="event.stopPropagation();editOrderRow(' + o.id + ',\'option_name\')">' + esc(o.option_name) + '</td>' +
       '</tr>';
     }).join('') +
     '</tbody></table></div>';
