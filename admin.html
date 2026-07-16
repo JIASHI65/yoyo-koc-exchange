@@ -176,6 +176,11 @@
     <!-- ======== TAB: KOC台账 ======== -->
     <div id="tab-koc-ledger" class="tab-content active">
       <div class="card">
+        <div class="row" style="margin-bottom:8px;background:var(--pink-light);padding:8px 12px;border-radius:8px;align-items:center;">
+          <span style="font-size:13px;font-weight:600;">📅 Settlement Month:</span>
+          <input type="month" id="settle-month" style="width:160px;padding:4px 8px;border:1.5px solid var(--pink);border-radius:6px;font-size:13px;">
+          <span id="settle-label" style="font-size:12px;color:var(--text-light);margin-left:4px;"></span>
+        </div>
         <div class="stats-bar" id="stats-bar">
           <span id="stat-total">Loading...</span>
           <span id="stat-shipped">Loading...</span>
@@ -804,6 +809,12 @@ async function sendMochiBroadcast(channelId, message) {
 }
 
 // ===== SUBMISSIONS: Render table =====
+var currentPeriod = (new Date()).getFullYear() + '-' + String((new Date()).getMonth()).padStart(2, '0');
+if (new Date().getDate() <= 5) {
+  var d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  currentPeriod = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
 var allSubmissions = [];
 async function loadSubmissions() {
   try {
@@ -1303,20 +1314,22 @@ async function getBalance(uid) {
   } catch { return 0; }
 }
 
+// ===== SETTLEMENT PERIOD =====
+function changeSettlePeriod() {
+  currentPeriod = document.getElementById('settle-month').value;
+  document.getElementById('settle-label').textContent = 'Active: ' + currentPeriod;
+  renderKocTable();
+  showToast('📅 Switched to ' + currentPeriod, 'success');
+}
+
 // ===== CHECK CC STATUS =====
 function hasCC(notes) {
   if (!notes) return false;
-  const now = new Date();
-  const m = String(now.getMonth()+1).padStart(2,'0');
-  const y = now.getFullYear();
-  return notes.includes('CC:' + y + '-' + m);
+  return notes.includes('CC:' + currentPeriod);
 }
 
 function toggleCC(uid, notes) {
-  const now = new Date();
-  const m = String(now.getMonth()+1).padStart(2,'0');
-  const y = now.getFullYear();
-  const tag = 'CC:' + y + '-' + m;
+  const tag = 'CC:' + currentPeriod;
   let updated = notes || '';
   if (hasCC(notes)) {
     updated = updated.replace(new RegExp(',?\\s*' + tag, 'g'), '');
