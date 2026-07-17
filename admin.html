@@ -614,29 +614,27 @@ function supabaseFetch(url, opts = {}) {
   return fetch(url, { ...opts, headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json', ...opts.headers } });
 }
 
-// Discord API proxy call - uses XHR to avoid Safari CORS issues with Edge Functions
+
+// Discord proxy via XHR (avoids Safari CORS issue with Edge Functions)
 function discordProxyFetch(action, data, token) {
   return new Promise(function(resolve, reject) {
     var xhr = new XMLHttpRequest();
-    xhr.open('POST', SUPABASE_URL + '/functions/v1/discord-proxy', true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.setRequestHeader('Authorization', 'Bearer ' + SUPABASE_KEY);
+    xhr.open("POST", SUPABASE_URL + "/functions/v1/discord-proxy", true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.setRequestHeader("Authorization", "Bearer " + SUPABASE_KEY);
     xhr.onload = function() {
       try {
         var result = JSON.parse(xhr.responseText);
         resolve(result);
       } catch(e) {
-        reject(new Error('Parse error: ' + e.message));
+        reject(new Error("Parse error: " + e.message));
       }
     };
     xhr.onerror = function() {
-      reject(new Error('Network error (XHR failed)'));
+      reject(new Error("Network error"));
     };
     xhr.send(JSON.stringify({action: action, data: data, token: token}));
   });
-}
-) {
-  return fetch(url, { ...opts, headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json', ...opts.headers } });
 }
 
 function showToast(m, t = '') {
@@ -883,7 +881,6 @@ async function sendMochiDM(discordUsername, message) {
     // Step 1: 通过 Edge Function 获取所有成员
     var memberData = await discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN);
     if (!memberData.ok) return { ok: false, reason: memberData.error || '获取成员失败' };
-
     var members = memberData.data;
 
     // Normalize: strip emoji/special chars, lowercase, trim
@@ -1929,10 +1926,19 @@ async function previewBroadcast(type) {
   try {
     // Step 1: 从 Discord 获取所有成员
     var memberData = await discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN);
+    if (!memberRes.ok) {
+      var _err = await memberRes.text().catch(function(){return 'unknown error'});
+      showToast('API请求失败: ' + _err.substring(0,120), 'error');
+      var dbg = document.getElementById('mochi-debug');
+      if (dbg) { dbg.style.display = 'block'; dbg.textContent = 'API error: ' + _err.substring(0,300); }
+      console.error('previewBroadcast memberRes error:', _err);
+      return;
+    }
+    var memberData = await memberRes.json();
     if (!memberData.ok) {
       showToast('API返回错误: ' + JSON.stringify(memberData), 'error');
       var dbg = document.getElementById('mochi-debug');
-      if (dbg) { dbg.style.display = 'block'; dbg.textContent = 'API error: ' + JSON.stringify(memberData).substring(0,300); }
+      if (dbg) { dbg.style.display = 'block'; dbg.textContent = 'API bad response: ' + JSON.stringify(memberData).substring(0,300); }
       console.error('previewBroadcast memberData:', memberData);
       return;
     }
