@@ -560,6 +560,7 @@ Elite: 连续 6 个月达到 5 分</textarea>
 </div>
 
 
+<div id="toast" class="toast"></div>
 <script>/* v1784200691 */
 const SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_oyewqnQ8AnitAOD94Qg0nA_v6Zqkr7r';
@@ -608,8 +609,8 @@ function supabaseFetch(url, opts = {}) {
 
 function showToast(m, t = '') {
   const x = document.getElementById('toast');
+  if (!x) return;
   x.textContent = m; x.className = 'toast ' + t + ' show';
-  setTimeout(() => x.classList.remove('show'), 2500);
 }
 
 // ===== LOGIN =====
@@ -2166,12 +2167,12 @@ function confirmMochiBroadcast() { /* deprecated - use previewBroadcast/confirmB
 
 async function sendMochiBroadcastFromModal() { /* deprecated */ }
 // Patch loadData to also load submissions
+// Patch loadData to also load submissions
 var _origLoadData = loadData;
-loadData = function() {
-  _origLoadData();
+loadData = async function() {
+  await _origLoadData();
   loadSubmissions();
 };
-
 // ===== DATA LOADING =====
 async function loadData() {
   try {
