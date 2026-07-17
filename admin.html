@@ -1881,36 +1881,106 @@ function previewBroadcast(type) {
 
   mochiBroadcastType = type;
   var msg = '';
+  var msg2 = '';
   var queryFunc = null;
 
   switch (type) {
     case 'welcome':
       msg = '🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\n📅 下个月将是你首个新人活动月！\n在下个月内投稿满 5 积分，即可额外获得 +2 积分 🎯\n\n📝 请先完成注册：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n点击 "I\'m a New Creator" 填写信息\n\n完成注册后即可开始投稿！\n\n如有问题请在 🎫｜town-service-station 开帖询问';
-      queryFunc = function() {
-        return supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?status=eq.active&order=created_at.desc&limit=50&select=discord_name,uid,created_at,notes');
+      // 筛选条件：活跃KOC中，notes不含welcome_gift_received 且 创建时间在最近60天内的
+      queryFunc = async function() {
+        var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?status=eq.active&order=created_at.desc&limit=200&select=discord_name,uid,created_at,notes');
+        if (!res.ok) return [];
+        var data = await res.json();
+        var now = new Date();
+        var cutoff = new Date(now.getTime() - 60*24*60*60*1000);
+        return (data||[]).filter(function(k) {
+          var notes = k.notes || '';
+          if (notes.indexOf('welcome_gift_received') >= 0) return false;
+          var created = k.created_at ? new Date(k.created_at) : null;
+          if (created && created < cutoff) return false;
+          return true;
+        }).map(function(k) {
+          return { discord_name: k.discord_name || '', uid: k.uid || '', checked: true, reason: '新人' };
+        });
       };
       break;
     case 'reminder':
       msg = '📥 Reminder! 作品收集已开启\n\n请在 **下个月5号前** 提交所有作品链接：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\n只有通过表单提交的链接才计入积分！';
-      queryFunc = function() {
-        return supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?status=eq.active&select=discord_name,uid');
+      // 筛选条件：活跃KOC中，本月提交链接数 < 15 条的
+      queryFunc = async function() {
+        var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?status=eq.active&select=discord_name,uid');
+        if (!kocRes.ok) return [];
+        var kocs = await kocRes.json();
+        var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=discord_name,uid,links_engagement,links_views');
+        var subs = subRes.ok ? await subRes.json() : [];
+        // Count links per person
+        var linkCount = {};
+        (subs||[]).forEach(function(s) {
+          var name = s.discord_name || '';
+          var cnt = ((s.links_engagement||'').split('\n').filter(Boolean).length) + ((s.links_views||'').split('\n').filter(Boolean).length);
+          linkCount[name] = (linkCount[name]||0) + cnt;
+        });
+        return (kocs||[]).map(function(k) {
+          var name = k.discord_name || '';
+          var cnt = linkCount[name] || 0;
+          var remaining = Math.max(0, 15 - cnt);
+          return {
+            discord_name: name,
+            uid: k.uid || '',
+            checked: cnt < 15,
+            reason: cnt === 0 ? '未提交' : '已提交 ' + cnt + ' 条，还需 ' + remaining + ' 条'
+          };
+        }).filter(function(t) { return t.checked; });
       };
       break;
     case 'scored':
       msg = '✅ 你的作品已评分完成！\n\n查看积分并兑换奖励：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\n兑换选项：\n• 1 积分 = 450 钻石\n• 2 积分 = $10 Google Play 礼品卡\n• 5 积分 = 3 随机周边';
-      queryFunc = function() {
-        return supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?status=eq.scored&select=discord_name,uid,points_earned');
+      // 筛选条件：本月有submission被标记为scored的
+      queryFunc = async function() {
+        var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?status=eq.scored&order=created_at.desc&select=discord_name,uid,points_earned,created_at');
+        if (!res.ok) return [];
+        var data = await res.json();
+        var seen = {};
+        return (data||[]).filter(function(s) {
+          var name = s.discord_name || '';
+          if (seen[name]) return false;
+          seen[name] = true;
+          return true;
+        }).map(function(s) {
+          return {
+            discord_name: s.discord_name || '',
+            uid: s.uid || '',
+            checked: true,
+            reason: '积分: ' + (s.points_earned||0)
+          };
+        });
       };
       break;
     case 'tier_upgrade':
       msg = '⭐ 恭喜晋升！\n\n你的创作者等级已提升！查看最新等级和权益：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\n继续创作，冲击下一级！💎';
-      queryFunc = function() {
-        return supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?status=eq.active&select=discord_name,uid,tier,tier_updated_at');
+      // 筛选条件：最近30天内等级有变化的活跃KOC
+      queryFunc = async function() {
+        var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?status=eq.active&select=discord_name,uid,tier,tier_updated_at');
+        if (!res.ok) return [];
+        var data = await res.json();
+        var now = new Date();
+        var cutoff = new Date(now.getTime() - 30*24*60*60*1000);
+        return (data||[]).filter(function(k) {
+          if (!k.tier_updated_at) return false;
+          var updated = new Date(k.tier_updated_at);
+          return updated >= cutoff;
+        }).map(function(k) {
+          return {
+            discord_name: k.discord_name || '',
+            uid: k.uid || '',
+            checked: true,
+            reason: k.tier || ''
+          };
+        });
       };
       break;
-  }
-
-  showToast('🔍 正在筛选收件人...', 'info');
+  }  showToast('🔍 正在筛选收件人...', 'info');
 
   (async function() {
     try {
@@ -1945,11 +2015,11 @@ function renderBroadcastPreview(targets, msg) {
   var listEl = document.getElementById('broadcast-target-list');
   var html = '';
   targets.forEach(function(t, i) {
-    html += '<label style="display:flex;align-items:center;gap:4px;padding:2px 0;cursor:pointer;">';
-    html += '<input type="checkbox" class="bc-target-cb" data-index="' + i + '" ' + (t.checked !== false ? 'checked' : '') + '>';
-    html += '<span>' + esc(t.discord_name) + (t.uid ? ' <span style="color:#999;">(' + esc(t.uid) + ')</span>' : '') + '</span>';
-    html += '</label>';
-  });
+      html += '<div style="display:flex;align-items:center;gap:4px;padding:2px 0;font-size:12px;">';
+      html += '<input type="checkbox" class="bc-target-cb" data-index="' + i + '" ' + (t.checked !== false ? 'checked' : '') + '>';
+      html += '<span>' + esc(t.discord_name) + (t.uid ? ' <span style="color:#999;">(' + esc(t.uid) + ')</span>' : '') + '</span>';
+      html += t.reason ? ' <span style="color:#e65100;font-size:11px;margin-left:auto;">' + esc(t.reason) + '</span>' : '';
+      html += '</div>';
   listEl.innerHTML = html || '<div style="color:#999;padding:4px;">没有符合条件的收件人</div>';
   document.getElementById('broadcast-msg-editor').value = msg;
   area.style.display = 'block';
