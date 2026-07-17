@@ -159,7 +159,8 @@
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:6px;background:#fce4ec;padding:6px 14px;border-radius:10px;border:2px solid var(--pink);">
           <span style="font-size:13px;font-weight:600;color:var(--pink-dark);">📅 结算月份</span>
-          <input type="month" id="settle-month" style="width:150px;padding:4px 8px;border:1.5px solid var(--pink);border-radius:6px;font-size:13px;font-weight:600;" onchange="changeSettlePeriod()">
+          <select id="settle-month" style="width:140px;padding:4px 8px;border:1.5px solid var(--pink);border-radius:6px;font-size:13px;font-weight:600;" onchange="changeSettlePeriod()">
+          </select>
           <span id="settle-label" style="font-size:12px;font-weight:600;color:var(--pink-dark);margin-left:2px;"></span>
         </div>
         <span id="deadline-show" style="font-size:12px;color:var(--text-light);"></span>
@@ -3711,6 +3712,7 @@ function updateDeadlineDisplay(date, time) {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('admin-panel').classList.remove('hidden');
     // loadData will handle tab restoration via switchTab in its completion
+    initSettleSelect();
     loadData().then(function() {
       var savedTab = localStorage.getItem('admin_active_tab');
       if (savedTab && ['koc-ledger','scoring','submissions','merch','diamond','gplay','rules'].indexOf(savedTab) >= 0) {
