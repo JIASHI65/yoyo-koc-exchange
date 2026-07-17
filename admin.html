@@ -2002,35 +2002,15 @@ async function previewBroadcast(type) {
             checked = true;
             reason = '未注册';
           } else {
-            var notes = koc.notes || '';
-            if (notes.indexOf('welcome_gift_received') >= 0) {
-              checked = false;
-              reason = '已领过欢迎礼';
-            } else {
-              checked = true;
-              reason = '已注册未领欢迎礼';
-            }
+            checked = false;
+            reason = '已注册';
           }
           break;
 
         case 'reminder':
           if (isKoc) {
-            var now = new Date();
-            var period = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-            var linkCount = 0;
-            (subs||[]).forEach(function(s) {
-              if (s && (s.discord_name||'').toLowerCase().trim() === displayName.toLowerCase().trim()) {
-                var periodKey = (s.created_at||'').substring(0,7);
-                if (periodKey === period) {
-                  var eLinks = (s.links_engagement||'').split('\n').filter(Boolean).length;
-                  var vLinks = (s.links_views||'').split('\n').filter(Boolean).length;
-                  linkCount += eLinks + vLinks;
-                }
-              }
-            });
-            var remaining = Math.max(0, 15 - linkCount);
-            checked = linkCount < 15;
-            reason = linkCount === 0 ? '未提交' : '已提交 ' + linkCount + ' 条，还需 ' + remaining + ' 条';
+            checked = true;
+            reason = '待提交';
           } else {
             checked = false;
             reason = '未注册创作者';
@@ -2041,10 +2021,15 @@ async function previewBroadcast(type) {
           if (isKoc) {
             var scoredPts = 0;
             var hasScored = false;
+            var nameLower = name.toLowerCase().trim();
+            var nickLower = nick.toLowerCase().trim();
             (subs||[]).forEach(function(s) {
-              if (s && (s.discord_name||'').toLowerCase().trim() === displayName.toLowerCase().trim() && s.status === 'scored') {
-                hasScored = true;
-                scoredPts += (s.points_earned||0);
+              if (s && s.status === 'scored') {
+                var sn = (s.discord_name||'').toLowerCase().trim();
+                if (sn === nameLower || sn === nickLower || sn === displayName.toLowerCase().trim()) {
+                  hasScored = true;
+                  scoredPts += (s.points_earned||0);
+                }
               }
             });
             checked = hasScored;
