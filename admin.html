@@ -2615,6 +2615,12 @@ async function toggleRedemption() {
 function initSettleSelect() {
   var sel = document.getElementById('settle-month');
   if (!sel || sel.options.length > 0) return;
+  // Ensure currentPeriod is set
+  if (!currentPeriod) {
+    var now = new Date();
+    currentPeriod = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  }
+  sel.innerHTML = '';
   var now = new Date();
   for (var i = 6; i >= -3; i--) {
     var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -2625,6 +2631,9 @@ function initSettleSelect() {
     if (val === currentPeriod) opt.selected = true;
     sel.appendChild(opt);
   }
+  // Sync label
+  var lbl = document.getElementById('settle-label');
+  if (lbl) lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
 }
 function changeSettlePeriod() {
   currentPeriod = document.getElementById('settle-month').value;
@@ -3726,8 +3735,8 @@ function updateDeadlineDisplay(date, time) {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('admin-panel').classList.remove('hidden');
     // loadData will handle tab restoration via switchTab in its completion
-    initSettleSelect();
     loadData().then(function() {
+      initSettleSelect();
       var savedTab = localStorage.getItem('admin_active_tab');
       if (savedTab && ['koc-ledger','scoring','submissions','merch','diamond','gplay','rules'].indexOf(savedTab) >= 0) {
         switchTab(savedTab);
