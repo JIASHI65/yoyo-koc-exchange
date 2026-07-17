@@ -2114,10 +2114,10 @@ function filterBroadcastList() {
   targets.forEach(function(t, i) {
     var match = !q || (t.discord_name||'').toLowerCase().indexOf(q) >= 0 || (t.uid||'').toLowerCase().indexOf(q) >= 0;
     if (!match) return;
-    html += '<div style="display:flex;align-items:center;gap:4px;padding:2px 0;font-size:12px;">';
+    html += '<div style="display:grid;grid-template-columns:24px 1fr auto;gap:4px;align-items:center;padding:2px 4px;font-size:12px;">';
     html += '<input type="checkbox" class="bc-target-cb" data-index="' + i + '" ' + (t.checked !== false ? 'checked' : '') + '>';
     html += '<span>' + esc(t.discord_name) + (t.uid ? ' <span style="color:#999;">(' + esc(t.uid) + ')</span>' : '') + '</span>';
-    html += t.reason ? ' <span style="color:#e65100;font-size:11px;margin-left:auto;">' + esc(t.reason) + '</span>' : '';
+    html += t.reason ? '<span style="color:#e65100;font-size:11px;text-align:right;">' + esc(t.reason) + '</span>' : '<span></span>';
     html += '</div>';
   });
   listEl.innerHTML = html || '<div style="color:#999;padding:4px;">没有匹配的收件人</div>';
