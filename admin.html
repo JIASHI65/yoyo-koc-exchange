@@ -218,7 +218,7 @@
         <div class="row" style="margin-bottom:8px;background:var(--pink-light);padding:8px 12px;border-radius:8px;align-items:center;justify-content:space-between;">
           <div style="display:flex;gap:8px;align-items:center;">
             <span style="font-size:12px;color:var(--text-light);">💡 确认应用积分后，点此按钮将积分同步到创作者端</span>
-            <button class="btn btn-sm" id="btn-push-points" style="background:#f9a825;color:white;font-weight:700;padding:8px 16px;font-size:13px;" onclick="pushPointsToFrontend()">📤 传送积分到前端</button>
+            <span style="font-size:11px;color:#4caf50;padding:8px 0;display:inline-block;">✅ 确认应用时已自动写入积分，不需要再次传送</span>
           </div>
           <button class="btn btn-sm" id="btn-toggle-redeem" style="background:#43b581;color:white;font-weight:700;padding:8px 16px;" onclick="toggleRedemption()">🔓 开放兑换</button>
         </div>
@@ -518,7 +518,7 @@ Elite: 连续 6 个月达到 5 分</textarea>
 
 <!-- ===== MODAL: Mochi Broadcast ===== -->
 <div id="mochi-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeMochiModal()">
-  <div class="modal">
+  <div class="modal" style="max-width:560px;">
     <h3>💬 Mochi 消息中心</h3>
     <label>Bot Token <span style="font-size:11px;color:var(--text-light);">（首次使用填写）</span></label>
     <input type="password" id="mochi-token-input" style="width:100%;margin-bottom:8px;" placeholder="Enter Mochi Bot Token">
@@ -529,26 +529,42 @@ Elite: 连续 6 个月达到 5 分</textarea>
       <option value="1458349180748828757">🎨 creators-exchange</option>
       <option value="1458348802397442149">💡 official-inspirations</option>
     </select>
-    <textarea id="mochi-message" style="width:100%;min-height:80px;margin-bottom:6px;" placeholder="输入自定义消息..."></textarea>
+    <textarea id="mochi-message" style="width:100%;min-height:60px;margin-bottom:6px;" placeholder="输入自定义消息..."></textarea>
     <button class="btn btn-primary btn-sm" onclick="confirmMochiBroadcast()" style="width:100%;background:#5865F2;margin-bottom:8px;">💬 发送到频道</button>
 
-    <div style="font-size:13px;font-weight:600;margin:4px 0 4px;">✉️ 一键私信所有创作者</div>
-    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
-      <button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;text-align:left;" onclick="sendDMPreset('welcome')">🆕 ① 新人欢迎 — 发送注册链接</button>
-      <button class="btn btn-sm" style="background:#fff8e1;color:#b8860b;text-align:left;" onclick="sendDMPreset('collection')">📥 ② 催交链接 — 收集作品提醒</button>
-      <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;text-align:left;" onclick="sendDMPreset('scored')">✅ ③ 算分完成 — 通知积分结果</button>
-      <button class="btn btn-sm" style="background:#f3e5f5;color:#7b1fa2;text-align:left;" onclick="sendDMPreset('tierup')">⭐ ④ 等级变动 — 晋升通知</button>
+    <div style="font-size:13px;font-weight:600;margin:4px 0 4px;">✉️ 条件私信（按条件筛选 → 预览编辑 → 确认发送）</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px;">
+      <button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;text-align:left;" onclick="previewBroadcast('welcome')">🆕 ① 新人欢迎 — 发送注册链接</button>
+      <button class="btn btn-sm" style="background:#fff3e0;color:#e65100;text-align:left;" onclick="previewBroadcast('reminder')">📥 ② 催交链接 — 收集作品提醒</button>
+      <button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;text-align:left;" onclick="previewBroadcast('scored')">✅ ③ 算分完成 — 通知积分结果</button>
+      <button class="btn btn-sm" style="background:#f3e5f5;color:#6a1b9a;text-align:left;" onclick="previewBroadcast('tier_upgrade')">⭐ ④ 等级变动 — 晋升通知</button>
     </div>
-    <textarea id="mochi-preset-preview" style="width:100%;min-height:80px;margin-bottom:6px;font-size:12px;color:var(--text-light);" readonly placeholder="点击预设按钮预览消息内容..."></textarea>
+    
+    <!-- 预览/编辑区 -->
+    <div id="broadcast-preview-area" style="display:none;background:white;border:2px solid #5865F2;border-radius:12px;padding:12px;margin-top:4px;margin-bottom:8px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px;">📋 发送预览</div>
+      <div style="font-size:12px;color:var(--text-light);margin-bottom:4px;">
+        收件人: <strong id="broadcast-target-count">0</strong> 人
+      </div>
+      <div id="broadcast-target-list" style="max-height:100px;overflow-y:auto;background:#f5f5f5;border:1px solid #eee;border-radius:6px;padding:6px;margin-bottom:6px;font-size:11px;font-family:monospace;"></div>
+      <div style="display:flex;gap:4px;margin-bottom:6px;">
+        <button class="btn btn-sm" style="background:#f5f5f5;font-size:11px;padding:4px 6px;" onclick="addBroadcastTarget()">➕ 添加</button>
+        <button class="btn btn-sm" style="background:#ffebee;font-size:11px;padding:4px 6px;color:#e74c3c;" onclick="removeBroadcastTarget()">➖ 移除勾选的</button>
+      </div>
+      <label style="font-size:11px;font-weight:600;">消息内容（可编辑）:</label>
+      <textarea id="broadcast-msg-editor" style="width:100%;min-height:70px;border:1px solid #ddd;border-radius:6px;padding:6px;font-size:12px;margin-bottom:6px;"></textarea>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-primary" style="flex:1;background:#5865F2;font-weight:700;" onclick="confirmBroadcast()">📤 确认发送</button>
+        <button class="btn btn-outline" style="flex:0.4;" onclick="document.getElementById('broadcast-preview-area').style.display='none'">✖ 取消</button>
+      </div>
+    </div>
+    
     <div class="row">
-      <button class="btn btn-primary" onclick="sendMochiDMPreset()" style="flex:1;background:#5865F2;">✉️ 发送私信</button>
-      <button class="btn btn-outline" onclick="closeMochiModal()" style="flex:1;">Cancel</button>
+      <button class="btn btn-outline" onclick="closeMochiModal()" style="flex:1;">关闭</button>
     </div>
     <div id="mochi-status" style="font-size:12px;color:var(--text-light);margin-top:4px;"></div>
   </div>
-</div>
-
-<div id="toast" class="toast"></div>
+</div><div id="toast" class="toast"></div>
 
 <script>/* v1784200691 */
 const SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
@@ -3258,9 +3274,18 @@ async function saveDeadline() {
   var time = document.getElementById('deadline-time').value || '23:59';
   if (!date) { showToast('Select a date', 'error'); return; }
   
-  var config = JSON.stringify({ submission_deadline_date: date, submission_deadline_time: time });
   try {
-    // Upsert: check if config record exists
+    // Read existing config first, then merge (don't overwrite redemption_open etc.)
+    var readRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+    var existingData = readRes.ok ? await readRes.json() : [];
+    var currentConfig = {};
+    if (existingData && existingData.length > 0 && existingData[0].notes) {
+      try { currentConfig = JSON.parse(existingData[0].notes); } catch(e) { currentConfig = {}; }
+    }
+    currentConfig.submission_deadline_date = date;
+    currentConfig.submission_deadline_time = time;
+    var config = JSON.stringify(currentConfig);
+    
     var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=uid');
     var existing = await res.json();
     if (existing && existing.length > 0) {
