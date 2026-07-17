@@ -545,7 +545,6 @@ Elite: 连续 6 个月达到 5 分</textarea>
       <div style="font-size:12px;color:var(--text-light);margin-bottom:4px;">
         收件人: <strong id="broadcast-target-count">0</strong> 人
       </div>
-      </div>
       <div id="broadcast-target-list" style="max-height:120px;overflow-y:auto;background:#f5f5f5;border:1px solid #eee;border-radius:6px;padding:6px;margin-bottom:6px;font-size:11px;font-family:monospace;"></div>
       <div style="display:flex;gap:4px;margin-bottom:6px;">
         <button class="btn btn-sm" style="background:#f5f5f5;font-size:11px;padding:4px 6px;" onclick="addBroadcastTarget()">➕ 添加</button>
@@ -1912,6 +1911,9 @@ async function previewBroadcast(type) {
   if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
   if (!MOCHI_TOKEN) { showToast('请先填写 Bot Token', 'error'); return; }
 
+  // Ensure modal is open and preview area visible
+  document.getElementById('mochi-modal').classList.remove('hidden');
+
   mochiBroadcastType = type;
   showToast('🔍 正在从 Discord 拉取成员...', 'info');
 
@@ -2343,21 +2345,22 @@ async function loadData() {
     ]);
     allKocs = await kocRes.json();
     allOrders = await ordRes.json();
-    // return promise for chaining
-    return true;
     // Re-render current active tab
-    var activeTab = document.querySelector('.tab-content:not([style*="display: none"]), .tab-content.active');
-    if (activeTab) {
-      var id = activeTab.id;
-      if (id === 'tab-koc-ledger') renderKocTable();
-      else if (id === 'tab-scoring') renderScoringTable();
-      else if (id === 'tab-merch') renderMerchTab();
-      else if (id === 'tab-diamond') renderDiamondTab();
-      else if (id === 'tab-gplay') renderGplayTab();
-      else if (id === 'tab-submissions') loadSubmissions();
-      else if (id === 'tab-tiers') renderTiersTable();
-      else if (id === 'tab-rules') loadCampaignConfig();
-      else renderKocTable();
+    var tabIds = ['koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules'];
+    var activeId = null;
+    tabIds.forEach(function(id) {
+      var el = document.getElementById('tab-'+id);
+      if (el && el.style.display !== 'none') activeId = id;
+    });
+    if (activeId) {
+      if (activeId === 'koc-ledger') renderKocTable();
+      else if (activeId === 'scoring') renderScoringTable();
+      else if (activeId === 'merch') renderMerchTab();
+      else if (activeId === 'diamond') renderDiamondTab();
+      else if (activeId === 'gplay') renderGplayTab();
+      else if (activeId === 'submissions') loadSubmissions();
+      else if (activeId === 'tiers') renderTiersTable();
+      else if (activeId === 'rules') loadCampaignConfig();
     } else {
       renderKocTable();
     }
