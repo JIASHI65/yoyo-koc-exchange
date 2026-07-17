@@ -160,6 +160,16 @@
         <div style="display:flex;align-items:center;gap:6px;background:#fce4ec;padding:6px 14px;border-radius:10px;border:2px solid var(--pink);">
           <span style="font-size:13px;font-weight:600;color:var(--pink-dark);">📅 结算月份</span>
           <select id="settle-month" style="width:140px;padding:4px 8px;border:1.5px solid var(--pink);border-radius:6px;font-size:13px;font-weight:600;" onchange="changeSettlePeriod()">
+            <option value="2026-01">2026年1月</option>
+            <option value="2026-02">2026年2月</option>
+            <option value="2026-03">2026年3月</option>
+            <option value="2026-04">2026年4月</option>
+            <option value="2026-05">2026年5月</option>
+            <option value="2026-06">2026年6月</option>
+            <option value="2026-07">2026年7月</option>
+            <option value="2026-08">2026年8月</option>
+            <option value="2026-09">2026年9月</option>
+            <option value="2026-10">2026年10月</option>
           </select>
           <span id="settle-label" style="font-size:12px;font-weight:600;color:var(--pink-dark);margin-left:2px;"></span>
         </div>
@@ -3736,7 +3746,7 @@ function updateDeadlineDisplay(date, time) {
     document.getElementById('admin-panel').classList.remove('hidden');
     // loadData will handle tab restoration via switchTab in its completion
     loadData().then(function() {
-      initSettleSelect();
+      // initSettleSelect() - handled by HTML
       var savedTab = localStorage.getItem('admin_active_tab');
       if (savedTab && ['koc-ledger','scoring','submissions','merch','diamond','gplay','rules'].indexOf(savedTab) >= 0) {
         switchTab(savedTab);
