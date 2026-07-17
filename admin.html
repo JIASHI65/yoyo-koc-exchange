@@ -2104,7 +2104,9 @@ async function previewBroadcast(type) {
   }
 }function renderBroadcastPreview(targets, msg) {
   var area = document.getElementById('broadcast-preview-area');
-  document.getElementById('broadcast-target-count').textContent = targets.length;
+  var checkedCount = 0;
+  targets.forEach(function(t) { if (t.checked) checkedCount++; });
+  document.getElementById('broadcast-target-count').textContent = targets.length + ' 人（已选 ' + checkedCount + ' 人）';
   document.getElementById('broadcast-msg-editor').value = msg;
   // Store full list for filtering
   window._bcTargets = targets;
@@ -2119,22 +2121,24 @@ function filterBroadcastList() {
   var listEl = document.getElementById('broadcast-target-list');
   var html = '';
   var filteredCount = 0;
+  var totalChecked = 0;
+  targets.forEach(function(t) { if (t.checked) totalChecked++; });
   targets.forEach(function(t, i) {
     var match = !q || (t.discord_name||'').toLowerCase().indexOf(q) >= 0 || (t.uid||'').toLowerCase().indexOf(q) >= 0;
     if (!match) return;
     if (mode === 'checked_only' && !t.checked) return;
     if (mode === 'unchecked_only' && t.checked) return;
     filteredCount++;
-    html += '<div style="display:grid;grid-template-columns:24px 1fr auto;gap:4px;align-items:center;padding:2px 4px;font-size:12px;' + (t.checked ? '' : 'opacity:0.6;') + '">';
-    html += '<input type="checkbox" class="bc-target-cb" data-index="' + i + '" ' + (t.checked !== false ? 'checked' : '') + '>';
-    html += '<span>' + esc(t.discord_name) + (t.uid ? ' <span style="color:#999;">(' + esc(t.uid) + ')</span>' : '') + '</span>';
-    html += t.reason ? '<span style="color:#e65100;font-size:11px;text-align:right;">' + esc(t.reason) + '</span>' : '<span></span>';
+    html += '<div style="display:grid;grid-template-columns:24px 1fr auto;gap:4px;align-items:center;padding:2px 4px;font-size:12px;' + (t.checked ? '' : 'opacity:0.5;') + '">';
+    html += '<input type="checkbox" class="bc-target-cb" data-index="' + i + '" ' + (t.checked ? 'checked' : '') + '>';
+    html += '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(t.discord_name) + (t.uid ? ' <span style="color:#999;">(' + esc(t.uid) + ')</span>' : '') + '</span>';
+    html += t.reason ? '<span style="color:#e65100;font-size:11px;text-align:right;white-space:nowrap;">' + esc(t.reason) + '</span>' : '<span></span>';
     html += '</div>';
   });
-  if (filteredCount < targets.length) {
-    if (!html) html = '<div style="color:#999;padding:4px;">没有匹配的收件人</div>';
-    var countEl = document.getElementById('broadcast-target-count');
-    if (countEl) countEl.textContent = filteredCount + ' / ' + targets.length;
+  var countEl = document.getElementById('broadcast-target-count');
+  if (countEl) {
+    if (filteredCount < targets.length) countEl.textContent = filteredCount + ' / ' + targets.length + '（已选 ' + totalChecked + ' 人）';
+    else countEl.textContent = targets.length + ' 人（已选 ' + totalChecked + ' 人）';
   }
   listEl.innerHTML = html || '<div style="color:#999;padding:4px;">没有匹配的收件人</div>';
 }
