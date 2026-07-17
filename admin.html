@@ -1530,84 +1530,8 @@ var pendingScoreResult = null;
 
 
 // ===== 传送积分到前端（写入 point_logs）=====
-async function pushPointsToFrontend() {
-  if (!confirm('确认将当前月份(' + currentPeriod + ')所有已评分作品的积分传送到创作者端？')) return;
-  var btn = document.getElementById('btn-push-points');
-  btn.disabled = true;
-  btn.textContent = '⏳ 传送中...';
-  var status = document.getElementById('paste-status');
-  status.textContent = '⏳ 正在写入积分...';
-  status.style.color = 'var(--text-light)';
-  
-  try {
-    // Get all scored submissions for current period that haven't been pushed yet
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?status=eq.scored&select=uid,discord_name,points_earned,created_at&limit=500');
-    if (!res.ok) throw new Error('Failed to fetch submissions: ' + res.status);
-    var subs = await res.json();
-    
-    // Group by uid to merge
-    var uidMap = {};
-    subs.forEach(function(s) {
-      if (!s.uid || !s.points_earned) return;
-      if (!uidMap[s.uid]) {
-        uidMap[s.uid] = { uid: s.uid, discord_name: s.discord_name, total_pts: 0 };
-      }
-      uidMap[s.uid].total_pts += s.points_earned;
-    });
-    
-    var written = 0;
-    for (var uid in uidMap) {
-      var entry = uidMap[uid];
-      var pts = entry.total_pts;
-      if (pts <= 0) continue;
-      
-      // Get current balance
-      var balRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(uid) + '&order=created_at.desc&limit=1');
-      var currentBalance = 0;
-      if (balRes.ok) {
-        var balData = await balRes.json();
-        if (balData && balData.length > 0) currentBalance = balData[0].balance_after || 0;
-      }
-      
-      var newBalance = currentBalance + pts;
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
-        method: 'POST',
-        body: JSON.stringify({
-          uid: uid,
-          change: pts,
-          balance_after: newBalance,
-          source: 'auto_settlement',
-          reason: currentPeriod + ' submission settlement',
-          period: currentPeriod,
-          created_by: 'admin_push'
-        })
-      });
-      written++;
-    }
-    
-    // Update all submissions to prevent double-push (mark with period tag)
-    for (var i = 0; i < subs.length; i++) {
-      var s = subs[i];
-      if (s.id) {
-        await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + s.id, {
-          method: 'PATCH',
-          body: JSON.stringify({ admin_notes: 'pushed:' + currentPeriod })
-        });
-      }
-    }
-    
-    status.textContent = '✅ 已传送 ' + written + ' 位创作者，积分已到账前端';
-    status.style.color = '#4caf50';
-    showToast('✅ 积分已传送到 ' + written + ' 位创作者', 'success');
-    renderScoringTable();
-  } catch(e) {
-    status.textContent = '❌ 传送失败: ' + e.message;
-    status.style.color = '#e74c3c';
-    showToast('❌ 失败: ' + e.message, 'error');
-  }
-  btn.disabled = false;
-  btn.textContent = '📤 传送积分到前端';
-}
+// pushPointsToFrontend disabled - confirmScoreImport already writes points
+async function pushPointsToFrontend() { showToast('\u2705 \u786e\u8ba4\u5e94\u7528\u65f6\u5df2\u81ea\u52a8\u5199\u5165\u79ef\u5206\uff0c\u4e0d\u9700\u8981\u518d\u6b21\u4f20\u9001', 'success'); }
 
 function previewScoreResult(text) {
   pendingScoreResult = null;
@@ -1956,7 +1880,7 @@ var mochiPresetType = '';
 var mochiPresetMessage = '';
 
 function sendDMPreset(type) {
-  var preview = document.getElementById('mochi-preset-preview');
+  // mochi-preset-preview removed
   var msg = '';
   switch(type) {
     case 'welcome':
@@ -1977,43 +1901,8 @@ function sendDMPreset(type) {
   mochiPresetMessage = msg;
 }
 
-async function sendMochiDMPreset() {
-  if (!mochiPresetMessage) { showToast('Please select a preset first', 'error'); return; }
-  if (!MOCHI_TOKEN && !document.getElementById('mochi-token-input').value) { showToast('Please enter bot token first', 'error'); return; }
-  if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
-  
-  var status = document.getElementById('mochi-status');
-  status.textContent = 'Sending DMs...';
-  status.style.color = 'var(--text-light)';
-  
-  var successCount = 0;
-  var failCount = 0;
-  
-  for (var i = 0; i < allKocs.length; i++) {
-    var k = allKocs[i];
-    if (!k.discord_name || k.discord_name === '__config__') continue;
-    try {
-      var msg = mochiPresetMessage;
-      // Personalize for scored/tierup
-      if (mochiPresetType === 'scored') {
-        var pts = k.points || 0;
-        msg = '✅ Your submission has been scored!\n\nPoints earned: ' + pts + '\n\nRedeem here: 👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html';
-      } else if (mochiPresetType === 'tierup') {
-        var tierLabel = { platinum: '💎 Platinum Creator', gold: '🟡 Gold Creator', certified: '✅ Certified Creator' };
-        msg = '⭐ Congratulations ' + k.discord_name + '! You\'ve been promoted to ' + (tierLabel[k.tier] || k.tier) + '!\n\nKeep creating to unlock more rewards! 💎';
-      }
-      await sendMochiDM(k.discord_name, msg);
-      successCount++;
-    } catch(e) {
-      failCount++;
-    }
-    // Small delay to avoid rate limits
-    if (i % 5 === 4) await new Promise(r => setTimeout(r, 1000));
-  }
-  
-  status.textContent = '✅ Sent to ' + successCount + ' creators' + (failCount > 0 ? ', ' + failCount + ' failed' : '');
-  status.style.color = successCount > 0 ? '#4caf50' : '#e74c3c';
-}
+// sendMochiDMPreset removed - use previewBroadcast/confirmBroadcast instead
+
 
 // ===== AUTO WELCOME (poll join-leave-log channel) =====
 var autoWelcomeInterval = null;
