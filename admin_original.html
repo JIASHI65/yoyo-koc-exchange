@@ -515,15 +515,22 @@ Elite: 连续 6 个月达到 5 分</textarea>
     </div>
   </div>
 </div>
+
 <!-- ===== MODAL: Mochi Broadcast ===== -->
 <div id="mochi-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeMochiModal()">
   <div class="modal" style="max-width:560px;">
     <h3>💬 Mochi 消息中心</h3>
     <label>Bot Token <span style="font-size:11px;color:var(--text-light);">（首次使用填写）</span></label>
-    <div style="display:flex;gap:4px;margin-bottom:8px;">
-      <input type="password" id="mochi-token-input" style="flex:1;" placeholder="Enter Mochi Bot Token">
-      <button class="btn btn-sm" style="background:#5865F2;color:white;white-space:nowrap;" onclick="saveMochiToken()">💾 保存</button>
-    </div>
+    <input type="password" id="mochi-token-input" style="width:100%;margin-bottom:8px;" placeholder="Enter Mochi Bot Token">
+    
+    <div style="font-size:13px;font-weight:600;margin:8px 0 4px;">📢 频道广播</div>
+    <select id="mochi-channel" style="width:100%;margin-bottom:6px;">
+      <option value="1458347958389965035">📢 yoyo-bulletin-board</option>
+      <option value="1458349180748828757">🎨 creators-exchange</option>
+      <option value="1458348802397442149">💡 official-inspirations</option>
+    </select>
+    <textarea id="mochi-message" style="width:100%;min-height:60px;margin-bottom:6px;" placeholder="输入自定义消息..."></textarea>
+    <button class="btn btn-primary btn-sm" onclick="confirmMochiBroadcast()" style="width:100%;background:#5865F2;margin-bottom:8px;">💬 发送到频道</button>
 
     <div style="font-size:13px;font-weight:600;margin:4px 0 4px;">✉️ 条件私信（按条件筛选 → 预览编辑 → 确认发送）</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px;">
@@ -532,14 +539,14 @@ Elite: 连续 6 个月达到 5 分</textarea>
       <button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;text-align:left;" onclick="previewBroadcast('scored')">✅ ③ 算分完成 — 通知积分结果</button>
       <button class="btn btn-sm" style="background:#f3e5f5;color:#6a1b9a;text-align:left;" onclick="previewBroadcast('tier_upgrade')">⭐ ④ 等级变动 — 晋升通知</button>
     </div>
-
+    
     <!-- 预览/编辑区 -->
     <div id="broadcast-preview-area" style="display:none;background:white;border:2px solid #5865F2;border-radius:12px;padding:12px;margin-top:4px;margin-bottom:8px;">
       <div style="font-size:13px;font-weight:700;margin-bottom:6px;">📋 发送预览</div>
       <div style="font-size:12px;color:var(--text-light);margin-bottom:4px;">
         收件人: <strong id="broadcast-target-count">0</strong> 人
       </div>
-      <div id="broadcast-target-list" style="max-height:120px;overflow-y:auto;background:#f5f5f5;border:1px solid #eee;border-radius:6px;padding:6px;margin-bottom:6px;font-size:11px;font-family:monospace;"></div>
+      <div id="broadcast-target-list" style="max-height:100px;overflow-y:auto;background:#f5f5f5;border:1px solid #eee;border-radius:6px;padding:6px;margin-bottom:6px;font-size:11px;font-family:monospace;"></div>
       <div style="display:flex;gap:4px;margin-bottom:6px;">
         <button class="btn btn-sm" style="background:#f5f5f5;font-size:11px;padding:4px 6px;" onclick="addBroadcastTarget()">➕ 添加</button>
         <button class="btn btn-sm" style="background:#ffebee;font-size:11px;padding:4px 6px;color:#e74c3c;" onclick="removeBroadcastTarget()">➖ 移除勾选的</button>
@@ -551,14 +558,13 @@ Elite: 连续 6 个月达到 5 分</textarea>
         <button class="btn btn-outline" style="flex:0.4;" onclick="document.getElementById('broadcast-preview-area').style.display='none'">✖ 取消</button>
       </div>
     </div>
-
+    
     <div class="row">
       <button class="btn btn-outline" onclick="closeMochiModal()" style="flex:1;">关闭</button>
     </div>
     <div id="mochi-status" style="font-size:12px;color:var(--text-light);margin-top:4px;"></div>
   </div>
-</div>
-
+</div><div id="toast" class="toast"></div>
 
 <script>/* v1784200691 */
 const SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
@@ -574,17 +580,6 @@ function setMochiToken(token) {
   MOCHI_TOKEN = token;
   localStorage.setItem('mochi_token', token);
   showToast('✅ Mochi token saved', 'success');
-
-}
-
-function saveMochiToken() {
-  var input = document.getElementById('mochi-token-input');
-  if (input && input.value.trim()) {
-    setMochiToken(input.value.trim());
-    showToast('✅ Token 已保存', 'success');
-  } else {
-    showToast('请输入 Token', 'error');
-  }
 }
 
 // -- Drag-and-Drop Reorder --
@@ -883,6 +878,21 @@ async function sendMochiDM(discordUsername, message) {
     return msgRes.ok;
   } catch(e) {
     console.error('sendMochiDM error:', e);
+    return false;
+  }
+}
+
+// Send a broadcast message to a text channel
+async function sendMochiBroadcast(channelId, message) {
+  try {
+    var res = await fetch('https://discord.com/api/v10/channels/' + channelId + '/messages', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: message })
+    });
+    return res.ok;
+  } catch(e) {
+    console.error('sendMochiBroadcast error:', e);
     return false;
   }
 }
@@ -1869,155 +1879,27 @@ document.addEventListener('DOMContentLoaded', function() {
 var mochiPresetType = '';
 var mochiPresetMessage = '';
 
-
-// ===== MOCHI BROADCAST - preview/confirm =====
-var mochiBroadcastTargets = [];
-var mochiBroadcastType = '';
-
-function previewBroadcast(type) {
-  if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
-  if (!MOCHI_TOKEN) { showToast('请先填写 Bot Token', 'error'); return; }
-
-  mochiBroadcastType = type;
+function sendDMPreset(type) {
+  // mochi-preset-preview removed
   var msg = '';
-  var queryFunc = null;
-
-  switch (type) {
+  switch(type) {
     case 'welcome':
-      msg = '🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\n📅 下个月将是你首个新人活动月！\n在下个月内投稿满 5 积分，即可额外获得 +2 积分 🎯\n\n📝 请先完成注册：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n点击 "I\'m a New Creator" 填写信息\n\n完成注册后即可开始投稿！\n\n如有问题请在 🎫｜town-service-station 开帖询问';
-      queryFunc = function() {
-        return supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?status=eq.active&order=created_at.desc&limit=50&select=discord_name,uid,created_at,notes');
-      };
+      msg = '🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\n📅 **下个月将是你首个新人活动月！**\n在下个月内投稿满 5 积分，即可额外获得 **+2 积分** 🎯\n\n📝 **现在请先完成注册：**\n1️⃣ 打开 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n2️⃣ 点击 "I\'m a New Creator"\n3️⃣ 填写信息：Account ID / Game UID / 姓名 / 服务器(正式服/灯塔服) / 完整收货地址+电话\n\n完成注册后你将获得 UID，之后就可以开始投稿了！\n\n📌 **投稿提醒：**\n• 把作品链接粘贴到 Submit Works\n• 每条链接一行，确保公开可见并带上 #myleisuretime\n• 8 月整月投稿达到 5 分，额外 +2 分！\n\n如有问题请在 🎫｜town-service-station 开帖询问';
       break;
-    case 'reminder':
-      msg = '📥 Reminder! 作品收集已开启\n\n请在 **下个月5号前** 提交所有作品链接：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\n只有通过表单提交的链接才计入积分！';
-      queryFunc = function() {
-        return supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?status=eq.active&select=discord_name,uid');
-      };
+    case 'collection':
+      msg = '📥 Reminder! Link collection for this month is now open.\n\nPlease submit all your works via the portal before the 5th of next month:\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\nOnly links submitted through the form count toward your Points!';
       break;
     case 'scored':
-      msg = '✅ 你的作品已评分完成！\n\n查看积分并兑换奖励：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\n兑换选项：\n• 1 积分 = 450 钻石\n• 2 积分 = $10 Google Play 礼品卡\n• 5 积分 = 3 随机周边';
-      queryFunc = function() {
-        return supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?status=eq.scored&select=discord_name,uid,points_earned');
-      };
+      msg = '✅ Your submission has been scored!\n\nCheck your points and redeem rewards here:\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\nReward options:\n• 1 Point = 450 Diamonds\n• 2 Points = $10 Google Play Gift Card\n• 5 Points = 3 random merch items';
       break;
-    case 'tier_upgrade':
-      msg = '⭐ 恭喜晋升！\n\n你的创作者等级已提升！查看最新等级和权益：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\n继续创作，冲击下一级！💎';
-      queryFunc = function() {
-        return supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?status=eq.active&select=discord_name,uid,tier,tier_updated_at');
-      };
+    case 'tierup':
+      msg = '⭐ Congratulations! You\'ve been promoted!\n\nCheck your new tier and benefits on the portal. Keep creating to reach the next level! 💎';
       break;
   }
-
-  showToast('🔍 正在筛选收件人...', 'info');
-
-  (async function() {
-    try {
-      var targets = [];
-      if (queryFunc) {
-        var res = await queryFunc();
-        if (res.ok) {
-          var data = await res.json();
-          var seen = {};
-          if (Array.isArray(data)) {
-            data.forEach(function(d) {
-              var name = d.discord_name || d.name || '';
-              if (name && !seen[name]) {
-                seen[name] = true;
-                targets.push({ discord_name: name, uid: d.uid || '', checked: true });
-              }
-            });
-          }
-        }
-      }
-      mochiBroadcastTargets = targets;
-      renderBroadcastPreview(targets, msg);
-    } catch(e) {
-      showToast('筛选失败: ' + e.message, 'error');
-    }
-  })();
+  preview.value = msg;
+  mochiPresetType = type;
+  mochiPresetMessage = msg;
 }
-
-function renderBroadcastPreview(targets, msg) {
-  var area = document.getElementById('broadcast-preview-area');
-  document.getElementById('broadcast-target-count').textContent = targets.length;
-  var listEl = document.getElementById('broadcast-target-list');
-  var html = '';
-  targets.forEach(function(t, i) {
-    html += '<label style="display:flex;align-items:center;gap:4px;padding:2px 0;cursor:pointer;">';
-    html += '<input type="checkbox" class="bc-target-cb" data-index="' + i + '" ' + (t.checked !== false ? 'checked' : '') + '>';
-    html += '<span>' + esc(t.discord_name) + (t.uid ? ' <span style="color:#999;">(' + esc(t.uid) + ')</span>' : '') + '</span>';
-    html += '</label>';
-  });
-  listEl.innerHTML = html || '<div style="color:#999;padding:4px;">没有符合条件的收件人</div>';
-  document.getElementById('broadcast-msg-editor').value = msg;
-  area.style.display = 'block';
-}
-
-function addBroadcastTarget() {
-  var name = prompt('输入要添加的 Discord 用户名:');
-  if (name && name.trim()) {
-    mochiBroadcastTargets.push({ discord_name: name.trim(), uid: '', checked: true });
-    var msg = document.getElementById('broadcast-msg-editor').value;
-    renderBroadcastPreview(mochiBroadcastTargets, msg);
-  }
-}
-
-function removeBroadcastTarget() {
-  var cbs = document.querySelectorAll('.bc-target-cb:checked');
-  var indices = [];
-  cbs.forEach(function(cb) { indices.push(parseInt(cb.getAttribute('data-index'))); });
-  indices.sort(function(a,b){return b-a});
-  indices.forEach(function(i) { mochiBroadcastTargets.splice(i, 1); });
-  var msg = document.getElementById('broadcast-msg-editor').value;
-  renderBroadcastPreview(mochiBroadcastTargets, msg);
-}
-
-async function confirmBroadcast() {
-  if (!MOCHI_TOKEN && !document.getElementById('mochi-token-input').value) {
-    showToast('请先填写 Bot Token', 'error'); return;
-  }
-  if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
-
-  var msg = document.getElementById('broadcast-msg-editor').value.trim();
-  if (!msg) { showToast('消息不能为空', 'error'); return; }
-
-  var cbs = document.querySelectorAll('.bc-target-cb');
-  var targets = [];
-  cbs.forEach(function(cb) {
-    var i = parseInt(cb.getAttribute('data-index'));
-    if (cb.checked && mochiBroadcastTargets[i]) {
-      targets.push(mochiBroadcastTargets[i]);
-    }
-  });
-
-  if (targets.length === 0) { showToast('没有勾选收件人', 'error'); return; }
-  if (!confirm('确认给 ' + targets.length + ' 人发送私信？')) return;
-
-  var statusEl = document.getElementById('mochi-status');
-  statusEl.textContent = '⏳ 正在发送... (' + targets.length + ' 人)';
-
-  var sent = 0;
-  var failed = 0;
-  for (var i = 0; i < targets.length; i++) {
-    var ok = await sendMochiDM(targets[i].discord_name, msg);
-    if (ok) sent++; else failed++;
-    statusEl.textContent = '⏳ 进度: ' + (i+1) + '/' + targets.length + ' (成功' + sent + ', 失败' + failed + ')';
-    if (i < targets.length - 1) await new Promise(r => setTimeout(r, 1000));
-  }
-  statusEl.textContent = '✅ 完成！成功: ' + sent + ', 失败: ' + failed;
-  showToast('✅ 已发送 ' + sent + '/' + targets.length + ' 条私信', sent > 0 ? 'success' : 'error');
-
-  setTimeout(function() {
-    document.getElementById('broadcast-preview-area').style.display = 'none';
-    statusEl.textContent = '';
-  }, 5000);
-}
-
-// sendDMPreset kept as stub for backward compat
-function sendDMPreset(type) { /* deprecated - use previewBroadcast */ }
-
-// ===== AUTO WELCOME (poll join-leave-log channel) =====
 
 // sendMochiDMPreset removed - use previewBroadcast/confirmBroadcast instead
 
@@ -2152,8 +2034,7 @@ async function checkNewMembers() {
 
 function openMochiBroadcast() {
   document.getElementById('mochi-modal').classList.remove('hidden');
-  // mochi-message removed
-
+  document.getElementById('mochi-message').value = '';
   document.getElementById('mochi-status').textContent = '';
 }
 
@@ -2162,9 +2043,49 @@ function closeMochiModal() {
 }
 
 
-function confirmMochiBroadcast() { /* deprecated - use previewBroadcast/confirmBroadcast */ }
+function confirmMochiBroadcast() {
+  var channelId = document.getElementById('mochi-channel').value;
+  var msg = document.getElementById('mochi-message').value;
+  if (!msg || !msg.trim()) { showToast('请输入消息内容', 'error'); return; }
+  var channelNames = {'1458347958389965035':'📢 yoyo-bulletin-board','1458349180748828757':'🎨 creators-exchange','1458348802397442149':'💡 official-inspirations'};
+  var channelName = channelNames[channelId] || channelId;
+  if (confirm('确认向 ' + channelName + ' 频道发送以下消息？\n\n' + msg.substring(0, 200) + (msg.length > 200 ? '...' : '') + '\n\n点击确定发送。')) {
+    sendMochiBroadcastFromModal();
+  }
+}
 
-async function sendMochiBroadcastFromModal() { /* deprecated */ }
+async function sendMochiBroadcastFromModal() {
+  var tokenInput = document.getElementById('mochi-token-input');
+  if (tokenInput && tokenInput.value.trim()) {
+    setMochiToken(tokenInput.value.trim());
+    tokenInput.value = '';
+  }
+  var channelId = document.getElementById('mochi-channel').value;
+  var message = document.getElementById('mochi-message').value.trim();
+  var status = document.getElementById('mochi-status');
+  var btn = document.querySelector('#mochi-modal .btn-primary');
+  
+  if (!MOCHI_TOKEN) { status.textContent = 'Please enter the bot token first'; status.style.color = '#e74c3c'; return; }
+  if (!message) { status.textContent = 'Please enter a message'; status.style.color = '#e74c3c'; return; }
+  
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+  status.textContent = '';
+  
+  var ok = await sendMochiBroadcast(channelId, message);
+  if (ok) {
+    status.textContent = '✅ Message sent!';
+    status.style.color = '#4caf50';
+    showToast('✅ Broadcast sent!', 'success');
+    setTimeout(closeMochiModal, 1500);
+  } else {
+    status.textContent = '❌ Failed to send. Check bot permissions.';
+    status.style.color = '#e74c3c';
+  }
+  btn.disabled = false;
+  btn.textContent = '💬 Send';
+}
+
 // Patch loadData to also load submissions
 var _origLoadData = loadData;
 loadData = function() {
