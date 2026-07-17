@@ -541,6 +541,12 @@ Elite: 连续 6 个月达到 5 分</textarea>
         <label style="font-size:11px;display:flex;align-items:center;gap:2px;white-space:nowrap;">
           <input type="checkbox" id="broadcast-select-all" onchange="toggleSelectAll()"> 全选
         </label>
+        <select id="broadcast-filter-mode" onchange="filterBroadcastList()" style="font-size:11px;padding:3px 4px;border:1px solid #ddd;border-radius:4px;">
+          <option value="checked_first">✅ 勾选的在前</option>
+          <option value="checked_only">✅ 只看勾选的</option>
+          <option value="unchecked_only">⬜ 只看未勾选</option>
+          <option value="all">📋 全部</option>
+        </select>
       </div>
       <div style="font-size:12px;color:var(--text-light);margin-bottom:4px;">
         收件人: <strong id="broadcast-target-count">0</strong> 人
@@ -2109,17 +2115,27 @@ async function previewBroadcast(type) {
 function filterBroadcastList() {
   var targets = window._bcTargets || [];
   var q = (document.getElementById('broadcast-search').value || '').toLowerCase().trim();
+  var mode = (document.getElementById('broadcast-filter-mode') || {}).value || 'checked_first';
   var listEl = document.getElementById('broadcast-target-list');
   var html = '';
+  var filteredCount = 0;
   targets.forEach(function(t, i) {
     var match = !q || (t.discord_name||'').toLowerCase().indexOf(q) >= 0 || (t.uid||'').toLowerCase().indexOf(q) >= 0;
     if (!match) return;
-    html += '<div style="display:grid;grid-template-columns:24px 1fr auto;gap:4px;align-items:center;padding:2px 4px;font-size:12px;">';
+    if (mode === 'checked_only' && !t.checked) return;
+    if (mode === 'unchecked_only' && t.checked) return;
+    filteredCount++;
+    html += '<div style="display:grid;grid-template-columns:24px 1fr auto;gap:4px;align-items:center;padding:2px 4px;font-size:12px;' + (t.checked ? '' : 'opacity:0.6;') + '">';
     html += '<input type="checkbox" class="bc-target-cb" data-index="' + i + '" ' + (t.checked !== false ? 'checked' : '') + '>';
     html += '<span>' + esc(t.discord_name) + (t.uid ? ' <span style="color:#999;">(' + esc(t.uid) + ')</span>' : '') + '</span>';
     html += t.reason ? '<span style="color:#e65100;font-size:11px;text-align:right;">' + esc(t.reason) + '</span>' : '<span></span>';
     html += '</div>';
   });
+  if (filteredCount < targets.length) {
+    if (!html) html = '<div style="color:#999;padding:4px;">没有匹配的收件人</div>';
+    var countEl = document.getElementById('broadcast-target-count');
+    if (countEl) countEl.textContent = filteredCount + ' / ' + targets.length;
+  }
   listEl.innerHTML = html || '<div style="color:#999;padding:4px;">没有匹配的收件人</div>';
 }
 
