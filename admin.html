@@ -166,7 +166,7 @@
             <option value="2026-04">2026年4月</option>
             <option value="2026-05">2026年5月</option>
             <option value="2026-06">2026年6月</option>
-            <option value="2026-07">2026年7月</option>
+            <option value="2026-07" selected>2026年7月</option>
             <option value="2026-08">2026年8月</option>
             <option value="2026-09">2026年9月</option>
             <option value="2026-10">2026年10月</option>
@@ -231,7 +231,7 @@
     </div>
 
     <!-- ======== TAB: KOC信息库 ======== -->
-    <div id="tab-koc-ledger" class="tab-content" style="display:none;">
+    <div id="tab-koc-ledger" class="tab-content">
       <div class="card">
         <div class="card-title">📋 KOC信息库 <span style="font-size:12px;color:var(--text-light);font-weight:normal;">— 所有板块的信息源，双击可编辑</span></div>
         <div class="row" style="margin-bottom:4px;">
@@ -344,7 +344,7 @@
     </div>
 
     <!-- ======== TAB: 等级管理 (已合并到KOC台账) ======== -->
-    <div id="tab-tiers" class="tab-content" style="display:none;">
+    <div id="tab-tiers" class="tab-content">
       <div class="card">
         <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
           <span>⭐ 创作者等级管理</span>
@@ -376,7 +376,7 @@
     </div>
 
     <!-- ======== TAB: 规则配置 ======== -->
-    <div id="tab-rules" class="tab-content" style="display:none;">
+    <div id="tab-rules" class="tab-content">
       <div class="card">
         <div class="card-title">📐 积分规则配置</div>
         <div class="row">
@@ -435,7 +435,7 @@ Elite: 连续 6 个月达到 5 分</textarea>
     </div>
 
         <!-- ======== TAB: 操作日志 ======== -->
-    <div id="tab-audit" class="tab-content" style="display:none;">
+    <div id="tab-audit" class="tab-content">
       <div class="card-title">📜 操作日志</div>
       <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
         <select id="audit-filter" onchange="loadAuditLog()" style="font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;">
@@ -1857,6 +1857,13 @@ async function confirmScoreImport() {
         pushedUids[sub.uid] = true;
         var pts = sub.points_earned || 0;
         try {
+          // Check if already written for this period (prevent duplicate)
+          var dupRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&period=eq.' + currentPeriod + '&source=eq.auto_settlement&select=id&limit=1');
+          var dupData = await dupRes.json();
+          if (dupData && dupData.length > 0) {
+            console.log('Skipping duplicate points write for ' + sub.uid + ' in ' + currentPeriod);
+            continue; // Already written
+          }
           // Get current balance
           var balRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&order=created_at.desc&limit=1');
           var currentBalance = 0;
@@ -2079,9 +2086,16 @@ async function writeAuditLog(actionType, detail) {
 function switchTab(name) {
   localStorage.setItem('admin_active_tab', name);
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(function(c) { 
+    c.classList.remove('active'); 
+    c.style.display = 'none'; 
+  });
   document.querySelector('.tab[onclick*="' + name + '"]').classList.add('active');
-  document.getElementById('tab-' + name).classList.add('active');
+  var activeTab = document.getElementById('tab-' + name);
+  if (activeTab) {
+    activeTab.classList.add('active');
+    activeTab.style.display = 'block';
+  }
   // Refresh tab content
   if (name === 'koc-ledger') renderKocTable();
   if (name === 'scoring') renderScoringTable();
@@ -2657,9 +2671,15 @@ function shiftSettleMonth(delta) {
   if (m < 1) { m = 12; y--; }
   if (m > 12) { m = 1; y++; }
   currentPeriod = y + '-' + String(m).padStart(2, '0');
-  // Sync hidden select
+  // Sync select value AND selected attribute
   var sel = document.getElementById('settle-month');
-  if (sel) sel.value = currentPeriod;
+  if (sel) {
+    sel.value = currentPeriod;
+    // Also update the selected option's attribute
+    for (var i = 0; i < sel.options.length; i++) {
+      sel.options[i].selected = (sel.options[i].value === currentPeriod);
+    }
+  }
   // Update display
   var disp = document.getElementById('settle-month-display');
   if (disp) disp.textContent = currentPeriod.replace('-', '年') + '月';
@@ -2685,7 +2705,12 @@ function shiftSettleMonth(delta) {
   showToast('📅 切换到 ' + currentPeriod.replace('-', '年') + '月', 'success');
 }
 function changeSettlePeriod() {
-  currentPeriod = document.getElementById('settle-month').value;
+  var sel = document.getElementById('settle-month');
+  currentPeriod = sel.value;
+  // Mark this option as selected
+  for (var i = 0; i < sel.options.length; i++) {
+    sel.options[i].selected = (sel.options[i].value === currentPeriod);
+  }
   var lbl = document.getElementById('settle-label');
   if (lbl) lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
   // Refresh current active tab
@@ -2938,12 +2963,12 @@ function renderScoringTable() {
       '</td>' +
       '<td><button class="btn btn-sm" style="background:#e8e0ff;color:#6a3de8;" onclick="openPointModal(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">💳 积分</button></td>' +
       '<td>' +
-        (pendingOrders.length > 0 ? '<span class="badge badge-pending" style="cursor:pointer;" onclick="toggleOrders(\'' + k.uid + '\')">' + pendingOrders.length + ' pending</span>' : '<span style="color:var(--text-light);font-size:12px;">0</span>') +
+        (orders.length + ' orders (' + pendingOrders.length + ' pending)</span>') +
         '<div id="orders-' + k.uid + '" class="hidden" style="margin-top:4px;max-width:240px;">' +
-          orders.slice(0,5).map(function(o) {
-            return '<div class="order-row">' + esc(o.option_name) + ' \u00B7 <span class="badge badge-' + o.status + '">' + o.status + '</span> ' + (o.status === 'pending' ? '<span class="btn btn-success btn-sm" onclick="shipOrder(' + o.id + ')">\u2713</span>' : '') + '</div>';
+          orders.slice(0,10).map(function(o) {
+            return '<div class="order-row">' + esc(o.option_name) + ' \u00B7 <span class="badge badge-' + o.status + '">' + (o.status === 'shipped' ? '\u2705 ' : '\u23F3 ') + o.status + '</span> ' + (o.status === 'pending' ? '<span class="btn btn-success btn-sm" onclick="shipOrder(' + o.id + ')">\u2713</span>' : '') + '</div>';
           }).join('') +
-          (orders.length > 5 ? '<div style="font-size:11px;color:var(--text-light);">+' + (orders.length-5) + ' more</div>' : '') +
+          (orders.length > 10 ? '<div style="font-size:11px;color:var(--text-light);">+' + (orders.length-10) + ' more</div>' : '') +
         '</div>' +
       '</td>' +
     '</tr>';

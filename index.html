@@ -437,7 +437,7 @@ function initSubmitTab() {
   (async function() {
     try {
       var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id');
-      if (!r.ok) return;
+      if (!r.ok) throw new Error('fetch failed');
       var d = await r.json();
       var cnt = (d && d.length) || 0;
       var formArea = document.getElementById('submit-form-area');
@@ -456,7 +456,17 @@ function initSubmitTab() {
         if (btn) { btn.disabled = false; btn.textContent = '📤 Submit Works'; }
         if (cd) { cd.innerHTML = '📌 你有 <strong>' + remaining + '</strong> 次提交机会，检查好链接后再提交'; cd.style.background = '#fce4ec'; }
       }
-    } catch(e) {}
+    } catch(e) {
+      // If check fails (network error etc.), show form unlocked rather than broken
+      var formArea = document.getElementById('submit-form-area');
+      var btn = document.getElementById('btn-submit');
+      var cd = document.getElementById('submit-countdown');
+      var remEl = document.getElementById('submit-remaining');
+      if (formArea) { formArea.style.opacity = '1'; formArea.style.pointerEvents = 'auto'; }
+      if (btn) { btn.disabled = false; btn.textContent = '📤 Submit Works'; }
+      if (remEl) remEl.textContent = '2';
+      if (cd) { cd.innerHTML = '📌 你有 <strong>2</strong> 次提交机会，检查好链接后再提交'; cd.style.background = '#fce4ec'; }
+    }
   })();
 }
 
@@ -657,12 +667,18 @@ async function loadOrders() {
 function switchCreatorTab(name) {
   localStorage.setItem('koc_active_tab', name);
   document.querySelectorAll('#step-dashboard .tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('#step-dashboard .tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('#step-dashboard .tab-content').forEach(function(c) {
+    c.classList.remove('active');
+    c.style.display = 'none';
+  });
   // Use safer selector - try onclick first, then fallback to tab text
   var tabBtn = document.querySelector('#step-dashboard .tab[onclick*="' + name + '"]');
   if (tabBtn) tabBtn.classList.add('active');
   var tabContent = document.getElementById('creator-tab-' + name);
-  if (tabContent) tabContent.classList.add('active');
+  if (tabContent) {
+    tabContent.classList.add('active');
+    tabContent.style.display = 'block';
+  }
   if (name === 'submit') { initSubmitTab(); loadMySubmissions(); }
   if (name === 'history') loadMySubmissions();
   if (name === 'redeem') { renderOptions(); loadOrders(); }
