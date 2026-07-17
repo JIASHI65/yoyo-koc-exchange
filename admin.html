@@ -3082,11 +3082,8 @@ async function shipOrder(id) {
     var order = oData[0];
     if (!order) throw new Error('Order not found');
 
-    // Check if points already deducted (old system compatibility)
-    var lRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + order.uid + '&change=eq.' + (-order.points_spent) + '&source=eq.redemption&order=created_at.desc&limit=1');
-    var logs = await lRes.json();
-    var alreadyDeducted = logs.length > 0 && 
-      (Math.abs(new Date(logs[0].created_at).getTime() - new Date(order.created_at).getTime()) < 10000);
+    // Skip if already shipped
+    if (order.status === 'shipped') { showToast('Already shipped', 'info'); return; }
 
     // Ship the order
     await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + id, {
@@ -3094,21 +3091,36 @@ async function shipOrder(id) {
       body: JSON.stringify({ status: 'shipped', processed_at: new Date().toISOString(), processed_by: 'admin' })
     });
 
-    // Deduct points if not already deducted (new system)
-    if (!alreadyDeducted) {
-      var curBal = await getBalance(order.uid);
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
-        method: 'POST',
-        body: JSON.stringify({
-          uid: order.uid, change: -order.points_spent,
-          balance_after: curBal - order.points_spent,
-          source: 'redemption', reason: 'Shipped order #' + id,
-          created_at: new Date().toISOString()
-        })
-      });
+    // Deduct points ONLY if points_spent > 0 AND not already deducted
+    if (order.points_spent > 0) {
+      // Check if already deducted via point_logs
+      var lRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + order.uid + '&source=eq.redemption&order=created_at.desc&limit=5&select=change,reason,created_at');
+      var logs = await lRes.json();
+      var alreadyDeducted = false;
+      if (logs && logs.length > 0) {
+        for (var l = 0; l < logs.length; l++) {
+          if (logs[l].change === -order.points_spent && logs[l].reason && logs[l].reason.indexOf('#' + id) >= 0) {
+            alreadyDeducted = true;
+            break;
+          }
+        }
+      }
+      if (!alreadyDeducted) {
+        var curBal = await getBalance(order.uid);
+        var newBal = Math.max(0, curBal - order.points_spent); // Never go below 0
+        await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+          method: 'POST',
+          body: JSON.stringify({
+            uid: order.uid, change: -order.points_spent,
+            balance_after: newBal,
+            source: 'redemption', reason: 'Shipped order #' + id,
+            created_at: new Date().toISOString()
+          })
+        });
+      }
     }
 
-    showToast('\u2705 Shipped' + (alreadyDeducted ? '' : ' + pts deducted'), 'success');
+    showToast('\u2705 Shipped' + (order.points_spent > 0 ? ' + pts deducted' : ''), 'success');
     loadData();
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
