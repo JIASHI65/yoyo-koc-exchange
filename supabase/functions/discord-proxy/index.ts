@@ -9,7 +9,7 @@ serve(async (req) => {
   const headers = new Headers({
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey",
   });
 
   if (req.method === "OPTIONS") {

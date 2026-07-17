@@ -169,17 +169,54 @@
 
     <!-- Tab Navigation -->
     <div class="tabs" id="tab-nav">
-      <button class="tab active" onclick="switchTab('koc-ledger')">📋 KOC信息库</button>
+      <button class="tab active" onclick="switchTab('dashboard')">📊 数据看板</button>
+      <button class="tab" onclick="switchTab('koc-ledger')">📋 KOC信息库</button>
       <button class="tab" onclick="switchTab('scoring')">🧮 积分计算</button>
       <button class="tab" onclick="switchTab('submissions')">📋 作品审核</button>
       <button class="tab" onclick="switchTab('merch')">📦 周边发货</button>
       <button class="tab" onclick="switchTab('diamond')">💎 端内奖励</button>
       <button class="tab" onclick="switchTab('gplay')">🎮 谷歌卡</button>
       <button class="tab" onclick="switchTab('rules')">📐 规则配置</button>
+      <button class="tab" onclick="switchTab('audit')">📜 操作日志</button>
+    </div>
+
+    <!-- ======== TAB: 数据看板 ======== -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="card-title" style="margin-bottom:12px;">📊 数据看板 · <span id="dash-period-label"></span></div>
+      <div id="dashboard-content" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:14px;padding:16px;text-align:center;">
+          <div style="font-size:28px;font-weight:800;color:#ad1457;" id="dash-total-kocs">-</div>
+          <div style="font-size:12px;color:#880e4f;">👤 创作者总数</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border-radius:14px;padding:16px;text-align:center;">
+          <div style="font-size:28px;font-weight:800;color:#2e7d32;" id="dash-total-subs">-</div>
+          <div style="font-size:12px;color:#1b5e20;">📝 本月投稿数</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:14px;padding:16px;text-align:center;">
+          <div style="font-size:28px;font-weight:800;color:#e65100;" id="dash-pending-subs">-</div>
+          <div style="font-size:12px;color:#bf360c;">⏳ 待审核</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#f3e5f5,#e1bee7);border-radius:14px;padding:16px;text-align:center;">
+          <div style="font-size:28px;font-weight:800;color:#6a1b9a;" id="dash-total-links">-</div>
+          <div style="font-size:12px;color:#4a148c;">🔗 总链接数</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);border-radius:14px;padding:16px;text-align:center;">
+          <div style="font-size:28px;font-weight:800;color:#1565c0;" id="dash-total-pts">-</div>
+          <div style="font-size:12px;color:#0d47a1;">🏆 本月总积分</div>
+        </div>
+        <div style="background:linear-gradient(135deg,#fce4ec,#f8bbd0);border-radius:14px;padding:16px;text-align:center;">
+          <div style="font-size:28px;font-weight:800;color:#c62828;" id="dash-total-orders">-</div>
+          <div style="font-size:12px;color:#b71c1c;">🎁 本月兑换数</div>
+        </div>
+      </div>
+      <div id="dash-detail" style="background:white;border-radius:14px;padding:14px;border:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px;">📋 本月投稿排名</div>
+        <div id="dash-rank-list"><div style="color:var(--text-light);font-size:12px;">加载中...</div></div>
+      </div>
     </div>
 
     <!-- ======== TAB: KOC信息库 ======== -->
-    <div id="tab-koc-ledger" class="tab-content active">
+    <div id="tab-koc-ledger" class="tab-content" style="display:none;">
       <div class="card">
         <div class="card-title">📋 KOC信息库 <span style="font-size:12px;color:var(--text-light);font-weight:normal;">— 所有板块的信息源，双击可编辑</span></div>
         <div class="row" style="margin-bottom:4px;">
@@ -324,7 +361,7 @@
     </div>
 
     <!-- ======== TAB: 规则配置 ======== -->
-    <div id="tab-rules" class="tab-content">
+    <div id="tab-rules" class="tab-content" style="display:none;">
       <div class="card">
         <div class="card-title">📐 积分规则配置</div>
         <div class="row">
@@ -382,7 +419,27 @@ Elite: 连续 6 个月达到 5 分</textarea>
       </div>
     </div>
 
-    <!-- ======== TAB: 作品审核 ======== -->
+        <!-- ======== TAB: 操作日志 ======== -->
+    <div id="tab-audit" class="tab-content" style="display:none;">
+      <div class="card-title">📜 操作日志</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
+        <select id="audit-filter" onchange="loadAuditLog()" style="font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;">
+          <option value="">全部类型</option>
+          <option value="score">📊 算分</option>
+          <option value="cc">🎁 CC奖励</option>
+          <option value="merch">📦 周边发货</option>
+          <option value="diamond">💎 端内奖励</option>
+          <option value="gplay">🎮 谷歌卡</option>
+          <option value="tier">⭐ 等级变动</option>
+          <option value="koc">👤 KOC信息</option>
+          <option value="config">⚙️ 系统配置</option>
+        </select>
+        <input type="text" id="audit-search" style="flex:1;font-size:12px;padding:4px 8px;border:1px solid #ddd;border-radius:6px;" placeholder="🔍 搜索操作人/内容..." oninput="loadAuditLog()">
+        <span style="font-size:11px;color:var(--text-light);" id="audit-count"></span>
+      </div>
+      <div id="audit-list" style="background:white;border-radius:12px;border:1px solid var(--border);"><div style="padding:20px;text-align:center;color:var(--text-light);font-size:13px;">加载中...</div></div>
+    </div>
+<!-- ======== TAB: 作品审核 ======== -->
     <div id="tab-submissions" class="tab-content">
       <div class="card">
         <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
@@ -1882,6 +1939,71 @@ function importScoreFile(event) {
 }
 
 // Override switchTab to also load submissions
+
+// ===== AUDIT LOG =====
+async function loadAuditLog() {
+  var list = document.getElementById('audit-list');
+  var countEl = document.getElementById('audit-count');
+  var filter = document.getElementById('audit-filter').value;
+  var search = document.getElementById('audit-search').value.toLowerCase().trim();
+  if (!list) return;
+
+  try {
+    var url = SUPABASE_URL + '/rest/v1/audit_logs?order=created_at.desc&limit=200&select=*';
+    var res = await supabaseFetch(url);
+    if (!res.ok) { list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-light);">加载失败</div>'; return; }
+    var logs = await res.json() || [];
+
+    if (filter) logs = logs.filter(function(l) { return l.action_type === filter; });
+    if (search) logs = logs.filter(function(l) {
+      return ((l.operator||'') + ' ' + (l.detail||'')).toLowerCase().indexOf(search) >= 0;
+    });
+
+    countEl.textContent = logs.length + ' 条';
+
+    if (logs.length === 0) {
+      list.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-light);font-size:13px;">📭 暂无操作记录</div>';
+      return;
+    }
+
+    var html = '<div style="font-size:12px;">';
+    logs.forEach(function(l) {
+      var actionLabels = {
+        'score': '📊 算分', 'cc': '🎁 CC奖励', 'merch': '📦 周边发货',
+        'diamond': '💎 端内奖励', 'gplay': '🎮 谷歌卡', 'tier': '⭐ 等级变动',
+        'koc': '👤 KOC信息', 'config': '⚙️ 系统配置'
+      };
+      var label = actionLabels[l.action_type] || l.action_type;
+      var dt = new Date(l.created_at).toLocaleString('zh-CN');
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);">';
+      html += '<div style="display:flex;gap:8px;align-items:center;">';
+      html += '<span style="font-size:11px;background:' + (l.action_type === 'score' ? '#fff3e0' : '#f5f5f5') + ';padding:2px 6px;border-radius:4px;">' + label + '</span>';
+      html += '<span style="color:var(--text);">' + esc(l.operator || '-') + '</span>';
+      html += '<span style="color:var(--text-light);font-size:11px;">' + esc(l.detail || '') + '</span></div>';
+      html += '<span style="font-size:11px;color:var(--text-light);white-space:nowrap;">' + dt + '</span></div>';
+    });
+    html += '</div>';
+    list.innerHTML = html;
+  } catch(e) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;">加载失败</div>';
+  }
+}
+
+// Helper: write audit log entry
+async function writeAuditLog(actionType, detail) {
+  try {
+    var op = localStorage.getItem('admin_session') === 'logged_in' ? '管理员' : '系统';
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/audit_logs', {
+      method: 'POST',
+      body: JSON.stringify({
+        action_type: actionType,
+        operator: op,
+        detail: detail,
+        created_at: new Date().toISOString()
+      })
+    });
+  } catch(e) { /* silent */ }
+}
 function switchTab(name) {
   localStorage.setItem('admin_active_tab', name);
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -2363,14 +2485,15 @@ async function loadData() {
     allKocs = await kocRes.json();
     allOrders = await ordRes.json();
     // Re-render current active tab
-    var tabIds = ['koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules'];
+    var tabIds = ['koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules','audit'];
     var activeId = null;
     tabIds.forEach(function(id) {
       var el = document.getElementById('tab-'+id);
       if (el && el.style.display !== 'none') activeId = id;
     });
     if (activeId) {
-      if (activeId === 'koc-ledger') renderKocTable();
+      if (activeId === 'dashboard') loadDashboard();
+      else if (activeId === 'koc-ledger') renderKocTable();
       else if (activeId === 'scoring') renderScoringTable();
       else if (activeId === 'merch') renderMerchTab();
       else if (activeId === 'diamond') renderDiamondTab();
@@ -2378,6 +2501,7 @@ async function loadData() {
       else if (activeId === 'submissions') loadSubmissions();
       else if (activeId === 'tiers') renderTiersTable();
       else if (activeId === 'rules') loadCampaignConfig();
+      else if (activeId === 'audit') loadAuditLog();
     } else {
       renderKocTable();
     }
@@ -2511,6 +2635,68 @@ function toggleCC(uid, notes) {
 }
 
 // ===== RENDER KOC LEDGER =====
+
+// ===== DASHBOARD =====
+async function loadDashboard() {
+  var periodLabel = document.getElementById('dash-period-label');
+  if (periodLabel) periodLabel.textContent = currentPeriod.replace('-', '年') + '月';
+
+  try {
+    var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=id,discord_name,uid,tier');
+    var kocs = kocRes.ok ? await kocRes.json() || [] : [];
+
+    var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=id,uid,discord_name,status,points_earned,links_engagement,links_views,created_at&order=created_at.desc');
+    var subs = subRes.ok ? await subRes.json() || [] : [];
+
+    var ordRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?select=id,uid,option_type,period&order=created_at.desc&limit=500');
+    var orders = ordRes.ok ? await ordRes.json() || [] : [];
+
+    // Filter by current period
+    var monthSubs = subs.filter(function(s) { return (s.created_at||'').substring(0,7) === currentPeriod; });
+    var monthOrders = orders.filter(function(o) { return (o.period||'') === currentPeriod; });
+
+    var totalKocs = kocs.length;
+    var totalSubs = monthSubs.length;
+    var pendingSubs = monthSubs.filter(function(s) { return s.status === 'pending'; }).length;
+    var totalLinks = monthSubs.reduce(function(su, s) { return su + (s.links_engagement||'').split('\n').filter(Boolean).length; }, 0);
+    var totalPts = monthSubs.reduce(function(su, s) { return su + (s.points_earned||0); }, 0);
+    var totalOrders = monthOrders.length;
+
+    document.getElementById('dash-total-kocs').textContent = totalKocs;
+    document.getElementById('dash-total-subs').textContent = totalSubs;
+    document.getElementById('dash-pending-subs').textContent = pendingSubs;
+    document.getElementById('dash-total-links').textContent = totalLinks;
+    document.getElementById('dash-total-pts').textContent = totalPts;
+    document.getElementById('dash-total-orders').textContent = totalOrders;
+
+    // Rank list: top submitters by link count
+    var rankMap = {};
+    monthSubs.forEach(function(s) {
+      var key = (s.discord_name || s.uid || 'unknown');
+      if (!rankMap[key]) rankMap[key] = { name: s.discord_name || '', uid: s.uid || '', links: 0, pts: 0 };
+      rankMap[key].links += (s.links_engagement||'').split('\n').filter(Boolean).length;
+      rankMap[key].pts += (s.points_earned||0);
+    });
+    var rankList = Object.keys(rankMap).map(function(k) { return rankMap[k]; });
+    rankList.sort(function(a,b) { return b.links - a.links; });
+    rankList = rankList.slice(0, 10);
+
+    var rankHtml = '';
+    if (rankList.length === 0) {
+      rankHtml = '<div style="color:var(--text-light);font-size:12px;">本月暂无投稿</div>';
+    } else {
+      rankList.forEach(function(r, i) {
+        rankHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">';
+        rankHtml += '<span><span style="font-weight:700;color:' + (i === 0 ? '#ad1457' : i < 3 ? '#e65100' : 'var(--text)') + ';margin-right:6px;">#' + (i+1) + '</span>' + esc(r.name || r.uid) + '</span>';
+        rankHtml += '<span style="color:var(--text-light);">' + r.links + ' 条' + (r.pts > 0 ? ' · ' + r.pts + ' 分' : '') + '</span>';
+        rankHtml += '</div>';
+      });
+    }
+    document.getElementById('dash-rank-list').innerHTML = rankHtml;
+  } catch(e) {
+    document.getElementById('dash-rank-list').innerHTML = '<div style="color:#e74c3c;font-size:12px;">加载失败</div>';
+  }
+}
 function renderKocTable() {
   var q = document.getElementById('search-input').value.toLowerCase();
   var filtered = allKocs.filter(function(k) {
