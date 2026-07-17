@@ -852,49 +852,77 @@ function updateAgentRulesFromConfig() {
 // ===== MOCHI DISCORD BOT FUNCTIONS =====
 // Send a DM to a user by their Discord username (resolves member first)
 async function sendMochiDM(discordUsername, message) {
-  if (!discordUsername) return false;
+  if (!discordUsername) return { ok: false, reason: '空用户名' };
   try {
-    // Find member by username in the guild
     var membersRes = await fetch('https://discord.com/api/v10/guilds/' + DISCORD_GUILD_ID + '/members?limit=1000', {
       headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN }
     });
-    if (!membersRes.ok) { console.error('Failed to fetch members'); return false; }
+    if (!membersRes.ok) {
+      var errText = await membersRes.text().catch(function(){return ''});
+      return { ok: false, reason: '获取成员失败 HTTP ' + membersRes.status + ': ' + errText.substring(0, 60) };
+    }
     var members = await membersRes.json();
-    
-    // Match by username (case-insensitive)
-    var targetName = discordUsername.toLowerCase().replace(/[^a-z0-9_]/g, '');
-    var member = members.find(function(m) {
-      var un = (m.user.username || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
-      var nick = (m.nick || '').toLowerCase().replace(/[^a-z0-9_]/g, '');
-      return un === targetName || nick === targetName;
+
+    // Normalize: strip emoji/special chars, lowercase, trim
+    function norm(n) {
+      if (!n) return '';
+      // Keep letters digits underscore hyphen space
+      return n.replace(/[^\w\- ]/g, '').trim().toLowerCase();
+    }
+    var targetNorm = norm(discordUsername);
+
+    // Try exact match first, then substring
+    var member = null;
+    members.forEach(function(m) {
+      var un = norm(m.user.username);
+      var nick = norm(m.nick);
+      var globalName = norm(m.user.global_name);
+      if (un === targetNorm || nick === targetNorm || globalName === targetNorm) {
+        member = m;
+      }
     });
+    // Fallback: substring match
+    if (!member) {
+      members.forEach(function(m) {
+        var un = norm(m.user.username);
+        var nick = norm(m.nick);
+        var globalName = norm(m.user.global_name);
+        if ((un && un.indexOf(targetNorm) >= 0) || (nick && nick.indexOf(targetNorm) >= 0) || (globalName && globalName.indexOf(targetNorm) >= 0)) {
+          member = m;
+        }
+      });
+    }
     if (!member) {
       console.warn('Could not find Discord user:', discordUsername);
-      return false;
+      return { ok: false, reason: '在服务器中未找到用户: ' + discordUsername };
     }
-    
-    // Create DM channel
+
     var dmRes = await fetch('https://discord.com/api/v10/users/@me/channels', {
       method: 'POST',
       headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN, 'Content-Type': 'application/json' },
       body: JSON.stringify({ recipient_id: member.user.id })
     });
-    if (!dmRes.ok) { console.error('Failed to create DM channel'); return false; }
+    if (!dmRes.ok) {
+      var dmErr = await dmRes.text().catch(function(){return ''});
+      return { ok: false, reason: '创建DM失败 HTTP ' + dmRes.status + ': ' + dmErr.substring(0, 60) };
+    }
     var dm = await dmRes.json();
-    
-    // Send message
+
     var msgRes = await fetch('https://discord.com/api/v10/channels/' + dm.id + '/messages', {
       method: 'POST',
       headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN, 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: message })
     });
-    return msgRes.ok;
+    if (!msgRes.ok) {
+      var msgErr = await msgRes.text().catch(function(){return ''});
+      return { ok: false, reason: '发送消息失败 HTTP ' + msgRes.status + ': ' + msgErr.substring(0, 60) };
+    }
+    return { ok: true, reason: '' };
   } catch(e) {
     console.error('sendMochiDM error:', e);
-    return false;
+    return { ok: false, reason: '异常: ' + (e.message || e) };
   }
 }
-
 // ===== SUBMISSIONS: Render table =====
 var now = new Date();
 var currentPeriod = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
@@ -2095,8 +2123,8 @@ async function confirmBroadcast() {
   var sent = 0;
   var failed = 0;
   for (var i = 0; i < targets.length; i++) {
-    var ok = await sendMochiDM(targets[i].discord_name, msg);
-    if (ok) sent++; else failed++;
+    var result = await sendMochiDM(targets[i].discord_name, msg);
+    if (result.ok) { sent++; } else { failed++; statusEl.textContent += ' | ' + targets[i].discord_name + ': ' + result.reason; }
     statusEl.textContent = '⏳ 进度: ' + (i+1) + '/' + targets.length + ' (成功' + sent + ', 失败' + failed + ')';
     if (i < targets.length - 1) await new Promise(r => setTimeout(r, 1000));
   }
