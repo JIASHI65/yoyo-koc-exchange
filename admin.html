@@ -1926,19 +1926,8 @@ async function previewBroadcast(type) {
   try {
     // Step 1: 从 Discord 获取所有成员
     var memberData = await discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN);
-    if (!memberRes.ok) {
-      var _err = await memberRes.text().catch(function(){return 'unknown error'});
-      showToast('API请求失败: ' + _err.substring(0,120), 'error');
-      var dbg = document.getElementById('mochi-debug');
-      if (dbg) { dbg.style.display = 'block'; dbg.textContent = 'API error: ' + _err.substring(0,300); }
-      console.error('previewBroadcast memberRes error:', _err);
-      return;
-    }
-    var memberData = await memberRes.json();
     if (!memberData.ok) {
       showToast('API返回错误: ' + JSON.stringify(memberData), 'error');
-      var dbg = document.getElementById('mochi-debug');
-      if (dbg) { dbg.style.display = 'block'; dbg.textContent = 'API bad response: ' + JSON.stringify(memberData).substring(0,300); }
       console.error('previewBroadcast memberData:', memberData);
       return;
     }
