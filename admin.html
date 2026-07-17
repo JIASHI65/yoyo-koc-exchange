@@ -858,7 +858,7 @@ async function sendMochiDM(discordUsername, message) {
     // Step 1: 通过 Edge Function 获取所有成员
     var memberRes = await fetch(SUPABASE_URL + '/functions/v1/discord-proxy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
       body: JSON.stringify({
         action: 'list_members',
         data: { guild_id: DISCORD_GUILD_ID },
@@ -906,7 +906,7 @@ async function sendMochiDM(discordUsername, message) {
     // Step 2: 通过 Edge Function 发送私信
     var dmRes = await fetch(SUPABASE_URL + '/functions/v1/discord-proxy', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
       body: JSON.stringify({
         action: 'send_dm',
         data: { user_id: member.id, message: message },
@@ -1920,7 +1920,7 @@ async function previewBroadcast(type) {
       // Step 1: 从 Discord 获取所有成员
       var memberRes = await fetch(SUPABASE_URL + '/functions/v1/discord-proxy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY },
         body: JSON.stringify({
           action: 'list_members',
           data: { guild_id: DISCORD_GUILD_ID },
