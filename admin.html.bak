@@ -188,7 +188,6 @@
           <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="cb-welcome" checked> 🎁 Welcome gift</label>
           <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="cb-new-creator" checked> 🆕 New Creator</label>
           <button class="btn btn-primary btn-sm" onclick="addKOC()">+ Add KOC</button>
-          <button class="btn btn-sm" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80;" onclick="batchMarkOldCreator()">📋 标记为老创作者</button>
         </div>
         <div class="row">
           <input type="text" id="search-input" placeholder="Search Discord or UID..." style="width:220px;" oninput="renderKocTable()">
@@ -422,7 +421,7 @@ Elite: 连续 6 个月达到 5 分</textarea>
             <button class="btn btn-outline" id="btn-cancel-import" onclick="cancelScoreImport()" style="padding:10px 28px;font-size:14px;margin-left:12px;border:2px solid #ccc;border-radius:10px;background:white;cursor:pointer;">✖ 取消</button>
           </div>
         </div>
-        <div class="row" style="margin-bottom:8px;">
+        <div class="row" style="margin-bottom:8px;"><div class="row" style="margin-bottom:8px;">
           <input type="text" id="submission-search" placeholder="Search Discord name..." style="width:200px;" oninput="renderSubmissions()">
           <select id="submission-filter" onchange="renderSubmissions()" style="width:140px;">
             <option value="pending">⏳ Pending</option>
@@ -1685,16 +1684,15 @@ async function confirmScoreImport() {
   btn.disabled = true;
   btn.textContent = '\u23f3 标记中...';
   var status = document.getElementById('paste-status');
-  status.textContent = '\u23f3 正在标记已评分并写入积分...';
+  status.textContent = '\u23f3 正在标记已评分并刷新...';
   status.style.color = 'var(--text-light)';
   try {
     var result = pendingScoreResult;
     var errors = [];
     var successCount = 0;
     var totalPts = 0;
-    var pushedUids = {}; // track which uids already got points written
     
-    // Mark each merged submission as scored AND write points
+    // Mark each merged submission as scored
     for (var i = 0; i < result.submissions.length; i++) {
       var sub = result.submissions[i];
       totalPts += sub.points_earned || 0;
@@ -1731,72 +1729,7 @@ async function confirmScoreImport() {
         }
       }
       
-      // Write points to point_logs automatically (no need for separate push)
-      if (sub.uid && !pushedUids[sub.uid] && (sub.points_earned || 0) > 0) {
-        pushedUids[sub.uid] = true;
-        var pts = sub.points_earned || 0;
-        try {
-          // Get current balance
-          var balRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&order=created_at.desc&limit=1');
-          var currentBalance = 0;
-          if (balRes.ok) {
-            var balData = await balRes.json();
-            if (balData && balData.length > 0) currentBalance = balData[0].balance_after || 0;
-          }
-          var newBalance = currentBalance + pts;
-          await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
-            method: 'POST',
-            body: JSON.stringify({
-              uid: sub.uid,
-              change: pts,
-              balance_after: newBalance,
-              source: 'auto_settlement',
-              reason: currentPeriod + ' submission settlement',
-              period: currentPeriod,
-              created_by: 'admin_confirm'
-            })
-          });
-        } catch(e) { console.error('point_logs error for ' + sub.uid, e); }
-        
-        // === NEW CREATOR BONUS (新人任务) ===
-        try {
-          var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=notes');
-          if (kocRes.ok) {
-            var kocData = await kocRes.json();
-            if (kocData && kocData.length > 0) {
-              var notes = kocData[0].notes || '';
-              // Check if user is old_creator (skip newbie)
-              if (notes.indexOf('old_creator') === -1 && notes.indexOf('newbie_month:' + currentPeriod) >= 0 && notes.indexOf('newbie_bonus:' + currentPeriod) === -1 && pts >= 5) {
-                // Grant +2 bonus
-                var bonusBal = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&order=created_at.desc&limit=1');
-                var bonusCur = 0;
-                if (bonusBal.ok) {
-                  var bd = await bonusBal.json();
-                  if (bd && bd.length > 0) bonusCur = bd[0].balance_after || 0;
-                }
-                await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
-                  method: 'POST',
-                  body: JSON.stringify({
-                    uid: sub.uid,
-                    change: 2,
-                    balance_after: bonusCur + 2,
-                    source: 'auto_settlement',
-                    reason: 'New Creator Bonus (\u65b0\u4eba\u4efb\u52a1) - ' + currentPeriod + ' 5pts reach',
-                    period: currentPeriod,
-                    created_by: 'admin_confirm'
-                  })
-                });
-                var updatedNotes = notes + ', newbie_bonus:' + currentPeriod;
-                await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
-                  method: 'PATCH', body: JSON.stringify({ notes: updatedNotes })
-                });
-              }
-            }
-          }
-        } catch(e) { console.error('newbie bonus error:', e); }
-      }
-      
-      // Auto-detect CC (unchanged)
+      // Auto-detect CC
       if ((sub.points_earned || 0) > 0 && sub.uid) {
         try {
           var cntRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(sub.uid) + '&status=eq.scored&select=id&limit=60');
@@ -1814,6 +1747,7 @@ async function confirmScoreImport() {
                     await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
                       method: 'PATCH', body: JSON.stringify({ notes: notes2 })
                     });
+                    // Create CC order
                     var checkCC = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(sub.uid) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod) + '&select=id');
                     if (checkCC.ok) {
                       var existingCC = await checkCC.json();
@@ -1845,7 +1779,7 @@ async function confirmScoreImport() {
       }
     }
     
-    var msg = '\u2705 已标记 ' + successCount + ' 条为已评分，写入 ' + Object.keys(pushedUids).length + ' 位创作者积分';
+    var msg = '\u2705 已标记 ' + successCount + ' 条为已评分，共 ' + totalPts + ' 分。';
     if (errors.length > 0) msg += '\u26a0\ufe0f ' + errors.length + ' 条失败';
     status.textContent = msg;
     status.style.color = errors.length > 0 ? '#ff9800' : '#4caf50';
@@ -1859,8 +1793,6 @@ async function confirmScoreImport() {
   pendingScoreResult = null;
   document.getElementById('score-preview-area').style.display = 'none';
   document.getElementById('import-action-bar').style.display = 'none';
-  // Mark submissions as pushed to prevent double-count
-  if (!pushedUids || Object.keys(pushedUids).length === 0) pushedUids = {};
   // Refresh all tabs
   loadSubmissions();
   renderKocTable();
@@ -2465,36 +2397,6 @@ function toggleOrders(uid) {
 }
 
 // ===== ADD KOC =====
-async function batchMarkOldCreator() {
-  var names = prompt('\u8f93\u5165\u8981\u6807\u8bb0\u4e3a\u8001\u521b\u4f5c\u8005\u7684 Discord \u540d\u79f0\uff08\u6bcf\u884c\u4e00\u4e2a\uff09:', 'Rowdy-Bones\nAchiru\nadalia\nClarySage8611\nDatuzu\ndiana\nEma\u2661\nJanie\nkanansai\nlaarakln\n\ud835\udd76\ud835\udd90\ud835\udd8d\nLondon\nMaia\nmaished\nPrimroseku\nSusanne (user: susannepandawhale)\ntaylor\nMia');
-  if (!names) return;
-  var lines = names.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
-  var updated = 0;
-  var errors = [];
-  for (var i = 0; i < lines.length; i++) {
-    var name = lines[i];
-    try {
-      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?discord_name=eq.' + encodeURIComponent(name) + '&select=uid,notes');
-      if (!r.ok) { errors.push(name + ': HTTP ' + r.status); continue; }
-      var d = await r.json();
-      if (!d || d.length === 0) { errors.push(name + ': not found'); continue; }
-      var k = d[0];
-      var notes = k.notes || '';
-      if (notes.indexOf('old_creator') === -1) {
-        notes = notes ? notes + ', old_creator:true' : 'old_creator:true';
-        await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(k.uid), {
-          method: 'PATCH', body: JSON.stringify({ notes: notes })
-        });
-      }
-      updated++;
-    } catch(e) { errors.push(name + ': ' + e.message); }
-  }
-  var msg = '\u2705 ' + updated + ' \u4f4d\u5df2\u6807\u8bb0\u4e3a\u8001\u521b\u4f5c\u8005';
-  if (errors.length > 0) msg += '\n\u26a0\ufe0f ' + errors.length + ' \u5931\u8d25: ' + errors.join(', ');
-  showToast(msg, errors.length > 0 ? 'warning' : 'success');
-  loadData();
-}
-
 async function addKOC() {
   var discord = document.getElementById('new-discord').value.trim();
   var uid = document.getElementById('new-uid').value.trim();

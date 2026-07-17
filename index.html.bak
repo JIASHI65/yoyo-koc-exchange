@@ -254,13 +254,14 @@
         🤔 没找到答案？去 <strong>🎫｜town-service-station</strong> 发帖提问，客服会尽快回复你～
       </div>
       <div class="card" style="text-align:center;">
-        <div style="font-size:14px;font-weight:600;margin-bottom:8px;">💬 去发帖</div>
-        <a href="https://discord.com/channels/1263505733180854392/1458347958389965035" target="_blank" rel="noopener" style="display:inline-block;padding:10px 24px;background:#5865F2;color:white;border-radius:20px;font-size:14px;text-decoration:none;">🎫｜town-service-station</a>
-        <div style="margin:16px 0;height:1px;background:var(--border);"></div>
-        <div style="font-size:48px;margin:0 0 10px;">❓</div>
+        <div style="font-size:48px;margin:20px 0 10px;">❓</div>
         <div style="font-size:18px;font-weight:700;margin-bottom:6px;">常见问题解答</div>
         <div style="font-size:13px;color:var(--text-light);margin-bottom:20px;">点击下方按钮在新标签页打开 FAQ，搜索你的问题</div>
         <a href="https://jiashi65.github.io/yoyo-koc-faq/" target="_blank" rel="noopener" style="display:inline-block;padding:14px 40px;background:var(--pink-dark);color:white;border-radius:30px;font-size:16px;font-weight:600;text-decoration:none;">📖 打开 FAQ</a>
+        <div style="margin-top:30px;padding-top:20px;border-top:1px solid var(--border);">
+          <div style="font-size:14px;font-weight:600;margin-bottom:8px;">💬 去发帖</div>
+          <a href="https://discord.com/channels/1263505733180854392/1458347958389965035" target="_blank" rel="noopener" style="display:inline-block;padding:10px 24px;background:#5865F2;color:white;border-radius:20px;font-size:14px;text-decoration:none;">🎫｜town-service-station</a>
+        </div>
       </div>
     </div>
 
@@ -431,9 +432,11 @@ function initSubmitTab() {
   var discordEl = document.getElementById('submit-discord');
   if (discordEl) discordEl.value = currentUser.discord_name || '';
   var serverEl = document.getElementById('submit-server');
+  // Try to fill server from user data if available
   if (serverEl && currentUser.server && !serverEl.value) {
     serverEl.value = currentUser.server;
   }
+  // Show period label
   var periodLabel = document.getElementById('submit-period-label');
   if (!periodLabel) {
     var submitCard = document.querySelector('#creator-tab-submit .card-title');
@@ -445,31 +448,6 @@ function initSubmitTab() {
     }
   }
   if (periodLabel) periodLabel.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
-  // Check if already at max submissions (2) and lock form
-  (async function() {
-    try {
-      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id');
-      if (!r.ok) return;
-      var d = await r.json();
-      var cnt = (d && d.length) || 0;
-      var formArea = document.getElementById('submit-form-area');
-      var btn = document.getElementById('btn-submit');
-      var cd = document.getElementById('submit-countdown');
-      var remEl = document.getElementById('submit-remaining');
-      if (cnt >= 2) {
-        if (formArea) { formArea.style.opacity = '0.4'; formArea.style.pointerEvents = 'none'; }
-        if (btn) { btn.disabled = true; btn.textContent = '🔒 已用完机会'; }
-        if (cd) { cd.innerHTML = '⚠️ 已用完 2 次提交机会'; cd.style.background = '#fbe9e7'; }
-        if (remEl) remEl.textContent = '0';
-      } else {
-        var remaining = 2 - cnt;
-        if (remEl) remEl.textContent = remaining;
-        if (formArea) { formArea.style.opacity = '1'; formArea.style.pointerEvents = 'auto'; }
-        if (btn) { btn.disabled = false; btn.textContent = '📤 Submit Works'; }
-        if (cd) { cd.innerHTML = '📌 你有 <strong>' + remaining + '</strong> 次提交机会，检查好链接后再提交'; cd.style.background = '#fce4ec'; }
-      }
-    } catch(e) {}
-  })();
 }
 
 function showDashboard() {
