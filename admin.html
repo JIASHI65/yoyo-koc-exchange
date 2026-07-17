@@ -159,7 +159,12 @@
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:6px;background:#fce4ec;padding:6px 14px;border-radius:10px;border:2px solid var(--pink);">
           <span style="font-size:13px;font-weight:600;color:var(--pink-dark);">📅 结算月份</span>
-          <select id="settle-month" style="width:140px;padding:4px 8px;border:1.5px solid var(--pink);border-radius:6px;font-size:13px;font-weight:600;" onchange="changeSettlePeriod()">
+          <div style="display:flex;align-items:center;gap:4px;">
+            <button class="btn btn-sm" style="padding:2px 8px;font-size:14px;" onclick="shiftSettleMonth(-1)" title="上月">◀</button>
+            <span id="settle-month-display" style="font-size:13px;font-weight:700;color:var(--pink-dark);min-width:80px;text-align:center;">2026年7月</span>
+            <button class="btn btn-sm" style="padding:2px 8px;font-size:14px;" onclick="shiftSettleMonth(1)" title="下月">▶</button>
+          </div>
+          <select id="settle-month" style="display:none;">
             <option value="2026-01">2026年1月</option>
             <option value="2026-02">2026年2月</option>
             <option value="2026-03">2026年3月</option>
@@ -2644,6 +2649,30 @@ function initSettleSelect() {
   // Sync label
   var lbl = document.getElementById('settle-label');
   if (lbl) lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
+}
+function shiftSettleMonth(delta) {
+  // Parse current period
+  var parts = currentPeriod.split('-');
+  var y = parseInt(parts[0]), m = parseInt(parts[1]);
+  m += delta;
+  if (m < 1) { m = 12; y--; }
+  if (m > 12) { m = 1; y++; }
+  currentPeriod = y + '-' + String(m).padStart(2, '0');
+  // Sync hidden select
+  var sel = document.getElementById('settle-month');
+  if (sel) sel.value = currentPeriod;
+  // Update display
+  var disp = document.getElementById('settle-month-display');
+  if (disp) disp.textContent = currentPeriod.replace('-', '年') + '月';
+  var lbl = document.getElementById('settle-label');
+  if (lbl) lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
+  // Refresh all tabs
+  renderKocTable();
+  renderScoringTable();
+  renderMerchTab();
+  renderDiamondTab();
+  renderGplayTab();
+  showToast('📅 切换到 ' + currentPeriod.replace('-', '年') + '月', 'success');
 }
 function changeSettlePeriod() {
   currentPeriod = document.getElementById('settle-month').value;
