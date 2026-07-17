@@ -384,6 +384,16 @@ async function login() {
     let data = await res.json();
 
     if (!data || data.length === 0) {
+      if (statusEl) statusEl.textContent = 'Trying UID match...';
+      let res2 = await fetchWithTimeout(
+        SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid) +
+        '&select=uid,discord_name,name,status',
+        {}, 15000
+      );
+      if (res2.ok) data = await res2.json();
+    }
+
+    if (!data || data.length === 0) {
       showToast('No match found. Check your UID or contact admin.', 'error');
       btn.disabled = false; btn.textContent = 'Check My Points';
       if (statusEl) statusEl.textContent = '';

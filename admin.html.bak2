@@ -1726,27 +1726,12 @@ async function confirmScoreImport() {
         return (rs.uid === sub.uid) || (rs.discord_name === sub.discord_name); 
       });
       
-      // Write each raw submission's OWN points, not merged total
       for (var j = 0; j < matchedRaw.length; j++) {
         var rs = matchedRaw[j];
         if (rs.id) {
-          // Use the raw submission's own points, not the merged total
-          var rawPts = rs.points_earned || rs.points || 0;
-          var rawEng = rs.total_engagement || rs.engagement || 0;
-          var rawViews = rs.total_views || rs.views || 0;
-          var rawScoreDetails = rs.score_details || '';
-          if (rawScoreDetails && typeof rawScoreDetails === 'object') rawScoreDetails = JSON.stringify(rawScoreDetails);
-          var rawPayload = {
-            score_details: rawScoreDetails || updatePayload.score_details,
-            total_engagement_count: rawEng || updatePayload.total_engagement_count,
-            total_view_count: rawViews || updatePayload.total_view_count,
-            points_earned: rawPts || updatePayload.points_earned,
-            status: 'scored',
-            scored_at: new Date().toISOString()
-          };
           var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + rs.id, {
             method: 'PATCH',
-            body: JSON.stringify(rawPayload)
+            body: JSON.stringify(updatePayload)
           });
           if (resp.ok) successCount++;
           else errors.push('#' + rs.id + ': ' + resp.status);
@@ -2441,7 +2426,7 @@ function renderScoringTable() {
           '<label class="toggle-label" for="cc-' + k.uid + '"></label>' +
         '</div>' +
       '</td>' +
-      '<td><button class="btn btn-sm" style="background:#e8e0ff;color:#6a3de8;" onclick="openPointModal(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">💳 积分</button></td>' +
+      '<td><button class="btn btn-sm" style="background:#e8e0ff;color:#6a3de8;" onclick="openPointsModal(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">💳 积分</button></td>' +
       '<td>' +
         (pendingOrders.length > 0 ? '<span class="badge badge-pending" style="cursor:pointer;" onclick="toggleOrders(\'' + k.uid + '\')">' + pendingOrders.length + ' pending</span>' : '<span style="color:var(--text-light);font-size:12px;">0</span>') +
         '<div id="orders-' + k.uid + '" class="hidden" style="margin-top:4px;max-width:240px;">' +
