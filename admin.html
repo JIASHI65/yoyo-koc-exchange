@@ -610,7 +610,9 @@ let allKocs = [];
 let allOrders = [];
 let editingUid = null;
 
-function supabaseFetch(url, opts = {}
+function supabaseFetch(url, opts = {}) {
+  return fetch(url, { ...opts, headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json', ...opts.headers } });
+}
 
 // Discord API proxy call - uses XHR to avoid Safari CORS issues with Edge Functions
 function discordProxyFetch(action, data, token) {
