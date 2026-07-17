@@ -1895,6 +1895,7 @@ function importScoreFile(event) {
 
 // Override switchTab to also load submissions
 function switchTab(name) {
+  localStorage.setItem('admin_active_tab', name);
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.querySelector('.tab[onclick*="' + name + '"]').classList.add('active');
@@ -3262,6 +3263,12 @@ function updateDeadlineDisplay(date, time) {
   document.getElementById('deadline-status').textContent = date ? '\u23F0 ' + date + ' ' + time : '';
   document.getElementById('deadline-show').textContent = date ? '\u23F0 Closes: ' + date : '';
 }
+
+  // Restore saved tab after refresh
+  var savedTab = localStorage.getItem('admin_active_tab');
+  if (savedTab && ['koc-ledger','scoring','submissions','merch','diamond','gplay','rules'].indexOf(savedTab) >= 0) {
+    switchTab(savedTab);
+  }
 </script>
 </body>
 </html>
