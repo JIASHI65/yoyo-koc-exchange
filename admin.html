@@ -2313,8 +2313,9 @@ async function checkNewMembers() {
 
 function openMochiBroadcast() {
   document.getElementById('mochi-modal').classList.remove('hidden');
-  // mochi-message removed
-
+  // 回显已保存的 Token
+  var savedToken = localStorage.getItem('mochi_token') || '';
+  if (savedToken) document.getElementById('mochi-token-input').value = savedToken;
   document.getElementById('mochi-status').textContent = '';
 }
 
