@@ -594,6 +594,7 @@ function showToast(m, t = '') {
 // ===== LOGIN =====
 function adminLogin() {
   if (document.getElementById('admin-pw').value === ADMIN_PASSWORD) {
+    localStorage.setItem('admin_session', 'logged_in');
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('admin-panel').classList.remove('hidden');
     loadData();
@@ -601,6 +602,8 @@ function adminLogin() {
 }
 
 function adminLogout() {
+  localStorage.removeItem('admin_session');
+  localStorage.removeItem('admin_active_tab');
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('admin-panel').classList.add('hidden');
   document.getElementById('admin-pw').value = '';
@@ -3269,6 +3272,15 @@ function updateDeadlineDisplay(date, time) {
   if (savedTab && ['koc-ledger','scoring','submissions','merch','diamond','gplay','rules'].indexOf(savedTab) >= 0) {
     switchTab(savedTab);
   }
+
+// Auto-login + restore tab on page load
+(function() {
+  if (localStorage.getItem('admin_session') === 'logged_in') {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('admin-panel').classList.remove('hidden');
+    loadData();
+  }
+})();
 </script>
 </body>
 </html>
