@@ -188,6 +188,7 @@
           <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="cb-welcome" checked> 🎁 Welcome gift</label>
           <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="cb-new-creator" checked> 🆕 New Creator</label>
           <button class="btn btn-primary btn-sm" onclick="addKOC()">+ Add KOC</button>
+          <button class="btn btn-sm" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80;" onclick="batchMarkOldCreator()">📋 标记为老创作者</button>
         </div>
         <div class="row">
           <input type="text" id="search-input" placeholder="Search Discord or UID..." style="width:220px;" oninput="renderKocTable()">
@@ -217,7 +218,7 @@
         <div class="row" style="margin-bottom:8px;background:var(--pink-light);padding:8px 12px;border-radius:8px;align-items:center;justify-content:space-between;">
           <div style="display:flex;gap:8px;align-items:center;">
             <span style="font-size:12px;color:var(--text-light);">💡 确认应用积分后，点此按钮将积分同步到创作者端</span>
-            <button class="btn btn-sm" id="btn-push-points" style="background:#f9a825;color:white;font-weight:700;padding:8px 16px;font-size:13px;" onclick="pushPointsToFrontend()">📤 传送积分到前端</button>
+            <span style="font-size:11px;color:#4caf50;padding:8px 0;display:inline-block;">✅ 确认应用时已自动写入积分，不需要再次传送</span>
           </div>
           <button class="btn btn-sm" id="btn-toggle-redeem" style="background:#43b581;color:white;font-weight:700;padding:8px 16px;" onclick="toggleRedemption()">🔓 开放兑换</button>
         </div>
@@ -421,9 +422,13 @@ Elite: 连续 6 个月达到 5 分</textarea>
             <button class="btn btn-outline" id="btn-cancel-import" onclick="cancelScoreImport()" style="padding:10px 28px;font-size:14px;margin-left:12px;border:2px solid #ccc;border-radius:10px;background:white;cursor:pointer;">✖ 取消</button>
           </div>
         </div>
-        <div class="row" style="margin-bottom:8px;"><div class="row" style="margin-bottom:8px;">
+        <div class="row" style="margin-bottom:8px;">
           <input type="text" id="submission-search" placeholder="Search Discord name..." style="width:200px;" oninput="renderSubmissions()">
           <select id="submission-filter" onchange="renderSubmissions()" style="width:140px;">
+          <select id="submission-merge" onchange="renderSubmissions()" style="width:100px;margin-left:6px;">
+            <option value="yes">🔗 合并</option>
+            <option value="no">📋 明细</option>
+          </select>
             <option value="pending">⏳ Pending</option>
             <option value="scored">✅ Scored</option>
             <option value="all">All</option>
@@ -513,7 +518,7 @@ Elite: 连续 6 个月达到 5 分</textarea>
 
 <!-- ===== MODAL: Mochi Broadcast ===== -->
 <div id="mochi-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeMochiModal()">
-  <div class="modal">
+  <div class="modal" style="max-width:560px;">
     <h3>💬 Mochi 消息中心</h3>
     <label>Bot Token <span style="font-size:11px;color:var(--text-light);">（首次使用填写）</span></label>
     <input type="password" id="mochi-token-input" style="width:100%;margin-bottom:8px;" placeholder="Enter Mochi Bot Token">
@@ -524,26 +529,42 @@ Elite: 连续 6 个月达到 5 分</textarea>
       <option value="1458349180748828757">🎨 creators-exchange</option>
       <option value="1458348802397442149">💡 official-inspirations</option>
     </select>
-    <textarea id="mochi-message" style="width:100%;min-height:80px;margin-bottom:6px;" placeholder="输入自定义消息..."></textarea>
+    <textarea id="mochi-message" style="width:100%;min-height:60px;margin-bottom:6px;" placeholder="输入自定义消息..."></textarea>
     <button class="btn btn-primary btn-sm" onclick="confirmMochiBroadcast()" style="width:100%;background:#5865F2;margin-bottom:8px;">💬 发送到频道</button>
 
-    <div style="font-size:13px;font-weight:600;margin:4px 0 4px;">✉️ 一键私信所有创作者</div>
-    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;">
-      <button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;text-align:left;" onclick="sendDMPreset('welcome')">🆕 ① 新人欢迎 — 发送注册链接</button>
-      <button class="btn btn-sm" style="background:#fff8e1;color:#b8860b;text-align:left;" onclick="sendDMPreset('collection')">📥 ② 催交链接 — 收集作品提醒</button>
-      <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;text-align:left;" onclick="sendDMPreset('scored')">✅ ③ 算分完成 — 通知积分结果</button>
-      <button class="btn btn-sm" style="background:#f3e5f5;color:#7b1fa2;text-align:left;" onclick="sendDMPreset('tierup')">⭐ ④ 等级变动 — 晋升通知</button>
+    <div style="font-size:13px;font-weight:600;margin:4px 0 4px;">✉️ 条件私信（按条件筛选 → 预览编辑 → 确认发送）</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px;">
+      <button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;text-align:left;" onclick="previewBroadcast('welcome')">🆕 ① 新人欢迎 — 发送注册链接</button>
+      <button class="btn btn-sm" style="background:#fff3e0;color:#e65100;text-align:left;" onclick="previewBroadcast('reminder')">📥 ② 催交链接 — 收集作品提醒</button>
+      <button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;text-align:left;" onclick="previewBroadcast('scored')">✅ ③ 算分完成 — 通知积分结果</button>
+      <button class="btn btn-sm" style="background:#f3e5f5;color:#6a1b9a;text-align:left;" onclick="previewBroadcast('tier_upgrade')">⭐ ④ 等级变动 — 晋升通知</button>
     </div>
-    <textarea id="mochi-preset-preview" style="width:100%;min-height:80px;margin-bottom:6px;font-size:12px;color:var(--text-light);" readonly placeholder="点击预设按钮预览消息内容..."></textarea>
+    
+    <!-- 预览/编辑区 -->
+    <div id="broadcast-preview-area" style="display:none;background:white;border:2px solid #5865F2;border-radius:12px;padding:12px;margin-top:4px;margin-bottom:8px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px;">📋 发送预览</div>
+      <div style="font-size:12px;color:var(--text-light);margin-bottom:4px;">
+        收件人: <strong id="broadcast-target-count">0</strong> 人
+      </div>
+      <div id="broadcast-target-list" style="max-height:100px;overflow-y:auto;background:#f5f5f5;border:1px solid #eee;border-radius:6px;padding:6px;margin-bottom:6px;font-size:11px;font-family:monospace;"></div>
+      <div style="display:flex;gap:4px;margin-bottom:6px;">
+        <button class="btn btn-sm" style="background:#f5f5f5;font-size:11px;padding:4px 6px;" onclick="addBroadcastTarget()">➕ 添加</button>
+        <button class="btn btn-sm" style="background:#ffebee;font-size:11px;padding:4px 6px;color:#e74c3c;" onclick="removeBroadcastTarget()">➖ 移除勾选的</button>
+      </div>
+      <label style="font-size:11px;font-weight:600;">消息内容（可编辑）:</label>
+      <textarea id="broadcast-msg-editor" style="width:100%;min-height:70px;border:1px solid #ddd;border-radius:6px;padding:6px;font-size:12px;margin-bottom:6px;"></textarea>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-primary" style="flex:1;background:#5865F2;font-weight:700;" onclick="confirmBroadcast()">📤 确认发送</button>
+        <button class="btn btn-outline" style="flex:0.4;" onclick="document.getElementById('broadcast-preview-area').style.display='none'">✖ 取消</button>
+      </div>
+    </div>
+    
     <div class="row">
-      <button class="btn btn-primary" onclick="sendMochiDMPreset()" style="flex:1;background:#5865F2;">✉️ 发送私信</button>
-      <button class="btn btn-outline" onclick="closeMochiModal()" style="flex:1;">Cancel</button>
+      <button class="btn btn-outline" onclick="closeMochiModal()" style="flex:1;">关闭</button>
     </div>
     <div id="mochi-status" style="font-size:12px;color:var(--text-light);margin-top:4px;"></div>
   </div>
-</div>
-
-<div id="toast" class="toast"></div>
+</div><div id="toast" class="toast"></div>
 
 <script>/* v1784200691 */
 const SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
@@ -589,6 +610,7 @@ function showToast(m, t = '') {
 // ===== LOGIN =====
 function adminLogin() {
   if (document.getElementById('admin-pw').value === ADMIN_PASSWORD) {
+    localStorage.setItem('admin_session', 'logged_in');
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('admin-panel').classList.remove('hidden');
     loadData();
@@ -596,6 +618,8 @@ function adminLogin() {
 }
 
 function adminLogout() {
+  localStorage.removeItem('admin_session');
+  localStorage.removeItem('admin_active_tab');
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('admin-panel').classList.add('hidden');
   document.getElementById('admin-pw').value = '';
@@ -1506,84 +1530,8 @@ var pendingScoreResult = null;
 
 
 // ===== 传送积分到前端（写入 point_logs）=====
-async function pushPointsToFrontend() {
-  if (!confirm('确认将当前月份(' + currentPeriod + ')所有已评分作品的积分传送到创作者端？')) return;
-  var btn = document.getElementById('btn-push-points');
-  btn.disabled = true;
-  btn.textContent = '⏳ 传送中...';
-  var status = document.getElementById('paste-status');
-  status.textContent = '⏳ 正在写入积分...';
-  status.style.color = 'var(--text-light)';
-  
-  try {
-    // Get all scored submissions for current period that haven't been pushed yet
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?status=eq.scored&select=uid,discord_name,points_earned,created_at&limit=500');
-    if (!res.ok) throw new Error('Failed to fetch submissions: ' + res.status);
-    var subs = await res.json();
-    
-    // Group by uid to merge
-    var uidMap = {};
-    subs.forEach(function(s) {
-      if (!s.uid || !s.points_earned) return;
-      if (!uidMap[s.uid]) {
-        uidMap[s.uid] = { uid: s.uid, discord_name: s.discord_name, total_pts: 0 };
-      }
-      uidMap[s.uid].total_pts += s.points_earned;
-    });
-    
-    var written = 0;
-    for (var uid in uidMap) {
-      var entry = uidMap[uid];
-      var pts = entry.total_pts;
-      if (pts <= 0) continue;
-      
-      // Get current balance
-      var balRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(uid) + '&order=created_at.desc&limit=1');
-      var currentBalance = 0;
-      if (balRes.ok) {
-        var balData = await balRes.json();
-        if (balData && balData.length > 0) currentBalance = balData[0].balance_after || 0;
-      }
-      
-      var newBalance = currentBalance + pts;
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
-        method: 'POST',
-        body: JSON.stringify({
-          uid: uid,
-          change: pts,
-          balance_after: newBalance,
-          source: 'auto_settlement',
-          reason: currentPeriod + ' submission settlement',
-          period: currentPeriod,
-          created_by: 'admin_push'
-        })
-      });
-      written++;
-    }
-    
-    // Update all submissions to prevent double-push (mark with period tag)
-    for (var i = 0; i < subs.length; i++) {
-      var s = subs[i];
-      if (s.id) {
-        await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + s.id, {
-          method: 'PATCH',
-          body: JSON.stringify({ admin_notes: 'pushed:' + currentPeriod })
-        });
-      }
-    }
-    
-    status.textContent = '✅ 已传送 ' + written + ' 位创作者，积分已到账前端';
-    status.style.color = '#4caf50';
-    showToast('✅ 积分已传送到 ' + written + ' 位创作者', 'success');
-    renderScoringTable();
-  } catch(e) {
-    status.textContent = '❌ 传送失败: ' + e.message;
-    status.style.color = '#e74c3c';
-    showToast('❌ 失败: ' + e.message, 'error');
-  }
-  btn.disabled = false;
-  btn.textContent = '📤 传送积分到前端';
-}
+// pushPointsToFrontend disabled - confirmScoreImport already writes points
+async function pushPointsToFrontend() { showToast('\u2705 \u786e\u8ba4\u5e94\u7528\u65f6\u5df2\u81ea\u52a8\u5199\u5165\u79ef\u5206\uff0c\u4e0d\u9700\u8981\u518d\u6b21\u4f20\u9001', 'success'); }
 
 function previewScoreResult(text) {
   pendingScoreResult = null;
@@ -1684,15 +1632,16 @@ async function confirmScoreImport() {
   btn.disabled = true;
   btn.textContent = '\u23f3 标记中...';
   var status = document.getElementById('paste-status');
-  status.textContent = '\u23f3 正在标记已评分并刷新...';
+  status.textContent = '\u23f3 正在标记已评分并写入积分...';
   status.style.color = 'var(--text-light)';
   try {
     var result = pendingScoreResult;
     var errors = [];
     var successCount = 0;
     var totalPts = 0;
+    var pushedUids = {}; // track which uids already got points written
     
-    // Mark each merged submission as scored
+    // Mark each merged submission as scored AND write points
     for (var i = 0; i < result.submissions.length; i++) {
       var sub = result.submissions[i];
       totalPts += sub.points_earned || 0;
@@ -1717,19 +1666,99 @@ async function confirmScoreImport() {
         return (rs.uid === sub.uid) || (rs.discord_name === sub.discord_name); 
       });
       
+      // Write each raw submission's OWN points, not merged total
       for (var j = 0; j < matchedRaw.length; j++) {
         var rs = matchedRaw[j];
         if (rs.id) {
+          // Use the raw submission's own points, not the merged total
+          var rawPts = rs.points_earned || rs.points || 0;
+          var rawEng = rs.total_engagement || rs.engagement || 0;
+          var rawViews = rs.total_views || rs.views || 0;
+          var rawScoreDetails = rs.score_details || '';
+          if (rawScoreDetails && typeof rawScoreDetails === 'object') rawScoreDetails = JSON.stringify(rawScoreDetails);
+          var rawPayload = {
+            score_details: rawScoreDetails || updatePayload.score_details,
+            total_engagement_count: rawEng || updatePayload.total_engagement_count,
+            total_view_count: rawViews || updatePayload.total_view_count,
+            points_earned: rawPts || updatePayload.points_earned,
+            status: 'scored',
+            scored_at: new Date().toISOString()
+          };
           var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + rs.id, {
             method: 'PATCH',
-            body: JSON.stringify(updatePayload)
+            body: JSON.stringify(rawPayload)
           });
           if (resp.ok) successCount++;
           else errors.push('#' + rs.id + ': ' + resp.status);
         }
       }
       
-      // Auto-detect CC
+      // Write points to point_logs automatically (no need for separate push)
+      if (sub.uid && !pushedUids[sub.uid] && (sub.points_earned || 0) > 0) {
+        pushedUids[sub.uid] = true;
+        var pts = sub.points_earned || 0;
+        try {
+          // Get current balance
+          var balRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&order=created_at.desc&limit=1');
+          var currentBalance = 0;
+          if (balRes.ok) {
+            var balData = await balRes.json();
+            if (balData && balData.length > 0) currentBalance = balData[0].balance_after || 0;
+          }
+          var newBalance = currentBalance + pts;
+          await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+            method: 'POST',
+            body: JSON.stringify({
+              uid: sub.uid,
+              change: pts,
+              balance_after: newBalance,
+              source: 'auto_settlement',
+              reason: currentPeriod + ' submission settlement',
+              period: currentPeriod,
+              created_by: 'admin_confirm'
+            })
+          });
+        } catch(e) { console.error('point_logs error for ' + sub.uid, e); }
+        
+        // === NEW CREATOR BONUS (新人任务) ===
+        try {
+          var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=notes');
+          if (kocRes.ok) {
+            var kocData = await kocRes.json();
+            if (kocData && kocData.length > 0) {
+              var notes = kocData[0].notes || '';
+              // Check if user is old_creator (skip newbie)
+              if (notes.indexOf('old_creator') === -1 && notes.indexOf('newbie_month:' + currentPeriod) >= 0 && notes.indexOf('newbie_bonus:' + currentPeriod) === -1 && pts >= 5) {
+                // Grant +2 bonus
+                var bonusBal = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&order=created_at.desc&limit=1');
+                var bonusCur = 0;
+                if (bonusBal.ok) {
+                  var bd = await bonusBal.json();
+                  if (bd && bd.length > 0) bonusCur = bd[0].balance_after || 0;
+                }
+                await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    uid: sub.uid,
+                    change: 2,
+                    balance_after: bonusCur + 2,
+                    source: 'auto_settlement',
+                    reason: 'New Creator Bonus (\u65b0\u4eba\u4efb\u52a1) - ' + currentPeriod + ' 5pts reach',
+                    period: currentPeriod,
+                    created_by: 'admin_confirm'
+                  })
+                });
+                var updatedNotes = notes + ', newbie_bonus:' + currentPeriod;
+                await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
+                  method: 'PATCH', body: JSON.stringify({ notes: updatedNotes })
+                });
+              }
+            }
+          }
+        } catch(e) { console.error('newbie bonus error:', e); }
+      }
+      
+      // Auto-detect CC (unchanged)
       if ((sub.points_earned || 0) > 0 && sub.uid) {
         try {
           var cntRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(sub.uid) + '&status=eq.scored&select=id&limit=60');
@@ -1747,7 +1776,6 @@ async function confirmScoreImport() {
                     await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
                       method: 'PATCH', body: JSON.stringify({ notes: notes2 })
                     });
-                    // Create CC order
                     var checkCC = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(sub.uid) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod) + '&select=id');
                     if (checkCC.ok) {
                       var existingCC = await checkCC.json();
@@ -1779,7 +1807,7 @@ async function confirmScoreImport() {
       }
     }
     
-    var msg = '\u2705 已标记 ' + successCount + ' 条为已评分，共 ' + totalPts + ' 分。';
+    var msg = '\u2705 已标记 ' + successCount + ' 条为已评分，写入 ' + Object.keys(pushedUids).length + ' 位创作者积分';
     if (errors.length > 0) msg += '\u26a0\ufe0f ' + errors.length + ' 条失败';
     status.textContent = msg;
     status.style.color = errors.length > 0 ? '#ff9800' : '#4caf50';
@@ -1793,6 +1821,8 @@ async function confirmScoreImport() {
   pendingScoreResult = null;
   document.getElementById('score-preview-area').style.display = 'none';
   document.getElementById('import-action-bar').style.display = 'none';
+  // Mark submissions as pushed to prevent double-count
+  if (!pushedUids || Object.keys(pushedUids).length === 0) pushedUids = {};
   // Refresh all tabs
   loadSubmissions();
   renderKocTable();
@@ -1823,6 +1853,7 @@ function importScoreFile(event) {
 
 // Override switchTab to also load submissions
 function switchTab(name) {
+  localStorage.setItem('admin_active_tab', name);
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.querySelector('.tab[onclick*="' + name + '"]').classList.add('active');
@@ -1849,7 +1880,7 @@ var mochiPresetType = '';
 var mochiPresetMessage = '';
 
 function sendDMPreset(type) {
-  var preview = document.getElementById('mochi-preset-preview');
+  // mochi-preset-preview removed
   var msg = '';
   switch(type) {
     case 'welcome':
@@ -1870,43 +1901,8 @@ function sendDMPreset(type) {
   mochiPresetMessage = msg;
 }
 
-async function sendMochiDMPreset() {
-  if (!mochiPresetMessage) { showToast('Please select a preset first', 'error'); return; }
-  if (!MOCHI_TOKEN && !document.getElementById('mochi-token-input').value) { showToast('Please enter bot token first', 'error'); return; }
-  if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
-  
-  var status = document.getElementById('mochi-status');
-  status.textContent = 'Sending DMs...';
-  status.style.color = 'var(--text-light)';
-  
-  var successCount = 0;
-  var failCount = 0;
-  
-  for (var i = 0; i < allKocs.length; i++) {
-    var k = allKocs[i];
-    if (!k.discord_name || k.discord_name === '__config__') continue;
-    try {
-      var msg = mochiPresetMessage;
-      // Personalize for scored/tierup
-      if (mochiPresetType === 'scored') {
-        var pts = k.points || 0;
-        msg = '✅ Your submission has been scored!\n\nPoints earned: ' + pts + '\n\nRedeem here: 👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html';
-      } else if (mochiPresetType === 'tierup') {
-        var tierLabel = { platinum: '💎 Platinum Creator', gold: '🟡 Gold Creator', certified: '✅ Certified Creator' };
-        msg = '⭐ Congratulations ' + k.discord_name + '! You\'ve been promoted to ' + (tierLabel[k.tier] || k.tier) + '!\n\nKeep creating to unlock more rewards! 💎';
-      }
-      await sendMochiDM(k.discord_name, msg);
-      successCount++;
-    } catch(e) {
-      failCount++;
-    }
-    // Small delay to avoid rate limits
-    if (i % 5 === 4) await new Promise(r => setTimeout(r, 1000));
-  }
-  
-  status.textContent = '✅ Sent to ' + successCount + ' creators' + (failCount > 0 ? ', ' + failCount + ' failed' : '');
-  status.style.color = successCount > 0 ? '#4caf50' : '#e74c3c';
-}
+// sendMochiDMPreset removed - use previewBroadcast/confirmBroadcast instead
+
 
 // ===== AUTO WELCOME (poll join-leave-log channel) =====
 var autoWelcomeInterval = null;
@@ -2106,6 +2102,8 @@ async function loadData() {
     ]);
     allKocs = await kocRes.json();
     allOrders = await ordRes.json();
+    // return promise for chaining
+    return true;
     // Re-render current active tab
     var activeTab = document.querySelector('.tab-content:not([style*="display: none"]), .tab-content.active');
     if (activeTab) {
@@ -2348,7 +2346,7 @@ function renderScoringTable() {
           '<label class="toggle-label" for="cc-' + k.uid + '"></label>' +
         '</div>' +
       '</td>' +
-      '<td><button class="btn btn-sm" style="background:#e8e0ff;color:#6a3de8;" onclick="openPointsModal(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">💳 积分</button></td>' +
+      '<td><button class="btn btn-sm" style="background:#e8e0ff;color:#6a3de8;" onclick="openPointModal(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">💳 积分</button></td>' +
       '<td>' +
         (pendingOrders.length > 0 ? '<span class="badge badge-pending" style="cursor:pointer;" onclick="toggleOrders(\'' + k.uid + '\')">' + pendingOrders.length + ' pending</span>' : '<span style="color:var(--text-light);font-size:12px;">0</span>') +
         '<div id="orders-' + k.uid + '" class="hidden" style="margin-top:4px;max-width:240px;">' +
@@ -2397,6 +2395,36 @@ function toggleOrders(uid) {
 }
 
 // ===== ADD KOC =====
+async function batchMarkOldCreator() {
+  var names = prompt('\u8f93\u5165\u8981\u6807\u8bb0\u4e3a\u8001\u521b\u4f5c\u8005\u7684 Discord \u540d\u79f0\uff08\u6bcf\u884c\u4e00\u4e2a\uff09:', 'Rowdy-Bones\nAchiru\nadalia\nClarySage8611\nDatuzu\ndiana\nEma\u2661\nJanie\nkanansai\nlaarakln\n\ud835\udd76\ud835\udd90\ud835\udd8d\nLondon\nMaia\nmaished\nPrimroseku\nSusanne (user: susannepandawhale)\ntaylor\nMia');
+  if (!names) return;
+  var lines = names.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+  var updated = 0;
+  var errors = [];
+  for (var i = 0; i < lines.length; i++) {
+    var name = lines[i];
+    try {
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?discord_name=eq.' + encodeURIComponent(name) + '&select=uid,notes');
+      if (!r.ok) { errors.push(name + ': HTTP ' + r.status); continue; }
+      var d = await r.json();
+      if (!d || d.length === 0) { errors.push(name + ': not found'); continue; }
+      var k = d[0];
+      var notes = k.notes || '';
+      if (notes.indexOf('old_creator') === -1) {
+        notes = notes ? notes + ', old_creator:true' : 'old_creator:true';
+        await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(k.uid), {
+          method: 'PATCH', body: JSON.stringify({ notes: notes })
+        });
+      }
+      updated++;
+    } catch(e) { errors.push(name + ': ' + e.message); }
+  }
+  var msg = '\u2705 ' + updated + ' \u4f4d\u5df2\u6807\u8bb0\u4e3a\u8001\u521b\u4f5c\u8005';
+  if (errors.length > 0) msg += '\n\u26a0\ufe0f ' + errors.length + ' \u5931\u8d25: ' + errors.join(', ');
+  showToast(msg, errors.length > 0 ? 'warning' : 'success');
+  loadData();
+}
+
 async function addKOC() {
   var discord = document.getElementById('new-discord').value.trim();
   var uid = document.getElementById('new-uid').value.trim();
@@ -3135,9 +3163,18 @@ async function saveDeadline() {
   var time = document.getElementById('deadline-time').value || '23:59';
   if (!date) { showToast('Select a date', 'error'); return; }
   
-  var config = JSON.stringify({ submission_deadline_date: date, submission_deadline_time: time });
   try {
-    // Upsert: check if config record exists
+    // Read existing config first, then merge (don't overwrite redemption_open etc.)
+    var readRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+    var existingData = readRes.ok ? await readRes.json() : [];
+    var currentConfig = {};
+    if (existingData && existingData.length > 0 && existingData[0].notes) {
+      try { currentConfig = JSON.parse(existingData[0].notes); } catch(e) { currentConfig = {}; }
+    }
+    currentConfig.submission_deadline_date = date;
+    currentConfig.submission_deadline_time = time;
+    var config = JSON.stringify(currentConfig);
+    
     var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=uid');
     var existing = await res.json();
     if (existing && existing.length > 0) {
@@ -3160,6 +3197,23 @@ function updateDeadlineDisplay(date, time) {
   document.getElementById('deadline-status').textContent = date ? '\u23F0 ' + date + ' ' + time : '';
   document.getElementById('deadline-show').textContent = date ? '\u23F0 Closes: ' + date : '';
 }
+
+
+
+// Auto-login + restore tab on page load
+(function() {
+  if (localStorage.getItem('admin_session') === 'logged_in') {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('admin-panel').classList.remove('hidden');
+    // loadData will handle tab restoration via switchTab in its completion
+    loadData().then(function() {
+      var savedTab = localStorage.getItem('admin_active_tab');
+      if (savedTab && ['koc-ledger','scoring','submissions','merch','diamond','gplay','rules'].indexOf(savedTab) >= 0) {
+        switchTab(savedTab);
+      }
+    });
+  }
+})();
 </script>
 </body>
 </html>

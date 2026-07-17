@@ -317,9 +317,7 @@ function tryAutoLogin() {
       if (submitDiscord && koc.discord_name) submitDiscord.value = typeof koc.discord_name === 'string' ? koc.discord_name : '';
       // Restore saved tab after refresh
       var savedTab = localStorage.getItem('koc_active_tab');
-      if (savedTab && ['submit','history','redeem','faq'].indexOf(savedTab) >= 0) {
-        switchCreatorTab(savedTab);
-      }
+      if (savedTab && ['submit','history','redeem','faq'].indexOf(savedTab) >= 0) switchCreatorTab(savedTab);
       initSubmitTab();
     } catch(e) { 
       console.error('Auto-login failed:', e);
@@ -488,9 +486,7 @@ function showDashboard() {
   document.getElementById('display-user').textContent = 'Welcome, ' + displayName;
   var spl = document.getElementById('sub-period-label'); if (spl) spl.textContent = currentPeriod.replace('-', '年') + '月';
   document.getElementById('current-period-label').textContent = currentPeriod.replace('-', '年') + '月';
-  initSubmitTab();
-  var savedTab = localStorage.getItem('koc_active_tab');
-  switchCreatorTab(savedTab && ['submit','history','redeem','faq'].indexOf(savedTab) >= 0 ? savedTab : 'submit');
+  // initSubmitTab called by switchCreatorTab
   // Fetch and show tier badge
   try {
     (async function() {
