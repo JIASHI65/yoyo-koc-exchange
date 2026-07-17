@@ -2666,12 +2666,23 @@ function shiftSettleMonth(delta) {
   if (disp) disp.textContent = currentPeriod.replace('-', '年') + '月';
   var lbl = document.getElementById('settle-label');
   if (lbl) lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
-  // Refresh all tabs
-  renderKocTable();
-  renderScoringTable();
-  renderMerchTab();
-  renderDiamondTab();
-  renderGplayTab();
+  // Refresh current active tab
+  var activeId = null;
+  var tabIds = ['dashboard','koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules','audit'];
+  tabIds.forEach(function(id) {
+    var el = document.getElementById('tab-'+id);
+    if (el && el.style.display !== 'none') activeId = id;
+  });
+  if (activeId === 'dashboard') loadDashboard();
+  else if (activeId === 'koc-ledger') renderKocTable();
+  else if (activeId === 'scoring') renderScoringTable();
+  else if (activeId === 'submissions') loadSubmissions();
+  else if (activeId === 'merch') renderMerchTab();
+  else if (activeId === 'diamond') renderDiamondTab();
+  else if (activeId === 'gplay') renderGplayTab();
+  else if (activeId === 'tiers') renderTiersTable();
+  else if (activeId === 'rules') loadCampaignConfig();
+  else if (activeId === 'audit') loadAuditLog();
   showToast('📅 切换到 ' + currentPeriod.replace('-', '年') + '月', 'success');
 }
 function changeSettlePeriod() {
