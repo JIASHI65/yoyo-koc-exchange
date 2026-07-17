@@ -2966,7 +2966,7 @@ function renderScoringTable() {
         (orders.length + ' orders (' + pendingOrders.length + ' pending)</span>') +
         '<div id="orders-' + k.uid + '" class="hidden" style="margin-top:4px;max-width:240px;">' +
           orders.slice(0,10).map(function(o) {
-            return '<div class="order-row">' + esc(o.option_name) + ' \u00B7 <span class="badge badge-' + o.status + '">' + (o.status === 'shipped' ? '\u2705 ' : '\u23F3 ') + o.status + '</span> ' + (o.status === 'pending' ? '<span class="btn btn-success btn-sm" onclick="shipOrder(' + o.id + ')">\u2713</span>' : '') + '</div>';
+            return '<div class="order-row">' + esc(o.option_name) + ' \u00B7 <span class="badge badge-' + o.status + '">' + (o.status === 'shipped' ? '\u2705 ' : '\u23F3 ') + o.status + '</span> ' + (o.status === 'pending' ? '<span class="btn btn-success btn-sm" onclick="shipOrder(event,' + o.id + ')">\u2713</span>' : '') + '</div>';
           }).join('') +
           (orders.length > 10 ? '<div style="font-size:11px;color:var(--text-light);">+' + (orders.length-10) + ' more</div>' : '') +
         '</div>' +
@@ -3075,7 +3075,7 @@ async function addKOC() {
 }
 
 // ===== SHIP ORDER =====
-async function shipOrder(id) {
+async function shipOrder(ev, id) { try { if (ev && ev.target) { ev.target.disabled = true; ev.target.textContent = "⏳"; } } catch(e) {}
   try {
     var oRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + id + '&select=*');
     var oData = await oRes.json();
