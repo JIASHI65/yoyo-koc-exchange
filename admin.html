@@ -1930,12 +1930,12 @@ async function previewBroadcast(type) {
         })
       });
       if (!memberRes.ok) {
-        showToast('获取成员失败: ' + (await memberRes.text()).substring(0,100), 'error');
+        var _errText = await memberRes.text(); showToast('获取成员失败: ' + _errText, 'error'); console.error('previewBroadcast memberRes error:', _errText);
         return;
       }
       var memberData = await memberRes.json();
       if (!memberData.ok) {
-        showToast('获取成员失败: ' + (memberData.error||''), 'error');
+        showToast('获取成员失败: ' + JSON.stringify(memberData), 'error'); console.error('previewBroadcast memberData:', memberData);
         return;
       }
       var allMembers = memberData.data || [];
@@ -2078,7 +2078,7 @@ async function previewBroadcast(type) {
       renderBroadcastPreview(targets, msg);
       showToast('✅ 已加载 ' + targets.length + ' 位成员', 'success');
     } catch(e) {
-      showToast('筛选失败: ' + e.message, 'error');
+      showToast('筛选失败: ' + (e.message||e), 'error'); console.error('previewBroadcast full error:', e);
       console.error('previewBroadcast error:', e);
     }
   })();
