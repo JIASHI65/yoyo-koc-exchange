@@ -520,7 +520,10 @@ Elite: 连续 6 个月达到 5 分</textarea>
   <div class="modal" style="max-width:560px;">
     <h3>💬 Mochi 消息中心</h3>
     <label>Bot Token <span style="font-size:11px;color:var(--text-light);">（首次使用填写）</span></label>
-    <input type="password" id="mochi-token-input" style="width:100%;margin-bottom:8px;" placeholder="Enter Mochi Bot Token">
+    <div style="display:flex;gap:4px;margin-bottom:8px;">
+      <input type="password" id="mochi-token-input" style="flex:1;" placeholder="Enter Mochi Bot Token">
+      <button class="btn btn-sm" style="background:#5865F2;color:white;white-space:nowrap;" onclick="saveMochiToken()">💾 保存</button>
+    </div>
 
     <div style="font-size:13px;font-weight:600;margin:4px 0 4px;">✉️ 条件私信（按条件筛选 → 预览编辑 → 确认发送）</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px;">
@@ -571,6 +574,16 @@ function setMochiToken(token) {
   MOCHI_TOKEN = token;
   localStorage.setItem('mochi_token', token);
   showToast('✅ Mochi token saved', 'success');
+
+  function saveMochiToken() {
+    var input = document.getElementById('mochi-token-input');
+    if (input && input.value.trim()) {
+      setMochiToken(input.value.trim());
+      showToast('✅ Token 已保存', 'success');
+    } else {
+      showToast('请输入 Token', 'error');
+    }
+  }
 }
 
 // -- Drag-and-Drop Reorder --
@@ -2138,7 +2151,8 @@ async function checkNewMembers() {
 
 function openMochiBroadcast() {
   document.getElementById('mochi-modal').classList.remove('hidden');
-  document.getElementById('mochi-message').value = '';
+  // mochi-message removed
+
   document.getElementById('mochi-status').textContent = '';
 }
 
