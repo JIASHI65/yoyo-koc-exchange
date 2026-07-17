@@ -425,6 +425,10 @@ Elite: 连续 6 个月达到 5 分</textarea>
         <div class="row" style="margin-bottom:8px;">
           <input type="text" id="submission-search" placeholder="Search Discord name..." style="width:200px;" oninput="renderSubmissions()">
           <select id="submission-filter" onchange="renderSubmissions()" style="width:140px;">
+          <select id="submission-merge" onchange="renderSubmissions()" style="width:100px;margin-left:6px;">
+            <option value="yes">🔗 合并</option>
+            <option value="no">📋 明细</option>
+          </select>
             <option value="pending">⏳ Pending</option>
             <option value="scored">✅ Scored</option>
             <option value="all">All</option>
