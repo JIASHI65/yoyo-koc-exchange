@@ -610,7 +610,30 @@ let allKocs = [];
 let allOrders = [];
 let editingUid = null;
 
-function supabaseFetch(url, opts = {}) {
+function supabaseFetch(url, opts = {}
+
+// Discord API proxy call - uses XHR to avoid Safari CORS issues with Edge Functions
+function discordProxyFetch(action, data, token) {
+  return new Promise(function(resolve, reject) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', SUPABASE_URL + '/functions/v1/discord-proxy', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('Authorization', 'Bearer ' + SUPABASE_KEY);
+    xhr.onload = function() {
+      try {
+        var result = JSON.parse(xhr.responseText);
+        resolve(result);
+      } catch(e) {
+        reject(new Error('Parse error: ' + e.message));
+      }
+    };
+    xhr.onerror = function() {
+      reject(new Error('Network error (XHR failed)'));
+    };
+    xhr.send(JSON.stringify({action: action, data: data, token: token}));
+  });
+}
+) {
   return fetch(url, { ...opts, headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json', ...opts.headers } });
 }
 
@@ -856,20 +879,7 @@ async function sendMochiDM(discordUsername, message) {
   if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
   try {
     // Step 1: 通过 Edge Function 获取所有成员
-    var memberRes = await fetch(SUPABASE_URL + '/functions/v1/discord-proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
-      body: JSON.stringify({
-        action: 'list_members',
-        data: { guild_id: DISCORD_GUILD_ID },
-        token: MOCHI_TOKEN
-      })
-    });
-    if (!memberRes.ok) {
-      var errText = await memberRes.text().catch(function(){return ''});
-      return { ok: false, reason: '获取成员失败: ' + errText.substring(0, 100) };
-    }
-    var memberData = await memberRes.json();
+    var memberData = await discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN);
     if (!memberData.ok) return { ok: false, reason: memberData.error || '获取成员失败' };
 
     var members = memberData.data;
@@ -904,16 +914,7 @@ async function sendMochiDM(discordUsername, message) {
     }
 
     // Step 2: 通过 Edge Function 发送私信
-    var dmRes = await fetch(SUPABASE_URL + '/functions/v1/discord-proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
-      body: JSON.stringify({
-        action: 'send_dm',
-        data: { user_id: member.id, message: message },
-        token: MOCHI_TOKEN
-      })
-    });
-    var dmData = await dmRes.json();
+    var dmData = await discordProxyFetch('send_dm', { user_id: member.id, message: message }, MOCHI_TOKEN);
     if (!dmData.ok) return { ok: false, reason: dmData.error || '发送失败' };
     return { ok: true, reason: '' };
   } catch(e) {
@@ -1925,28 +1926,11 @@ async function previewBroadcast(type) {
 
   try {
     // Step 1: 从 Discord 获取所有成员
-    var memberRes = await fetch(SUPABASE_URL + '/functions/v1/discord-proxy', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + SUPABASE_KEY },
-      body: JSON.stringify({
-        action: 'list_members',
-        data: { guild_id: DISCORD_GUILD_ID },
-        token: MOCHI_TOKEN
-      })
-    });
-    if (!memberRes.ok) {
-      var _err = await memberRes.text().catch(function(){return 'unknown error'});
-      showToast('API请求失败: ' + _err.substring(0,120), 'error');
-      var dbg = document.getElementById('mochi-debug');
-      if (dbg) { dbg.style.display = 'block'; dbg.textContent = 'API error: ' + _err.substring(0,300); }
-      console.error('previewBroadcast memberRes error:', _err);
-      return;
-    }
-    var memberData = await memberRes.json();
+    var memberData = await discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN);
     if (!memberData.ok) {
       showToast('API返回错误: ' + JSON.stringify(memberData), 'error');
       var dbg = document.getElementById('mochi-debug');
-      if (dbg) { dbg.style.display = 'block'; dbg.textContent = 'API bad response: ' + JSON.stringify(memberData).substring(0,300); }
+      if (dbg) { dbg.style.display = 'block'; dbg.textContent = 'API error: ' + JSON.stringify(memberData).substring(0,300); }
       console.error('previewBroadcast memberData:', memberData);
       return;
     }
