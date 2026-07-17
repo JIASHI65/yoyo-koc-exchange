@@ -853,70 +853,68 @@ function updateAgentRulesFromConfig() {
 // Send a DM to a user by their Discord username (resolves member first)
 async function sendMochiDM(discordUsername, message) {
   if (!discordUsername) return { ok: false, reason: '空用户名' };
+  if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
   try {
-    var membersRes = await fetch('https://discord.com/api/v10/guilds/' + DISCORD_GUILD_ID + '/members?limit=1000', {
-      headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN }
+    // Step 1: 通过 Edge Function 获取所有成员
+    var memberRes = await fetch(SUPABASE_URL + '/functions/v1/discord-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'list_members',
+        data: { guild_id: DISCORD_GUILD_ID },
+        token: MOCHI_TOKEN
+      })
     });
-    if (!membersRes.ok) {
-      var errText = await membersRes.text().catch(function(){return ''});
-      return { ok: false, reason: '获取成员失败 HTTP ' + membersRes.status + ': ' + errText.substring(0, 60) };
+    if (!memberRes.ok) {
+      var errText = await memberRes.text().catch(function(){return ''});
+      return { ok: false, reason: '获取成员失败: ' + errText.substring(0, 100) };
     }
-    var members = await membersRes.json();
+    var memberData = await memberRes.json();
+    if (!memberData.ok) return { ok: false, reason: memberData.error || '获取成员失败' };
+
+    var members = memberData.data;
 
     // Normalize: strip emoji/special chars, lowercase, trim
     function norm(n) {
       if (!n) return '';
-      // Keep letters digits underscore hyphen space
       return n.replace(/[^\w\- ]/g, '').trim().toLowerCase();
     }
     var targetNorm = norm(discordUsername);
 
-    // Try exact match first, then substring
+    // Try exact match first (username, nick, global_name)
     var member = null;
     members.forEach(function(m) {
-      var un = norm(m.user.username);
-      var nick = norm(m.nick);
-      var globalName = norm(m.user.global_name);
-      if (un === targetNorm || nick === targetNorm || globalName === targetNorm) {
+      if (norm(m.username) === targetNorm || norm(m.nick) === targetNorm || norm(m.global_name) === targetNorm) {
         member = m;
       }
     });
     // Fallback: substring match
     if (!member) {
       members.forEach(function(m) {
-        var un = norm(m.user.username);
+        var un = norm(m.username);
         var nick = norm(m.nick);
-        var globalName = norm(m.user.global_name);
-        if ((un && un.indexOf(targetNorm) >= 0) || (nick && nick.indexOf(targetNorm) >= 0) || (globalName && globalName.indexOf(targetNorm) >= 0)) {
+        var gn = norm(m.global_name);
+        if ((un && un.indexOf(targetNorm) >= 0) || (nick && nick.indexOf(targetNorm) >= 0) || (gn && gn.indexOf(targetNorm) >= 0)) {
           member = m;
         }
       });
     }
     if (!member) {
-      console.warn('Could not find Discord user:', discordUsername);
       return { ok: false, reason: '在服务器中未找到用户: ' + discordUsername };
     }
 
-    var dmRes = await fetch('https://discord.com/api/v10/users/@me/channels', {
+    // Step 2: 通过 Edge Function 发送私信
+    var dmRes = await fetch(SUPABASE_URL + '/functions/v1/discord-proxy', {
       method: 'POST',
-      headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ recipient_id: member.user.id })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'send_dm',
+        data: { user_id: member.id, message: message },
+        token: MOCHI_TOKEN
+      })
     });
-    if (!dmRes.ok) {
-      var dmErr = await dmRes.text().catch(function(){return ''});
-      return { ok: false, reason: '创建DM失败 HTTP ' + dmRes.status + ': ' + dmErr.substring(0, 60) };
-    }
-    var dm = await dmRes.json();
-
-    var msgRes = await fetch('https://discord.com/api/v10/channels/' + dm.id + '/messages', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: message })
-    });
-    if (!msgRes.ok) {
-      var msgErr = await msgRes.text().catch(function(){return ''});
-      return { ok: false, reason: '发送消息失败 HTTP ' + msgRes.status + ': ' + msgErr.substring(0, 60) };
-    }
+    var dmData = await dmRes.json();
+    if (!dmData.ok) return { ok: false, reason: dmData.error || '发送失败' };
     return { ok: true, reason: '' };
   } catch(e) {
     console.error('sendMochiDM error:', e);
