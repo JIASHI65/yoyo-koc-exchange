@@ -1102,59 +1102,54 @@ async function rejectSubmission(id) {
 }
 
 // ===== AGENT INPUT TEMPLATE =====
-var SCORING_RULES_TEXT = `# Yoyo Creator Studio · Official Incentive Rules (July 2026)
+var SCORING_RULES_TEXT = `# Yoyo Creator Studio · Official Incentive Rules (Updated Periodically)
 
-## New Creator Bonus (新人任务)
-- New creators who reach 5 points in their FIRST month get an extra +2 points bonus.
-- The bonus is added automatically during settlement.
+## Scoring Rules
 
-## How to Submit
-Based on your topic, post on TikTok / YouTube / Pinterest / Facebook / Instagram / X / Reddit with the designated tag (#myleisuretime).
+### 1. Video Platforms (TikTok, YouTube)
+Points are counted by view count:
+- TikTok: 200 views = 1 Point; 400 views = 2 Points
+- YouTube: 20 sec watch time AND 200 views = 1 Point; 400 views = 2 Points
 
-## Reward Basis
-Incentives are based on: posting frequency, engagement, view count, and watch time.
+### 2. Image/Social Platforms (Pinterest / Facebook / Instagram / X / Reddit)
+Points by total engagement (likes + comments + shares + saves / upvotes):
+- 40 engagements = 1 Point; 80 engagements = 2 Points
 
-## Content Topics
-Home decor, guides, outfits, official news, fan art or cosplay.
+### Engagement Definition by Platform:
+- Pinterest: likes + comments + saves
+- Facebook: likes + comments + shares
+- Instagram: likes + comments + shares + saves
+- X (Twitter): likes + comments + reposts + bookmarks
+- Reddit: upvotes (the number on the left, NOT percentage) + comments
 
-## I. How Points Are Counted
+### Points Cap
+- Monthly cap is 20 points. If total exceeds 20 but is below 40, it still counts as 20.
+- If total reaches 40 or above, the full 40 points are settled.
 
-### 1. Video platforms (TikTok, YouTube)
-All posts (video, image, or mixed) earn Points by view count:
-  - TikTok: 200 views = 1 Point; 400 views = 2 Points
-  - YouTube: 20 sec watch time AND 200 views = 1 Point; 400 views = 2 Points
+## Agent Task Instructions
+1. Open each link in browser and read the real engagement/view count from the page.
+2. Do NOT fabricate or guess numbers. If a link is inaccessible, mark "N/A" and note the reason.
+3. TikTok: click into the creator's profile page to find the video, then read the view count.
+4. YouTube: read view count AND check if watch time meets 20 sec minimum.
+5. Image platforms: sum likes + comments + shares + saves (as defined above).
+6. Reddit: read the upvote count (the number on the left side of the post, NOT percentage).
 
-### 2. Image/social platforms (Pinterest / Facebook / Instagram / X / Reddit)
-Points by total engagement (likes + comments + shares + saves):
-  - 40 engagements = 1 Point; 80 engagements = 2 Points
-
-## II. Consistent Creation Reward (rules unchanged)
-Post on at least 5 separate days in a month AND reach 15 total posts for the month (any platform) to claim:
-Premium Monthly Card x1 + Shelly Coins x500 + Gold x1000
-
-## III. Points Cap
-Monthly Points are capped at 20 for settlement.
-- If your monthly total is above 20 but below 40, it still counts as 20 (the excess is not counted).
-- If it reaches 40, the full 40 are settled.
-- In short: 20 is the cap unless you reach 40 — so aim for 40 to unlock full settlement.
-  (e.g. 26→20; 38→20; 40→40)
-
-## IV. Important Notes
-- Only links submitted via the form count toward Points.
-- Content meeting the designated platform and format requirements qualifies for Points.
-- Points accumulate permanently and never reset.
-- Each redemption lets you pick only 1 reward type.
-- KOCs who go 2 consecutive months without posting qualifying content automatically lose their official creator status.
-- The Consistent Creation Reward and Points rewards are stackable.
-- Entries submitted to other official call-for-entries events also count toward monthly Points.
-
-## V. Agent Task Instructions
-- Use browser to open each link and read the real engagement/view count from the page.
-- Do NOT fabricate or guess numbers.
-- If a link is inaccessible, mark as "N/A" and note the reason.
-- TikTok: read view count from the video page.
-- YouTube: read view count AND check if watch time meets 20 sec minimum.
-- For image platforms: read likes, comments, shares, saves and sum them.`;
+## Output Format
+Return results for ALL submissions in this JSON format:
+\`\`\`json
+{
+  "submissions": [
+    {
+      "id": <submission_id>,
+      "discord_name": "<username>",
+      "uid": "<uid>",
+      "total_engagement": <integer>,
+      "total_views": <integer>,
+      "points_earned": <integer>
+    }
+  ]
+}
+\`\`\``;
 
 function generateAgentTemplate() {
   var pending = allSubmissions.filter(function(s) { return s.status === 'pending'; });
