@@ -137,12 +137,17 @@
   }
 
   .tier-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 16px; border-radius: 30px; font-size: 13px; font-weight: 800; letter-spacing: 0.5px; white-space: nowrap; position:relative; overflow:hidden; }
-  .tier-platinum { background: linear-gradient(145deg,#ede7f6 0%,#d1c4e9 30%,#b39ddb 60%,#9575cd 100%); color: #1a0033; border: 2.5px solid #7e57c2; box-shadow: 0 0 20px rgba(106,61,232,0.4), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); }
-  .tier-platinum::after { content: '\2726'; position:absolute; right:4px; top:1px; font-size:10px; opacity:0.5; animation: sparkle1 2s infinite; }
-  .tier-gold { background: linear-gradient(145deg,#fffde7 0%,#ffe082 30%,#ffca28 60%,#ffb300 100%); color: #3e2723; border: 2.5px solid #ff8f00; box-shadow: 0 0 20px rgba(255,179,0,0.4), 0 8px 30px rgba(255,179,0,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); }
-  .tier-gold::after { content: '\2726'; position:absolute; right:4px; top:1px; font-size:10px; opacity:0.5; animation: sparkle1 2s infinite 0.5s; }
-  .tier-certified { background: linear-gradient(145deg,#e8f5e9 0%,#a5d6a7 30%,#81c784 60%,#66bb6a 100%); color: #003300; border: 2.5px solid #43a047; box-shadow: 0 0 20px rgba(76,175,80,0.4), 0 8px 30px rgba(76,175,80,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); }
-  @keyframes sparkle1 { 0%,100% { opacity:0.2; transform:scale(1); } 50% { opacity:1; transform:scale(1.4); } }
+  .tier-platinum { background: linear-gradient(145deg,#ede7f6 0%,#d1c4e9 30%,#b39ddb 60%,#9575cd 100%); color: #1a0033; border: 2.5px solid #7e57c2; box-shadow: 0 0 30px rgba(106,61,232,0.5), 0 0 60px rgba(106,61,232,0.2), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); position:relative; overflow:hidden; animation: tierGlow 3s ease-in-out infinite; }
+  .tier-platinum::before { content: '\u2726 \u2726 \u2726'; position:absolute; left:4px; top:-2px; font-size:7px; letter-spacing:2px; opacity:0.5; animation: sparkleFloat 3s ease-in-out infinite; color:#7e57c2; }
+  .tier-platinum::after { content: '\U0001F48E\u2728'; position:absolute; right:2px; top:-1px; font-size:9px; animation: sparkleBounce 2s ease-in-out infinite; }
+  .tier-gold { background: linear-gradient(145deg,#fffde7 0%,#ffe082 30%,#ffca28 60%,#ffb300 100%); color: #3e2723; border: 2.5px solid #ff8f00; box-shadow: 0 0 30px rgba(255,179,0,0.5), 0 0 60px rgba(255,179,0,0.2), 0 8px 30px rgba(255,179,0,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); position:relative; overflow:hidden; animation: tierGlow 3s ease-in-out infinite 1s; }
+  .tier-gold::before { content: '\u2B50 \u2B50'; position:absolute; left:4px; top:-2px; font-size:7px; letter-spacing:2px; opacity:0.5; animation: sparkleFloat 3s ease-in-out infinite 0.5s; color:#ff8f00; }
+  .tier-gold::after { content: '\U0001F3C6\u2728'; position:absolute; right:2px; top:-1px; font-size:9px; animation: sparkleBounce 2s ease-in-out infinite 0.5s; }
+  .tier-certified { background: linear-gradient(145deg,#e8f5e9 0%,#a5d6a7 30%,#81c784 60%,#66bb6a 100%); color: #003300; border: 2.5px solid #43a047; box-shadow: 0 0 30px rgba(76,175,80,0.4), 0 8px 30px rgba(76,175,80,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); position:relative; overflow:hidden; }
+  .tier-certified::after { content: '\u2705'; position:absolute; right:4px; top:1px; font-size:10px; animation: sparkleBounce 2.5s ease-in-out infinite 1s; }
+  @keyframes tierGlow { 0%,100% { box-shadow: 0 0 30px rgba(106,61,232,0.5), 0 0 60px rgba(106,61,232,0.2), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); } 50% { box-shadow: 0 0 40px rgba(106,61,232,0.7), 0 0 80px rgba(106,61,232,0.3), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); } }
+  @keyframes sparkleFloat { 0%,100% { opacity:0.3; transform:translateY(0); } 50% { opacity:0.8; transform:translateY(-2px); } }
+  @keyframes sparkleBounce { 0%,100% { transform:scale(1) rotate(0deg); } 25% { transform:scale(1.2) rotate(-5deg); } 75% { transform:scale(1.1) rotate(5deg); } }
   .tier- { background: linear-gradient(135deg,#e8e0ff,#fff8e1); color: #6a3de8; border: 1.5px solid #ce93d8; }
 </style>
 </head>
