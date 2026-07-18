@@ -348,7 +348,7 @@ async function login() {
     let res = await fetchWithTimeout(
       SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid) +
       '&discord_name=eq.' + encodeURIComponent(discord) +
-      '&select=uid,discord_name,name,status',
+      '&select=uid,discord_name,name,status,tier',
       {}, 15000
     );
     if (!res.ok) throw new Error('Server error: ' + res.status);
@@ -938,6 +938,18 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
   var scoredCount = subs.filter(function(s) { return s.status === 'scored'; }).length;
   var ccRemaining = Math.max(0, 15 - totalLinks);
   var currentTier = currentUser.tier || 'certified';
+  // Try to fetch fresh tier from API for accurate promotion hints
+  (function() { 
+    if (!currentUser || !currentUser.uid) return;
+    supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=tier').then(function(r) {
+      if (!r.ok) return; return r.json();
+    }).then(function(d) {
+      if (d && d.length > 0 && d[0].tier) {
+        currentUser.tier = d[0].tier;
+        currentTier = d[0].tier;
+      }
+    }).catch(function() {});
+  })();
   var isCurrent = ym === currentPeriod;
 
   // Month Pts
