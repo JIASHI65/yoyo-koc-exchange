@@ -711,12 +711,15 @@ function showToast(m, t = '') {
 
 // ===== LOGIN =====
 function adminLogin() {
-  if (document.getElementById('admin-pw').value === ADMIN_PASSWORD) {
+  var pw = document.getElementById('admin-pw').value;
+  if (pw === ADMIN_PASSWORD) {
     localStorage.setItem('admin_session', 'logged_in');
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('admin-panel').classList.remove('hidden');
-    loadData();
-  } else { showToast('Wrong password', 'error'); }
+    setTimeout(function() { loadData(); }, 100);
+  } else {
+    alert('Wrong password (hint: ' + ADMIN_PASSWORD + ')');
+  }
 }
 
 function adminLogout() {
@@ -3861,22 +3864,22 @@ function updateDeadlineDisplay(date, time) {
 
 
 // Auto-login + restore tab on page load
-(function() {
+try {
   if (localStorage.getItem('admin_session') === 'logged_in') {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('admin-panel').classList.remove('hidden');
-    // loadData will handle tab restoration via switchTab in its completion
-    loadData().then(function() {
-      // initSettleSelect() - handled by HTML
-      var savedTab = localStorage.getItem('admin_active_tab');
-      if (savedTab && ['dashboard','koc-ledger','scoring','submissions','merch','diamond','gplay','rules'].indexOf(savedTab) >= 0) {
-        switchTab(savedTab);
-      } else {
-        loadDashboard();
-      }
-    });
+    setTimeout(function() {
+      loadData().then(function() {
+        var savedTab = localStorage.getItem('admin_active_tab');
+        if (savedTab && ['dashboard','koc-ledger','scoring','submissions','merch','diamond','gplay','rules'].indexOf(savedTab) >= 0) {
+          switchTab(savedTab);
+        } else {
+          loadDashboard();
+        }
+      }).catch(function(e) { console.error('loadData error:', e); alert('Load error: ' + e.message); });
+    }, 200);
   }
-})();
+} catch(e) { console.error('Auto-login error:', e); }
 </script>
 </body>
 </html>
