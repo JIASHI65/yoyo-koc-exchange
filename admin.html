@@ -1033,7 +1033,7 @@ function renderSubmissions() {
   // Merge by discord_name (same person = merge)
   var merged = {};
   list.forEach(function(s) {
-    var key = s.discord_name || s.uid || 'unknown';
+    var key = (s.discord_name||'') + '|' + (s.uid||'');
     if (!merged[key]) {
       merged[key] = { discord_name: s.discord_name, uid: s.uid, links_engagement: '', links_views: '', points_earned: 0, status: 'pending', created_at: s.created_at, id: s.id, _count: 0, _pending: 0, _scored: 0 };
     }
@@ -1496,7 +1496,7 @@ async function importScoreResult(text) {
   // ===== MERGE same-uid submissions =====
   var merged = {};
   result.submissions.forEach(function(sub) {
-    var key = sub.uid || sub.discord_name || 'unknown_' + sub.id;
+    var key = (sub.discord_name||'') + '|' + (sub.uid||'');
     if (!merged[key]) {
       merged[key] = JSON.parse(JSON.stringify(sub));
     } else {
@@ -3071,15 +3071,22 @@ function renderScoringTable() {
           '<label class="toggle-label" for="cc-' + k.uid + '"></label>' +
         '</div>' +
       '</td>' +
-      '<td><button class="btn btn-sm" style="background:#e8e0ff;color:#6a3de8;" onclick="openPointModal(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">💳 积分</button></td>' +
-      '<td>' +
-        (orders.length + ' orders (' + pendingOrders.length + ' pending)</span>') +
-        '<div id="orders-' + k.uid + '" class="hidden" style="margin-top:4px;max-width:240px;">' +
+      '<td style="max-width:260px;">' +
+        (orders.length + ' orders (' + pendingOrders.length + ' pending)') +
+        '<div id="orders-' + k.uid + '" style="margin-top:4px;max-width:240px;">' +
           orders.slice(0,10).map(function(o) {
-            return '<div class="order-row">' + esc(o.option_name) + ' \u00B7 <span class="badge badge-' + o.status + '">' + (o.status === 'shipped' ? '\u2705 ' : '\u23F3 ') + o.status + '</span> ' + (o.status === 'pending' ? '<span class="btn btn-success btn-sm" onclick="shipOrder(event,' + o.id + ')">\u2713</span>' : '') + '</div>';
+            var optName = esc(o.option_name||o.item||'');
+            return '<div class="order-row" style="display:flex;align-items:center;gap:4px;margin:2px 0;font-size:12px;">' +
+              '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + optName + '</span>' +
+              ' <span class="badge badge-' + o.status + '">' + (o.status === 'shipped' ? '\u2705 ' : '\u23F3 ') + o.status + '</span> ' +
+              (o.status === 'pending' ? '<span class="btn btn-success btn-sm" onclick="shipOrder(event,' + o.id + ')" style="padding:1px 6px;font-size:11px;cursor:pointer;">\u2713</span>' : '') +
+            '</div>';
           }).join('') +
           (orders.length > 10 ? '<div style="font-size:11px;color:var(--text-light);">+' + (orders.length-10) + ' more</div>' : '') +
         '</div>' +
+      '</td>' +
+      '<td>' +
+        '<button class="btn btn-sm" style="background:#e8e0ff;color:#6a3de8;" onclick="openPointModal(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">💳 积分</button>' +
       '</td>' +
     '</tr>';
   }).join('');
