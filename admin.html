@@ -455,12 +455,9 @@ Elite: 连续 6 个月达到 5 分</textarea>
             <button class="btn btn-primary btn-sm" onclick="exportSubmissionsFile()">📥 导出待审核文件</button>
             <button class="btn btn-outline btn-sm" onclick="copyAgentPrompt()">📋 复制提示词</button>
             <button class="btn btn-sm" style="background:#5865F2;color:white;" onclick="openMochiBroadcast()">💬 Mochi 广播</button>
-            <button class="btn btn-sm" style="background:#43b581;color:white;" onclick="toggleAutoWelcome()" id="btn-auto-welcome">🟢 自动欢迎 关</button>
-            <button class="btn btn-sm" style="background:#26a69a;color:white;" onclick="batchMarkScored()">✅ 批量标记已评分</button>
-            <button class="btn btn-sm" style="background:#ef5350;color:white;" onclick="exportCSV()">📊 导出 CSV</button>
           </div>
                 </div>
-        <!-- 算分结果导入（直接可见，无需点击） -->
+        <!-- 算分结果导入 -->
         <div style="background:#fff8e1;border:2px solid #f9a825;border-radius:14px;padding:16px;margin-bottom:12px;">
           <div style="font-size:15px;font-weight:700;margin-bottom:10px;color:#e65100;">🤖 算分结果导入</div>
           
@@ -488,16 +485,12 @@ Elite: 连续 6 个月达到 5 分</textarea>
             <button class="btn btn-outline" id="btn-cancel-import" onclick="cancelScoreImport()" style="padding:10px 28px;font-size:14px;margin-left:12px;border:2px solid #ccc;border-radius:10px;background:white;cursor:pointer;">✖ 取消</button>
           </div>
         </div>
-        <div class="row" style="margin-bottom:8px;">
-          <input type="text" id="submission-search" placeholder="Search Discord name..." style="width:200px;" oninput="renderSubmissions()">
-          <select id="submission-filter" onchange="renderSubmissions()" style="width:140px;">
-          <select id="submission-merge" onchange="renderSubmissions()" style="width:100px;margin-left:6px;">
-            <option value="yes">🔗 合并</option>
-            <option value="no">📋 明细</option>
-          </select>
-            <option value="pending">⏳ Pending</option>
-            <option value="scored">✅ Scored</option>
-            <option value="all">All</option>
+        <div class="row" style="margin-bottom:8px;gap:8px;flex-wrap:wrap;">
+          <input type="text" id="submission-search" placeholder="🔍 搜索 Discord 名字..." style="width:200px;" oninput="renderSubmissions()">
+          <select id="submission-filter" onchange="renderSubmissions()" style="width:110px;">
+            <option value="pending">⏳ 待审核</option>
+            <option value="scored">✅ 已评分</option>
+            <option value="all">📋 全部</option>
           </select>
           <span id="submission-stat" style="font-size:12px;color:var(--text-light);"></span>
         </div>
@@ -1013,51 +1006,59 @@ async function loadSubmissions() {
 }
 
 function renderSubmissions() {
-  var search = (document.getElementById('submission-search').value || '').toLowerCase().trim();
+  var q = (document.getElementById('submission-search').value || '').toLowerCase().trim();
   var filter = document.getElementById('submission-filter').value;
   var container = document.getElementById('submissions-table');
   if (!container) return;
-  var filtered = allSubmissions.filter(function(s) {
+  // Use preview data if available (from score import)
+  var list = (window._previewMerged && window._previewMerged.length > 0) ? window._previewMerged : (allSubmissions || []);
+  var filtered = list.filter(function(s) {
     if (filter !== 'all' && s.status !== filter) return false;
-    if (search && (s.discord_name || '').toLowerCase().indexOf(search) === -1) return false;
+    if (q && (s.discord_name || '').toLowerCase().indexOf(q) === -1 &&
+        (s.uid || '').toLowerCase().indexOf(q) === -1) return false;
     return true;
   });
   var stats = document.getElementById('submission-stat');
-  if (stats) stats.textContent = filtered.length + '/' + allSubmissions.length + ' submissions';
+  if (stats) {
+    var prefix = window._previewMerged ? '\U0001f4cb 预览结果 ' : '';
+    stats.textContent = prefix + filtered.length + '/' + list.length + (window._previewMerged ? ' 人' : ' 条');
+  }
   if (filtered.length === 0) {
-    container.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-light);">No submissions found</td></tr>';
+    container.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-light);">暂无数据</td></tr>';
     return;
   }
   container.innerHTML = filtered.map(function(s, i) {
-    var engLinksCount = (s.links_engagement || '').split('\n').filter(Boolean).length;
-    var viewLinksCount = (s.links_views || '').split('\n').filter(Boolean).length;
-    var totalLinks = engLinksCount + viewLinksCount;
-    var statusBadge = s.status === 'scored' ? '<span class="badge badge-shipped">✅ Scored</span>' 
-                     : s.status === 'pending' ? '<span class="badge badge-pending">⏳ Pending</span>' 
-                     : '<span class="badge badge-cancelled">❌ Rejected</span>';
-    var engPreview = (s.links_engagement || '').split('\n').filter(Boolean).slice(0, 2).join('\n');
-    var viewPreview = (s.links_views || '').split('\n').filter(Boolean).slice(0, 2).join('\n');
+    // Support both raw submissions and preview results
+    var rawEng = s.links_engagement || '';
+    var rawView = s.links_views || '';
+    // Preview results might have engagement_links/view_links as arrays
+    if (s.engagement_links && Array.isArray(s.engagement_links)) rawEng = s.engagement_links.join('\n');
+    if (s.view_links && Array.isArray(s.view_links)) rawView = s.view_links.join('\n');
+    var engList = rawEng.split('\n').filter(Boolean);
+    var viewList = rawView.split('\n').filter(Boolean);
+    var totalLinks = engList.length + viewList.length;
+    var statusBadge = s.status === 'scored' ? '<span class="badge badge-shipped">\u2705 \u5df2\u8bc4\u5206</span>' 
+                     : s.status === 'pending' ? '<span class="badge badge-pending">\u23F3 \u5f85\u5ba1\u6838</span>' 
+                     : '<span class="badge badge-cancelled">\u274c \u5df2\u62d2\u7edd</span>';
     var dateStr = new Date(s.created_at).toLocaleDateString();
-    var hasMoreEng = engLinksCount > 2;
-    var hasMoreView = viewLinksCount > 2;
+    var pts = s.points_earned || 0;
     return '<tr>' +
       '<td>' + (i + 1) + '</td>' +
       '<td><strong>' + esc(s.discord_name) + '</strong></td>' +
-      '<td>' + esc(s.uid) + '</td>' +
+      '<td style="font-family:monospace;font-size:12px;">' + esc(s.uid) + '</td>' +
       '<td>' + totalLinks + '</td>' +
       '<td>' + statusBadge + '</td>' +
-      '<td class="link-cell">' + esc(engPreview) + (hasMoreEng ? '\n... (+' + (engLinksCount - 2) + ' more)' : '') + '</td>' +
-      '<td class="link-cell">' + esc(viewPreview) + (hasMoreView ? '\n... (+' + (viewLinksCount - 2) + ' more)' : '') + '</td>' +
-      '<td style="font-weight:700;color:' + (s.points_earned > 0 ? 'var(--pink-dark)' : 'inherit') + ';">' + (s.points_earned || 0) + '</td>' +
-      '<td style="font-size:10px;color:var(--text-light);">' + dateStr + '</td>' +
+      '<td class="link-cell" style="max-width:350px;white-space:pre-wrap;font-size:11px;word-break:break-all;line-height:1.5;">' + esc(rawEng) + '</td>' +
+      '<td class="link-cell" style="max-width:350px;white-space:pre-wrap;font-size:11px;word-break:break-all;line-height:1.5;">' + esc(rawView) + '</td>' +
+      '<td style="font-weight:700;color:' + (pts > 0 ? 'var(--pink-dark)' : 'inherit') + ';">' + pts + '</td>' +
+      '<td style="font-size:10px;color:var(--text-light);white-space:nowrap;">' + dateStr + '</td>' +
       '<td>' +
-        '<button class="btn btn-outline btn-sm" onclick="viewSubmission(' + s.id + ')" style="margin-bottom:2px;width:100%;">👁️ View</button>' +
-        (s.status === 'pending' ? '<button class="btn btn-danger btn-sm" onclick="rejectSubmission(' + s.id + ')" style="width:100%;">✖ Reject</button>' : '') +
+        '<button class="btn btn-outline btn-sm" onclick="viewSubmission(' + s.id + ')" style="margin-bottom:2px;width:100%;font-size:11px;padding:3px 4px;">\U0001f441\uFE0F \u67e5\u770b</button>' +
+        (s.status === 'pending' ? '<button class="btn btn-danger btn-sm" onclick="rejectSubmission(' + s.id + ')" style="width:100%;font-size:11px;padding:3px 4px;">\u2716 \u62d2\u7edd</button>' : '') +
       '</td>' +
       '</tr>';
   }).join('');
 }
-
 function viewSubmission(id) {
   var s = allSubmissions.find(function(x) { return x.id === id; });
   if (!s) return;
@@ -1727,6 +1728,10 @@ function previewScoreResult(text) {
   
   var mergedSubs = Object.values(mergedMap);
   
+  // Store for table display
+  window._previewMerged = mergedSubs;
+  window._previewRaw = rawResult.submissions;
+  
   // Store merged result for confirm (keeps raw submissions for DB update)
   var mergedResult = {
     batch: rawResult.batch || currentPeriod,
@@ -1767,6 +1772,8 @@ function previewScoreResult(text) {
 
 function cancelScoreImport() {
   pendingScoreResult = null;
+  window._previewMerged = null;
+  window._previewRaw = null;
   document.getElementById('score-preview-area').style.display = 'none';
   document.getElementById('import-action-bar').style.display = 'none';
   document.getElementById('paste-status').textContent = '';
@@ -1972,6 +1979,8 @@ async function confirmScoreImport() {
     btn.textContent = '\u2705 确认应用积分';
   }
   pendingScoreResult = null;
+  window._previewMerged = null;
+  window._previewRaw = null;
   document.getElementById('score-preview-area').style.display = 'none';
   document.getElementById('import-action-bar').style.display = 'none';
   // Mark submissions as pushed to prevent double-count
