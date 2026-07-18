@@ -497,7 +497,6 @@ Elite: 连续 6 个月达到 5 分</textarea>
             <option value="all">📋 全部</option>
           </select>
           <span id="submission-stat" style="font-size:12px;color:var(--text-light);"></span>
-          <button class="btn btn-primary btn-sm" onclick="exportCurrentTable()" style="margin-left:auto;">📥 导出当前表格</button>
         </div>
         <div style="overflow-x:auto;">
           <table class="submission-table">
@@ -515,6 +514,10 @@ Elite: 连续 6 个月达到 5 分</textarea>
             </tr></thead>
             <tbody id="submissions-table"></tbody>
           </table>
+        </div>
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:8px;">
+          <span id="submission-export-count" style="font-size:12px;color:var(--text-light);"></span>
+          <button class="btn btn-primary btn-sm" onclick="exportCurrentTable()">📥 导出当前表格</button>
         </div>
       </div>
 
@@ -1018,20 +1021,48 @@ function renderSubmissions() {
   var filter = document.getElementById('submission-filter').value;
   var container = document.getElementById('submissions-table');
   if (!container) return;
-  // Always show historical submissions filtered by currentPeriod
+  // Filter by currentPeriod
   var list = (allSubmissions || []).filter(function(s) {
     return (s.created_at || '').substring(0, 7) === currentPeriod;
   });
-  var filtered = list.filter(function(s) {
-    if (filter !== 'all' && s.status !== filter) return false;
+  // Merge by discord_name (same person = merge)
+  var merged = {};
+  list.forEach(function(s) {
+    var key = s.discord_name || s.uid || 'unknown';
+    if (!merged[key]) {
+      merged[key] = { discord_name: s.discord_name, uid: s.uid, links_engagement: '', links_views: '', points_earned: 0, status: 'pending', created_at: s.created_at, id: s.id, _count: 0, _pending: 0, _scored: 0 };
+    }
+    var m = merged[key];
+    m._count++;
+    if (s.status === 'pending') m._pending++;
+    if (s.status === 'scored') m._scored++;
+    m.status = m._pending > 0 ? 'pending' : m._scored > 0 ? 'scored' : m.status;
+    m.points_earned = (m.points_earned || 0) + (s.points_earned || 0);
+    // Merge links
+    if (s.links_engagement) {
+      var lines = s.links_engagement.split('\n').filter(Boolean);
+      lines.forEach(function(l) { if (m.links_engagement.indexOf(l) === -1) m.links_engagement += (m.links_engagement ? '\n' : '') + l; });
+    }
+    if (s.links_views) {
+      var vlines = s.links_views.split('\n').filter(Boolean);
+      vlines.forEach(function(l) { if (m.links_views.indexOf(l) === -1) m.links_views += (m.links_views ? '\n' : '') + l; });
+    }
+    // Keep earliest created_at
+    if (s.created_at && s.created_at < m.created_at) m.created_at = s.created_at;
+  });
+  var mergedList = Object.values(merged);
+  var filtered = mergedList.filter(function(s) {
+    if (filter !== 'all') {
+      if (filter === 'pending' && s._scored === s._count) return false;
+      if (filter === 'scored' && s._pending > 0) return false;
+    }
     if (q && (s.discord_name || '').toLowerCase().indexOf(q) === -1 &&
         (s.uid || '').toLowerCase().indexOf(q) === -1) return false;
     return true;
   });
   var stats = document.getElementById('submission-stat');
   if (stats) {
-    var prefix = '';
-    stats.textContent = prefix + filtered.length + '/' + list.length + (window._previewMerged ? ' 人' : ' 条');
+    stats.textContent = filtered.length + '/' + mergedList.length + ' 人';
   }
   if (filtered.length === 0) {
     container.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-light);">暂无数据</td></tr>';
