@@ -990,12 +990,18 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
         html += '🔥 投了很多作品！再冲 <strong>40 分</strong> 可全额结算<br><span style="font-size:11px;">（超20未达40算20，达40按40结算）</span></div>';
       }
 
-      // Grade hint
-      var hintColor = currentTier === 'gold' ? '#fff8e1' : '#f3e5f5';
-      var hintBorder = currentTier === 'gold' ? '#ffd54f' : '#ce93d8';
-      var hintText = currentTier === 'gold' ? '再坚持 1 个月达标 → <strong>💎 铂金创作官</strong>' : '连续 2 个月达标 → <strong>🟡 金级创作官</strong>';
-      html += '<div style="background:' + hintColor + ';border:1px solid ' + hintBorder + ';border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#6a1b9a;">';
-      html += '⭐ ' + hintText + ' 🎉<br><span style="font-size:11px;">（每月 ≥ 5 分）</span></div>';
+      // Grade hint: based on current tier
+      if (currentTier === 'certified') {
+        html += '<div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#6a1b9a;">';
+        html += '⭐ 连续 2 个月每月 ≥ 5 分 → 升级 <strong>🟡 金级创作官</strong> 🎉';
+        html += '</div>';
+      } else if (currentTier === 'gold') {
+        html += '<div style="background:#fff8e1;border:1px solid #ffd54f;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#7c4d00;">';
+        html += '⭐ 再坚持 1 个月每月 ≥ 5 分 → 升级 <strong>💎 铂金创作官</strong> 🎉';
+        html += '</div>';
+      }
+      // Platinum: no promotion hint shown
+
     }
 
     // Submission list
