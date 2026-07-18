@@ -198,29 +198,21 @@
     <!-- ======== TAB: 数据看板 ======== -->
     <div id="tab-dashboard" class="tab-content active">
       <div class="card-title" style="margin-bottom:12px;">📊 数据看板 · <span id="dash-period-label"></span></div>
-      <div id="dashboard-content" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
-        <div style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:14px;padding:16px;text-align:center;">
-          <div style="font-size:28px;font-weight:800;color:#ad1457;" id="dash-total-kocs">-</div>
+      <div id="dashboard-content" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:14px;padding:18px 12px;text-align:center;">
+          <div style="font-size:30px;font-weight:800;color:#ad1457;" id="dash-total-kocs">-</div>
           <div style="font-size:12px;color:#880e4f;">👤 本月投稿创作者</div>
         </div>
-        <div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border-radius:14px;padding:16px;text-align:center;">
-          <div style="font-size:28px;font-weight:800;color:#2e7d32;" id="dash-total-subs">-</div>
-          <div style="font-size:12px;color:#1b5e20;">📝 本月投稿数</div>
+        <div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border-radius:14px;padding:18px 12px;text-align:center;">
+          <div style="font-size:30px;font-weight:800;color:#2e7d32;" id="dash-total-subs">-</div>
+          <div style="font-size:12px;color:#1b5e20;">📝 本月投稿数（链接条数）</div>
         </div>
-        <div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:14px;padding:16px;text-align:center;">
-          <div style="font-size:28px;font-weight:800;color:#e65100;" id="dash-pending-subs">-</div>
+        <div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:14px;padding:18px 12px;text-align:center;">
+          <div style="font-size:30px;font-weight:800;color:#e65100;" id="dash-pending-subs">-</div>
           <div style="font-size:12px;color:#bf360c;">⏳ 待审核链接数</div>
         </div>
-        <div style="background:linear-gradient(135deg,#f3e5f5,#e1bee7);border-radius:14px;padding:16px;text-align:center;">
-          <div style="font-size:28px;font-weight:800;color:#6a1b9a;" id="dash-total-links">-</div>
-          <div style="font-size:12px;color:#4a148c;">🔗 总链接数</div>
-        </div>
-        <div style="background:linear-gradient(135deg,#e3f2fd,#bbdefb);border-radius:14px;padding:16px;text-align:center;">
-          <div style="font-size:28px;font-weight:800;color:#1565c0;" id="dash-total-pts">-</div>
-          <div style="font-size:12px;color:#0d47a1;">🏆 本月总积分</div>
-        </div>
-        <div style="background:linear-gradient(135deg,#fce4ec,#f8bbd0);border-radius:14px;padding:16px;text-align:center;">
-          <div style="font-size:28px;font-weight:800;color:#c62828;" id="dash-total-orders">-</div>
+        <div style="background:linear-gradient(135deg,#fce4ec,#f8bbd0);border-radius:14px;padding:18px 12px;text-align:center;">
+          <div style="font-size:30px;font-weight:800;color:#c62828;" id="dash-total-orders">-</div>
           <div style="font-size:12px;color:#b71c1c;">🎁 本月兑换积分</div>
         </div>
       </div>
@@ -2822,27 +2814,21 @@ async function loadDashboard() {
     // 本月投稿的创作者数（去重）
     var activeKocs = monthSubs.reduce(function(m, s) { m[s.uid] = true; return m; }, {});
     var totalKocs = Object.keys(activeKocs).length;
-    // 本月submission行数
-    var totalSubs = monthSubs.length;
-    // 待审核的链接条数（所有pending submission的links计数）
+    // 本月总链接数（所有submission的links加起来）
+    var totalSubs = monthSubs.reduce(function(su, s) { 
+      return su + (s.links_engagement||'').split('\n').filter(Boolean).length + (s.links_views||'').split('\n').filter(Boolean).length; 
+    }, 0);
+    // 待审核的链接条数
     var pendingSubs = monthSubs.filter(function(s) { return s.status === 'pending'; })
       .reduce(function(su, s) { 
         return su + (s.links_engagement||'').split('\n').filter(Boolean).length + (s.links_views||'').split('\n').filter(Boolean).length; 
       }, 0);
-    // 总链接数
-    var totalLinks = monthSubs.reduce(function(su, s) { 
-      return su + (s.links_engagement||'').split('\n').filter(Boolean).length + (s.links_views||'').split('\n').filter(Boolean).length; 
-    }, 0);
-    // 本月总积分
-    var totalPts = monthSubs.reduce(function(su, s) { return su + (s.points_earned||0); }, 0);
-    // 本月兑换的总积分（sum of points_spent）
+    // 本月兑换的总积分
     var totalOrders = monthOrders.reduce(function(su, o) { return su + (o.points_spent || 0); }, 0);
 
     document.getElementById('dash-total-kocs').textContent = totalKocs;
     document.getElementById('dash-total-subs').textContent = totalSubs;
     document.getElementById('dash-pending-subs').textContent = pendingSubs;
-    document.getElementById('dash-total-links').textContent = totalLinks;
-    document.getElementById('dash-total-pts').textContent = totalPts;
     document.getElementById('dash-total-orders').textContent = totalOrders;
 
     // Rank list: top submitters by link count
