@@ -136,10 +136,13 @@
     .truncate { max-width: 100px; }
   }
 
-  .tier-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 16px; border-radius: 30px; font-size: 13px; font-weight: 800; letter-spacing: 0.5px; box-shadow: 0 4px 14px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.5); white-space: nowrap; }
-  .tier-platinum { background: linear-gradient(145deg,#e8e0ff 0%,#d1c4e9 40%,#b39ddb 100%); color: #311b92; border: 2px solid #9575cd; box-shadow: 0 4px 20px rgba(106,61,232,0.3), inset 0 1px 0 rgba(255,255,255,0.6); text-shadow: 0 1px 0 rgba(255,255,255,0.3); }
-  .tier-gold { background: linear-gradient(145deg,#fff8e1 0%,#ffecb3 40%,#ffd54f 100%); color: #7c4d00; border: 2px solid #ffc107; box-shadow: 0 4px 20px rgba(255,193,7,0.3), inset 0 1px 0 rgba(255,255,255,0.6); text-shadow: 0 1px 0 rgba(255,255,255,0.3); }
-  .tier-certified { background: linear-gradient(145deg,#e8f5e9 0%,#c8e6c9 40%,#81c784 100%); color: #1b5e20; border: 2px solid #66bb6a; box-shadow: 0 4px 20px rgba(76,175,80,0.3), inset 0 1px 0 rgba(255,255,255,0.6); text-shadow: 0 1px 0 rgba(255,255,255,0.3); }
+  .tier-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 16px; border-radius: 30px; font-size: 13px; font-weight: 800; letter-spacing: 0.5px; white-space: nowrap; position:relative; overflow:hidden; }
+  .tier-platinum { background: linear-gradient(145deg,#ede7f6 0%,#d1c4e9 30%,#b39ddb 60%,#9575cd 100%); color: #1a0033; border: 2.5px solid #7e57c2; box-shadow: 0 0 20px rgba(106,61,232,0.4), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); }
+  .tier-platinum::after { content: '\2726'; position:absolute; right:4px; top:1px; font-size:10px; opacity:0.5; animation: sparkle1 2s infinite; }
+  .tier-gold { background: linear-gradient(145deg,#fffde7 0%,#ffe082 30%,#ffca28 60%,#ffb300 100%); color: #3e2723; border: 2.5px solid #ff8f00; box-shadow: 0 0 20px rgba(255,179,0,0.4), 0 8px 30px rgba(255,179,0,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); }
+  .tier-gold::after { content: '\2726'; position:absolute; right:4px; top:1px; font-size:10px; opacity:0.5; animation: sparkle1 2s infinite 0.5s; }
+  .tier-certified { background: linear-gradient(145deg,#e8f5e9 0%,#a5d6a7 30%,#81c784 60%,#66bb6a 100%); color: #003300; border: 2.5px solid #43a047; box-shadow: 0 0 20px rgba(76,175,80,0.4), 0 8px 30px rgba(76,175,80,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); }
+  @keyframes sparkle1 { 0%,100% { opacity:0.2; transform:scale(1); } 50% { opacity:1; transform:scale(1.4); } }
   .tier- { background: linear-gradient(135deg,#e8e0ff,#fff8e1); color: #6a3de8; border: 1.5px solid #ce93d8; }
 </style>
 </head>
