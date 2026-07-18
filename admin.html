@@ -454,6 +454,7 @@ Elite: 连续 6 个月达到 5 分</textarea>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
             <button class="btn btn-primary btn-sm" onclick="exportSubmissionsFile()">📥 导出待审核文件</button>
             <button class="btn btn-outline btn-sm" onclick="copyAgentPrompt()">📋 复制提示词</button>
+            <button class="btn btn-sm" style="background:#26a69a;color:white;" onclick="exportCurrentTable()">📋 导出当前表格</button>
             <button class="btn btn-sm" style="background:#5865F2;color:white;" onclick="openMochiBroadcast()">💬 Mochi 广播</button>
           </div>
                 </div>
@@ -1265,7 +1266,36 @@ async function exportCSV() {
     showToast('导出失败: ' + e.message, 'error');
   }
 }
-function exportSubmissionsFile() {
+function exportCurrentTable() {
+  // Export whatever is currently displayed in the submissions table as CSV
+  var list = (window._previewMerged && window._previewMerged.length > 0) ? window._previewMerged : allSubmissions || [];
+  if (list.length === 0) { showToast('No data to export', 'error'); return; }
+  // Headers
+  var csv = '#\tDiscord\tUID\tLinks\tStatus\tEng Links\tView Links\tPts\tDate\n';
+  list.forEach(function(s, i) {
+    var rawEng = s.links_engagement || '';
+    var rawView = s.links_views || '';
+    if (s.engagement_links && Array.isArray(s.engagement_links)) rawEng = s.engagement_links.join('\n');
+    if (s.view_links && Array.isArray(s.view_links)) rawView = s.view_links.join('\n');
+    var engList = rawEng.split('\n').filter(Boolean);
+    var viewList = rawView.split('\n').filter(Boolean);
+    var status = s.status === 'scored' ? '\u5df2\u8bc4\u5206' : s.status === 'pending' ? '\u5f85\u5ba1\u6838' : '\u5df2\u62d2\u7edd';
+    // Escape tabs and newlines for TSV format
+    var engTsv = rawEng.replace(/\t/g, ' ').replace(/\n/g, ' | ');
+    var viewTsv = rawView.replace(/\t/g, ' ').replace(/\n/g, ' | ');
+    csv += (i+1) + '\t' + esc(s.discord_name) + '\t' + esc(s.uid) + '\t' + (engList.length + viewList.length) + '\t' + status + '\t' + engTsv + '\t' + viewTsv + '\t' + (s.points_earned || 0) + '\t' + new Date(s.created_at).toLocaleDateString() + '\n';
+  });
+  var blob = new Blob([csv], {type: 'text/tab-separated-values;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'koc-table-' + currentPeriod + '.tsv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('\u2705 \u5bfc\u51fa ' + list.length + ' \u6761', 'success');
+}
+
+function exportSubmissionsFile() { {
   var pending = allSubmissions.filter(function(s) { return s.status === 'pending'; });
   if (pending.length === 0) {
     showToast('No pending submissions to export', 'error');
