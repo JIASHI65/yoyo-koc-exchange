@@ -257,7 +257,7 @@
       </div>
       <div class="card" style="text-align:center;">
         <div style="font-size:14px;font-weight:600;margin-bottom:6px;">🤔 没找到答案？去发帖提问</div>
-        <div style="font-size:12px;color:var(--text-light);margin-bottom:12px;">客服会在今晚回复你</div>
+        <div style="font-size:12px;color:var(--text-light);margin-bottom:12px;">客服会尽快回复你</div>
         <a href="https://discord.com/channels/1263505733180854392/1458347958389965035" target="_blank" rel="noopener" style="display:inline-block;padding:10px 24px;background:#5865F2;color:white;border-radius:20px;font-size:14px;text-decoration:none;">🎫｜town-service-station 发帖</a>
       </div>
     </div>
@@ -367,7 +367,7 @@ async function login() {
     const pendingRes = await fetchWithTimeout(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&status=eq.pending&select=points_spent');
     const pendingOrders = pendingRes.ok ? await pendingRes.json() : [];
     const pendingTotal = pendingOrders.reduce((s, o) => s + (o.points_spent || 0), 0);
-    currentUser = { ...koc, points: points - pendingTotal };
+    currentUser = { ...koc, points: Math.max(0, points - pendingTotal) };
     localStorage.setItem('koc_session', JSON.stringify({ uid: currentUser.uid, discord_name: currentUser.discord_name }));
     if (statusEl) statusEl.textContent = '';
     showDashboard();
@@ -468,9 +468,9 @@ function showDashboard() {
       var pendingRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(currentUser.uid) + '&status=eq.pending&select=points_spent');
       var pendingOrders = pendingRes.ok ? await pendingRes.json() : [];
       var pendingTotal = pendingOrders.reduce(function(s, o) { return s + (o.points_spent || 0); }, 0);
-      currentUser.points = freshPts - pendingTotal;
+      currentUser.points = Math.max(0, freshPts - pendingTotal);
     } catch(e) { console.error('Fresh balance fetch failed:', e); }
-    document.getElementById('display-points').textContent = currentUser.points;
+    document.getElementById('display-points').textContent = Math.max(0, currentUser.points);
     var redeemDisplay = document.getElementById('display-user-redeem');
     if (redeemDisplay) {
       var dn = currentUser.discord_name;
@@ -480,7 +480,7 @@ function showDashboard() {
   })();
   document.getElementById('step-login').classList.add('hidden');
   document.getElementById('step-dashboard').classList.remove('hidden');
-  document.getElementById('display-points').textContent = currentUser.points;
+  document.getElementById('display-points').textContent = Math.max(0, currentUser.points);
   // Fix display - discord_name might be nested
   var displayName = currentUser.discord_name;
   if (typeof displayName === 'object' && displayName !== null) displayName = displayName.discord_name || 'Unknown';
@@ -604,7 +604,7 @@ async function redeem() {
 
     // Points reserved until admin ships the order
     currentUser.points -= totalCost;
-    document.getElementById('display-points').textContent = currentUser.points;
+    document.getElementById('display-points').textContent = Math.max(0, currentUser.points);
     initSelections();
     renderOptions();
     // Load orders independently so errors don't override success toast
