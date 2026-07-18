@@ -291,17 +291,18 @@ let selections = {};
 
 // Auto-login from localStorage (defined here, called after DOM+functions ready)
 function tryAutoLogin() {
-  // Only pre-fill login form from saved session, do NOT auto-navigate
   var saved = localStorage.getItem('koc_session');
   if (!saved) return;
   var session;
   try { session = JSON.parse(saved); } catch(e) { return; }
   if (!session || !session.uid || !session.discord_name) return;
-  // Pre-fill the login form fields so user can just click Login
+  // Pre-fill form
   var discordInput = document.getElementById('input-discord');
   var uidInput = document.getElementById('input-uid');
   if (discordInput) discordInput.value = session.discord_name;
   if (uidInput) uidInput.value = session.uid;
+  // Auto-login: call login() directly
+  setTimeout(function() { login(); }, 300);
 }
 
 function initSelections() { selections = {}; REWARDS.forEach(r => selections[r.id] = 0); }
@@ -504,8 +505,8 @@ function showDashboard() {
       }
     })();
   } catch(e) {}
-  // Initialize submit tab (fix: first load shows blank page)
-  switchCreatorTab('submit');
+  // Initialize submit tab with safety timeout for DOM transition
+  setTimeout(function() { switchCreatorTab('submit'); }, 50);
   renderOptions();
   loadOrders();
 }
@@ -664,8 +665,9 @@ function switchCreatorTab(name) {
     c.classList.remove('active');
     c.style.display = 'none';
   });
-  // Use safer selector - try onclick first, then fallback to tab text
+  // Find tab button - try onclick first, then data-tab attribute
   var tabBtn = document.querySelector('#step-dashboard .tab[onclick*="' + name + '"]');
+  if (!tabBtn) tabBtn = document.querySelector('#step-dashboard .tab[data-tab="' + name + '"]');
   if (tabBtn) tabBtn.classList.add('active');
   var tabContent = document.getElementById('creator-tab-' + name);
   if (tabContent) {

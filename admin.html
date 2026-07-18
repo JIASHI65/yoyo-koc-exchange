@@ -1246,7 +1246,7 @@ async function batchMarkScored() {
 
 async function exportCSV() {
   try {
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?order=created_at.desc&select=discord_name,uid,status,points_earned,links_engagement,links_views,created_at');
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?order=created_at.desc&select=id,discord_name,uid,status,points_earned,links_engagement,links_views,created_at');
     if (!res.ok) { showToast('获取数据失败', 'error'); return; }
     var subs = await res.json() || [];
     
@@ -1298,7 +1298,7 @@ function exportCurrentTable() {
   showToast('\u2705 \u5bfc\u51fa ' + list.length + ' \u6761', 'success');
 }
 
-function exportSubmissionsFile() { {
+function exportSubmissionsFile() {
   var pending = allSubmissions.filter(function(s) { return s.status === 'pending'; });
   if (pending.length === 0) {
     showToast('No pending submissions to export', 'error');
@@ -1814,6 +1814,9 @@ function cancelScoreImport() {
 
 async function confirmScoreImport() {
   if (!pendingScoreResult) { showToast('没有可导入的结果', 'error'); return; }
+  // Prevent double-click race
+  if (window._confirmingImport) { showToast('已经在处理中...', 'error'); return; }
+  window._confirmingImport = true;
   var btn = document.getElementById('btn-confirm-import');
   btn.disabled = true;
   btn.textContent = '\u23f3 标记中...';
@@ -2008,6 +2011,7 @@ async function confirmScoreImport() {
   } catch(e) {
     showToast('\u274c 失败: ' + e.message, 'error');
   } finally {
+    window._confirmingImport = false;
     btn.disabled = false;
     btn.textContent = '\u2705 确认应用积分';
   }
@@ -2204,7 +2208,7 @@ async function previewBroadcast(type) {
     // Step 3: 获取 submissions 数据
     var subs = [];
     try {
-      var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=discord_name,uid,status,points_earned,links_engagement,links_views,created_at&order=created_at.desc');
+      var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=id,discord_name,uid,status,points_earned,links_engagement,links_views,created_at&order=created_at.desc');
       if (subRes.ok) subs = await subRes.json() || [];
     } catch(e) {
       console.warn('Submissions fetch failed, continuing:', e);
@@ -2853,9 +2857,11 @@ async function loadDashboard() {
     var monthSubs = subs.filter(function(s) { return (s.created_at||'').substring(0,7) === currentPeriod; });
     var monthOrders = orders.filter(function(o) { return (o.period||'') === currentPeriod; });
 
+    // 创作者总数（所有已注册 KOC）
+    var totalKocs = kocs.length;
     // 本月投稿的创作者数（去重）
     var activeKocs = monthSubs.reduce(function(m, s) { m[s.uid] = true; return m; }, {});
-    var totalKocs = Object.keys(activeKocs).length;
+    var activeCount = Object.keys(activeKocs).length;
     // 本月总链接数（所有submission的links加起来）
     var totalSubs = monthSubs.reduce(function(su, s) { 
       return su + (s.links_engagement||'').split('\n').filter(Boolean).length + (s.links_views||'').split('\n').filter(Boolean).length; 
@@ -2868,7 +2874,7 @@ async function loadDashboard() {
     // 本月兑换的总积分
     var totalOrders = monthOrders.reduce(function(su, o) { return su + (o.points_spent || 0); }, 0);
 
-    document.getElementById('dash-total-kocs').textContent = totalKocs;
+    document.getElementById('dash-total-kocs').textContent = totalKocs + ' (' + activeCount + ' active)';
     document.getElementById('dash-total-subs').textContent = totalSubs;
     document.getElementById('dash-pending-subs').textContent = pendingSubs;
     document.getElementById('dash-total-orders').textContent = totalOrders;
