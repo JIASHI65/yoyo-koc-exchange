@@ -573,19 +573,32 @@ Elite: 连续 6 个月达到 5 分</textarea>
 
 <!-- ===== MODAL: Point Adjust ===== -->
 <div id="point-modal" class="modal-overlay hidden" onclick="if(event.target===this)closePointModal()">
-  <div class="modal">
-    <h3 id="modal-title">✏️ Adjust Points</h3>
-    <select id="modal-action">
-      <option value="">Select...</option>
-      <option value="add">➕ Add points</option>
-      <option value="deduct">➖ Deduct points</option>
-    </select>
-    <input type="number" id="modal-points" placeholder="Points" min="1">
-    <input type="text" id="modal-reason" placeholder="Reason (e.g. June settlement)">
-    <div class="row" style="margin-top:6px;">
-      <button class="btn btn-primary" onclick="submitPoints()" style="flex:1;">Confirm</button>
-      <button class="btn btn-outline" onclick="closePointModal()" style="flex:1;">Cancel</button>
+  <div class="modal" style="max-width:380px;">
+    <h3 id="modal-title" style="font-size:16px;">✏️ 调整积分</h3>
+    <div id="modal-current-balance" style="font-size:13px;color:var(--text-light);margin-bottom:8px;">💰 当前积分: --</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <button class="btn btn-sm" onclick="quickPoints(-1)" style="background:#e74c3c;color:white;font-size:20px;font-weight:800;width:44px;height:44px;border-radius:50%;padding:0;">−</button>
+      <input type="number" id="modal-points" value="1" min="1" style="flex:1;text-align:center;font-size:20px;font-weight:700;height:44px;border:2px solid var(--border);border-radius:10px;">
+      <button class="btn btn-sm" onclick="quickPoints(1)" style="background:#43b581;color:white;font-size:20px;font-weight:800;width:44px;height:44px;border-radius:50%;padding:0;">+</button>
     </div>
+    <div style="display:flex;gap:4px;margin-bottom:4px;flex-wrap:wrap;">
+      <button class="btn btn-sm" onclick="setPointAmount(1)" style="background:var(--pink-light);padding:2px 10px;font-size:12px;">1</button>
+      <button class="btn btn-sm" onclick="setPointAmount(2)" style="background:var(--pink-light);padding:2px 10px;font-size:12px;">2</button>
+      <button class="btn btn-sm" onclick="setPointAmount(5)" style="background:var(--pink-light);padding:2px 10px;font-size:12px;">5</button>
+      <button class="btn btn-sm" onclick="setPointAmount(10)" style="background:var(--pink-light);padding:2px 10px;font-size:12px;">10</button>
+      <button class="btn btn-sm" onclick="setPointAmount(20)" style="background:var(--pink-light);padding:2px 10px;font-size:12px;">20</button>
+      <button class="btn btn-sm" onclick="setPointAmount(40)" style="background:var(--pink-light);padding:2px 10px;font-size:12px;">40</button>
+    </div>
+    <input type="text" id="modal-reason" placeholder="备注原因（必填）" style="width:100%;margin-bottom:6px;">
+    <div class="row" style="margin-top:6px;align-items:center;gap:6px;">
+      <select id="modal-mode" style="width:90px;padding:8px 4px;border:2px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;">
+        <option value="add" style="color:#43b581;">➕ 加分</option>
+        <option value="deduct" style="color:#e74c3c;">➖ 减分</option>
+      </select>
+      <button class="btn btn-primary" onclick="submitPoints()" style="flex:1;font-size:14px;padding:10px;">✔ 确认</button>
+      <button class="btn btn-outline" onclick="closePointModal()" style="flex:1;">取消</button>
+    </div>
+    <div id="modal-point-history" style="margin-top:8px;font-size:12px;max-height:150px;overflow-y:auto;"></div>
   </div>
 </div>
 <!-- ===== MODAL: Mochi Broadcast ===== -->
@@ -3302,29 +3315,55 @@ function openPointModal(uid, discord) {
   // Show current balance
   getBalance(uid).then(function(b) {
     var el = document.getElementById('modal-current-balance');
-    if (el) el.textContent = '💰 当前积分: ' + b + ' pts';
+    if (el) el.textContent = '\uD83D\uDCB0 \u5F53\u524D\u79EF\u5206: ' + b + ' pts';
   });
   // Show recent history
+  loadPointHistory(uid);
+}
+
+function setPointAmount(n) {
+  document.getElementById('modal-points').value = n;
+}
+
+function quickPoints(dir) {
+  var inp = document.getElementById('modal-points');
+  var v = parseInt(inp.value) || 1;
+  if (dir > 0) inp.value = v + 1;
+  else inp.value = Math.max(1, v - 1);
+}
+
+function loadPointHistory(uid) {
   supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(uid) + '&order=created_at.desc&limit=5&select=change,balance_after,reason,created_at').then(function(r) {
     if (!r.ok) return; return r.json();
   }).then(function(logs) {
     var el = document.getElementById('modal-point-history');
     if (!el) return;
     if (!logs || logs.length === 0) {
-      el.innerHTML = '<div style="color:var(--text-light);">暂无操作记录</div>';
+      el.innerHTML = '<div style="color:var(--text-light);font-size:12px;">\u6682\u65E0\u64CD\u4F5C\u8BB0\u5F55</div>';
       return;
     }
-    var h = '<div style="font-weight:600;margin-bottom:4px;">📜 最近操作</div>';
+    var h = '<div style="font-weight:600;margin-bottom:4px;font-size:12px;">\uD83D\uDCDC \u6700\u8FD1\u64CD\u4F5C</div>';
     logs.forEach(function(l) {
-      var sign = l.change > 0 ? '+🟢' : '🔴';
+      var sign = l.change > 0 ? '+\uD83D\uDFE2' : '\uD83D\uDD34';
       var dt = new Date(l.created_at).toLocaleDateString('zh-CN');
-      h += '<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f0f0f0;">';
-      h += '<span>' + sign + ' ' + (l.change > 0 ? '+' : '') + l.change + ' → ' + l.balance_after + '</span>';
-      h += '<span style="color:var(--text-light);">' + esc(l.reason||'') + ' · ' + dt + '</span>';
+      h += '<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f0f0f0;font-size:12px;">';
+      h += '<span>' + sign + ' ' + (l.change > 0 ? '+' : '') + l.change + ' \u2192 ' + l.balance_after + '</span>';
+      h += '<span style="color:var(--text-light);font-size:11px;">' + esc(l.reason||'') + ' \u00B7 ' + dt + '</span>';
       h += '</div>';
     });
     el.innerHTML = h;
   }).catch(function() {});
+}
+
+
+function toggleOrderExpand(uid) {
+  var el = document.getElementById('orders-' + uid);
+  if (!el) return;
+  if (el.style.display === 'none' || !el.style.display) {
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
 }
 
 function closePointModal() {
@@ -3335,15 +3374,13 @@ function closePointModal() {
 async function submitPoints() {
   var pts = parseInt(document.getElementById('modal-points').value);
   var reason = document.getElementById('modal-reason').value.trim();
-  if (!pts || pts < 1) { showToast('输入有效积分', 'error'); return; }
-  if (!reason) { showToast('请填写备注原因', 'error'); return; }
+  var mode = document.getElementById('modal-mode').value; // 'add' or 'deduct'
+  if (!pts || pts < 1) { showToast('\u8F93\u5165\u6709\u6548\u79EF\u5206', 'error'); return; }
+  if (!reason) { showToast('\u8BF7\u586B\u5199\u5907\u6CE8\u539F\u56E0', 'error'); return; }
 
-  // Use positive value, deducted later if needed
   try {
     var bal = await getBalance(editingUid);
-    // Show confirm dialog: is this add or deduct?
-    var isAdd = confirm('\u2795 加分 ' + pts + ' 分？\n\u2796 点取消改为减分 ' + pts + ' 分');
-    var change = isAdd ? pts : -pts;
+    var change = mode === 'add' ? pts : -pts;
     var newBal = Math.max(0, bal + change);
     await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
       method: 'POST',
@@ -3356,7 +3393,7 @@ async function submitPoints() {
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
 
-// ===== EDIT KOC MODAL =====
+
 function openEditModal(uid) {
   var koc = allKocs.find(function(k) { return k.uid === uid; });
   if (!koc) return;
