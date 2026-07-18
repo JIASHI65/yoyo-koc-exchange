@@ -3276,13 +3276,47 @@ async function shipOrder(ev, id) { try { if (ev && ev.target) { ev.target.disabl
 }
 
 // ===== POINT MODAL =====
+function adjustPoint(delta) {
+  var inp = document.getElementById('modal-points');
+  var v = parseInt(inp.value) || 1;
+  v = Math.max(1, v + delta);
+  inp.value = v;
+}
+function setQuickPoint(n) {
+  document.getElementById('modal-points').value = n;
+}
 function openPointModal(uid, discord) {
   editingUid = uid;
   document.getElementById('modal-title').textContent = '\u270F\uFE0F ' + discord;
-  document.getElementById('modal-points').value = '';
+  document.getElementById('modal-points').value = '1';
   document.getElementById('modal-reason').value = '';
-  document.getElementById('modal-action').value = '';
   document.getElementById('point-modal').classList.remove('hidden');
+  // Show current balance
+  getBalance(uid).then(function(b) {
+    var el = document.getElementById('modal-current-balance');
+    if (el) el.textContent = '\U0001F4B0 当前积分: ' + b + ' pts';
+  });
+  // Show recent history
+  supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(uid) + '&order=created_at.desc&limit=5&select=change,balance_after,reason,created_at').then(function(r) {
+    if (!r.ok) return; return r.json();
+  }).then(function(logs) {
+    var el = document.getElementById('modal-point-history');
+    if (!el) return;
+    if (!logs || logs.length === 0) {
+      el.innerHTML = '<div style="color:var(--text-light);">暂无操作记录</div>';
+      return;
+    }
+    var h = '<div style="font-weight:600;margin-bottom:4px;">\U0001F4DC 最近操作</div>';
+    logs.forEach(function(l) {
+      var sign = l.change > 0 ? '+\U0001F7E2' : '\U0001F534';
+      var dt = new Date(l.created_at).toLocaleDateString('zh-CN');
+      h += '<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f0f0f0;">';
+      h += '<span>' + sign + ' ' + (l.change > 0 ? '+' : '') + l.change + ' → ' + l.balance_after + '</span>';
+      h += '<span style="color:var(--text-light);">' + esc(l.reason||'') + ' · ' + dt + '</span>';
+      h += '</div>';
+    });
+    el.innerHTML = h;
+  }).catch(function() {});
 }
 
 function closePointModal() {
@@ -3291,22 +3325,26 @@ function closePointModal() {
 }
 
 async function submitPoints() {
-  var action = document.getElementById('modal-action').value;
   var pts = parseInt(document.getElementById('modal-points').value);
   var reason = document.getElementById('modal-reason').value.trim();
-  if (!action || !pts || pts < 1 || !reason) { showToast('Fill in all fields', 'error'); return; }
+  if (!pts || pts < 1) { showToast('输入有效积分', 'error'); return; }
+  if (!reason) { showToast('请填写备注原因', 'error'); return; }
 
-  var change = action === 'add' ? pts : -pts;
+  // Use positive value, deducted later if needed
   try {
     var bal = await getBalance(editingUid);
+    // Show confirm dialog: is this add or deduct?
+    var isAdd = confirm('\u2795 加分 ' + pts + ' 分？\n\u2796 点取消改为减分 ' + pts + ' 分');
+    var change = isAdd ? pts : -pts;
     var newBal = Math.max(0, bal + change);
     await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
       method: 'POST',
       body: JSON.stringify({ uid: editingUid, change: change, balance_after: newBal, source: 'manual', reason: reason, created_by: 'admin', created_at: new Date().toISOString() })
     });
-    showToast('\u2705 ' + (change > 0 ? '+' : '') + change + ' pts', 'success');
+    showToast('\u2705 ' + (change > 0 ? '+' : '') + change + ' pts (' + reason + ')', 'success');
     closePointModal();
     renderKocTable();
+    renderScoringTable();
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
 
