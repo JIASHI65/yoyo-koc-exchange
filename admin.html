@@ -2097,6 +2097,7 @@ function switchTab(name) {
     activeTab.style.display = 'block';
   }
   // Refresh tab content
+  if (name === 'dashboard') loadDashboard();
   if (name === 'koc-ledger') renderKocTable();
   if (name === 'scoring') renderScoringTable();
   if (name === 'merch') renderMerchTab();
@@ -3836,8 +3837,10 @@ function updateDeadlineDisplay(date, time) {
     loadData().then(function() {
       // initSettleSelect() - handled by HTML
       var savedTab = localStorage.getItem('admin_active_tab');
-      if (savedTab && ['koc-ledger','scoring','submissions','merch','diamond','gplay','rules'].indexOf(savedTab) >= 0) {
+      if (savedTab && ['dashboard','koc-ledger','scoring','submissions','merch','diamond','gplay','rules'].indexOf(savedTab) >= 0) {
         switchTab(savedTab);
+      } else {
+        loadDashboard();
       }
     });
   }
