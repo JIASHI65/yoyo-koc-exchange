@@ -1017,8 +1017,10 @@ function renderSubmissions() {
   var filter = document.getElementById('submission-filter').value;
   var container = document.getElementById('submissions-table');
   if (!container) return;
-  // Use preview data if available (from score import)
-  var list = (window._previewMerged && window._previewMerged.length > 0) ? window._previewMerged : (allSubmissions || []);
+  // Always show historical submissions filtered by currentPeriod
+  var list = (allSubmissions || []).filter(function(s) {
+    return (s.created_at || '').substring(0, 7) === currentPeriod;
+  });
   var filtered = list.filter(function(s) {
     if (filter !== 'all' && s.status !== filter) return false;
     if (q && (s.discord_name || '').toLowerCase().indexOf(q) === -1 &&
@@ -1027,7 +1029,7 @@ function renderSubmissions() {
   });
   var stats = document.getElementById('submission-stat');
   if (stats) {
-    var prefix = window._previewMerged ? '\U0001f4cb 预览结果 ' : '';
+    var prefix = '';
     stats.textContent = prefix + filtered.length + '/' + list.length + (window._previewMerged ? ' 人' : ' 条');
   }
   if (filtered.length === 0) {
@@ -1811,6 +1813,8 @@ function cancelScoreImport() {
   window._previewMerged = null;
   window._previewRaw = null;
   document.getElementById('score-preview-area').style.display = 'none';
+  // Refresh the submissions table (reload from DB)
+  if (typeof loadSubmissions === 'function') loadSubmissions();
   document.getElementById('import-action-bar').style.display = 'none';
   document.getElementById('paste-status').textContent = '';
 }
@@ -2022,6 +2026,8 @@ async function confirmScoreImport() {
   window._previewMerged = null;
   window._previewRaw = null;
   document.getElementById('score-preview-area').style.display = 'none';
+  // Refresh the submissions table (reload from DB)
+  if (typeof loadSubmissions === 'function') loadSubmissions();
   document.getElementById('import-action-bar').style.display = 'none';
   // Mark submissions as pushed to prevent double-count
   if (!pushedUids || Object.keys(pushedUids).length === 0) pushedUids = {};
@@ -2877,7 +2883,7 @@ async function loadDashboard() {
     // 本月兑换的总积分
     var totalOrders = monthOrders.reduce(function(su, o) { return su + (o.points_spent || 0); }, 0);
 
-    document.getElementById('dash-total-kocs').textContent = totalKocs + ' (' + activeCount + ' active)';
+    document.getElementById('dash-total-kocs').textContent = activeCount;
     document.getElementById('dash-total-subs').textContent = totalSubs;
     document.getElementById('dash-pending-subs').textContent = pendingSubs;
     document.getElementById('dash-total-orders').textContent = totalOrders;
