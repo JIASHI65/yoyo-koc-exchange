@@ -148,7 +148,7 @@
   <!-- ===== LOGIN ===== -->
   <div id="login-screen" class="card" style="max-width:320px;margin:80px auto;">
     <div class="card-title">🔐 Admin</div>
-    <input type="text" id="admin-pw" placeholder="Password" style="width:100%;margin-bottom:8px;">
+    <input type="text" id="admin-pw" placeholder="Password" style="width:100%;margin-bottom:8px;" onkeydown="if(event.key==='Enter')adminLogin()">
     <button class="btn btn-primary" onclick="adminLogin()" style="width:100%;">Login</button>
   </div>
 
