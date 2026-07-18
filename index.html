@@ -293,42 +293,17 @@ let selections = {};
 
 // Auto-login from localStorage (defined here, called after DOM+functions ready)
 function tryAutoLogin() {
+  // Only pre-fill login form from saved session, do NOT auto-navigate
   var saved = localStorage.getItem('koc_session');
   if (!saved) return;
   var session;
   try { session = JSON.parse(saved); } catch(e) { return; }
   if (!session || !session.uid || !session.discord_name) return;
-  (async function() {
-    try {
-      var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(session.uid) + '&select=*');
-      if (!res.ok) { localStorage.removeItem('koc_session'); return; }
-      var data = await res.json();
-      if (!data || data.length === 0) { localStorage.removeItem('koc_session'); return; }
-      var koc = data[0];
-      var points = await getBalance(session.uid);
-      var pendingRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(session.uid) + '&status=eq.pending&select=points_spent');
-      var pendingOrders = pendingRes.ok ? await pendingRes.json() : [];
-      var pendingTotal = pendingOrders.reduce(function(s, o) { return s + (o.points_spent || 0); }, 0);
-      currentUser = { ...koc, points: points - pendingTotal };
-      localStorage.setItem('koc_session', JSON.stringify({ uid: currentUser.uid, discord_name: currentUser.discord_name }));
-      showDashboard();
-      checkDeadline();
-      var submitDiscord = document.getElementById('submit-discord');
-      if (submitDiscord && koc.discord_name) submitDiscord.value = typeof koc.discord_name === 'string' ? koc.discord_name : '';
-      // Restore saved tab after refresh
-      var savedTab = localStorage.getItem('koc_active_tab');
-      if (savedTab && ['submit','history','redeem','faq'].indexOf(savedTab) >= 0) switchCreatorTab(savedTab);
-      initSubmitTab();
-    } catch(e) { 
-      console.error('Auto-login failed:', e);
-      // Don't clear session on transient errors - try again on next interaction
-      if (e.name === 'AbortError' || (e.message && e.message.includes('Failed to fetch'))) {
-        // Network error, keep session and retry on next page load
-        return;
-      }
-      localStorage.removeItem('koc_session'); 
-    }
-  })();
+  // Pre-fill the login form fields so user can just click Login
+  var discordInput = document.getElementById('input-discord');
+  var uidInput = document.getElementById('input-uid');
+  if (discordInput) discordInput.value = session.discord_name;
+  if (uidInput) uidInput.value = session.uid;
 }
 
 function initSelections() { selections = {}; REWARDS.forEach(r => selections[r.id] = 0); }
@@ -486,6 +461,24 @@ function showDashboard() {
     var btnEl = document.getElementById('btn-redeem');
     if (lockEl) lockEl.style.display = redemptionOpen ? 'none' : 'block';
     if (btnEl) btnEl.disabled = !redemptionOpen;
+  })();
+  // Always fetch fresh balance from API on dashboard show
+  (async function() {
+    if (!currentUser || !currentUser.uid) return;
+    try {
+      var freshPts = await getBalance(currentUser.uid);
+      var pendingRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(currentUser.uid) + '&status=eq.pending&select=points_spent');
+      var pendingOrders = pendingRes.ok ? await pendingRes.json() : [];
+      var pendingTotal = pendingOrders.reduce(function(s, o) { return s + (o.points_spent || 0); }, 0);
+      currentUser.points = freshPts - pendingTotal;
+    } catch(e) { console.error('Fresh balance fetch failed:', e); }
+    document.getElementById('display-points').textContent = currentUser.points;
+    var redeemDisplay = document.getElementById('display-user-redeem');
+    if (redeemDisplay) {
+      var dn = currentUser.discord_name;
+      if (typeof dn === 'object' && dn !== null) dn = dn.discord_name || 'Unknown';
+      redeemDisplay.textContent = 'Available: ' + currentUser.points + ' pts';
+    }
   })();
   document.getElementById('step-login').classList.add('hidden');
   document.getElementById('step-dashboard').classList.remove('hidden');
