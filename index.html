@@ -504,6 +504,8 @@ function showDashboard() {
       }
     })();
   } catch(e) {}
+  // Initialize submit tab (fix: first load shows blank page)
+  switchCreatorTab('submit');
   renderOptions();
   loadOrders();
 }
