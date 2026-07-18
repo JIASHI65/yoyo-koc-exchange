@@ -273,6 +273,7 @@
             <span style="font-size:11px;color:#4caf50;padding:8px 0;display:inline-block;">✅ 确认应用时已自动写入积分，不需要再次传送</span>
           </div>
           <button class="btn btn-sm" id="btn-toggle-redeem" style="background:#43b581;color:white;font-weight:700;padding:8px 16px;" onclick="toggleRedemption()">🔓 开放兑换</button>
+          <button class="btn btn-sm" id="btn-sync-balance" style="background:#7b1fa2;color:white;font-weight:700;padding:8px 16px;" onclick="syncAllBalances()">🔄 更新剩余积分</button>
         </div>
         <div class="stats-bar" id="stats-bar">
           <span id="stat-total">Loading...</span>
@@ -1103,6 +1104,13 @@ function renderSubmissions() {
       '</td>' +
       '</tr>';
   }).join('');
+  // Load balances
+  allKocs.forEach(function(k) {
+    getBalance(k.uid).then(function(p) {
+      var el = document.getElementById('bal-' + k.uid);
+      if (el) el.textContent = p;
+    });
+  });
 }
 function viewSubmission(id) {
   var s = allSubmissions.find(function(x) { return x.id === id; });
@@ -2712,6 +2720,8 @@ async function toggleRedemption() {
       body: JSON.stringify({ notes: JSON.stringify(notes) })
     });
     var btn = document.getElementById('btn-toggle-redeem');
+    var updateBtn = document.getElementById('btn-sync-balance');
+    if (updateBtn) updateBtn.textContent = '🔄 更新剩余积分';
     if (btn) {
       btn.textContent = newState ? '🔒 关闭兑换' : '🔓 开放兑换';
       btn.style.background = newState ? '#e74c3c' : '#43b581';
@@ -2986,6 +2996,7 @@ function renderKocTable() {
         '<option value="gold"' + (k.tier==='gold'?' selected':'') + '>🟡 金级创作官</option>' +
         '<option value="platinum"' + (k.tier==='platinum'?' selected':'') + '>💎 铂金创作官</option>' +
       '</select></td>' +
+      '<td><span id="bal-' + k.uid + '" class="pts" style="cursor:pointer;" onclick="editBalanceInline(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">\u22EF</span></td>' +
       '<td ondblclick="inlineEdit(this,\'name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.name || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'region\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.region || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'account_id\',\'' + k.uid + '\')" title="Double-click to edit" style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.account_id || '-') + '</td>' +
@@ -2997,6 +3008,13 @@ function renderKocTable() {
       '</td>' +
     '</tr>';
   }).join('');
+  // Load balances
+  allKocs.forEach(function(k) {
+    getBalance(k.uid).then(function(p) {
+      var el = document.getElementById('bal-' + k.uid);
+      if (el) el.textContent = p;
+    });
+  });
 }
 
 
@@ -3010,6 +3028,8 @@ function renderScoringTable() {
         if (d && d.length > 0 && d[0].notes) {
           try { var cfg = JSON.parse(d[0].notes); 
             var btn = document.getElementById('btn-toggle-redeem');
+    var updateBtn = document.getElementById('btn-sync-balance');
+    if (updateBtn) updateBtn.textContent = '🔄 更新剩余积分';
             if (btn) {
               var open = cfg.redemption_open === true;
               btn.textContent = open ? '🔒 关闭兑换' : '🔓 开放兑换';
@@ -3036,13 +3056,15 @@ function renderScoringTable() {
   if (ccEl) ccEl.textContent = '🎁 CC: ' + ccCount + ' creators';
   
   tbody.innerHTML = allKocs.map(function(k) {
-    var orders = allOrders.filter(function(o) { return o.uid === k.uid; });
+    var orders = allOrders.filter(function(o) { 
+      return o.uid === k.uid && ((o.period||'\'') === currentPeriod || (o.created_at||'\'\').substring(0,7) === currentPeriod);
+    });
     var pendingOrders = orders.filter(function(o) { return o.status === 'pending'; });
     var cc = hasCC(k.notes);
     return '<tr>' +
       '<td><strong ondblclick="inlineEdit(this,\'discord_name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.discord_name) + '</strong></td>' +
       '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();inlineEdit(this,\'uid\',\'' + k.uid + '\')">' + esc(k.uid) + '</td>' +
-      '<td><span class="pts" id="spts-' + k.uid + '">\u22EF</span></td>' +
+      '<td><span class="pts" id="mspts-' + k.uid + '">\u22EF</span></td>' +
       '<td style="text-align:center;">' +
         '<div class="toggle-wrap">' +
           '<input type="checkbox" class="toggle-cb" id="cc-' + k.uid + '" ' + (cc ? 'checked' : '') + ' onchange="toggleCC(\'' + k.uid + '\',\'' + escAttr(k.notes||'') + '\')">' +
@@ -3061,15 +3083,55 @@ function renderScoringTable() {
       '</td>' +
     '</tr>';
   }).join('');
-  // Load balances
+  // Load monthly points (from this month's submissions)
   allKocs.forEach(function(k) {
-    getBalance(k.uid).then(function(p) {
-      var el = document.getElementById('spts-' + k.uid);
-      if (el) el.textContent = p;
+    var monthSubs = allSubmissions.filter(function(s) {
+      return s.uid === k.uid && (s.created_at||'\'\').substring(0,7) === currentPeriod;
     });
+    var monthPts = monthSubs.reduce(function(s, x) { return s + (x.points_earned || 0); }, 0);
+    var el = document.getElementById('mspts-' + k.uid);
+    if (el) el.textContent = monthPts;
   });
 }
 
+async function syncAllBalances() {
+  if (!confirm('更新所有KOC的剩余积分？\n规则：剩余 = 原积分 + 当月积分 - 当月已兑换')) return;
+  showToast('正在更新积分...', 'info');
+  var updated = 0;
+  for (var i = 0; i < allKocs.length; i++) {
+    var k = allKocs[i];
+    if (!k.uid) continue;
+    try {
+      var curBal = await getBalance(k.uid);
+      var monthSubs = allSubmissions.filter(function(s) {
+        return s.uid === k.uid && (s.created_at||'').substring(0,7) === currentPeriod;
+      });
+      var monthPts = monthSubs.reduce(function(s, x) { return s + (x.points_earned || 0); }, 0);
+      var monthOrders = allOrders.filter(function(o) {
+        return o.uid === k.uid && ((o.period||'') === currentPeriod || (o.created_at||'').substring(0,7) === currentPeriod) && o.status === 'shipped';
+      });
+      var spent = monthOrders.reduce(function(s, o) { return s + (o.points_spent || 0); }, 0);
+      var newBal = curBal + monthPts - spent;
+      if (newBal !== curBal) {
+        await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+          method: 'POST',
+          body: JSON.stringify({
+            uid: k.uid,
+            change: monthPts - spent,
+            balance_after: newBal,
+            source: 'monthly_sync',
+            reason: currentPeriod + ' sync (earned:' + monthPts + ', spent:' + spent + ')',
+            period: currentPeriod,
+            created_by: 'admin'
+          })
+        });
+        updated++;
+      }
+    } catch(e) { console.error('sync error for ' + k.uid, e); }
+  }
+  showToast('✅ 已更新 ' + updated + ' 位创作者的剩余积分', 'success');
+  loadData();
+}
 function updateKocTierInline(uid) {
   var select = document.getElementById('koc-tier-select-' + uid);
   if (!select) return;
