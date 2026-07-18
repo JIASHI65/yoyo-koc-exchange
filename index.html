@@ -250,17 +250,15 @@
     <!-- FAQ Tab -->
     <div id="creator-tab-faq" class="tab-content">
       <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">❓ FAQ</span></div>
-      <div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:12px;padding:12px;margin-bottom:10px;font-size:13px;color:#6a1b9a;text-align:center;">
-        🤔 没找到答案？去 <strong>🎫｜town-service-station</strong> 发帖提问，客服会尽快回复你～
+      <div class="card" style="text-align:center;">
+        <div style="font-size:22px;font-weight:700;margin-bottom:6px;">❓ 常见问题解答</div>
+        <div style="font-size:13px;color:var(--text-light);margin-bottom:16px;">点击下方按钮在新标签页打开 FAQ，搜索你的问题</div>
+        <a href="https://jiashi65.github.io/yoyo-koc-faq/" target="_blank" rel="noopener" style="display:inline-block;padding:14px 40px;background:var(--pink-dark);color:white;border-radius:30px;font-size:16px;font-weight:600;text-decoration:none;margin-bottom:8px;">📖 打开 FAQ</a>
       </div>
       <div class="card" style="text-align:center;">
-        <div style="font-size:14px;font-weight:600;margin-bottom:8px;">💬 去发帖</div>
-        <a href="https://discord.com/channels/1263505733180854392/1458347958389965035" target="_blank" rel="noopener" style="display:inline-block;padding:10px 24px;background:#5865F2;color:white;border-radius:20px;font-size:14px;text-decoration:none;">🎫｜town-service-station</a>
-        <div style="margin:16px 0;height:1px;background:var(--border);"></div>
-        <div style="font-size:48px;margin:0 0 10px;">❓</div>
-        <div style="font-size:18px;font-weight:700;margin-bottom:6px;">常见问题解答</div>
-        <div style="font-size:13px;color:var(--text-light);margin-bottom:20px;">点击下方按钮在新标签页打开 FAQ，搜索你的问题</div>
-        <a href="https://jiashi65.github.io/yoyo-koc-faq/" target="_blank" rel="noopener" style="display:inline-block;padding:14px 40px;background:var(--pink-dark);color:white;border-radius:30px;font-size:16px;font-weight:600;text-decoration:none;">📖 打开 FAQ</a>
+        <div style="font-size:14px;font-weight:600;margin-bottom:6px;">🤔 没找到答案？去发帖提问</div>
+        <div style="font-size:12px;color:var(--text-light);margin-bottom:12px;">客服会在今晚回复你</div>
+        <a href="https://discord.com/channels/1263505733180854392/1458347958389965035" target="_blank" rel="noopener" style="display:inline-block;padding:10px 24px;background:#5865F2;color:white;border-radius:20px;font-size:14px;text-decoration:none;">🎫｜town-service-station 发帖</a>
       </div>
     </div>
 
@@ -902,13 +900,8 @@ async function loadMySubmissions() {
   if (!window._subViewMonth) window._subViewMonth = currentPeriod;
 
   try {
-    // Build 6-month range for navigation
-    var months = [];
-    var base = new Date();
-    for (var m = 0; m < 6; m++) {
-      var d = new Date(base.getFullYear(), base.getMonth() - m, 1);
-      months.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
-    }
+    // Build 3-month range for navigation (July, Aug, Sep 2026)
+    var months = ['2026-07','2026-08','2026-09'];
 
     // Fetch submissions for this user
     var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,created_at,status,points_earned,links_engagement,links_views');
@@ -1019,20 +1012,7 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
     html += '</div>';
   }
 
-  // Point history for this month
-  var ptEntries = (ptLogs||[]).filter(function(p) { return p.period === ym && p.change > 0; });
-  if (ptEntries.length > 0) {
-    html += '<div style="margin-top:10px;background:#faf5f7;border-radius:10px;padding:10px;">';
-    html += '<div style="font-size:12px;font-weight:600;margin-bottom:4px;">📊 ' + ym.replace('-', '年') + '月 积分明细</div>';
-    ptEntries.forEach(function(p) {
-      html += '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-light);padding:2px 0;">';
-      html += '<span>' + (p.reason || '积分') + '</span>';
-      html += '<span style="color:#2e7d32;">+' + p.change + '</span></div>';
-    });
-    html += '<div style="border-top:1px solid #ddd;margin-top:4px;padding-top:4px;display:flex;justify-content:space-between;font-size:11px;font-weight:600;">';
-    html += '<span>合计</span><span style="color:#ad1457;">' + monthPts + ' 分</span></div>';
-    html += '</div>';
-  }
+
 
   container.innerHTML = html;
   if (countEl) countEl.textContent = '📅 ' + ym.replace('-', '年') + '月 · ' + totalLinks + ' 条';
@@ -1041,12 +1021,7 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
 
 function switchSubMonth(ym) {
   window._subViewMonth = ym;
-  var months = [];
-  var base = new Date();
-  for (var m = 0; m < 6; m++) {
-    var d = new Date(base.getFullYear(), base.getMonth() - m, 1);
-    months.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0'));
-  }
+  var months = ['2026-07','2026-08','2026-09'];
   renderMonthView(ym, months, window._mySubsByMonth || {}, window._myPtLogs || [],
     document.getElementById('submissions-list'),
     document.getElementById('submission-count'),
