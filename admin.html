@@ -136,18 +136,14 @@
     .truncate { max-width: 100px; }
   }
 
-  .tier-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 16px; border-radius: 30px; font-size: 13px; font-weight: 800; letter-spacing: 0.5px; white-space: nowrap; position:relative; overflow:hidden; }
-  .tier-platinum { background: linear-gradient(145deg,#ede7f6 0%,#d1c4e9 30%,#b39ddb 60%,#9575cd 100%); color: #1a0033; border: 2.5px solid #7e57c2; box-shadow: 0 0 30px rgba(106,61,232,0.5), 0 0 60px rgba(106,61,232,0.2), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); position:relative; overflow:hidden; }
-  .tier-platinum::before { content: '\u2726 \u2726 \u2726'; position:absolute; left:4px; top:-2px; font-size:7px; letter-spacing:2px; opacity:0.3; color:#7e57c2; }
-  .tier-platinum::after { content: '💎✨'; position:absolute; right:2px; top:-1px; font-size:9px; }
-  .tier-gold { background: linear-gradient(145deg,#fffde7 0%,#ffe082 30%,#ffca28 60%,#ffb300 100%); color: #3e2723; border: 2.5px solid #ff8f00; box-shadow: 0 0 30px rgba(255,179,0,0.5), 0 0 60px rgba(255,179,0,0.2), 0 8px 30px rgba(255,179,0,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); position:relative; overflow:hidden;  }
-  .tier-gold::before { content: '\u2B50 \u2B50'; position:absolute; left:4px; top:-2px; font-size:7px; letter-spacing:2px; opacity:0.3; color:#ff8f00; }
-  .tier-gold::after { content: '🏆✨'; position:absolute; right:2px; top:-1px; font-size:9px; }
-  .tier-certified { background: linear-gradient(145deg,#e8f5e9 0%,#a5d6a7 30%,#81c784 60%,#66bb6a 100%); color: #003300; border: 2.5px solid #43a047; box-shadow: 0 0 30px rgba(76,175,80,0.4), 0 8px 30px rgba(76,175,80,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); position:relative; overflow:hidden; }
-  .tier-certified::after { content: '\u2705'; position:absolute; right:4px; top:1px; font-size:10px; }
-  @keyframes tierGlow { 0%,100% { box-shadow: 0 0 30px rgba(106,61,232,0.5), 0 0 60px rgba(106,61,232,0.2), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); } 50% { box-shadow: 0 0 40px rgba(106,61,232,0.7), 0 0 80px rgba(106,61,232,0.3), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); } }
-  @keyframes sparkleFloat { 0%,100% { opacity:0.3; transform:translateY(0); } 50% { opacity:0.8; transform:translateY(-2px); } }
-  @keyframes sparkleBounce { 0%,100% { transform:scale(1) rotate(0deg); } 25% { transform:scale(1.2) rotate(-5deg); } 75% { transform:scale(1.1) rotate(5deg); } }
+  .tier-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 16px; border-radius: 30px; font-size: 13px; font-weight: 800; letter-spacing: 0.5px; white-space: nowrap; }
+  .tier-platinum { background: linear-gradient(145deg,#ede7f6 0%,#d1c4e9 30%,#b39ddb 60%,#9575cd 100%); color: #1a0033; border: 2.5px solid #7e57c2; box-shadow: 0 0 30px rgba(106,61,232,0.5), 0 0 60px rgba(106,61,232,0.2), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); }
+
+  .tier-gold { background: linear-gradient(145deg,#fffde7 0%,#ffe082 30%,#ffca28 60%,#ffb300 100%); color: #3e2723; border: 2.5px solid #ff8f00; box-shadow: 0 0 30px rgba(255,179,0,0.5), 0 0 60px rgba(255,179,0,0.2), 0 8px 30px rgba(255,179,0,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); }
+
+  .tier-certified { background: linear-gradient(145deg,#e8f5e9 0%,#a5d6a7 30%,#81c784 60%,#66bb6a 100%); color: #003300; border: 2.5px solid #43a047; box-shadow: 0 0 30px rgba(76,175,80,0.4), 0 8px 30px rgba(76,175,80,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); }
+
+
   .tier- { background: linear-gradient(135deg,#e8e0ff,#fff8e1); color: #6a3de8; border: 1.5px solid #ce93d8; }
 </style>
 </head>
@@ -3163,9 +3159,8 @@ function updateKocTierInline(uid) {
   }).then(function(r) {
     if (r.ok) {
       showToast('✅ Tier updated to ' + tier, 'success');
-      // Update the tier badge in the same row
-      var badgeCell = select.closest('tr').querySelector('td:nth-child(3)');
-      if (badgeCell) badgeCell.innerHTML = getTierBadge(tier);
+      // Reload all data to refresh the table with correct tier badge + dropdown
+      loadData();
     } else {
       showToast('Failed to update tier', 'error');
     }
