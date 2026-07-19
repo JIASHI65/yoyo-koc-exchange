@@ -192,31 +192,31 @@
     <div style="position:absolute;top:40%;right:8%;font-size:12px;animation:sparkle 4s ease-in-out infinite 1.6s;opacity:0.25;">✨</div>
 
     <!-- 主蝴蝶结 带弹跳 -->
-    <div style="font-size:60px;margin-bottom:8px;animation:bounceIn 0.8s cubic-bezier(0.68,-0.55,0.265,1.55);position:relative;display:inline-block;">🎀</div>
+    <div style="font-size:60px;margin-bottom:8px;animation:bounceLoop 2.5s ease-in-out infinite;position:relative;display:inline-block;transform-origin:center;">🎀</div>
     
     <!-- 标题依次淡入 -->
-    <div style="font-size:28px;font-weight:800;color:#880e4f;margin-bottom:2px;animation:fadeInUp 0.6s ease-out 0.15s both;letter-spacing:2px;">Yoyo Town · Admin</div>
-    <div style="font-size:15px;color:#ad1457;margin-bottom:2px;animation:fadeInUp 0.6s ease-out 0.25s both;letter-spacing:3px;">KOC 创作者管理系统</div>
+    <div style="font-size:28px;font-weight:800;color:#880e4f;margin-bottom:2px;animation:gentleGlow 3s ease-in-out infinite 0.15s;letter-spacing:2px;">Yoyo Town · Admin</div>
+    <div style="font-size:15px;color:#ad1457;margin-bottom:2px;animation:gentleGlow 3s ease-in-out infinite 0.4s;letter-spacing:3px;">KOC 创作者管理系统</div>
     
     <!-- 署名行： 莎莎 + 全栈 合在一行-->
-    <div style="font-size:12px;color:#d4869c;margin-bottom:36px;animation:fadeInUp 0.6s ease-out 0.35s both;">
+    <div style="font-size:12px;color:#d4869c;margin-bottom:36px;animation:softBlink 3s ease-in-out infinite 0.6s;">
       ✦ <span style="font-weight:600;color:#ad1457;">Seraphina 莎莎</span> · 产品设计 / 全栈开发 / 运维 ✦
     </div>
 
     <!-- 输入区域 -->
-    <div style="position:relative;animation:fadeInUp 0.6s ease-out 0.45s both;">
+    <div style="position:relative;animation:fadeInUp 0.6s ease-out 0.45s both;animation-fill-mode:both;">
       <!-- 输入框光效背景 -->
       <div style="position:absolute;top:-4px;left:-4px;right:-4px;bottom:-4px;border-radius:20px;background:linear-gradient(135deg,#f2a6c4,#d4749a,#f2a6c4);opacity:0.15;animation:glowRotate 3s linear infinite;pointer-events:none;"></div>
       <input type="text" id="admin-pw" placeholder="输入管理员密码" autocomplete="off" style="width:100%;padding:18px 24px;border:2px solid #f8bbd0;border-radius:18px;font-size:17px;text-align:center;background:rgba(255,255,255,0.95);box-sizing:border-box;outline:none;transition:all 0.3s ease;backdrop-filter:blur(4px);color:#3d2b36;position:relative;z-index:1;" onkeydown="if(event.key==='Enter')adminLogin()" onfocus="this.style.borderColor='#f2a6c4';this.style.boxShadow='0 0 0 6px rgba(242,166,196,0.12)'" onblur="this.style.borderColor='#f8bbd0';this.style.boxShadow='none'">
     </div>
 
     <!-- 按钮 -->
-    <div style="animation:fadeInUp 0.6s ease-out 0.55s both;margin-top:18px;">
+    <div style="animation:fadeInUp 0.6s ease-out 0.55s both;animation-fill-mode:both;margin-top:18px;">
       <button id="login-btn" onclick="adminLogin()" style="width:100%;padding:18px;font-size:18px;font-weight:700;border-radius:18px;cursor:pointer;transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);letter-spacing:3px;background:linear-gradient(135deg,#f2a6c4,#d4749a,#e88dae);color:white;border:none;box-shadow:0 6px 24px rgba(212,116,154,0.35);background-size:200% 200%;animation:gradientShift 4s ease infinite;" onmouseover="this.style.transform='translateY(-3px) scale(1.01)';this.style.boxShadow='0 12px 36px rgba(212,116,154,0.45)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 6px 24px rgba(212,116,154,0.35)'" onmousedown="this.style.transform='scale(0.96)'" onmouseup="this.style.transform='translateY(-3px) scale(1.01)'">🔐 进入管理后台</button>
     </div>
 
     <!-- 底部版权 -->
-    <div style="font-size:11px;color:#d4869c;margin-top:36px;line-height:1.8;animation:fadeInUp 0.6s ease-out 0.65s both;opacity:0.8;">
+    <div style="font-size:11px;color:#d4869c;margin-top:36px;line-height:1.8;animation:fadeInUp 0.6s ease-out 0.65s both;animation-fill-mode:both;opacity:0.8;">
       <div style="display:flex;justify-content:center;align-items:center;gap:8px;">
         <span>💖</span>
         <span>全栈自研 · 用心做好每一个细节</span>
