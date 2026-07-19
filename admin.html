@@ -211,56 +211,23 @@
 </script>
 
 <script>
-// ===== JS强制动画引擎 =====
+// ===== JS动画补充（不与 CSS animation 争夺 transform）=====
 (function() {
   function startAnimations() {
     var screen = document.getElementById('login-screen');
     if (!screen) return;
-    // 蝴蝶结弹跳
-    var bow = screen.querySelector('[style*="bowBounce"]');
-    if (bow) {
-      var t = 0;
-      function bounce() {
-        t += 0.03;
-        var phase = ((t % 2) + 2) % 2 / 2;
-        var y = 0, sc = 1;
-        if (phase < 0.15) { var p = phase / 0.15; y = -16 * Math.sin(p * Math.PI); sc = 1 + y/120; }
-        else if (phase < 0.30) { var p = (phase-0.15)/0.15; y = -16*Math.sin(p*Math.PI)*0.6; sc = 1+y/120; }
-        else if (phase < 0.45) { var p = (phase-0.30)/0.15; y = -6*Math.sin(p*Math.PI); sc = 1+y/120; }
-        bow.style.transform = 'translateY('+y+'px) scale('+sc+')';
-        bow.style.opacity = '1';
-        requestAnimationFrame(bounce);
-      }
-      bounce();
-    }
-    // 星星
-    screen.querySelectorAll('[style*="sparkle"]').forEach(function(el, i) {
-      setInterval(function() {
-        var bright = Math.random() > 0.4;
-        el.style.opacity = bright ? '0.9' : '0.2';
-        el.style.transform = bright ? 'scale(1.6) rotate(20deg)' : 'scale(1) rotate(0deg)';
-      }, 1500 + i*800);
-    });
-    // 标题光晕
-    screen.querySelectorAll('[style*="gentleGlow"]').forEach(function(el) {
-      function g() {
-        var gv = 0.3 + 0.4*Math.sin(Date.now()/1500);
-        el.style.textShadow = '0 0 '+(12*gv)+'px rgba(242,166,196,'+(0.3*gv)+'),0 0 '+(30*gv)+'px rgba(242,166,196,'+(0.15*gv)+')';
-        el.style.opacity = 0.85+0.15*gv;
-        requestAnimationFrame(g);
-      }
-      g();
-    });
-    // 按钮
+    // 按钮渐变流动——这是唯一无冲突的 JS 动画（只操作 backgroundPosition）
     var btn = document.getElementById('login-btn');
-    if (btn) { (function() { function s() { var p = ((Date.now()/4000)%1)*100; btn.style.backgroundPosition = p+'% 50%'; requestAnimationFrame(s); } s(); })(); }
-    // 脉动圆
-    screen.querySelectorAll('[style*="pulse"]').forEach(function(el) {
-      (function() { function p() { var s = 0.8+0.6*Math.sin(Date.now()/2000); el.style.transform = 'scale('+s+')'; el.style.opacity = 0.08+0.12*Math.sin(Date.now()/2000+1); requestAnimationFrame(p); } p(); })();
-    });
-    // 署名
-    var cr = screen.querySelector('[style*="softBlink"]');
-    if (cr) { (function() { function b() { cr.style.opacity = 0.7+0.3*Math.sin(Date.now()/1200); requestAnimationFrame(b); } b(); })(); }
+    if (btn) {
+      (function() {
+        function s() {
+          var p = ((Date.now()/4000)%1)*100;
+          btn.style.backgroundPosition = p+'% 50%';
+          requestAnimationFrame(s);
+        }
+        s();
+      })();
+    }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startAnimations);
   else startAnimations();
