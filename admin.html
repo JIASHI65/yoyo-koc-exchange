@@ -160,6 +160,35 @@
   50% { transform:translateY(-8px) rotate(15deg); }
 }
 </style>
+<script>
+// ===== JS动画引擎 =====
+document.addEventListener('DOMContentLoaded', function() {
+  // 蝴蝶结弹跳
+  var bow = document.querySelector('[style*="bounceLoop"]');
+  if (bow) {
+    var start = Date.now();
+    function jsBounce() {
+      var t = (Date.now() - start) % 2500 / 2500;
+      var y = 0;
+      if (t < 0.15) y = -16 * Math.sin(t / 0.15 * Math.PI);
+      else if (t < 0.30) y = -16 * Math.sin((t-0.15)/0.15*Math.PI) * 0.6;
+      else if (t < 0.45) y = -6 * Math.sin((t-0.30)/0.15*Math.PI);
+      bow.style.transform = 'translateY('+y+'px) scale('+(1+y/120)+')';
+      requestAnimationFrame(jsBounce);
+    }
+    jsBounce();
+  }
+  // 星星闪烁
+  document.querySelectorAll('[style*="sparkle"]').forEach(function(el) {
+    var delay = parseFloat(el.style.animationDelay) || 0;
+    setInterval(function() {
+      var bright = Math.random() > 0.5;
+      el.style.opacity = bright ? '0.8' : '0.2';
+      el.style.transform = bright ? 'scale(1.4)' : 'scale(1)';
+    }, 1500 + delay * 1000);
+  });
+});
+</script>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
