@@ -384,6 +384,7 @@
             <th>UID</th>
             <th>📅 当月积分</th>
             <th style="text-align:center;width:70px;">CC ✓</th>
+            <th style="text-align:center;width:70px;">🌱 新人任务</th>
             <th style="min-width:200px;">📦 当月兑换（点 ✓ 确认发货）</th>
             <th style="width:90px;">💳 积分操作</th>
           </tr></thead>
@@ -3712,7 +3713,7 @@ function renderScoringTable() {
   var tbody = document.getElementById('scoring-table');
   if (!tbody) return;
   if (!allKocs.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
     return;
   }
   document.getElementById('stat-total').textContent = '\uD83D\uDC65 Total: ' + allKocs.length;
@@ -3740,6 +3741,27 @@ function renderScoringTable() {
           '<label class="toggle-label" for="cc-' + k.uid + '"></label>' +
         '</div>' +
       '</td>' +
+      (function() {
+        var nNotes = k.notes || '';
+        var nObj = {};
+        try { nObj = JSON.parse(nNotes); } catch(e) {}
+        var nbM = nObj.newbie_month || '';
+        var ptM = nNotes.match(/newbie_month:(\\d{4}-\\d{2})/);
+        if (ptM) nbM = ptM[1];
+        var nbClaimed = nNotes.indexOf('newbie_bonus:' + currentPeriod) >= 0 || nObj['newbie_bonus:' + currentPeriod] === true;
+        var isOldCreator = nNotes.indexOf('old_creator') >= 0 || nObj.old_creator === true;
+        var isNewbieEligible = !isOldCreator && nbM === currentPeriod;
+        var nbSubs = allSubmissions.filter(function(s) { return s.uid === k.uid && (s.created_at||'').substring(0,7) === currentPeriod; });
+        var nbPts = nbSubs.reduce(function(s2, x) { return s2 + (x.points_earned || 0); }, 0);
+        var nbQualified = nbPts >= 5;
+        var nbActive = nbClaimed || (isNewbieEligible && nbQualified);
+        return '<td style="text-align:center;">' +
+          '<div class="toggle-wrap">' +
+            '<input type="checkbox" class="toggle-cb" id="nb-' + k.uid + '" ' + (nbActive ? 'checked' : '') + ' ' + (nbClaimed || !isNewbieEligible || !nbQualified ? 'disabled' : '') + ' onchange="toggleNewbieBonus(\'' + k.uid + '\')">' +
+            '<label class="toggle-label" for="nb-' + k.uid + '" style="' + (nbActive ? 'background:#4caf50;' : '') + (isNewbieEligible && nbQualified && !nbClaimed ? 'box-shadow:0 0 6px rgba(76,175,80,0.5);animation:none;' : '') + '"></label>' +
+          '</div>' +
+        '</td>';
+      })() +
       '<td style="max-width:260px;">' +
         (orders.length + ' orders (' + pendingOrders.length + ' pending)') +
         '<div id="orders-' + k.uid + '" style="margin-top:4px;max-width:240px;">' +
@@ -3766,7 +3788,27 @@ function renderScoringTable() {
     });
     var monthPts = monthSubs.reduce(function(s, x) { return s + (x.points_earned || 0); }, 0);
     var el = document.getElementById('mspts-' + k.uid);
-    if (el) el.textContent = monthPts;
+    // Check newbie bonus
+    var nbNotes2 = k.notes || '';
+    var nbObj2 = {}; try { nbObj2 = JSON.parse(nbNotes2); } catch(e) {}
+    var nbClaimed2 = nbNotes2.indexOf('newbie_bonus:' + currentPeriod) >= 0 || nbObj2['newbie_bonus:' + currentPeriod] === true;
+    var nbM2 = nbObj2.newbie_month || '';
+    var ptM2 = nbNotes2.match(/newbie_month:(\d{4}-\d{2})/);
+    if (ptM2) nbM2 = ptM2[1];
+    var isOld2 = nbNotes2.indexOf('old_creator') >= 0 || nbObj2.old_creator === true;
+    var isNbEligible = !isOld2 && nbM2 === currentPeriod;
+    var nbQualified2 = isNbEligible && monthPts >= 5;
+    if (nbQualified2 || nbClaimed2) {
+      var displayPts = monthPts + (nbClaimed2 ? 2 : 0);
+      var bonusLabel = nbClaimed2 ? ('<span style="font-size:10px;color:#2e7d32;">+2 🌱</span>') : '<span style="font-size:10px;color:#e65100;">?+2 🌱</span>';
+      el.innerHTML = monthPts + bonusLabel;
+      if (nbClaimed2) {
+        // Show full formula: 5+2=7
+        el.innerHTML = '<span>' + monthPts + '+2=' + displayPts + ' <span style="font-size:10px;color:#2e7d32;">🌱</span></span>';
+      }
+    } else {
+      if (el) el.textContent = monthPts;
+    }
   });
 }
 
@@ -3826,936 +3868,57 @@ function updateKocTierInline(uid) {
   }).catch(function(e) { showToast('Error: ' + e.message, 'error'); });
 }
 
-function esc(s) { return s == null ? '' : String(s).replace(/[&<>]/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]; }); }
-function escAttr(s) { return String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, '\\n'); }
 
-function toggleOrders(uid) {
-  var el = document.getElementById('orders-' + uid);
-  if (el) el.classList.toggle('hidden');
-}
-
-// ===== ADD KOC =====
-async function batchMarkOldCreator() {
-  var names = prompt('\u8f93\u5165\u8981\u6807\u8bb0\u4e3a\u8001\u521b\u4f5c\u8005\u7684 Discord \u540d\u79f0\uff08\u6bcf\u884c\u4e00\u4e2a\uff09:', 'Rowdy-Bones\nAchiru\nadalia\nClarySage8611\nDatuzu\ndiana\nEma\u2661\nJanie\nkanansai\nlaarakln\n\ud835\udd76\ud835\udd90\ud835\udd8d\nLondon\nMaia\nmaished\nPrimroseku\nSusanne (user: susannepandawhale)\ntaylor\nMia');
-  if (!names) return;
-  var lines = names.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
-  var updated = 0;
-  var errors = [];
-  for (var i = 0; i < lines.length; i++) {
-    var name = lines[i];
-    try {
-      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?discord_name=eq.' + encodeURIComponent(name) + '&select=uid,notes');
-      if (!r.ok) { errors.push(name + ': HTTP ' + r.status); continue; }
-      var d = await r.json();
-      if (!d || d.length === 0) { errors.push(name + ': not found'); continue; }
-      var k = d[0];
-      var notes = k.notes || '';
-      if (notes.indexOf('old_creator') === -1) {
-        notes = notes ? notes + ', old_creator:true' : 'old_creator:true';
-        await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(k.uid), {
-          method: 'PATCH', body: JSON.stringify({ notes: notes })
-        });
-      }
-      updated++;
-    } catch(e) { errors.push(name + ': ' + e.message); }
-  }
-  var msg = '\u2705 ' + updated + ' \u4f4d\u5df2\u6807\u8bb0\u4e3a\u8001\u521b\u4f5c\u8005';
-  if (errors.length > 0) msg += '\n\u26a0\ufe0f ' + errors.length + ' \u5931\u8d25: ' + errors.join(', ');
-  showToast(msg, errors.length > 0 ? 'warning' : 'success');
-  loadData();
-}
-
-async function addKOC() {
-  var discord = document.getElementById('new-discord').value.trim();
-  var uid = document.getElementById('new-uid').value.trim();
-  if (!discord || !uid) { showToast('Discord name and UID required', 'error'); return; }
-  try {
-    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs', {
-      method: 'POST',
-      body: JSON.stringify({ uid: uid, discord_name: discord, name: name, status: 'active', created_at: new Date().toISOString() })
-    });
-    
-    // Auto-create welcome gift if checkbox is checked
-    var sendGift = document.getElementById('cb-welcome') && document.getElementById('cb-welcome').checked;
-    if (sendGift) {
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
-        method: 'POST',
-        body: JSON.stringify({
-          uid: uid, discord_name: discord, koc_name: discord,
-          option_type: 'merch', option_name: '\uD83C\uDF81 \u65B0\u4EBA\u5165\u804C\u5468\u8FB9',
-          points_spent: 0, reward_amount: '\u968F\u673A\u5468\u8FB9 \u00D7 1',
-          contact_info: '', status: 'pending',
-          admin_notes: 'Welcome gift - auto created',
-          created_at: new Date().toISOString()
-        })
-      });
-      showToast('\u2705 Added ' + discord + ' + welcome gift', 'success');
-    } else {
-      showToast('\u2705 Added ' + discord, 'success');
-    }
-    document.getElementById('new-discord').value = '';
-    document.getElementById('new-uid').value = '';
-    loadData();
-  } catch (e) { showToast('Error: maybe UID exists', 'error'); }
-}
-
-// ===== SHIP ORDER =====
-async function shipOrder(ev, id) { try { if (ev && ev.target) { ev.target.disabled = true; ev.target.textContent = "⏳"; } } catch(e) {}
-  try {
-    var oRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + id + '&select=*');
-    var oData = await oRes.json();
-    var order = oData[0];
-    if (!order) throw new Error('Order not found');
-
-    // Skip if already shipped
-    if (order.status === 'shipped') { showToast('Already shipped', 'info'); return; }
-
-    // Ship the order
-    await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + id, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'shipped', processed_at: new Date().toISOString(), processed_by: 'admin' })
-    });
-
-    // Deduct points ONLY if points_spent > 0 AND not already deducted
-    if (order.points_spent > 0) {
-      // Check if already deducted via point_logs
-      var lRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + order.uid + '&source=eq.redemption&order=created_at.desc&limit=5&select=change,reason,created_at');
-      var logs = await lRes.json();
-      var alreadyDeducted = false;
-      if (logs && logs.length > 0) {
-        for (var l = 0; l < logs.length; l++) {
-          if (logs[l].change === -order.points_spent && logs[l].reason && logs[l].reason.indexOf('#' + id) >= 0) {
-            alreadyDeducted = true;
-            break;
-          }
-        }
-      }
-      if (!alreadyDeducted) {
-        var curBal = await getBalance(order.uid);
-        var newBal = Math.max(0, curBal - order.points_spent); // Never go below 0
-        await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
-          method: 'POST',
-          body: JSON.stringify({
-            uid: order.uid, change: -order.points_spent,
-            balance_after: newBal,
-            source: 'redemption', reason: 'Shipped order #' + id,
-            created_at: new Date().toISOString()
-          })
-        });
-      }
-    }
-
-    showToast('\u2705 Shipped' + (order.points_spent > 0 ? ' + pts deducted' : ''), 'success');
-    loadData();
-  } catch (e) { showToast('Error: ' + e.message, 'error'); }
-}
-
-// ===== POINT MODAL =====
-function adjustPoint(delta) {
-  var inp = document.getElementById('modal-points');
-  var v = parseInt(inp.value) || 1;
-  v = Math.max(1, v + delta);
-  inp.value = v;
-}
-function setQuickPoint(n) {
-  document.getElementById('modal-points').value = n;
-}
-function openPointsModal(uid, discord) {
-  editingUid = uid;
-  document.getElementById('modal-title').textContent = '\u270F\uFE0F ' + discord;
-  document.getElementById('modal-points').value = '1';
-  document.getElementById('modal-reason').value = '';
-  document.getElementById('point-modal').classList.remove('hidden');
-  // Show current balance
-  getBalance(uid).then(function(b) {
-    var el = document.getElementById('modal-current-balance');
-    if (el) el.textContent = '\uD83D\uDCB0 \u5F53\u524D\u79EF\u5206: ' + b + ' pts';
-  });
-  // Show recent history
-  loadPointHistory(uid);
-}
-
-function setPointAmount(n) {
-  document.getElementById('modal-points').value = n;
-}
-
-function quickPoints(dir) {
-  var inp = document.getElementById('modal-points');
-  var v = parseInt(inp.value) || 1;
-  if (dir > 0) inp.value = v + 1;
-  else inp.value = Math.max(1, v - 1);
-}
-
-function loadPointHistory(uid) {
-  supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(uid) + '&order=created_at.desc&limit=5&select=change,balance_after,reason,created_at').then(function(r) {
-    if (!r.ok) return; return r.json();
-  }).then(function(logs) {
-    var el = document.getElementById('modal-point-history');
-    if (!el) return;
-    if (!logs || logs.length === 0) {
-      el.innerHTML = '<div style="color:var(--text-light);font-size:12px;">\u6682\u65E0\u64CD\u4F5C\u8BB0\u5F55</div>';
-      return;
-    }
-    var h = '<div style="font-weight:600;margin-bottom:4px;font-size:12px;">\uD83D\uDCDC \u6700\u8FD1\u64CD\u4F5C</div>';
-    logs.forEach(function(l) {
-      var sign = l.change > 0 ? '+\uD83D\uDFE2' : '\uD83D\uDD34';
-      var dt = new Date(l.created_at).toLocaleDateString('zh-CN');
-      h += '<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f0f0f0;font-size:12px;">';
-      h += '<span>' + sign + ' ' + (l.change > 0 ? '+' : '') + l.change + ' \u2192 ' + l.balance_after + '</span>';
-      h += '<span style="color:var(--text-light);font-size:11px;">' + esc(l.reason||'') + ' \u00B7 ' + dt + '</span>';
-      h += '</div>';
-    });
-    el.innerHTML = h;
-  }).catch(function() {});
-}
-
-function toggleOrderExpand(uid) {
-  var el = document.getElementById('orders-' + uid);
-  if (!el) return;
-  if (el.style.display === 'none' || !el.style.display) {
-    el.style.display = 'block';
-  } else {
-    el.style.display = 'none';
-  }
-}
-
-function closePointModal() {
-  document.getElementById('point-modal').classList.add('hidden');
-  editingUid = null;
-}
-
-async function submitPoints() {
-  var pts = parseInt(document.getElementById('modal-points').value);
-  var reason = document.getElementById('modal-reason').value.trim();
-  var mode = document.getElementById('modal-mode').value; // 'add' or 'deduct'
-  if (!pts || pts < 1) { showToast('\u8F93\u5165\u6709\u6548\u79EF\u5206', 'error'); return; }
-  if (!reason) { showToast('\u8BF7\u586B\u5199\u5907\u6CE8\u539F\u56E0', 'error'); return; }
-
-  try {
-    var bal = await getBalance(editingUid);
-    var change = mode === 'add' ? pts : -pts;
-    var newBal = Math.max(0, bal + change);
-    await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
-      method: 'POST',
-      body: JSON.stringify({ uid: editingUid, change: change, balance_after: newBal, source: 'manual', reason: reason, created_by: 'admin', created_at: new Date().toISOString() })
-    });
-    showToast('\u2705 ' + (change > 0 ? '+' : '') + change + ' pts (' + reason + ')', 'success');
-    closePointModal();
-    renderKocTable();
-    renderScoringTable();
-  } catch (e) { showToast('Error: ' + e.message, 'error'); }
-}
-
-function openEditModal(uid) {
+// ===== NEWBIE BONUS TOGGLE =====
+async function toggleNewbieBonus(uid) {
   var koc = allKocs.find(function(k) { return k.uid === uid; });
   if (!koc) return;
-  editingUid = uid;
+  var notes = koc.notes || '';
   
-  // Parse address to extract phone if present
-  var addr = koc.address || '';
-  var parsed = parseAddress(addr);
-
-  document.getElementById('edit-discord').value = koc.discord_name || '';
-  document.getElementById('edit-uid').value = koc.uid || '';
-  document.getElementById('edit-name').value = koc.name || '';
-  document.getElementById('edit-channel').value = koc.channel_tag || '';
-  document.getElementById('edit-region').value = koc.region || '';
-  document.getElementById('edit-address').value = parsed.address;
-  document.getElementById('edit-phone').value = parsed.phone;
-  document.getElementById('edit-account').value = koc.account_id || '';
-  document.getElementById('edit-server').value = koc.server || '';
-  document.getElementById('edit-notes').value = koc.notes || '';
-  document.getElementById('edit-modal').classList.remove('hidden');
-}
-
-function parseAddress(addr) {
-  if (!addr) return { address: '', phone: '' };
-  // Check if phone is separated by \n\n at end
-  var parts = addr.split('\n\n');
-  if (parts.length >= 2 && /[\d\-\(\)\+\s]{7,}/.test(parts[parts.length-1])) {
-    return { address: parts.slice(0,-1).join('\n\n'), phone: parts[parts.length-1].trim() };
-  }
-  // Try last line
-  var lines = addr.split('\n');
-  var last = lines[lines.length-1];
-  if (/[\d\-\(\)\+\s]{7,}/.test(last) && lines.length > 1) {
-    return { address: lines.slice(0,-1).join('\n'), phone: last.trim() };
-  }
-  return { address: addr, phone: '' };
-}
-
-function closeEditModal() {
-  document.getElementById('edit-modal').classList.add('hidden');
-  editingUid = null;
-}
-
-async function saveEditKOC() {
-  if (!editingUid) return;
-  var addr = document.getElementById('edit-address').value.trim();
-  var phone = document.getElementById('edit-phone').value.trim();
-  var fullAddr = phone ? addr + '\n\n' + phone : addr;
-
-  var updates = {
-    name: document.getElementById('edit-name').value.trim(),
-    channel_tag: document.getElementById('edit-channel').value.trim(),
-    region: document.getElementById('edit-region').value.trim(),
-    address: fullAddr,
-    account_id: document.getElementById('edit-account').value.trim(),
-    server: document.getElementById('edit-server').value.trim(),
-    notes: document.getElementById('edit-notes').value.trim()
-  };
-
-  try {
-    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(editingUid), {
+  // Calculate current month pts
+  var nbSubs = allSubmissions.filter(function(s) { return s.uid === uid && (s.created_at||'').substring(0,7) === currentPeriod; });
+  var nbPts = nbSubs.reduce(function(s2, x) { return s2 + (x.points_earned || 0); }, 0);
+  if (nbPts < 5) { showToast('需要 >= 5 分才能发放新人奖励', 'error'); return; }
+  
+  var tag = 'newbie_bonus:' + currentPeriod;
+  
+  // Get current balance
+  var curBal = await getBalance(uid);
+  
+  // Create point_log for +2 bonus
+  await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+    method: 'POST',
+    body: JSON.stringify({
+      uid: uid,
+      change: 2,
+      balance_after: curBal + 2,
+      source: 'admin_newbie_bonus',
+      reason: 'New Creator Bonus - ' + currentPeriod + ' manual confirm',
+      period: currentPeriod,
+      created_by: 'admin'
+    })
+  });
+  
+  // Mark as claimed
+  var updatedNotes = notes + ', ' + tag;
+  await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
+    method: 'PATCH',
+    body: JSON.stringify({ notes: updatedNotes })
+  });
+  
+  // Auto-mark as old creator
+  if (notes.indexOf('old_creator') === -1) {
+    var oldNotes = updatedNotes + ', old_creator:true';
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
       method: 'PATCH',
-      body: JSON.stringify(updates)
-    });
-    showToast('\u2705 Saved', 'success');
-    closeEditModal();
-    loadData();
-  } catch (e) { showToast('Error: ' + e.message, 'error'); }
-}
-
-// ===== DOUBLE-CLICK INLINE EDIT for order rows =====
-function editOrderRow(orderId, field) {
-  // Find the order in allOrders
-  var order = null;
-  for (var i = 0; i < allOrders.length; i++) {
-    if (allOrders[i].id === orderId) { order = allOrders[i]; break; }
-  }
-  if (!order) { showToast('Order not found', 'error'); return; }
-  
-  if (field) {
-    // Single field edit - prompt
-    var currentVal = '';
-    if (field === 'discord_name') {
-      var koc = getKocMap()[order.uid];
-      currentVal = koc ? koc.discord_name : order.discord_name;
-    } else if (field === 'address') {
-      var koc = getKocMap()[order.uid];
-      currentVal = koc ? koc.address : '';
-    } else if (field === 'option_name') {
-      currentVal = order.option_name;
-    } else if (field === 'account_id') {
-      var koc = getKocMap()[order.uid];
-      currentVal = koc ? koc.account_id : '';
-    } else if (field === 'server') {
-      var koc = getKocMap()[order.uid];
-      currentVal = koc ? koc.server : '';
-    } else if (field === 'region') {
-      var koc = getKocMap()[order.uid];
-      currentVal = koc ? koc.region : '';
-    } else if (field === 'uid') {
-      currentVal = order.uid;
-    }
-    var newVal = prompt('Edit ' + field + ':', currentVal);
-    if (newVal === null) return;
-    newVal = newVal.trim();
-    
-    if (field === 'discord_name' || field === 'option_name') {
-      // Update redemption_orders
-      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + orderId, {
-        method: 'PATCH',
-        body: JSON.stringify((function(){ var o = {}; o[field] = newVal; return o; })())
-      }).then(async function(r) {
-        if (r.ok) { showToast('✅ ' + field + ' updated', 'success'); await loadData(); }
-        else { var et=await r.text().catch(function(){return '';}); showToast('Failed: '+et.substring(0,60), 'error'); }
-      }).catch(function(e) { showToast('Error: '+e.message, 'error'); });
-    } else if (field === 'uid') {
-      // Update both redemption_orders and kocs
-      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + orderId, {
-        method: 'PATCH',
-        body: JSON.stringify({ uid: newVal })
-      }).then(function(r) { return r; }).catch(function(e){});
-      supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(order.uid), {
-        method: 'PATCH',
-        body: JSON.stringify((function(){ var o = {}; o[field] = newVal; return o; })())
-      }).then(async function(r) {
-        if (r.ok) { showToast('✅ ' + field + ' updated', 'success'); await loadData(); }
-        else { var et=await r.text().catch(function(){return '';}); showToast('Failed: '+et.substring(0,60), 'error'); }
-      }).catch(function(e) { showToast('Error: '+e.message, 'error'); });
-    } else {
-      // Update kocs table
-      supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(order.uid), {
-        method: 'PATCH',
-        body: JSON.stringify((function(){ var o = {}; o[field] = newVal; return o; })())
-      }).then(async function(r) {
-        if (r.ok) { showToast('✅ ' + field + ' updated', 'success'); await loadData(); }
-        else { var et=await r.text().catch(function(){return '';}); showToast('Failed: '+et.substring(0,60), 'error'); }
-      }).catch(function(e) { showToast('Error: '+e.message, 'error'); });
-    }
-  } else {
-    // Full row edit - show all fields
-    var koc = getKocMap()[order.uid];
-    var info = '';
-    if (koc) {
-      info += 'Discord: ' + koc.discord_name + '\n';
-      info += 'UID: ' + koc.uid + '\n';
-      info += 'Address: ' + (koc.address || '-') + '\n';
-      info += 'Account ID: ' + (koc.account_id || '-') + '\n';
-      info += 'Server: ' + (koc.server || '-') + '\n';
-    }
-    info += 'Reward: ' + order.option_name + '\n';
-    info += 'Status: ' + order.status;
-    alert(info + '\n\nDouble-click any cell to edit it individually.');
-  }
-}
-
-// ===== RENDER SHIPPING TABS =====
-
-// ===== INLINE EDIT for Points (积分计算板块) =====
-function inlineEditPts(uid, discord) {
-  getBalance(uid).then(function(curPts) {
-    var newVal = prompt('Edit points for ' + discord + ':', curPts);
-    if (newVal === null) return;
-    newVal = parseInt(newVal);
-    if (isNaN(newVal)) { showToast('Invalid number', 'error'); return; }
-    var diff = newVal - curPts;
-    if (diff === 0) { showToast('No change', 'info'); return; }
-    supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
-      method: 'POST',
-      body: JSON.stringify({
-        uid: uid, change: diff,
-        balance_after: newVal,
-        source: 'admin_fix', reason: 'Manual adjustment by admin',
-        created_at: new Date().toISOString()
-      })
-    }).then(function(r) {
-      if (r.ok) { showToast('✅ Points updated to ' + newVal, 'success'); loadData(); }
-      else showToast('Failed to update points', 'error');
-    });
-  });
-}
-
-// ===== INLINE EDIT for KOC信息库 (double-click cells) =====
-// Replaces the cell with an input field, saves on Enter/blur, cancels on Escape
-function inlineEdit(cell, field, uid) {
-  if (cell.querySelector('input')) return; // already editing
-  var currentVal = cell.textContent.trim();
-  if (currentVal === '-' || currentVal === '') currentVal = '';
-  var input = document.createElement('input');
-  input.type = 'text';
-  input.value = currentVal;
-  input.style.cssText = 'width:100%;border:2px solid var(--pink);border-radius:6px;padding:4px 6px;font-size:12px;outline:none;background:white;';
-  cell.textContent = '';
-  cell.appendChild(input);
-  input.focus();
-  input.select();
-  
-  function save() {
-    var newVal = input.value.trim();
-    if (newVal === currentVal) {
-      cell.textContent = currentVal || '-';
-      return;
-    }
-    var update = {};
-    update[field] = newVal;
-    supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
-      method: 'PATCH',
-      body: JSON.stringify(update)
-    }).then(async function(r) {
-      if (r.ok) { 
-        showToast('\u2705 ' + field + ' updated', 'success'); 
-        await loadData();
-        // Refresh all tabs
-        renderKocTable();
-        renderScoringTable();
-        try { renderMerchTab(); } catch(e) {}
-        try { renderDiamondTab(); } catch(e) {}
-        try { renderGplayTab(); } catch(e) {}
-      } else {
-        cell.textContent = currentVal || '-';
-        var errText = await r.text().catch(function(){return '';});
-        showToast('Failed: ' + errText.substring(0,60), 'error');
-        console.error('PATCH failed', r.status, errText);
-      }
-    }).catch(function(e) {
-      cell.textContent = currentVal || '-';
-      showToast('Error: ' + e.message, 'error');
+      body: JSON.stringify({ notes: oldNotes })
     });
   }
   
-  function cancel() {
-    cell.textContent = currentVal || '-';
-  }
-  
-  input.addEventListener('blur', save);
-  input.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
-    if (e.key === 'Escape') { cancel(); }
-  });
+  if (koc) koc.notes = updatedNotes + ', old_creator:true';
+  showToast('✅ 新人任务 +2 分已发放，已转为老创作者', 'success');
+  renderScoringTable();
+  renderKocTable();
 }
 
-// ===== INLINE EDIT for order tables (redemption_orders) =====
-function editOrderInline(cell, field, orderId, uid) {
-  if (cell.querySelector('input')) return;
-  var currentVal = cell.textContent.trim();
-  if (currentVal === '-' || currentVal === '') currentVal = '';
-  var input = document.createElement('input');
-  input.type = 'text';
-  input.value = currentVal;
-  input.style.cssText = 'width:100%;border:2px solid var(--pink);border-radius:6px;padding:4px 6px;font-size:12px;outline:none;background:white;';
-  cell.textContent = '';
-  cell.appendChild(input);
-  input.focus();
-  input.select();
-  
-  function save() {
-    var newVal = input.value.trim();
-    if (newVal === currentVal) {
-      cell.textContent = currentVal || '-';
-      return;
-    }
-    
-    if (['discord_name','option_name','status'].indexOf(field) >= 0) {
-      // Update redemption_orders
-      var update = {};
-      update[field] = newVal;
-      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + orderId, {
-        method: 'PATCH',
-        body: JSON.stringify(update)
-      }).then(async function(r) {
-        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); await loadData(); renderKocTable(); renderScoringTable(); try{renderMerchTab()}catch(e){} try{renderDiamondTab()}catch(e){} try{renderGplayTab()}catch(e){} }
-        else { cell.textContent = currentVal || '-'; var et=await r.text().catch(function(){return '';}); showToast('Failed: '+et.substring(0,60), 'error'); }
-      }).catch(function(e) { cell.textContent = currentVal || '-'; showToast('Error: '+e.message, 'error'); });
-    } else if (field === 'uid') {
-      // Update both
-      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + orderId, {
-        method: 'PATCH', body: JSON.stringify({ uid: newVal })
-      }).then(function(r){}).catch(function(e){});
-      supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
-        method: 'PATCH', body: JSON.stringify({ uid: newVal })
-      }).then(async function(r) {
-        if (r.ok) { showToast('\u2705 uid updated', 'success'); await loadData(); }
-        else { cell.textContent = currentVal || '-'; showToast('Failed', 'error'); }
-      }).catch(function(e) { cell.textContent = currentVal || '-'; });
-    } else {
-      // Update kocs table (address, account_id, server, region)
-      var update = {};
-      update[field] = newVal;
-      supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
-        method: 'PATCH', body: JSON.stringify(update)
-      }).then(async function(r) {
-        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); await loadData(); renderKocTable(); renderScoringTable(); try{renderMerchTab()}catch(e){} try{renderDiamondTab()}catch(e){} try{renderGplayTab()}catch(e){} }
-        else { cell.textContent = currentVal || '-'; showToast('Failed', 'error'); }
-      }).catch(function(e) { cell.textContent = currentVal || '-'; });
-    }
-  }
-  
-  function cancel() { cell.textContent = currentVal || '-'; }
-  input.addEventListener('blur', save);
-  input.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
-    if (e.key === 'Escape') { cancel(); }
-  });
-}
-
-function getKocMap() {
-  var m = {};
-  allKocs.forEach(function(k) { m[k.uid] = k; });
-  return m;
-}
-
-function fmtDate(d) {
-  if (!d) return '-';
-  try { return new Date(d).toLocaleDateString('en-CA'); } catch(e) { return '-'; }
-}
-
-function getMonthGroup(o) {
-  if (o.period) {
-    var parts = o.period.split('-');
-    if (parts.length === 2) return parts[0] + '年' + parseInt(parts[1]) + '月';
-  }
-  var d = new Date(o.created_at);
-  var y = d.getFullYear();
-  var m = d.getMonth() + 1;
-  return y + '年' + m + '月';
-}
-
-function groupByMonth(arr) {
-  var groups = {};
-  arr.forEach(function(o) {
-    var label = getMonthGroup(o);
-    if (!groups[label]) groups[label] = [];
-    groups[label].push(o);
-  });
-  // Sort month labels descending (most recent first)
-  var sorted = Object.keys(groups).sort();
-  sorted.sort(function(a, b) {
-    var pa = a.match(/(\d+)年(\d+)月/);
-    var pb = b.match(/(\d+)年(\d+)月/);
-    if (!pa || !pb) return 0;
-    var ka = parseInt(pa[1]) * 12 + parseInt(pa[2]);
-    var kb = parseInt(pb[1]) * 12 + parseInt(pb[2]);
-    return kb - ka;
-  });
-  var result = [];
-  sorted.forEach(function(label) {
-    result.push({ label: label, items: groups[label] });
-  });
-  return result;
-}
-
-function renderMerchTab() {
-  var kmap = getKocMap();
-  var merchOrders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }));
-  var label = currentPeriod.replace('-', '年') + '月';
-  document.getElementById('merch-count').textContent = '📅 ' + label + ' (' + merchOrders.length + ' orders)';
-  var container = document.getElementById('merch-table');
-  if (!merchOrders.length) {
-    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无 ' + label + ' 的已发货周边</div>';
-    return;
-  }
-  container.innerHTML = '<div class="month-section">' +
-    '<div class="month-header">' +
-    '<span class="month-icon">📅</span><span>' + label + '</span>' +
-    '<span class="count">(' + merchOrders.length + ' orders)</span>' +
-    '<div style="margin-left:auto;display:flex;gap:6px;">' +
-    '<button class="btn btn-primary btn-sm export-btn" data-type="merch" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
-    '</div></div>' +
-    '<table class="month-table"><thead><tr>' +
-    '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Address</th><th>Reward</th>' +
-    '</tr></thead><tbody>' +
-    merchOrders.map(function(o) {
-      var koc = kmap[o.uid];
-      var addr = koc ? (koc.address || '') : '';
-      return '<tr data-order-id="' + o.id + '" style="cursor:pointer;" ondblclick="editOrderInline(event.target,' + o.id + ')">' +
-        '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
-        '<td><strong ondblclick="event.stopPropagation();editOrderInline(this,\'discord_name\',' + o.id + ')">' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
-        '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();editOrderInline(this,\'uid\',' + o.id + ')">' + esc(o.uid) + '</td>' +
-        '<td style="font-size:12px;white-space:pre-wrap;min-width:300px;" ondblclick="event.stopPropagation();editOrderInline(this,\'address\',' + o.id + ')">' + (esc(addr) || '-') + '</td>' +
-        '<td ondblclick="event.stopPropagation();editOrderInline(this,\'option_name\',' + o.id + ')">' + 
-            (function() {
-              var q = o.points_spent || 1;
-              return '450 \u2715 ' + q + ' = <strong>' + (450*q) + ' \uD83D\uDC8E</strong>';
-            })() + '</td>' +
-      '</tr>';
-    }).join('') +
-    '</tbody></table></div>';
-  setTimeout(function() { initSortable('merch'); }, 100);
-}
-function renderDiamondTab() {
-  var kmap = getKocMap();
-  var orders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'diamonds' && o.status === 'shipped'; }));
-  var label = currentPeriod.replace('-', '年') + '月';
-  // Include CC creators for this month in end内奖励
-  var ccCreators = (allKocs || []).filter(function(k) {
-    return k.status === 'active' && (k.notes || '').includes('CC:' + currentPeriod);
-  });
-  document.getElementById('diamond-count').textContent = '📅 ' + label + ' (' + orders.length + ' 常规 + ' + ccCreators.length + ' CC)';
-  var container = document.getElementById('diamond-table');
-  if (!orders.length && !ccCreators.length) {
-    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无 ' + label + ' 的端内奖励数据</div>';
-    return;
-  }
-  var html = '';
-  // CC section
-  if (ccCreators.length) {
-    html += '<div class="month-section">' +
-      '<div class="month-header" style="background:#e8f5e9;">' +
-      '<span class="month-icon">🎁</span><span>' + label + ' · 连续创作奖励 (CC)</span>' +
-      '<span class="count">(' + ccCreators.length + ' creators)</span>' +
-      '<div style="margin-left:auto;display:flex;gap:6px;">' +
-      '<button class="btn btn-primary btn-sm export-btn" data-type="diamonds-cc" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
-      '</div></div>' +
-      '<table class="month-table"><thead><tr>' +
-      '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Account ID</th><th>Server</th><th>Reward</th>' +
-      '</tr></thead><tbody>' +
-      ccCreators.map(function(k) {
-        return '<tr>' +
-          '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
-          '<td><strong ondblclick="event.stopPropagation();inlineEdit(this,\'discord_name\',\'' + k.uid + '\')">' + esc(k.discord_name) + '</strong></td>' +
-          '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();inlineEdit(this,\'uid\',\'' + k.uid + '\')">' + esc(k.uid) + '</td>' +
-          '<td style="font-family:monospace;font-size:12px;" ondblclick="event.stopPropagation();inlineEdit(this,\'account_id\',\'' + k.uid + '\')">' + esc(k.account_id || '-') + '</td>' +
-          '<td style="font-size:12px;" ondblclick="event.stopPropagation();inlineEdit(this,\'server\',\'' + k.uid + '\')">' + esc(k.server || '-') + '</td>' +
-          '<td>🎁 月卡×1 + 🪙 蜗壳币×500 + 💰 金币×1000</td>' +
-        '</tr>';
-      }).join('') +
-      '</tbody></table></div>';
-  }
-  // Regular diamond orders
-  if (orders.length) {
-    html += '<div class="month-section">' +
-      '<div class="month-header">' +
-      '<span class="month-icon">💎</span><span>' + label + ' · 钻石兑换</span>' +
-      '<span class="count">(' + orders.length + ' orders)</span>' +
-      '<div style="margin-left:auto;display:flex;gap:6px;">' +
-      '<button class="btn btn-primary btn-sm export-btn" data-type="diamonds" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
-      '</div></div>' +
-      '<table class="month-table"><thead><tr>' +
-      '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Account ID</th><th>Server</th><th>Reward</th>' +
-      '</tr></thead><tbody>' +
-      orders.map(function(o) {
-        var koc = kmap[o.uid];
-        return '<tr data-order-id="' + o.id + '" ondblclick="editOrderInline(event.target,' + o.id + ')">' +
-          '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
-          '<td><strong ondblclick="event.stopPropagation();editOrderInline(this,\'discord_name\',' + o.id + ')">' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
-          '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();editOrderInline(this,\'uid\',' + o.id + ')">' + esc(o.uid) + '</td>' +
-          '<td style="font-family:monospace;font-size:12px;" ondblclick="event.stopPropagation();editOrderInline(this,\'account_id\',' + o.id + ')">' + (esc(koc ? koc.account_id : '-') || '-') + '</td>' +
-          '<td style="font-size:12px;" ondblclick="event.stopPropagation();editOrderInline(this,\'server\',' + o.id + ')">' + (esc(koc ? koc.server : '-') || '-') + '</td>' +
-          '<td ondblclick="event.stopPropagation();editOrderInline(this,\'option_name\',' + o.id + ')">' + esc(o.option_name) + '</td>' +
-        '</tr>';
-      }).join('') +
-      '</tbody></table></div>';
-  }
-  container.innerHTML = html;
-  setTimeout(function() { initSortable('diamonds'); }, 100);
-}
-function renderGplayTab() {
-  var kmap = getKocMap();
-  var orders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'gplay' && o.status === 'shipped'; }));
-  var label = currentPeriod.replace('-', '年') + '月';
-  document.getElementById('gplay-count').textContent = '📅 ' + label + ' (' + orders.length + ' orders)';
-  var container = document.getElementById('gplay-table');
-  if (!orders.length) {
-    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无 ' + label + ' 的谷歌卡数据</div>';
-    return;
-  }
-  container.innerHTML = '<div class="month-section">' +
-    '<div class="month-header">' +
-    '<span class="month-icon">📅</span><span>' + label + '</span>' +
-    '<span class="count">(' + orders.length + ' orders)</span>' +
-    '<div style="margin-left:auto;display:flex;gap:6px;">' +
-    '<button class="btn btn-primary btn-sm export-btn" data-type="gplay" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
-    '</div></div>' +
-    '<table class="month-table"><thead><tr>' +
-    '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Region</th><th>Reward</th>' +
-    '</tr></thead><tbody>' +
-    orders.map(function(o) {
-      var koc = kmap[o.uid];
-      return '<tr data-order-id="' + o.id + '" ondblclick="editOrderInline(event.target,' + o.id + ')">' +
-        '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
-        '<td><strong ondblclick="event.stopPropagation();editOrderInline(this,\'discord_name\',' + o.id + ')">' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
-        '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();editOrderInline(this,\'uid\',' + o.id + ')">' + esc(o.uid) + '</td>' +
-        '<td style="font-size:12px;" ondblclick="event.stopPropagation();editOrderInline(this,\'region\',' + o.id + ')">' + (esc(koc ? koc.region : '-') || '-') + '</td>' +
-        '<td ondblclick="event.stopPropagation();editOrderInline(this,\'option_name\',' + o.id + ')">' + esc(o.option_name) + '</td>' +
-      '</tr>';
-    }).join('') +
-    '</tbody></table></div>';
-  setTimeout(function() { initSortable('gplay'); }, 100);
-}
-
-// ===== EXPORT FUNCTIONS =====
-function exportToClipboard(text, count) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(function() {
-      showToast('\uD83D\uDCCB Exported ' + count + ' orders', 'success');
-    }).catch(function() { fallbackCopy(text, count); });
-  } else { fallbackCopy(text, count); }
-}
-function fallbackCopy(text, count) {
-  var ta = document.createElement('textarea');
-  ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
-  document.body.appendChild(ta); ta.select();
-  document.execCommand('copy'); document.body.removeChild(ta);
-  showToast('\uD83D\uDCCB Exported ' + count + ' orders', 'success');
-}
-
-function exportMonth(type, label) {
-  if (typeof type === 'object' && type !== null) {
-    label = type.getAttribute('data-label');
-    type = type.getAttribute('data-type');
-  }
-  var kmap = getKocMap();
-  var orders = allOrders.filter(function(o) {
-    return o.option_type === type && o.status === 'shipped' && getMonthGroup(o) === label;
-  });
-  if (!orders.length) { showToast('No orders to export', 'error'); return; }
-  
-  var header, rows;
-  if (type === 'merch') {
-    header = 'Discord\tUID\tReward\tAddress';
-    rows = orders.map(function(o) {
-      var koc = kmap[o.uid];
-      var addr = koc ? (koc.address || '') : '';
-      return clean(esc(o.discord_name)) + '\t' + o.uid + '\t' + clean(esc(o.option_name)) + '\t' + clean(esc(addr));
-    }).join('\n');
-  } else if (type === 'diamonds') {
-    header = 'Discord\tUID\tReward\tAccount ID\tServer';
-    rows = orders.map(function(o) {
-      var koc = kmap[o.uid];
-      return clean(esc(o.discord_name)) + '\t' + o.uid + '\t' + clean(esc(o.option_name)) + '\t' + (koc ? koc.account_id : '-') + '\t' + (koc ? koc.server : '-');
-    }).join('\n');
-  } else if (type === 'gplay') {
-    header = 'Discord\tUID\tReward\tRegion';
-    rows = orders.map(function(o) {
-      var koc = kmap[o.uid];
-      return clean(esc(o.discord_name)) + '\t' + o.uid + '\t' + clean(esc(o.option_name)) + '\t' + (koc ? koc.region : '-');
-    }).join('\n');
-  }
-  var text = header + '\n' + rows;
-  exportToClipboard(text, orders.length);
-}
-
-function clean(s) { return s || '-'; }
-
-// -- Drag Reorder --
-function initSortable(type) {
-  loadSortableJS().then(function() {
-    document.querySelectorAll('#tab-' + type + ' .month-table tbody').forEach(function(tb) {
-      var ml = null;
-      var sec = tb.closest('.month-section');
-      if (sec) { var h = sec.querySelector('.month-header span:nth-child(2)'); if (h) ml = h.textContent.trim(); }
-      new Sortable(tb, {
-        handle: '.drag-handle', animation: 150, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag',
-        onEnd: function() {
-          var ids = []; tb.querySelectorAll('tr').forEach(function(tr) { var id = tr.getAttribute('data-order-id'); if (id) ids.push(parseInt(id)); });
-          saveOrder(type, ml, ids);
-        }
-      });
-    });
-  }).catch(function() { console.warn('SortableJS failed'); });
-}
-function saveOrder(type, month, ids) {
-  var key = 'koc_order_' + type + '_' + (month||'unknown');
-  try { localStorage.setItem(key, JSON.stringify(ids)); } catch(e) {}
-  supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes')
-  .then(function(r){return r.json()}).then(function(d) {
-    var notes = (d&&d.length&&d[0].notes)||'{}'; var cfg; try{cfg=JSON.parse(notes)}catch(e){cfg={}};
-    if(!cfg.display_orders)cfg.display_orders={};
-    var ck='display_order_'+type;
-    if(!cfg.display_orders[ck])cfg.display_orders[ck]={};
-    cfg.display_orders[ck][month||'unknown']=ids;
-    var method=d&&d.length?'PATCH':'POST';
-    var url=SUPABASE_URL+'/rest/v1/kocs?uid=eq.__config__';
-    if(method==='POST'){
-      supabaseFetch(url,{method:'POST',body:JSON.stringify({uid:'__config__',discord_name:'__config__',name:'System Config',status:'active',notes:JSON.stringify(cfg)})}).catch(function(){})
-    } else {
-      supabaseFetch(url,{method:'PATCH',body:JSON.stringify({notes:JSON.stringify(cfg)})}).catch(function(){})
-    }
-  }).catch(function(){});
-}
-function loadOrder(type, month) {
-  try{var d=JSON.parse(localStorage.getItem('koc_order_'+type+'_'+(month||'unknown')));if(d&&d.length)return d}catch(e){}
-  return null;
-}
-function applyOrder(type, month, items) {
-  var o=loadOrder(type,month);if(!o||!o.length||!items||items.length<2)return items;
-  var m={};items.forEach(function(i){m[i.id]=i});
-  var r=[];o.forEach(function(id){if(m[id]){r.push(m[id]);delete m[id]}});
-  Object.keys(m).forEach(function(id){r.push(m[id])});
-  return r;
-}
-function resetOrder(type, month) {
-  if(!confirm('Reset \"' + month + '\" order?'))return;
-  try{localStorage.removeItem('koc_order_'+type+'_'+month)}catch(e){}
-  supabaseFetch(SUPABASE_URL+'/rest/v1/kocs?uid=eq.__config__&select=notes')
-  .then(function(r){return r.json()}).then(function(d){
-    if(d&&d.length&&d[0].notes){try{var cfg=JSON.parse(d[0].notes);var ck='display_order_'+type;if(cfg.display_orders&&cfg.display_orders[ck]){delete cfg.display_orders[ck][month];supabaseFetch(SUPABASE_URL+'/rest/v1/kocs?uid=eq.__config__',{method:'PATCH',body:JSON.stringify({notes:JSON.stringify(cfg)})}).catch(function(){})}}catch(e){}}
-  }).catch(function(){});
-  if(type==='merch')renderMerchTab();else if(type==='diamonds')renderDiamondTab();else if(type==='gplay')renderGplayTab();
-}
-// Global click handler for export buttons
-document.addEventListener('click', function(e) {
-  var btn = e.target.closest('.export-btn');
-  if (btn) {
-    exportMonth(btn.getAttribute('data-type'), btn.getAttribute('data-label'));
-  }
-});
-// ===== DEADLINE =====
-async function loadDeadline() {
-  try {
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
-    var data = await res.json();
-    if (data && data.length > 0 && data[0].notes) {
-      try {
-        var cfg = JSON.parse(data[0].notes);
-        if (cfg.submission_deadline_date) {
-          document.getElementById('deadline-date').value = cfg.submission_deadline_date || '';
-          document.getElementById('deadline-time').value = cfg.submission_deadline_time || '23:59';
-          updateDeadlineDisplay(cfg.submission_deadline_date, cfg.submission_deadline_time);
-        }
-      } catch(e) {}
-    }
-  } catch(e) {}
-}
-
-async function saveDeadline() {
-  var date = document.getElementById('deadline-date').value;
-  var time = document.getElementById('deadline-time').value || '23:59';
-  if (!date) { showToast('Select a date', 'error'); return; }
-  
-  try {
-    // Read existing config first, then merge (don't overwrite redemption_open etc.)
-    var readRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
-    var existingData = readRes.ok ? await readRes.json() : [];
-    var currentConfig = {};
-    if (existingData && existingData.length > 0 && existingData[0].notes) {
-      try { currentConfig = JSON.parse(existingData[0].notes); } catch(e) { currentConfig = {}; }
-    }
-    currentConfig.submission_deadline_date = date;
-    currentConfig.submission_deadline_time = time;
-    var config = JSON.stringify(currentConfig);
-    
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=uid');
-    var existing = await res.json();
-    if (existing && existing.length > 0) {
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__', {
-        method: 'PATCH',
-        body: JSON.stringify({ notes: config })
-      });
-    } else {
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs', {
-        method: 'POST',
-        body: JSON.stringify({ uid: '__config__', discord_name: '__config__', name: 'System Config', status: 'active', notes: config })
-      });
-    }
-    updateDeadlineDisplay(date, time);
-    showToast('\u2705 Deadline saved', 'success');
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
-}
-
-function updateDeadlineDisplay(date, time) {
-  document.getElementById('deadline-status').textContent = date ? '\u23F0 ' + date + ' ' + time : '';
-  document.getElementById('deadline-show').textContent = date ? '\u23F0 Closes: ' + date : '';
-}
-
-// Auto-login + restore tab on page load — 用 DOMContentLoaded 确保 DOM 渲染完成再执行
-document.addEventListener('DOMContentLoaded', function() {
-  try {
-    if (localStorage.getItem('admin_session') === 'logged_in') {
-      var loginScreen = document.getElementById('login-screen');
-      var adminPanel = document.getElementById('admin-panel');
-      if (loginScreen && adminPanel && !loginScreen.classList.contains('hidden')) {
-        loginScreen.classList.add('hidden');
-        adminPanel.classList.remove('hidden');
-        setTimeout(function() {
-          loadData().then(function() {
-            var savedTab = localStorage.getItem('admin_active_tab');
-            if (savedTab && ['dashboard','koc-ledger','scoring','submissions','merch','diamond','gplay','rules','audit'].indexOf(savedTab) >= 0) {
-              switchTab(savedTab);
-            } else {
-              loadDashboard();
-            }
-          }).catch(function(e) { console.error('loadData error:', e); });
-        }, 200);
-      }
-    }
-  } catch(e) { console.error('Auto-login error:', e); }
-});
-// 监听页面重新可见时保持登录状态
-document.addEventListener('visibilitychange', function() {
-  if (!document.hidden && localStorage.getItem('admin_session') === 'logged_in') {
-    var loginScreen = document.getElementById('login-screen');
-    var adminPanel = document.getElementById('admin-panel');
-    if (loginScreen && adminPanel && loginScreen.classList.contains('hidden') === false) {
-      loginScreen.classList.add('hidden');
-      adminPanel.classList.remove('hidden');
-    }
-  }
-});
-</script>
-<script>
-  // 强制刷新版本号
-  console.log('admin.html v' + Date.now());
-  // 如果检测到旧缓存，硬刷新
-  (function() {
-    var v = localStorage.getItem('admin_html_v');
-    if (v !== '2.1') {
-      localStorage.setItem('admin_html_v', '2.1');
-    }
-  })();
-</script>
-
-</body>
-</html>
+function esc(s)
