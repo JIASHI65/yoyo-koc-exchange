@@ -4538,5 +4538,16 @@ document.addEventListener('visibilitychange', function() {
   }
 });
 </script>
+<script>
+  // 强制刷新版本号
+  console.log('admin.html v' + Date.now());
+  // 如果检测到旧缓存，硬刷新
+  (function() {
+    var v = localStorage.getItem('admin_html_v');
+    if (v !== '2.1') {
+      localStorage.setItem('admin_html_v', '2.1');
+    }
+  })();
+</script>
 </body>
 </html>
