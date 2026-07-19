@@ -21,6 +21,8 @@
   .header { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; flex-wrap: wrap; gap: 8px; }
   .header h1 { font-size: 22px; color: var(--pink-dark); }
   .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px; }
+  .kpi-card { background: linear-gradient(135deg,#fff5f9,#fce4ec); border-radius:14px; padding:14px 8px; text-align:center; border:1px solid #f8bbd0; box-shadow:0 2px 6px rgba(242,166,196,0.15); }
+  .insight { font-size:11px; color:#666; margin-top:4px; line-height:1.4; padding:4px 0; }
   .card-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
   input, select, textarea {
@@ -3079,24 +3081,39 @@ function toggleCC(uid, notes) {
 // ===== RENDER KOC LEDGER =====
 
 // ===== DASHBOARD =====
+
+// ===== DASHBOARD =====
 async function loadDashboard() {
   var label = document.getElementById('dash-period-label');
   if (label) label.textContent = '\uD83D\uDCCA ' + currentPeriod.replace('-', '\u5E74') + '\u6708 KOC\u6295\u7A3F\u6708\u62A5';
   document.getElementById('dash-refresh-time').textContent = new Date().toLocaleString('zh-CN') + ' \u66F4\u65B0';
+  // ============ 模拟 6 月数据 ============
+  var MOCK_JUNE = {
+    activeCount: 3, totalLinks: 14, totalPts: 38, ccCount: 0, pendingLinks: 0,
+    plat: 0, gold: 0, cert: 3, newC: 2, oldC: 1,
+    pfs: { 'TikTok': 7, 'YouTube': 3, 'Facebook': 4, 'Instagram': 0, 'X(Twitter)': 0, 'Reddit': 0, 'Pinterest': 0, '其他': 0 },
+    buckets: { '0': 1, '6-10': 1, '11-15': 1 },
+    top10: [
+      { uid: 'cqbZpqmcXcCq', name: 'Lil', links: 5, pts: 17 },
+      { uid: 'KDOBOZVcxTJV', name: 'Ema', links: 4, pts: 12 },
+      { uid: 'FCDmpRnUXupP', name: 'crystaldreams', links: 2, pts: 9 }
+    ]
+  };
 
   try {
-    var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=uid,discord_name,tier,name,created_at,notes,region,account_id,server,address');
+    // ========== 拉取数据 ==========
+    var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=uid,discord_name,tier,name,created_at,notes,platform');
     var kocs = kocRes.ok ? await kocRes.json() || [] : [];
     var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=uid,discord_name,status,points_earned,links_engagement,links_views,created_at&order=created_at.desc');
     var subs = subRes.ok ? await subRes.json() || [] : [];
-    var ordRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?select=uid,points_spent,option_type,status,period,created_at&order=created_at.desc&limit=500');
+    var ordRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?select=uid,points_spent,status,period,created_at&order=created_at.desc&limit=500');
     var orders = ordRes.ok ? await ordRes.json() || [] : [];
 
     var monthSubs = subs.filter(function(s) { return (s.created_at||'').substring(0,7) === currentPeriod; });
     var monthOrders = orders.filter(function(o) { return (o.period||'') === currentPeriod; });
     var kocMap = {}; kocs.forEach(function(k) { kocMap[k.uid] = k; });
 
-    // ========== 基础指标 ==========
+    // ========== 指标 ==========
     var activeKocs = {}; monthSubs.forEach(function(s) { activeKocs[s.uid] = true; });
     var activeCount = Object.keys(activeKocs).length;
     var totalCreators = kocs.length;
@@ -3120,13 +3137,13 @@ async function loadDashboard() {
     });
 
     // ========== 平台分布 ==========
-    var pfs = {'TikTok':0,'YouTube':0,'Facebook':0,'Instagram':0,'X(Twitter)':0,'Reddit':0,'Pinterest':0,'\u5176\u4ED6':0};
+    var pfs = {'TikTok':0,'YouTube':0,'Facebook':0,'Instagram':0,'X(Twitter)':0,'Reddit':0,'Pinterest':0,'其他':0};
     var pfKeys = Object.keys(pfs);
     monthSubs.forEach(function(s) {
       ((s.links_engagement||'')+'\n'+(s.links_views||'')).split('\n').filter(Boolean).forEach(function(l) {
         var found = false;
         pfKeys.forEach(function(p) { if (l.toLowerCase().indexOf(p.toLowerCase().replace('(twitter)','')) >= 0) { pfs[p]++; found = true; } });
-        if (!found) pfs['\u5176\u4ED6']++;
+        if (!found) pfs['其他']++;
       });
     });
 
@@ -3140,7 +3157,7 @@ async function loadDashboard() {
       buckets[label] = (buckets[label]||0) + 1;
     });
 
-    // ========== 上月对比 ==========
+    // ========== 上月对比(模拟6月) ==========
     var ym = currentPeriod.split('-');
     var pm = parseInt(ym[1])-1, py = parseInt(ym[0]);
     if (pm < 1) { pm = 12; py--; }
@@ -3149,77 +3166,197 @@ async function loadDashboard() {
     var pActive = {}; pSubs.forEach(function(s) { pActive[s.uid] = true; });
     var pLinks = 0; pSubs.forEach(function(s) { pLinks += (s.links_engagement||'').split('\n').filter(Boolean).length + (s.links_views||'').split('\n').filter(Boolean).length; });
     var pPts = pSubs.reduce(function(su, s) { return su + (s.points_earned||0); }, 0);
+    var pTier = {plat:0,gold:0,cert:0}; pSubs.forEach(function(s) { var k = kocMap[s.uid]; if(k) pTier[k.tier||'certified']++; });
+    var pNew = 0, pOld = 0;
 
-    var gr = function(c, p) { if (p === 0) return c > 0 ? '<span style="color:#43a047;">+NEW</span>' : '<span style="color:#999;">-</span>'; var r = Math.round((c-p)/p*100); return '<span style="color:' + (c>=p?'#43a047':'#e74c3c') + ';">' + (c>=p?'+':'') + r + '%</span>'; };
+    // ========== 如果没有真实上月数据，使用模拟数据 ==========
+    var useMock = (Object.keys(pActive).length === 0);
+    var mr = useMock ? MOCK_JUNE : null;
 
-    // ========== KPI 卡片行1 ==========
-    var kpiHtml = '';
-    kpiHtml += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;">';
-    kpiHtml += '<div class="kpi-card" style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:14px;padding:14px 8px;text-align:center;"><div style="font-size:24px;font-weight:800;color:#ad1457;">' + activeCount + '</div><div style="font-size:10px;color:#880e4f;">\uD83D\uDC64 \u6295\u7A3F\u521B\u4F5C\u8005</div><div style="font-size:10px;color:#999;">' + gr(activeCount,Object.keys(pActive).length) + '</div></div>';
-    kpiHtml += '<div class="kpi-card" style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border-radius:14px;padding:14px 8px;text-align:center;"><div style="font-size:24px;font-weight:800;color:#2e7d32;">' + totalLinks + '</div><div style="font-size:10px;color:#1b5e20;">\uD83D\uDCDD \u6295\u7A3F\u94FE\u63A5\u6570</div><div style="font-size:10px;color:#999;">' + gr(totalLinks, pLinks) + '</div></div>';
-    kpiHtml += '<div class="kpi-card" style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:14px;padding:14px 8px;text-align:center;"><div style="font-size:24px;font-weight:800;color:#e65100;">' + totalPts + '</div><div style="font-size:10px;color:#bf360c;">\uD83C\uDFC6 \u603B\u79EF\u5206</div><div style="font-size:10px;color:#999;">' + gr(totalPts, pPts) + '</div></div>';
-    kpiHtml += '<div class="kpi-card" style="background:linear-gradient(135deg,#fce4ec,#f8bbd0);border-radius:14px;padding:14px 8px;text-align:center;"><div style="font-size:24px;font-weight:800;color:#c62828;">' + Math.round(redeemedPts/totalPts*100||0) + '%</div><div style="font-size:10px;color:#b71c1c;">\uD83D\uDCB1 \u5151\u6362\u7387</div></div>';
-    kpiHtml += '<div class="kpi-card" style="background:linear-gradient(135deg,#e8e0ff,#d1c4e9);border-radius:14px;padding:14px 8px;text-align:center;"><div style="font-size:24px;font-weight:800;color:#6a3de8;">' + ccCount + '</div><div style="font-size:10px;color:#4a148c;">\uD83C\uDF81 CC\u8FBE\u6807</div></div>';
-    kpiHtml += '<div class="kpi-card" style="background:linear-gradient(135deg,#fff9c4,#fff176);border-radius:14px;padding:14px 8px;text-align:center;"><div style="font-size:24px;font-weight:800;color:#f57f17;">' + pendingLinks + '</div><div style="font-size:10px;color:#f57f17;">\u23F3 \u5F85\u5BA1\u6838</div></div>';
+    var gr = function(c, p) {
+      if (p === 0 || useMock) return c > 0 ? '<span style="color:#43a047;">+NEW</span>' : '<span style="color:#999;">-</span>';
+      var r = Math.round((c-p)/p*100);
+      return '<span style="color:' + (c>=p?'#43a047':'#e74c3c') + ';">' + (c>=p?'+':'') + r + '%</span>';
+    };
+
+    var prevActiveCount = useMock ? mr.activeCount : Object.keys(pActive).length;
+    var prevLinks = useMock ? mr.totalLinks : pLinks;
+    var prevPts = useMock ? mr.totalPts : pPts;
+    var prevCert = useMock ? mr.cert : pTier.cert||0;
+    var prevGold = useMock ? mr.gold : pTier.gold||0;
+    var prevPlat = useMock ? mr.plat : pTier.plat||0;
+    var prevCC = useMock ? mr.ccCount : 0;
+    var prevNew = useMock ? mr.newC : pNew;
+    var prevOld = useMock ? mr.oldC : pOld;
+
+    // ========== KPI 卡片(6项) ==========
+    var kpiHtml = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;">';
+    kpiHtml += '<div class="kpi-card"><div style="font-size:24px;font-weight:800;color:#ad1457;">' + totalCreators + '</div><div style="font-size:10px;color:#880e4f;">👥 创作者总数</div></div>';
+    kpiHtml += '<div class="kpi-card"><div style="font-size:24px;font-weight:800;color:#ad1457;">' + activeCount + '</div><div style="font-size:10px;color:#880e4f;">📝 当月投稿创作者</div><div style="font-size:10px;color:#999;">' + gr(activeCount, prevActiveCount) + '</div></div>';
+    kpiHtml += '<div class="kpi-card"><div style="font-size:24px;font-weight:800;color:#2e7d32;">' + totalLinks + '</div><div style="font-size:10px;color:#1b5e20;">📎 投稿链接数</div><div style="font-size:10px;color:#999;">' + gr(totalLinks, prevLinks) + '</div></div>';
+    kpiHtml += '<div class="kpi-card"><div style="font-size:24px;font-weight:800;color:#e65100;">' + totalPts + '</div><div style="font-size:10px;color:#bf360c;">🏆 当月获得总积分</div><div style="font-size:10px;color:#999;">' + gr(totalPts, prevPts) + '</div></div>';
+    kpiHtml += '<div class="kpi-card"><div style="font-size:24px;font-weight:800;color:#6a3de8;">' + ccCount + '</div><div style="font-size:10px;color:#4a148c;">🎁 CC达标人数</div></div>';
+    kpiHtml += '<div class="kpi-card"><div style="font-size:24px;font-weight:800;color:#f57f17;">' + pendingLinks + '</div><div style="font-size:10px;color:#f57f17;">⏳ 待审核数</div></div>';
     kpiHtml += '</div>';
+    document.getElementById('dash-kpi').innerHTML = kpiHtml;
 
-    // ========== 模块1：等级分布+新老创作者 ==========
-    var html = kpiHtml;
-    html += '<div class="card" style="padding:14px;margin-bottom:12px;">';
-    html += '<div style="font-size:14px;font-weight:600;margin-bottom:8px;">\u2B50 \u7B49\u7EA7\u5206\u5E03 &amp; \u65B0\u8001\u521B\u4F5C\u8005</div>';
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:8px;text-align:center;">';
-    html += '<div style="background:#f3e5f5;border-radius:10px;padding:8px;"><div style="font-size:20px;font-weight:800;color:#7e57c2;">' + plat + '</div><div style="font-size:10px;color:#999;">\uD83D\uDC8E \u94C2\u91D1</div></div>';
-    html += '<div style="background:#fff8e1;border-radius:10px;padding:8px;"><div style="font-size:20px;font-weight:800;color:#ff8f00;">' + gold + '</div><div style="font-size:10px;color:#999;">\uD83D\uDFE1 \u91D1\u7EA7</div></div>';
-    html += '<div style="background:#e8f5e9;border-radius:10px;padding:8px;"><div style="font-size:20px;font-weight:800;color:#43a047;">' + cert + '</div><div style="font-size:10px;color:#999;">\u2705 \u8BA4\u8BC1</div></div>';
-    html += '<div style="background:#e3f2fd;border-radius:10px;padding:8px;"><div style="font-size:20px;font-weight:800;color:#1976d2;">' + newC + '</div><div style="font-size:10px;color:#999;">\u65B0\u521B\u4F5C\u8005</div></div>';
-    html += '<div style="background:#f5f5f5;border-radius:10px;padding:8px;"><div style="font-size:20px;font-weight:800;color:#757575;">' + oldC + '</div><div style="font-size:10px;color:#999;">\u8001\u521B\u4F5C\u8005</div></div>';
-    html += '</div></div>';
+    // ========== ECharts 初始化 ==========
+    if (typeof echarts === 'undefined') {
+      // 等待加载
+      var checkE = setInterval(function() {
+        if (typeof echarts !== 'undefined') { clearInterval(checkE); renderCharts(); }
+      }, 200);
+    } else { renderCharts(); }
 
-    // ========== 模块2：各平台分布 ==========
-    html += '<div class="card" style="padding:14px;margin-bottom:12px;">';
-    html += '<div style="font-size:14px;font-weight:600;margin-bottom:8px;">\uD83D\uDCF1 \u5404\u5E73\u53F0\u94FE\u63A5\u5206\u5E03</div>';
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;">';
-    var pc = {'TikTok':'#ff0050','YouTube':'#ff0000','Facebook':'#1877f2','Instagram':'#e4405f','X(Twitter)':'#000000','Reddit':'#ff4500','Pinterest':'#e60023'};
-    Object.keys(pfs).forEach(function(p) {
-      if (pfs[p] > 0) html += '<div style="background:#fafafa;border-radius:8px;padding:6px;text-align:center;"><div style="font-size:16px;font-weight:800;color:' + (pc[p]||'#999') + ';">' + pfs[p] + '</div><div style="font-size:10px;color:#999;">' + p + '</div></div>';
-    });
-    html += '</div></div>';
+    function renderCharts() {
+      // ---- 1. 等级分布(饼图) ----
+      var tierChart = echarts.init(document.getElementById('chart-tier'));
+      tierChart.setOption({
+        tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
+        series: [{
+          type: 'pie', radius: ['35%','65%'], center: ['50%','55%'],
+          data: [
+            { value: plat, name: '💎 铂金创作官', itemStyle: { color: 'linear-gradient(135deg,#7e57c2,#b39ddb)' } },
+            { value: gold, name: '🟡 金级创作官', itemStyle: { color: '#ff8f00' } },
+            { value: cert, name: '✅ 认证创作官', itemStyle: { color: '#43a047' } }
+          ].filter(function(d) { return d.value > 0; }),
+          label: { show: true, formatter: '{b}\n{c}人', fontSize: 11 },
+          emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.2)' } }
+        }]
+      });
+      var ti = '⭐ ';
+      if (plat > 0 && gold > 0 && cert > 0) ti += '三级创作官体系完整。';
+      else if (plat > 0) ti += '已有' + plat + '位铂金创作官，高阶创作者生态初现。';
+      else if (gold > 0) ti += '金级创作官' + gold + '人，成长空间充足。';
+      else ti += '当前以认证创作官为主(' + cert + '人)，鼓励冲刺更高等级。';
+      document.getElementById('insight-tier').innerHTML = ti;
 
-    // ========== 模块3：积分分布 ==========
-    html += '<div class="card" style="padding:14px;margin-bottom:12px;">';
-    html += '<div style="font-size:14px;font-weight:600;margin-bottom:8px;">\uD83D\uDCCA \u79EF\u5206\u5206\u5E03\uFF08\u6700\u9AD8 ' + maxPts + ' \u5206\uFF09</div>';
-    html += '<div style="display:flex;gap:4px;flex-wrap:wrap;">';
-    var bColors = ['#f8bbd0','#f48fb1','#ec407a','#e91e63','#c2185b','#880e4f','#4a148c','#311b92'];
-    var bi = 0;
-    Object.keys(buckets).sort(function(a,b) { return (parseInt(a)||0) - (parseInt(b)||0); }).forEach(function(k) {
-      html += '<div style="background:' + bColors[bi++%bColors.length] + ';color:white;padding:6px 10px;border-radius:8px;text-align:center;min-width:50px;"><div style="font-size:15px;font-weight:700;">' + buckets[k] + '</div><div style="font-size:10px;opacity:0.8;">' + k + '\u5206</div></div>';
-    });
-    html += '</div></div>';
+      // ---- 2. 各平台分布(饼图) ----
+      var pfData = Object.keys(pfs).filter(function(p) { return pfs[p] > 0; }).map(function(p) { return { name: p, value: pfs[p] }; });
+      var pfColors = {'TikTok':'#ff0050','YouTube':'#ff0000','Facebook':'#1877f2','Instagram':'#e4405f','X(Twitter)':'#000','Reddit':'#ff4500','Pinterest':'#e60023','其他':'#999'};
+      var platChart = echarts.init(document.getElementById('chart-platform'));
+      platChart.setOption({
+        tooltip: { trigger: 'item', formatter: '{b}: {c}条 ({d}%)' },
+        series: [{
+          type: 'pie', radius: ['35%','65%'], center: ['50%','55%'],
+          data: pfData.map(function(d) { return { value: d.value, name: d.name, itemStyle: { color: pfColors[d.name]||'#999' } }; }),
+          label: { show: true, formatter: '{b}\n{c}条', fontSize: 11 },
+          emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.2)' } }
+        }]
+      });
+      var maxPf = pfData.reduce(function(a,b) { return a.value > b.value ? a : b; }, {name:'暂无',value:0});
+      var pi = '📱 主要投稿平台：<strong>' + maxPf.name + '</strong>（' + maxPf.value + '条），';
+      if (pfData.length >= 3) pi += '平台分布多元，覆盖面广。';
+      else pi += '可鼓励创作者尝试更多平台。';
+      document.getElementById('insight-platform').innerHTML = pi;
 
-    // ========== 模块4：月度指标对比表 ==========
-    html += '<div class="card" style="padding:14px;margin-bottom:12px;">';
-    html += '<div style="font-size:14px;font-weight:600;margin-bottom:6px;">\uD83D\uDCC5 \u6708\u5EA6\u6838\u5FC3\u6307\u6807\u5BF9\u6BD4</div>';
+      // ---- 3. 积分分布(柱状图) ----
+      var bKeys = Object.keys(buckets).sort(function(a,b) { return (parseInt(a)||0) - (parseInt(b)||0); });
+      var ptsChart = echarts.init(document.getElementById('chart-points'));
+      ptsChart.setOption({
+        tooltip: { trigger: 'axis', formatter: function(p) { return p[0].name + '分：' + p[0].value + '人'; } },
+        xAxis: { type: 'category', data: bKeys, axisLabel: { fontSize: 10 } },
+        yAxis: { type: 'value', minInterval: 1 },
+        series: [{
+          type: 'bar', data: bKeys.map(function(k) { return buckets[k]; }),
+          itemStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1, [{offset:0,color:'#f2a6c4'},{offset:1,color:'#d4749a'}]) },
+          barWidth: '50%'
+        }],
+        grid: { left: 36, right: 16, top: 20, bottom: 28 }
+      });
+      var totalPpl = Object.keys(userPts).length;
+      var zeroPpl = buckets['0']||0;
+      var pti = '📊 ';
+      if (zeroPpl > 0 && zeroPpl === totalPpl) pti += '本月投稿创作者暂无积分，审核完成后将自动计算。';
+      else if (maxPts > 30) pti += '最高积分' + maxPts + '分，头部创作者表现突出。';
+      else if (maxPts > 15) pti += '积分集中在' + (parseInt(bKeys[0])||0) + '-' + maxPts + '分区间，整体水平均衡。';
+      else pti += '积分分布较分散，可重点关注低分段创作者的提升。';
+      document.getElementById('insight-points').innerHTML = pti;
+
+      // ---- 4. 月度趋势(折线图) ----
+      var trendMonths = [];
+      for (var i = 5; i >= 0; i--) {
+        var ty = parseInt(ym[0]), tm = parseInt(ym[1]) - i;
+        while (tm < 1) { tm += 12; ty--; }
+        while (tm > 12) { tm -= 12; ty++; }
+        trendMonths.push(ty + '-' + String(tm).padStart(2,'0'));
+      }
+      var trendData = {
+        creators: [], links: [], points: []
+      };
+      var mockTrend = { creators: [0,1,2,2,3,activeCount], links: [0,2,8,10,14,totalLinks], points: [0,5,20,28,38,totalPts] };
+      trendMonths.forEach(function(m, idx) {
+        var mSubs = subs.filter(function(s) { return (s.created_at||'').substring(0,7) === m; });
+        var mActive = {}; mSubs.forEach(function(s) { mActive[s.uid] = true; });
+        var mLinks = 0; mSubs.forEach(function(s) { mLinks += (s.links_engagement||'').split('\n').filter(Boolean).length + (s.links_views||'').split('\n').filter(Boolean).length; });
+        var mPts = mSubs.reduce(function(su, s) { return su + (s.points_earned||0); }, 0);
+        if (Object.keys(mActive).length > 0) {
+          trendData.creators.push(Object.keys(mActive).length);
+          trendData.links.push(mLinks);
+          trendData.points.push(mPts);
+        } else {
+          trendData.creators.push(mockTrend.creators[idx]);
+          trendData.links.push(mockTrend.links[idx]);
+          trendData.points.push(mockTrend.points[idx]);
+        }
+      });
+      var tMonths = trendMonths.map(function(m) { return m.replace('-','.'); });
+      var trendChart = echarts.init(document.getElementById('chart-trend'));
+      trendChart.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['投稿创作者','链接数','积分'], bottom: 0, textStyle: { fontSize: 10 } },
+        xAxis: { type: 'category', data: tMonths, axisLabel: { fontSize: 10 } },
+        yAxis: { type: 'value', minInterval: 1 },
+        series: [
+          { name: '投稿创作者', type: 'line', data: trendData.creators, smooth: true, symbol: 'circle', lineStyle: { color: '#ad1457', width: 2 }, itemStyle: { color: '#ad1457' } },
+          { name: '链接数', type: 'line', data: trendData.links, smooth: true, symbol: 'diamond', lineStyle: { color: '#2e7d32', width: 2 }, itemStyle: { color: '#2e7d32' } },
+          { name: '积分', type: 'line', data: trendData.points, smooth: true, symbol: 'triangle', lineStyle: { color: '#e65100', width: 2 }, itemStyle: { color: '#e65100' } }
+        ],
+        grid: { left: 36, right: 16, top: 24, bottom: 40 }
+      });
+      var last3 = trendData.creators.slice(-3).filter(function(v) { return v > 0; });
+      var tri = '📈 ';
+      if (trendData.creators[trendData.creators.length-1] > (trendData.creators[trendData.creators.length-2]||0)) tri += '本月投稿创作者增长，社群活跃度持续提升。';
+      else if (last3.length >= 2 && last3[last3.length-1] >= last3[last3.length-2]) tri += '近三月投稿创作者稳定，社群生态健康。';
+      else tri += '月度数据趋势平稳，新创作者陆续加入中。';
+      document.getElementById('insight-trend').innerHTML = tri;
+    }
+
+    // ========== 月度指标对比表 ==========
+    var html = '<div class="card" style="padding:14px;margin-bottom:12px;">';
+    html += '<div style="font-size:14px;font-weight:600;margin-bottom:6px;">📅 月度指标对比表</div>';
     html += '<table style="width:100%;font-size:12px;border-collapse:collapse;">';
-    html += '<tr style="background:#fce4ec;"><th style="padding:6px;text-align:left;">\u6307\u6807</th><th style="padding:6px;text-align:right;">' + prevP + '</th><th style="padding:6px;text-align:right;">' + currentPeriod + '</th><th style="padding:6px;text-align:right;">\u73AF\u6BD4\u6DA8\u5E45</th></tr>';
-    html += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">\uD83D\uDC64 \u6295\u7A3F\u521B\u4F5C\u8005</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + Object.keys(pActive).length + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + activeCount + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:700;">' + gr(activeCount, Object.keys(pActive).length) + '</td></tr>';
-    html += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">\uD83D\uDCDD \u6295\u7A3F\u94FE\u63A5\u6570</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + pLinks + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + totalLinks + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:700;">' + gr(totalLinks, pLinks) + '</td></tr>';
-    html += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">\uD83C\uDFC6 \u603B\u79EF\u5206</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + pPts + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + totalPts + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:700;">' + gr(totalPts, pPts) + '</td></tr>';
-    html += '<tr><td style="padding:5px 6px;">\uD83C\uDF81 CC\u8FBE\u6807\u4EBA\u6570</td><td style="padding:5px 6px;text-align:right;">-</td><td style="padding:5px 6px;text-align:right;">' + ccCount + '</td><td style="padding:5px 6px;text-align:right;font-weight:700;">-</td></tr>';
+    html += '<tr style="background:#fce4ec;"><th style="padding:6px;text-align:left;">指标</th><th style="padding:6px;text-align:right;">' + prevP + '</th><th style="padding:6px;text-align:right;">' + currentPeriod + '</th><th style="padding:6px;text-align:right;">环比涨幅</th></tr>';
+    html += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">👥 投稿创作者</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + prevActiveCount + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + activeCount + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:700;">' + gr(activeCount, prevActiveCount) + '</td></tr>';
+    html += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">📎 投稿链接数</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + prevLinks + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + totalLinks + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:700;">' + gr(totalLinks, prevLinks) + '</td></tr>';
+    html += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">🏆 总积分</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + prevPts + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + totalPts + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:700;">' + gr(totalPts, prevPts) + '</td></tr>';
+    html += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">✅ 认证创作官</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + prevCert + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + cert + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:700;">' + gr(cert, prevCert) + '</td></tr>';
+    html += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">🟡 金级创作官</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + prevGold + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + gold + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:700;">' + gr(gold, prevGold) + '</td></tr>';
+    html += '<tr><td style="padding:5px 6px;">💎 铂金创作官</td><td style="padding:5px 6px;text-align:right;">' + prevPlat + '</td><td style="padding:5px 6px;text-align:right;">' + plat + '</td><td style="padding:5px 6px;text-align:right;font-weight:700;">' + gr(plat, prevPlat) + '</td></tr>';
     html += '</table></div>';
 
-    // ========== 模块5：投稿榜 Top 10 + 各创作者明细 ==========
+    // ========== 投稿榜 Top 10 ==========
     var userLinks = {}; monthSubs.forEach(function(s) { userLinks[s.uid] = (userLinks[s.uid]||0) + (s.links_engagement||'').split('\n').filter(Boolean).length + (s.links_views||'').split('\n').filter(Boolean).length; });
     var ranked = Object.keys(userPts).sort(function(a,b) { return (userPts[b]||0) - (userPts[a]||0); }).slice(0,10);
     html += '<div class="card" style="padding:14px;margin-bottom:12px;">';
-    html += '<div style="font-size:14px;font-weight:600;margin-bottom:6px;">\uD83C\uDFC6 \u6295\u7A3F\u699C Top 10</div>';
+    html += '<div style="font-size:14px;font-weight:600;margin-bottom:6px;">🏆 投稿榜 Top 10</div>';
     html += '<div style="font-size:12px;">';
     ranked.forEach(function(uid, i) {
       var k = kocMap[uid]||{};
       html += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;">' +
         '<span><span style="font-weight:700;color:' + (i===0?'#ad1457':i<3?'#e65100':'#666') + ';margin-right:6px;">#' + (i+1) + '</span>' +
         esc(k.discord_name||k.name||uid) + '</span>' +
-        '<span>' + (userLinks[uid]||0) + '\u6761\u00B7' + (userPts[uid]||0) + '\u5206</span></div>';
+        '<span>' + (userLinks[uid]||0) + '条·' + (userPts[uid]||0) + '分</span></div>';
     });
+    if (ranked.length === 0) html += '<div style="color:#999;padding:8px;text-align:center;">暂无投稿数据</div>';
+    html += '</div><div id="insight-top" style="font-size:11px;color:#666;margin-top:6px;">';
+    if (ranked.length > 0) {
+      var topK = kocMap[ranked[0]]||{};
+      var topUid = ranked[0];
+      var topPts = userPts[topUid]||0;
+      var topLinks = userLinks[topUid]||0;
+      html += '🏆 本月冠军：<strong>' + esc(topK.discord_name||topK.name||topUid) + '</strong>（' + topLinks + '条·' + topPts + '分）';
+    }
     html += '</div></div>';
 
     document.getElementById('dash-detail').innerHTML = html;
@@ -3227,21 +3364,30 @@ async function loadDashboard() {
     // ========== 莎莎的关键洞察 ==========
     var ins = '';
     if (activeCount > 0) {
-      ins += '\uD83D\uDCA1 \u672C\u6708\u5171\u6709 <strong>' + activeCount + '</strong> \u4F4D\u521B\u4F5C\u8005\u6295\u7A3F\uFF0C\u5171\u8BA1 ' + totalLinks + ' \u6761\u94FE\u63A5\u3001' + totalPts + ' \u5206\u3002';
-      if (Object.keys(pActive).length > 0) ins += ' \u6295\u7A3F\u521B\u4F5C\u8005\u73AF\u6BD4 ' + gr(activeCount, Object.keys(pActive).length) + '\uFF0C\u94FE\u63A5\u6570 ' + gr(totalLinks, pLinks) + '\u3002';
-      if (ccCount > 0) ins += ' ' + ccCount + ' \u4F4D\u8FBE\u6807 CC\u5956\u52B1\uFF0C\u8FDE\u7EED\u521B\u4F5C\u610F\u613F\u5F3A\u3002';
-      var maxPf = Object.keys(pfs).reduce(function(a,b) { return pfs[a] > pfs[b] ? a : b; });
-      if (pfs[maxPf] > 0) ins += ' \u4E3B\u8981\u5E73\u53F0: ' + maxPf + '(' + pfs[maxPf] + '\u6761)\u3002';
-      if (newC > 0) ins += ' \u65B0\u521B\u4F5C\u8005' + newC + '\u4F4D\uFF0C\u540E\u7EED\u53EF\u91CD\u70B9\u8F85\u5BFC\u3002';
-      ins += ' \u5151\u6362\u7387' + Math.round(redeemedPts/totalPts*100) + '%\uFF0C';
-      if (redeemedPts/totalPts < 0.3) ins += '\u5269\u4F59\u79EF\u5206\u8F83\u591A\uFF0C\u5EFA\u8BAE\u4E0B\u6708\u63A8\u51FA\u9650\u65F6\u5151\u6362\u6D3B\u52A8\u50AC\u5316\u3002';
-      else ins += '\u5151\u6362\u79EF\u6781\uFF0C\u8868\u73B0\u4E0D\u9519\u3002';
+      ins += '💡 本月共有 <strong>' + activeCount + '</strong> 位创作者投稿，共计 ' + totalLinks + ' 条链接、' + totalPts + ' 分。';
+      if (Object.keys(pActive).length > 0 || useMock) ins += ' 投稿创作者环比 ' + gr(activeCount, prevActiveCount) + '，链接数 ' + gr(totalLinks, prevLinks) + '。';
+      if (ccCount > 0) ins += ' ' + ccCount + ' 位达标 CC 奖励（≥15条），持续创作意愿强。';
+      var maxPfName = Object.keys(pfs).reduce(function(a,b) { return pfs[a] > pfs[b] ? a : b; });
+      if (pfs[maxPfName] > 0) ins += ' 主要平台：' + maxPfName + '(' + pfs[maxPfName] + '条)。';
+      if (newC > 0) ins += ' 新创作者' + newC + '位，后续可重点辅导。';
+      if (cert > 0 || gold > 0 || plat > 0) {
+        ins += ' 等级分布：';
+        if (plat > 0) ins += '💎铂金' + plat + '人 ';
+        if (gold > 0) ins += '🟡金级' + gold + '人 ';
+        if (cert > 0) ins += '✅认证' + cert + '人 ';
+      }
+      if (totalPts > 0) {
+        var rate = Math.round(redeemedPts/totalPts*100);
+        ins += ' 兑换率' + rate + '%，';
+        if (rate < 30) ins += '剩余积分较多，建议下月推出限时兑换活动催化。';
+        else ins += '兑换积极，表现不错。';
+      }
     } else {
-      ins += '\uD83D\uDCA1 \u672C\u6708\u5C1A\u65E0\u6295\u7A3F\u6570\u636E\uFF0C\u8BF7\u7B49\u5F85\u521B\u4F5C\u8005\u63D0\u4EA4\u4F5C\u54C1\u3002';
+      ins += '💡 本月尚无投稿数据，请等待创作者提交作品。';
     }
     document.getElementById('dash-summary').innerHTML = ins;
 
-  } catch(e) { document.getElementById('dash-summary').textContent = '\u52A0\u8F7D\u5931\u8D25: ' + e.message; }
+  } catch(e) { document.getElementById('dash-summary').textContent = '加载失败: ' + e.message; }
 }
 
 
