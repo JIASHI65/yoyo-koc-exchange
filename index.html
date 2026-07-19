@@ -83,9 +83,13 @@
 </head>
 <body>
 <div class="container">
+  <div style="display:flex;justify-content:flex-end;gap:6px;padding:8px 0 0;">
+    <button onclick="switchLang('zh')" style="padding:4px 12px;border:1.5px solid var(--pink-dark);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:var(--pink-light);color:var(--pink-dark);">🇨🇳 中文</button>
+    <button onclick="switchLang('en')" style="padding:4px 12px;border:1.5px solid var(--pink-dark);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--pink-dark);">🇬🇧 English</button>
+  </div>
   <div class="header">
     <h1>🎀 Yoyo Town</h1>
-    <p>Creator Reward Redemption</p>
+    <p id="header-subtitle">Creator Reward Redemption</p>
   </div>
 
 
@@ -97,7 +101,7 @@
 
     <div style="text-align:center;padding:10px 0 20px;">
       <h2 style="font-size:24px;margin-bottom:4px;">🎀 Yoyo Town</h2>
-      <p style="font-size:13px;color:var(--text-light);">Creator Portal</p>
+      <p id="login-subtitle" style="font-size:13px;color:var(--text-light);">Creator Portal</p>
     </div>
     <div id="entry-buttons">
       <button class="btn btn-primary" onclick="showNewCreatorForm()" style="margin-bottom:10px;">🆕 I'm a New Creator</button>
@@ -284,6 +288,185 @@
 <div id="toast" class="toast"></div>
 
 <script>
+// ===== i18n =====
+const LANG_KEY = 'koc_lang';
+let currentLang = localStorage.getItem(LANG_KEY) || 'zh';
+
+const DICT = {
+  zh: {
+    // Login / Header
+    'login_title': '🎀 Yoyo Town · 创作者中心',
+    'login_subtitle': '登录查看积分与兑换奖励',
+    'btn_register': '🆕 我是新人，注册加入',
+    'btn_login': '✅ 我已注册，立即登录',
+    'btn_check': '🔍 查积分',
+    'back': '‹ 返回',
+    'new_reg_title': '🆕 新人注册',
+    'new_reg_desc': '欢迎加入 Yoyo Town！请填写以下信息以便发放奖励。',
+    'existing_login_title': '🔑 登录',
+    'login_hint': '登录页面 → 客服中心 → 工单中心',
+    'label_discord': 'Discord 用户名',
+    'label_uid': '你的 UID',
+    'uid_placeholder': '例如 cqbZpqmcXcCq',
+    'discord_placeholder': '你的 Discord 用户名',
+    'faq_q': '常见问题？点击查看 FAQ',
+    'no_answer': '没找到答案？去 🎫｜town-service-station 发帖提问，客服会尽快回复你',
+    'footer': 'Developed by Yoyo Assistant 💗 Mochi · Yoyo Creative Studio',
+
+    // Dashboard tabs
+    'tab_submit': '📤 提交作品',
+    'tab_history': '📅 投稿记录',
+    'tab_redeem': '💳 积分兑换',
+    'tab_faq': '❓ FAQ',
+
+    // Submit tab
+    'submit_title': '📤 提交作品',
+    'submit_subtitle': '每月最多提交 2 次，检查好链接后再提交',
+    'submit_countdown': '你有 2 次提交机会',
+    'submit_remaining': '剩余 {n} 次提交机会',
+    'submit_exhausted': '已用完 2 次提交机会',
+    'submit_discord': 'Discord 名字',
+    'submit_server': '选择服务器',
+    'submit_links': '粘贴作品链接（每行一个）',
+    'submit_links_placeholder': 'https://facebook.com/...
+https://instagram.com/...
+https://tiktok.com/...',
+    'submit_btn': '📤 Submit Works',
+    'submit_btn_done': '🔒 已用完机会',
+    'submit_success': '✅ 链接已提交！',
+
+    // History tab
+    'history_title': '📅 投稿记录',
+    'history_hero': '{links} 条链接 · {pts} 分',
+    'history_scored': '已评分 {scored} 条 · 共 {total} 条',
+    'history_empty': '本月暂无投稿记录',
+    'history_hint': '每月 25 号开始，可提交作品链接',
+    'cc_title': '🎯 持续创作奖励（提交 15 条）',
+    'cc_hint': '还差 {remaining} 条',
+    'cc_done': '✅ 已完成 15 条！',
+    'cc_40pt': '🏆 目标达成！可获得 40 分奖励',
+    'newbie_banner_task': '本月是你的新人月！投稿 ≥5 分可获得额外 +2 分奖励！',
+    'newbie_banner_done': '✅ 已达标',
+    'newbie_banner_need': '还差 {need} 分',
+    'newbie_complete': '🌱 新人任务已完成！+2 分已计入',
+    'grade_cert': '🎯 连续两个月每月 ≥5 分，即可升级为金级创作官！',
+    'grade_gold': '⭐ 本月 ≥5 分，即可升级为铂金创作官！',
+
+    // Redeem tab
+    'redeem_title': '💳 积分兑换',
+    'redeem_points': '可用积分',
+    'redeem_closed': '🔒 兑换暂未开放',
+    'redeem_orders': '兑换记录',
+    'redeem_no_orders': '暂无兑换记录',
+    'redeem_btn': '确认兑换',
+    'redeem_confirm': '确认兑换 {count} 项奖励，共 {pts} 积分？',
+    'redeem_success': '✅ 兑换成功！',
+
+    // Status badges
+    'status_pending': '⏳ 待审核',
+    'status_scored': '✅ 已评分',
+    'status_rejected': '❌ 已拒绝',
+    'status_shipped': '已发货',
+    'status_cancelled': '已取消',
+
+    // Misc
+    'loading': '加载中...',
+    'error': '加载失败',
+    'error_network': '网络超时，请重试',
+  },
+
+  en: {
+    'login_title': '🎀 Yoyo Town · Creator Portal',
+    'login_subtitle': 'Check your points and redeem rewards',
+    'btn_register': '🆕 New Creator, Join Us',
+    'btn_login': '✅ Already Registered, Log In',
+    'btn_check': '🔍 Check My Points',
+    'back': '‹ Back',
+    'new_reg_title': '🆕 New Registration',
+    'new_reg_desc': 'Welcome to Yoyo Town! Fill in the info below so we can send your rewards.',
+    'existing_login_title': '🔑 Login',
+    'login_hint': 'Login Page → Customer Service → Ticket Center',
+    'label_discord': 'Discord Name',
+    'label_uid': 'Your UID',
+    'uid_placeholder': 'e.g. cqbZpqmcXcCq',
+    'discord_placeholder': 'Your Discord username',
+    'faq_q': 'Have questions? Check the FAQ',
+    'no_answer': 'No answer? Post in 🎫｜town-service-station, our team will reply soon',
+    'footer': 'Developed by Yoyo Assistant 💗 Mochi · Yoyo Creative Studio',
+
+    'tab_submit': '📤 Submit Works',
+    'tab_history': '📅 History',
+    'tab_redeem': '💳 Redeem',
+    'tab_faq': '❓ FAQ',
+
+    'submit_title': '📤 Submit Works',
+    'submit_subtitle': 'Max 2 submissions per month. Double-check your links before submitting.',
+    'submit_countdown': 'You have 2 submission chances',
+    'submit_remaining': '{n} chances remaining',
+    'submit_exhausted': 'No more chances (max 2)',
+    'submit_discord': 'Discord Name',
+    'submit_server': 'Select Server',
+    'submit_links': 'Paste your links (one per line)',
+    'submit_links_placeholder': 'https://facebook.com/...
+https://instagram.com/...
+https://tiktok.com/...',
+    'submit_btn': '📤 Submit Works',
+    'submit_btn_done': '🔒 Used Up',
+    'submit_success': '✅ Links submitted!',
+
+    'history_title': '📅 Submission History',
+    'history_hero': '{links} links · {pts} pts',
+    'history_scored': '{scored} scored · {total} total',
+    'history_empty': 'No submissions this month',
+    'history_hint': 'Submit your links from the 25th of each month',
+    'cc_title': '🎯 Continuous Creation Bonus (15 links)',
+    'cc_hint': '{remaining} more needed',
+    'cc_done': '✅ 15 links done!',
+    'cc_40pt': '🏆 Goal reached! 40 point bonus awarded!',
+    'newbie_banner_task': 'This is your newbie month! Get ≥5 pts for an extra +2 bonus!',
+    'newbie_banner_done': '✅ Reached',
+    'newbie_banner_need': '{need} pts away',
+    'newbie_complete': '🌱 Newbie mission complete! +2 pts added',
+    'grade_cert': '🎯 Get ≥5 pts for 2 consecutive months to become Gold Creator!',
+    'grade_gold': '⭐ Get ≥5 pts this month to become Platinum Creator!',
+
+    'redeem_title': '💳 Redeem Points',
+    'redeem_points': 'Available Points',
+    'redeem_closed': '🔒 Redemption is closed',
+    'redeem_orders': 'Order History',
+    'redeem_no_orders': 'No orders this month',
+    'redeem_btn': 'Confirm Redemption',
+    'redeem_confirm': 'Redeem {count} items for {pts} points?',
+    'redeem_success': '✅ Redemption successful!',
+
+    'status_pending': '⏳ Pending',
+    'status_scored': '✅ Scored',
+    'status_rejected': '❌ Rejected',
+    'status_shipped': 'Shipped',
+    'status_cancelled': 'Cancelled',
+
+    'loading': 'Loading...',
+    'error': 'Failed to load',
+    'error_network': 'Network timeout, please retry',
+  }
+};
+
+function t(key, params) {
+  var text = (DICT[currentLang] && DICT[currentLang][key]) || (DICT['zh'][key]) || key;
+  if (params) {
+    for (var k in params) {
+      text = text.replace('{' + k + '}', params[k]);
+    }
+  }
+  return text;
+}
+
+function switchLang(lang) {
+  currentLang = lang;
+  localStorage.setItem(LANG_KEY, lang);
+  location.reload();
+}
+
 const SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_oyewqnQ8AnitAOD94Qg0nA_v6Zqkr7r';
 const REWARDS = [
@@ -1108,5 +1291,21 @@ function logout() {
 // Auto-login after all functions defined
 tryAutoLogin();
 </script>
+
+<script>
+// Apply i18n to static HTML elements on load
+document.addEventListener('DOMContentLoaded', function() {
+  var els = {
+    'header-subtitle': t('login_subtitle'),
+    'login-subtitle': t('login_subtitle'),
+    'footer-text': t('footer'),
+  };
+  for (var id in els) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = els[id];
+  }
+});
+</script>
+
 </body>
 </html>
