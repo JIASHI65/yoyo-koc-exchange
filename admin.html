@@ -191,7 +191,7 @@
     <!-- Tab Navigation -->
     <div class="tabs" id="tab-nav">
       <button class="tab active" onclick="switchTab('dashboard')">📊 KOC投稿月报</button>
-      <button class="tab" onclick="switchTab('community')">📈 社群周报</button>
+      
       <button class="tab" onclick="switchTab('koc-ledger')">📋 KOC信息库</button>
       <button class="tab" onclick="switchTab('scoring')">🧮 积分计算</button>
       <button class="tab" onclick="switchTab('submissions')">📋 作品审核</button>
@@ -206,10 +206,15 @@
     <div id="tab-dashboard" class="tab-content active">
       <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
         <span>📊 KOC投稿月报 · <span id="dash-period-label"></span></span>
-        <span style="font-size:12px;color:var(--text-light);" id="dash-refresh-time"></span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span style="font-size:12px;color:var(--text-light);" id="dash-refresh-time"></span>
+          <a href="https://jiashi65.github.io/yoyo-community-report/" target="_blank" style="text-decoration:none;">
+            <button class="btn btn-sm" style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;font-size:11px;">📈 社群运营周报 ↗</button>
+          </a>
+        </div>
       </div>
       <!-- KPI 卡片 -->
-      <div id="dash-kpi" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;"></div>
+      <div id="dash-kpi" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;"></div>
       <!-- 图表区域 -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
         <div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">⭐ 等级分布</div><div id="chart-tier" style="height:220px;"></div><div id="insight-tier" class="insight"></div></div>
@@ -231,14 +236,7 @@
       </div>
     </div>
 
-    <!-- ======== TAB: 社群周报 ======== -->
-    <div id="tab-community" class="tab-content">
-      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-        <span>📈 社群周报 · <span id="community-period-label"></span></span>
-        <div style="display:flex;gap:6px;">
-          <button class="btn btn-sm" style="background:#5865F2;color:white;" onclick="loadCommunityReport()">🔄 拉取本周数据</button>
-        </div>
-      </div>
+    </div>
       <div id="community-kpi" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;"></div>
       <div id="community-charts-area"></div>
       <div id="community-channels" style="display:none;"></div>
@@ -1073,7 +1071,7 @@ function renderSubmissions() {
   // Merge by discord_name (same person = merge)
   var merged = {};
   list.forEach(function(s) {
-    var key = (s.discord_name||'') + '|' + (s.uid||'');
+    var key = (s.discord_name||'').toLowerCase().trim();
     if (!merged[key]) {
       merged[key] = { discord_name: s.discord_name, uid: s.uid, links_engagement: '', links_views: '', points_earned: 0, status: 'pending', created_at: s.created_at, id: s.id, _count: 0, _pending: 0, _scored: 0 };
     }
@@ -1536,7 +1534,7 @@ async function importScoreResult(text) {
   // ===== MERGE same-uid submissions =====
   var merged = {};
   result.submissions.forEach(function(sub) {
-    var key = (sub.discord_name||'') + '|' + (sub.uid||'');
+    var key = (sub.discord_name||'').toLowerCase().trim();
     if (!merged[key]) {
       merged[key] = JSON.parse(JSON.stringify(sub));
     } else {
@@ -1827,7 +1825,7 @@ function previewScoreResult(text) {
   // ===== 合并同 uid 的提交 =====
   var mergedMap = {};
   rawResult.submissions.forEach(function(sub) {
-    var key = sub.uid || sub.discord_name || 'unknown';
+    var key = (sub.discord_name||'').toLowerCase().trim() || sub.uid || 'unknown';
     if (!mergedMap[key]) {
       mergedMap[key] = JSON.parse(JSON.stringify(sub));
       mergedMap[key]._merged_count = 1;
@@ -2241,7 +2239,7 @@ function switchTab(name) {
   }
   // Refresh tab content
   if (name === 'dashboard') loadDashboard();
-  if (name === 'community') document.getElementById('community-summary').textContent = '\u70B9\u51FB\u4E0A\u65B9\u201C\u62C9\u53D6\u672C\u5468\u6570\u636E\u201D\u6309\u94AE\u62C9\u53D6\u793E\u7FA4\u5468\u62A5';
+  if (name === 'community') {} // removed = '\u70B9\u51FB\u4E0A\u65B9\u201C\u62C9\u53D6\u672C\u5468\u6570\u636E\u201D\u6309\u94AE\u62C9\u53D6\u793E\u7FA4\u5468\u62A5';
   if (name === 'koc-ledger') renderKocTable();
   if (name === 'scoring') renderScoringTable();
   if (name === 'merch') renderMerchTab();
@@ -2973,6 +2971,7 @@ async function loadDashboard() {
     // ========== 基础指标 ==========
     var activeKocs = {}; monthSubs.forEach(function(s) { activeKocs[s.uid] = true; });
     var activeCount = Object.keys(activeKocs).length;
+    var totalCreators = kocs.length;
     var totalLinks = 0, pendingLinks = 0;
     monthSubs.forEach(function(s) {
       var eng = (s.links_engagement||'').split('\n').filter(Boolean).length;
@@ -3027,7 +3026,7 @@ async function loadDashboard() {
 
     // ========== KPI 卡片行1 ==========
     var kpiHtml = '';
-    kpiHtml += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;">';
+    kpiHtml += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;">';
     kpiHtml += '<div class="kpi-card" style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:14px;padding:14px 8px;text-align:center;"><div style="font-size:24px;font-weight:800;color:#ad1457;">' + activeCount + '</div><div style="font-size:10px;color:#880e4f;">\uD83D\uDC64 \u6295\u7A3F\u521B\u4F5C\u8005</div><div style="font-size:10px;color:#999;">' + gr(activeCount,Object.keys(pActive).length) + '</div></div>';
     kpiHtml += '<div class="kpi-card" style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border-radius:14px;padding:14px 8px;text-align:center;"><div style="font-size:24px;font-weight:800;color:#2e7d32;">' + totalLinks + '</div><div style="font-size:10px;color:#1b5e20;">\uD83D\uDCDD \u6295\u7A3F\u94FE\u63A5\u6570</div><div style="font-size:10px;color:#999;">' + gr(totalLinks, pLinks) + '</div></div>';
     kpiHtml += '<div class="kpi-card" style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:14px;padding:14px 8px;text-align:center;"><div style="font-size:24px;font-weight:800;color:#e65100;">' + totalPts + '</div><div style="font-size:10px;color:#bf360c;">\uD83C\uDFC6 \u603B\u79EF\u5206</div><div style="font-size:10px;color:#999;">' + gr(totalPts, pPts) + '</div></div>';
@@ -3040,7 +3039,7 @@ async function loadDashboard() {
     var html = kpiHtml;
     html += '<div class="card" style="padding:14px;margin-bottom:12px;">';
     html += '<div style="font-size:14px;font-weight:600;margin-bottom:8px;">\u2B50 \u7B49\u7EA7\u5206\u5E03 &amp; \u65B0\u8001\u521B\u4F5C\u8005</div>';
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:8px;text-align:center;">';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:8px;text-align:center;">';
     html += '<div style="background:#f3e5f5;border-radius:10px;padding:8px;"><div style="font-size:20px;font-weight:800;color:#7e57c2;">' + plat + '</div><div style="font-size:10px;color:#999;">\uD83D\uDC8E \u94C2\u91D1</div></div>';
     html += '<div style="background:#fff8e1;border-radius:10px;padding:8px;"><div style="font-size:20px;font-weight:800;color:#ff8f00;">' + gold + '</div><div style="font-size:10px;color:#999;">\uD83D\uDFE1 \u91D1\u7EA7</div></div>';
     html += '<div style="background:#e8f5e9;border-radius:10px;padding:8px;"><div style="font-size:20px;font-weight:800;color:#43a047;">' + cert + '</div><div style="font-size:10px;color:#999;">\u2705 \u8BA4\u8BC1</div></div>';
@@ -3518,7 +3517,7 @@ function renderScoringTable() {
         '</div>' +
       '</td>' +
       '<td>' +
-        '<button class="btn btn-sm" style="background:#e8e0ff;color:#6a3de8;" onclick="openPointModal(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">💳 积分</button>' +
+        '<button class="btn btn-sm" style="background:#e8e0ff;color:#6a3de8;" onclick="openPointsModal(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">💳 积分</button>' +
       '</td>' +
     '</tr>';
   }).join('');
@@ -3723,7 +3722,7 @@ function adjustPoint(delta) {
 function setQuickPoint(n) {
   document.getElementById('modal-points').value = n;
 }
-function openPointModal(uid, discord) {
+function openPointsModal(uid, discord) {
   editingUid = uid;
   document.getElementById('modal-title').textContent = '\u270F\uFE0F ' + discord;
   document.getElementById('modal-points').value = '1';
@@ -4481,23 +4480,40 @@ function updateDeadlineDisplay(date, time) {
 
 
 
-// Auto-login + restore tab on page load
-try {
-  if (localStorage.getItem('admin_session') === 'logged_in') {
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('admin-panel').classList.remove('hidden');
-    setTimeout(function() {
-      loadData().then(function() {
-        var savedTab = localStorage.getItem('admin_active_tab');
-        if (savedTab && ['dashboard','koc-ledger','scoring','submissions','merch','diamond','gplay','rules'].indexOf(savedTab) >= 0) {
-          switchTab(savedTab);
-        } else {
-          loadDashboard();
-        }
-      }).catch(function(e) { console.error('loadData error:', e); alert('Load error: ' + e.message); });
-    }, 200);
+// Auto-login + restore tab on page load — 用 DOMContentLoaded 确保 DOM 渲染完成再执行
+document.addEventListener('DOMContentLoaded', function() {
+  try {
+    if (localStorage.getItem('admin_session') === 'logged_in') {
+      var loginScreen = document.getElementById('login-screen');
+      var adminPanel = document.getElementById('admin-panel');
+      if (loginScreen && adminPanel && !loginScreen.classList.contains('hidden')) {
+        loginScreen.classList.add('hidden');
+        adminPanel.classList.remove('hidden');
+        setTimeout(function() {
+          loadData().then(function() {
+            var savedTab = localStorage.getItem('admin_active_tab');
+            if (savedTab && ['dashboard','koc-ledger','scoring','submissions','merch','diamond','gplay','rules','audit'].indexOf(savedTab) >= 0) {
+              switchTab(savedTab);
+            } else {
+              loadDashboard();
+            }
+          }).catch(function(e) { console.error('loadData error:', e); });
+        }, 200);
+      }
+    }
+  } catch(e) { console.error('Auto-login error:', e); }
+});
+// 监听页面重新可见时保持登录状态
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden && localStorage.getItem('admin_session') === 'logged_in') {
+    var loginScreen = document.getElementById('login-screen');
+    var adminPanel = document.getElementById('admin-panel');
+    if (loginScreen && adminPanel && loginScreen.classList.contains('hidden') === false) {
+      loginScreen.classList.add('hidden');
+      adminPanel.classList.remove('hidden');
+    }
   }
-} catch(e) { console.error('Auto-login error:', e); }
+});
 </script>
 </body>
 </html>
