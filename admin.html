@@ -254,7 +254,7 @@
             <th>Discord</th>
             <th>UID</th>
             <th>⭐ 等级</th>
-            <th>💳 积分</th>
+            <th>💳 最新剩余积分</th>
             <th>Name</th>
             <th>Region</th>
             <th>Account ID</th>
@@ -3024,7 +3024,9 @@ function renderKocTable() {
         '<option value="certified"' + ((k.tier||'certified')==='certified'?' selected':'') + '>✅ 认证创作官</option>' +
         '<option value="gold"' + (k.tier==='gold'?' selected':'') + '>🟡 金级创作官</option>' +
         '<option value="platinum"' + (k.tier==='platinum'?' selected':'') + '>💎 铂金创作官</option>' +
-      '</select></td>' +
+      '</select>' +
+      (isOldCreator ? '<br><span style="font-size:10px;color:#999;">👌 老创作者</span>' : '<br><span style="font-size:10px;color:#4caf50;">🆕 新创作者</span>') +
+      '</td>' +
       '<td><span id="bal-' + k.uid + '" class="pts" style="cursor:pointer;" onclick="editBalanceInline(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">⋯</span></td>' +
       '<td ondblclick="inlineEdit(this,\'name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.name || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'region\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.region || '-') + '</td>' +
