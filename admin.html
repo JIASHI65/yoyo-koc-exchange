@@ -5,6 +5,46 @@
 <script>var es=document.createElement("script");es.src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js";document.head.appendChild(es);</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Yoyo Town · Admin</title>
+<script>
+// === 登录页动画（最先加载，独立运行）===
+(function() {
+  function run() {
+    var ls = document.getElementById('login-screen');
+    if (!ls) { setTimeout(run, 200); return; }
+    // 蝴蝶结弹跳
+    var bow = ls.querySelector('div:nth-child(8)');
+    if (bow) {
+      var t = 0;
+      setInterval(function() {
+        t += 0.04; var phase = (t % 2.5) / 2.5;
+        var y = 0;
+        if (phase < 0.15) y = -16 * Math.sin(phase / 0.15 * Math.PI);
+        else if (phase < 0.30) y = -16 * Math.sin((phase-0.15)/0.15*Math.PI) * 0.6;
+        bow.style.transform = 'translateY(' + y + 'px) scale(' + (1 + y/120) + ')';
+      }, 16);
+    }
+    // 星星闪烁
+    var divs = ls.querySelectorAll('div');
+    divs.forEach(function(d) {
+      if (d.textContent.trim() === '✨') {
+        var b = true;
+        setInterval(function() { b = !b; d.style.opacity = b ? '0.9' : '0.1'; d.style.transform = b ? 'scale(1.5)' : 'scale(1)'; }, 1200);
+      }
+    });
+    // 标题发光
+    divs.forEach(function(d) {
+      var txt = d.textContent;
+      if (txt === 'Yoyo Town · Admin' || txt === 'KOC 创作者管理系统') {
+        setInterval(function() {
+          var val = 0.7 + Math.sin(Date.now() / 1500) * 0.15;
+          d.style.opacity = val;
+        }, 50);
+      }
+    });
+  }
+  if (document.readyState !== 'loading') run(); else document.addEventListener('DOMContentLoaded', run);
+})();
+</script>
 <style>
   :root {
     --pink: #f2a6c4; --pink-light: #fce4ec; --pink-dark: #d4749a;
