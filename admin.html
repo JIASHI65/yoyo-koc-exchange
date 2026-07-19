@@ -180,18 +180,32 @@
 <body>
 <div class="container">
   <!-- ===== LOGIN ===== -->
-  <div id="login-screen" style="max-width:420px;margin:120px auto;background:linear-gradient(145deg,#fff5f9,#fce4ec);border-radius:24px;padding:40px 36px;text-align:center;box-shadow:0 8px 40px rgba(242,166,196,0.25);border:1px solid #f8bbd0;">
-    <div style="font-size:36px;margin-bottom:8px;">🎀</div>
-    <div style="font-size:20px;font-weight:800;color:#880e4f;margin-bottom:4px;">Yoyo Town · Admin</div>
-    <div style="font-size:13px;color:#ad1457;margin-bottom:24px;">KOC 创作者管理系统</div>
-    <input type="text" id="admin-pw" placeholder="输入管理员密码" style="width:100%;padding:12px 16px;border:2px solid #f8bbd0;border-radius:12px;font-size:15px;text-align:center;background:white;box-sizing:border-box;outline:none;" onkeydown="if(event.key==='Enter')adminLogin()" onfocus="this.style.borderColor='#f2a6c4'" onblur="this.style.borderColor='#f8bbd0'">
-    <button id="login-btn" onclick="adminLogin()" style="width:100%;margin-top:14px;padding:14px;font-size:16px;font-weight:700;border-radius:14px;cursor:pointer;transition:all 0.2s;letter-spacing:1px;background:linear-gradient(135deg,#f2a6c4,#d4749a);color:white;border:none;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 20px rgba(242,166,196,0.4)'" onmouseout="this.style.transform='none';this.style.boxShadow='none'">🔐 进入管理后台</button>
-    <div style="font-size:11px;color:#999;margin-top:20px;line-height:1.6;">
-        <div style="font-weight:600;font-size:13px;color:#ad1457;margin-bottom:2px;">✨ 全栈自主研发 · KOC 创作者管理系统</div>
-        <div>👩‍💻 开发运维：<strong>Seraphina 莎莎</strong></div>
-        <div>🛠 技术栈：Supabase · HTML/CSS/JS · GitHub Pages · Discord API</div>
-        <div style="margin-top:6px;font-size:10px;color:#ccc;">© 2026 Yoyo Creative Studio · v2.0</div>
+  <div id="login-screen" style="max-width:480px;margin:80px auto;background:linear-gradient(145deg,#fff5f9,#fce4ec);border-radius:32px;padding:50px 44px 40px;text-align:center;box-shadow:0 16px 80px rgba(242,166,196,0.3),0 0 0 1px rgba(248,187,208,0.4);position:relative;overflow:hidden;">
+    <!-- 装饰 -->
+    <div style="position:absolute;top:-24px;right:-24px;font-size:100px;opacity:0.12;transform:rotate(20deg);font-family:Apple Color Emoji,Segoe UI Emoji;">🎀</div>
+    <div style="position:absolute;bottom:-36px;left:-36px;font-size:140px;opacity:0.06;transform:rotate(-25deg);font-family:Apple Color Emoji,Segoe UI Emoji;">🌸</div>
+    <div style="position:absolute;top:20px;left:20px;width:120px;height:120px;background:radial-gradient(circle,rgba(242,166,196,0.2),transparent 70%);border-radius:50%;pointer-events:none;"></div>
+    <div style="position:absolute;bottom:30px;right:30px;width:150px;height:150px;background:radial-gradient(circle,rgba(248,187,208,0.12),transparent 70%);border-radius:50%;pointer-events:none;"></div>
+
+    <div style="font-size:52px;margin-bottom:8px;animation:fadeInDown 0.6s ease-out;position:relative;">🎀</div>
+    <div style="font-size:26px;font-weight:800;color:#880e4f;margin-bottom:2px;animation:fadeInUp 0.5s ease-out 0.1s both;letter-spacing:1px;">Yoyo Town · Admin</div>
+    <div style="font-size:14px;color:#ad1457;margin-bottom:4px;animation:fadeInUp 0.5s ease-out 0.2s both;letter-spacing:2px;">KOC 创作者管理系统</div>
+    <div style="font-size:11px;color:#d4869c;margin-bottom:32px;animation:fadeInUp 0.5s ease-out 0.3s both;">✦ 产品 · 设计 · 开发 · 运维 · 全栈自研 ✦</div>
+
+    <div style="position:relative;animation:fadeInUp 0.5s ease-out 0.4s both;">
+      <input type="text" id="admin-pw" placeholder="输入管理员密码" autocomplete="off" style="width:100%;padding:16px 20px;border:2px solid #f8bbd0;border-radius:16px;font-size:16px;text-align:center;background:rgba(255,255,255,0.92);box-sizing:border-box;outline:none;transition:all 0.3s ease;backdrop-filter:blur(4px);color:#3d2b36;" onkeydown="if(event.key==='Enter')adminLogin()" onfocus="this.style.borderColor='#f2a6c4';this.style.boxShadow='0 0 0 5px rgba(242,166,196,0.15)'" onblur="this.style.borderColor='#f8bbd0';this.style.boxShadow='none'">
+      <button id="login-btn" onclick="adminLogin()" style="width:100%;margin-top:16px;padding:16px;font-size:17px;font-weight:700;border-radius:16px;cursor:pointer;transition:all 0.25s ease;letter-spacing:2px;background:linear-gradient(135deg,#f2a6c4,#d4749a);color:white;border:none;box-shadow:0 4px 16px rgba(212,116,154,0.3);" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 28px rgba(212,116,154,0.4)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 4px 16px rgba(212,116,154,0.3)'" onmousedown="this.style.transform='scale(0.98)'" onmouseup="this.style.transform='translateY(-2px)'">🔐 进入管理后台</button>
+    </div>
+
+    <div style="font-size:11px;color:#d4869c;margin-top:32px;line-height:1.8;animation:fadeInUp 0.5s ease-out 0.5s both;">
+      <div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;">
+        <span>👤</span>
+        <span style="font-weight:600;color:#ad1457;">Seraphina 莎莎</span>
+        <span style="color:#d4869c;">·</span>
+        <span style="color:#d4869c;">产品设计 / 全栈开发 / 运维</span>
       </div>
+      <div style="font-size:10px;color:#d4869c;margin-top:6px;opacity:0.6;">© 2026 Yoyo Creative Studio · All rights reserved</div>
+    </div>
   </div>
 
   <!-- ===== ADMIN PANEL ===== -->
