@@ -5,46 +5,7 @@
 <script>var es=document.createElement("script");es.src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js";document.head.appendChild(es);</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Yoyo Town · Admin</title>
-<script>
-// === 登录页动画（最先加载，独立运行）===
-(function() {
-  function run() {
-    var ls = document.getElementById('login-screen');
-    if (!ls) { setTimeout(run, 200); return; }
-    // 蝴蝶结弹跳
-    var bow = ls.querySelector('div:nth-child(8)');
-    if (bow) {
-      var t = 0;
-      setInterval(function() {
-        t += 0.04; var phase = (t % 2.5) / 2.5;
-        var y = 0;
-        if (phase < 0.15) y = -16 * Math.sin(phase / 0.15 * Math.PI);
-        else if (phase < 0.30) y = -16 * Math.sin((phase-0.15)/0.15*Math.PI) * 0.6;
-        bow.style.transform = 'translateY(' + y + 'px) scale(' + (1 + y/120) + ')';
-      }, 16);
-    }
-    // 星星闪烁
-    var divs = ls.querySelectorAll('div');
-    divs.forEach(function(d) {
-      if (d.textContent.trim() === '✨') {
-        var b = true;
-        setInterval(function() { b = !b; d.style.opacity = b ? '0.9' : '0.1'; d.style.transform = b ? 'scale(1.5)' : 'scale(1)'; }, 1200);
-      }
-    });
-    // 标题发光
-    divs.forEach(function(d) {
-      var txt = d.textContent;
-      if (txt === 'Yoyo Town · Admin' || txt === 'KOC 创作者管理系统') {
-        setInterval(function() {
-          var val = 0.7 + Math.sin(Date.now() / 1500) * 0.15;
-          d.style.opacity = val;
-        }, 50);
-      }
-    });
-  }
-  if (document.readyState !== 'loading') run(); else document.addEventListener('DOMContentLoaded', run);
-})();
-</script>
+
 <style>
   :root {
     --pink: #f2a6c4; --pink-light: #fce4ec; --pink-dark: #d4749a;
@@ -199,36 +160,39 @@
   0%,100% { transform:translateY(0) rotate(15deg); }
   50% { transform:translateY(-8px) rotate(15deg); }
 }
+@keyframes pulse {
+  0%,100% { transform:scale(1); opacity:0.15; }
+  50% { transform:scale(1.8); opacity:0.4; }
+}
+@keyframes sparkle {
+  0%,100% { opacity:0.3; transform:scale(1) rotate(0deg); }
+  50% { opacity:0.9; transform:scale(1.5) rotate(30deg); }
+}
+@keyframes bowBounce {
+  0%,100% { transform:translateY(0) scale(1); }
+  15% { transform:translateY(-14px) scale(1.08); }
+  30% { transform:translateY(-6px) scale(1.04); }
+  45% { transform:translateY(-2px) scale(1.01); }
+}
+@keyframes gentleGlow {
+  0%,100% { text-shadow:0 0 4px rgba(242,166,196,0.2); opacity:0.9; }
+  50% { text-shadow:0 0 20px rgba(242,166,196,0.5),0 0 40px rgba(242,166,196,0.2); opacity:1; }
+}
+@keyframes softBlink {
+  0%,100% { opacity:0.8; }
+  50% { opacity:1; }
+}
+@keyframes glowRotate {
+  0% { opacity:0.1; transform:rotate(0deg); }
+  50% { opacity:0.25; }
+  100% { opacity:0.1; transform:rotate(360deg); }
+}
+@keyframes gradientShift {
+  0% { background-position:0% 50%; }
+  50% { background-position:100% 50%; }
+  100% { background-position:0% 50%; }
+}
 </style>
-<script>
-// ===== JS动画引擎 =====
-document.addEventListener('DOMContentLoaded', function() {
-  // 蝴蝶结弹跳
-  var bow = document.querySelector('[style*="bounceLoop"]');
-  if (bow) {
-    var start = Date.now();
-    function jsBounce() {
-      var t = (Date.now() - start) % 2500 / 2500;
-      var y = 0;
-      if (t < 0.15) y = -16 * Math.sin(t / 0.15 * Math.PI);
-      else if (t < 0.30) y = -16 * Math.sin((t-0.15)/0.15*Math.PI) * 0.6;
-      else if (t < 0.45) y = -6 * Math.sin((t-0.30)/0.15*Math.PI);
-      bow.style.transform = 'translateY('+y+'px) scale('+(1+y/120)+')';
-      requestAnimationFrame(jsBounce);
-    }
-    jsBounce();
-  }
-  // 星星闪烁
-  document.querySelectorAll('[style*="sparkle"]').forEach(function(el) {
-    var delay = parseFloat(el.style.animationDelay) || 0;
-    setInterval(function() {
-      var bright = Math.random() > 0.5;
-      el.style.opacity = bright ? '0.8' : '0.2';
-      el.style.transform = bright ? 'scale(1.4)' : 'scale(1)';
-    }, 1500 + delay * 1000);
-  });
-});
-</script>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -261,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
     <div style="position:absolute;top:40%;right:8%;font-size:12px;animation:sparkle 4s ease-in-out infinite 1.6s;opacity:0.25;">✨</div>
 
     <!-- 主蝴蝶结 带弹跳 -->
-    <div style="font-size:60px;margin-bottom:8px;animation:bounceLoop 2.5s ease-in-out infinite;position:relative;display:inline-block;transform-origin:center;">🎀</div>
+    <div style="font-size:60px;margin-bottom:8px;animation:bowBounce 2s ease-in-out infinite;position:relative;display:inline-block;transform-origin:center;filter:drop-shadow(0 0 8px rgba(242,166,196,0.3));">🎀</div>
     
     <!-- 标题依次淡入 -->
     <div style="font-size:28px;font-weight:800;color:#880e4f;margin-bottom:2px;animation:gentleGlow 3s ease-in-out infinite 0.15s;letter-spacing:2px;">Yoyo Town · Admin</div>
@@ -4668,68 +4632,6 @@ document.addEventListener('visibilitychange', function() {
     }
   })();
 </script>
-<script>
-// ===== 登录页循环动画 =====
-(function() {
-  function startAnim() {
-    var loginScreen = document.getElementById('login-screen');
-    if (!loginScreen) { setTimeout(startAnim, 500); return; }
-    
-    // 蝴蝶结持续弹跳
-    var bow = loginScreen.querySelector('div:nth-child(8)');
-    if (bow) {
-      var t = 0;
-      setInterval(function() {
-        t += 0.04;
-        var phase = (t % 2.5) / 2.5;
-        var y = 0;
-        if (phase < 0.15) y = -16 * Math.sin(phase / 0.15 * Math.PI);
-        else if (phase < 0.30) y = -16 * Math.sin((phase-0.15)/0.15*Math.PI) * 0.6;
-        else if (phase < 0.45) y = -6 * Math.sin((phase-0.30)/0.15*Math.PI);
-        bow.style.transform = 'translateY(' + y + 'px) scale(' + (1 + y/120) + ')';
-      }, 16);
-    }
-    
-    // 星星闪烁
-    var stars = loginScreen.querySelectorAll('[style*="animation:sparkle"]');
-    stars.forEach(function(s, i) {
-      s.style.animation = 'none';
-      var bright = true;
-      setInterval(function() {
-        bright = !bright;
-        s.style.opacity = bright ? '0.8' : '0.15';
-        s.style.transform = bright ? 'scale(1.5)' : 'scale(1)';
-      }, 1200 + i * 400);
-    });
-    
-    // 标题发光
-    var titles = loginScreen.querySelectorAll('[style*="animation:gentleGlow"]');
-    titles.forEach(function(t) {
-      t.style.animation = 'none';
-      var dir = 1;
-      setInterval(function() {
-        var val = 0.7 + Math.sin(Date.now() / 1500) * 0.15;
-        t.style.opacity = val;
-        t.style.textShadow = '0 0 ' + (8 + val * 8) + 'px rgba(242,166,196,' + (0.2 + val * 0.3) + ')';
-      }, 50);
-    });
-    
-    // 署名闪烁
-    var credit = loginScreen.querySelector('[style*="animation:softBlink"]');
-    if (credit) {
-      credit.style.animation = 'none';
-      setInterval(function() {
-        credit.style.opacity = 0.6 + Math.sin(Date.now() / 1800) * 0.2;
-      }, 50);
-    }
-  }
-  
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', startAnim);
-  } else {
-    startAnim();
-  }
-})();
-</script>
+
 </body>
 </html>
