@@ -1298,6 +1298,7 @@ Return results for ALL submissions in this JSON format:
       "discord_name": "<username>",
       "uid": "<uid>",
       "total_engagement": <integer>,
+      "total_impressions": <integer>,
       "total_views": <integer>,
       "points_earned": <integer>
     }
@@ -1318,7 +1319,7 @@ function generateAgentTemplate() {
     SCORING_RULES_TEXT,
     '',
     '## 任务',
-    '请用浏览器打开以下每个链接，查看该帖子的互动数（点赞/评论/分享/收藏）或播放量。',
+    '请用浏览器打开以下每个链接，查看三个数据：播放量(TikTok/YouTube)、浏览量(Facebook/Instagram/Reddit/X/Pinterest 曝光量)、互动数(点赞+评论+分享+收藏)，三项都必须填写',
     '不要凭空编造数据。如果链接无法访问，请标注 "N/A"。',
     '',
     '## 输出格式要求',
@@ -1338,8 +1339,10 @@ function generateAgentTemplate() {
     '      "view_links": [',
     '        { "url": "链接地址", "view_count": N }',
     '      ],',
-    '      "total_engagement": <integer> (总互动数: 点赞+评论+分享+收藏),',
-    '      "total_views": <integer> (总播放量/浏览量),',
+    '      "total_engagement": <integer> (总互动数: 点赞+评论+分享+收藏),
+      "total_impressions": <integer> (总浏览量: 曝光量/阅读数),
+      "total_views": <integer> (总播放量: 视频观看次数)',
+    ,
     '      "points_earned": N,',
     '      "points_detail": "40-99=1pt, 100-199=2pt, ..."',
     '    }',
@@ -1503,7 +1506,11 @@ async function copyAgentPrompt() {
     '## 操作步骤',
     '1. 打开我给你的文件: ' + filename,
     '2. 文件里每个 submission 有 id / discord_name / uid / links 字段',
-    '3. 用浏览器打开 links 里的每条链接，查看真实互动数(点赞/评论/分享/收藏)和播放量/浏览量，两者都必须填写',
+    '3. 用浏览器打开 links 里的每条链接，查看三个数据：' +
+      '   📺 播放量（TikTok/YouTube 视频观看次数）' +
+      '   👁️ 浏览量（Facebook/Instagram/Reddit/X/Pinterest 曝光量/阅读数）' +
+      '   💬 互动数（点赞+评论+分享+收藏）' +
+      '三项都必须填写，没有就填0',
     '4. 按上方规则计算每条 submission 的积分',
     '5. 输出 JSON 结果给我',
     '',
@@ -1515,8 +1522,12 @@ async function copyAgentPrompt() {
     '      "id": 提交ID,',
     '      "discord_name": "用户名",',
     '      "uid": "UID",',
-    '      "total_engagement": <integer> (总互动数: 点赞+评论+分享+收藏),',
-    '      "total_views": <integer> (总播放量/浏览量),',
+    '      "total_engagement": <integer> (总互动数: 点赞+评论+分享+收藏),
+      "total_impressions": <integer> (总浏览量: 曝光量/阅读数),
+      "total_views": <integer> (总播放量: 视频观看次数)' +
+    '      "total_impressions": <integer> (总浏览量: 曝光量/阅读数),' +
+    '      "total_views": <integer> (总播放量: 视频观看次数)',
+    ,
     '      "points_earned": N',
     '    }',
     '  ]',
@@ -1622,6 +1633,7 @@ async function importScoreResult(text) {
       merged[key].points_earned = (merged[key].points_earned || 0) + (sub.points_earned || 0);
       // Merge engagement/views
       merged[key].total_engagement = (merged[key].total_engagement || 0) + (sub.total_engagement || 0);
+      merged[key].total_impressions = (merged[key].total_impressions || 0) + (sub.total_impressions || 0);
       merged[key].total_views = (merged[key].total_views || 0) + (sub.total_views || 0);
       // Keep the first submission's id for DB update
       if (sub.id) {
@@ -1906,6 +1918,7 @@ function previewScoreResult(text) {
     } else {
       mergedMap[key].points_earned = (mergedMap[key].points_earned || 0) + (sub.points_earned || 0);
       mergedMap[key].total_engagement = (mergedMap[key].total_engagement || 0) + (sub.total_engagement || 0);
+      mergedMap[key].total_impressions = (mergedMap[key].total_impressions || 0) + (sub.total_impressions || 0);
       mergedMap[key].total_views = (mergedMap[key].total_views || 0) + (sub.total_views || 0);
       mergedMap[key]._merged_count++;
       if (sub.engagement_links && sub.engagement_links.length) {
@@ -3052,7 +3065,7 @@ async function loadDashboard() {
     // ========== 拉取数据 ==========
     var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=uid,discord_name,tier,name,created_at,notes,platform');
     var kocs = kocRes.ok ? await kocRes.json() || [] : [];
-    var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=uid,discord_name,status,points_earned,links_engagement,links_views,total_engagement,total_views,created_at&order=created_at.desc');
+    var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=uid,discord_name,status,points_earned,links_engagement,links_views,total_engagement,total_impressions,total_views,created_at&order=created_at.desc');
     var subs = subRes.ok ? await subRes.json() || [] : [];
     var ordRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?select=uid,points_spent,status,period,created_at&order=created_at.desc&limit=500');
     var orders = ordRes.ok ? await ordRes.json() || [] : [];
@@ -3074,6 +3087,7 @@ async function loadDashboard() {
     });
     var totalPts = monthSubs.reduce(function(su, s) { return su + (s.points_earned||0); }, 0);
     var totalViews = monthSubs.reduce(function(su, s) { return su + (s.total_views||0); }, 0);
+    var totalImpressions = monthSubs.reduce(function(su, s) { return su + (s.total_impressions||0); }, 0);
     var totalEngagement = monthSubs.reduce(function(su, s) { return su + (s.total_engagement||0); }, 0);
     var shippedOrders = monthOrders.filter(function(o) { return o.status === 'shipped'; });
     var redeemedPts = shippedOrders.reduce(function(su, o) { return su + (o.points_spent||0); }, 0);
@@ -3134,6 +3148,7 @@ async function loadDashboard() {
     var prevPts = useMock ? mr.totalPts : pPts;
     var prevViews = useMock ? 8500 : pSubs.reduce(function(su, s) { return su + (s.total_views||0); }, 0);
     var prevEngagement = useMock ? 3200 : pSubs.reduce(function(su, s) { return su + (s.total_engagement||0); }, 0);
+    var prevImpressions = useMock ? 15000 : pSubs.reduce(function(su, s) { return su + (s.total_impressions||0); }, 0);
     var prevCert = useMock ? mr.cert : pTier.cert||0;
     var prevGold = useMock ? mr.gold : pTier.gold||0;
     var prevPlat = useMock ? mr.plat : pTier.plat||0;
@@ -3149,6 +3164,7 @@ async function loadDashboard() {
       { icon: '📎', label: '投稿链接数', val: totalLinks, color: '#2e7d32', bg: 'linear-gradient(135deg,#e8f5e9,#a5d6a7)', cmp: gr(totalLinks, prevLinks) },
       { icon: '🏆', label: '当月总积分', val: totalPts, color: '#e65100', bg: 'linear-gradient(135deg,#fff3e0,#ffcc80)', cmp: gr(totalPts, prevPts) },
       { icon: '📺', label: '总播放量', val: totalViews >= 1000 ? (totalViews/1000).toFixed(1)+'K' : totalViews, color: '#0277bd', bg: 'linear-gradient(135deg,#e1f5fe,#81d4fa)' },
+      { icon: '👁️', label: '总浏览量', val: totalImpressions >= 1000 ? (totalImpressions/1000).toFixed(1)+'K' : totalImpressions, color: '#00695c', bg: 'linear-gradient(135deg,#e0f2f1,#80cbc4)' },
       { icon: '💬', label: '总互动数', val: totalEngagement >= 1000 ? (totalEngagement/1000).toFixed(1)+'K' : totalEngagement, color: '#00838f', bg: 'linear-gradient(135deg,#e0f7fa,#80deea)' },
       { icon: '🎁', label: 'CC达标人数', val: ccCount, color: '#6a3de8', bg: 'linear-gradient(135deg,#ede7f6,#b39ddb)' },
       { icon: '⏳', label: '待审核数', val: pendingLinks, color: '#f57f17', bg: 'linear-gradient(135deg,#fff8e1,#ffe082)' }
@@ -3303,6 +3319,7 @@ async function loadDashboard() {
     html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">🏆 总积分</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + prevPts + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + totalPts + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (totalPts>=prevPts?'#43a047':'#e74c3c') + ';">' + gr(totalPts, prevPts) + '</td></tr>';
     html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">📺 总播放量</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + prevViews + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + totalViews + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (totalViews>=prevViews?'#43a047':'#e74c3c') + ';">' + gr(totalViews, prevViews) + '</td></tr>';
     html += '<tr><td style="padding:6px 8px;">💬 总互动数</td><td style="padding:6px 8px;text-align:right;font-weight:500;">' + prevEngagement + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;">' + totalEngagement + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;color:' + (totalEngagement>=prevEngagement?'#43a047':'#e74c3c') + ';">' + gr(totalEngagement, prevEngagement) + '</td></tr>';
+    html += '<tr><td style="padding:6px 8px;">👁️ 总浏览量</td><td style="padding:6px 8px;text-align:right;font-weight:500;">' + prevImpressions + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;">' + totalImpressions + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;color:' + (totalImpressions>=prevImpressions?'#43a047':'#e74c3c') + ';">' + gr(totalImpressions, prevImpressions) + '</td></tr>';
     html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">✅ 认证创作官</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + prevCert + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + cert + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (cert>=prevCert?'#43a047':'#e74c3c') + ';">' + gr(cert, prevCert) + '</td></tr>';
     html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">🟡 金级创作官</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + prevGold + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + gold + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (gold>=prevGold?'#43a047':'#e74c3c') + ';">' + gr(gold, prevGold) + '</td></tr>';
     html += '<tr><td style="padding:6px 8px;">💎 铂金创作官</td><td style="padding:6px 8px;text-align:right;font-weight:500;">' + prevPlat + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;">' + plat + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;color:' + (plat>=prevPlat?'#43a047':'#e74c3c') + ';">' + gr(plat, prevPlat) + '</td></tr>';
@@ -3339,6 +3356,7 @@ async function loadDashboard() {
       if (ccCount > 0) ins += ' ' + ccCount + ' 位达标 CC 奖励（≥15条），持续创作意愿强。';
       var maxPfName = Object.keys(pfs).reduce(function(a,b) { return pfs[a] > pfs[b] ? a : b; });
       if (totalViews > 0) ins += ' 📺 总播放量 ' + totalViews + '，';
+      if (totalImpressions > 0) ins += ' 👁️ 总浏览量 ' + totalImpressions + '，';
       if (totalEngagement > 0) ins += ' 💬 总互动数 ' + totalEngagement + '，';
       if (pfs[maxPfName] > 0) ins += ' 主要平台：' + maxPfName + '(' + pfs[maxPfName] + '条)。';
       if (newC > 0) ins += ' 新创作者' + newC + '位，后续可重点辅导。';
