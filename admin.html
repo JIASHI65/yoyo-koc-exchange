@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"><\/script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Yoyo Town · Admin</title>
 <style>
@@ -145,6 +146,7 @@
 
 
   .tier- { background: linear-gradient(135deg,#e8e0ff,#fff8e1); color: #6a3de8; border: 1.5px solid #ce93d8; }
+  .insight { font-size:11px; color:#888; margin-top:4px; font-style:italic; padding:4px 8px; background:#fafafa; border-radius:6px; }
 </style>
 </head>
 <body>
@@ -188,7 +190,8 @@
 
     <!-- Tab Navigation -->
     <div class="tabs" id="tab-nav">
-      <button class="tab active" onclick="switchTab('dashboard')">📊 数据看板</button>
+      <button class="tab active" onclick="switchTab('dashboard')">📊 KOC投稿月报</button>
+      <button class="tab" onclick="switchTab('community')">📈 社群周报</button>
       <button class="tab" onclick="switchTab('koc-ledger')">📋 KOC信息库</button>
       <button class="tab" onclick="switchTab('scoring')">🧮 积分计算</button>
       <button class="tab" onclick="switchTab('submissions')">📋 作品审核</button>
@@ -199,30 +202,63 @@
       <button class="tab" onclick="switchTab('audit')">📜 操作日志</button>
     </div>
 
-    <!-- ======== TAB: 数据看板 ======== -->
+    <!-- ======== TAB: KOC投稿月报 ======== -->
     <div id="tab-dashboard" class="tab-content active">
-      <div class="card-title" style="margin-bottom:12px;">📊 数据看板 · <span id="dash-period-label"></span></div>
-      <div id="dashboard-content" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:12px;">
-        <div style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:14px;padding:18px 12px;text-align:center;">
-          <div style="font-size:30px;font-weight:800;color:#ad1457;" id="dash-total-kocs">-</div>
-          <div style="font-size:12px;color:#880e4f;">👤 本月投稿创作者</div>
-        </div>
-        <div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border-radius:14px;padding:18px 12px;text-align:center;">
-          <div style="font-size:30px;font-weight:800;color:#2e7d32;" id="dash-total-subs">-</div>
-          <div style="font-size:12px;color:#1b5e20;">📝 本月投稿数（链接条数）</div>
-        </div>
-        <div style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:14px;padding:18px 12px;text-align:center;">
-          <div style="font-size:30px;font-weight:800;color:#e65100;" id="dash-pending-subs">-</div>
-          <div style="font-size:12px;color:#bf360c;">⏳ 待审核链接数</div>
-        </div>
-        <div style="background:linear-gradient(135deg,#fce4ec,#f8bbd0);border-radius:14px;padding:18px 12px;text-align:center;">
-          <div style="font-size:30px;font-weight:800;color:#c62828;" id="dash-total-orders">-</div>
-          <div style="font-size:12px;color:#b71c1c;">🎁 本月兑换积分</div>
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>📊 KOC投稿月报 · <span id="dash-period-label"></span></span>
+        <span style="font-size:12px;color:var(--text-light);" id="dash-refresh-time"></span>
+      </div>
+      <!-- KPI 卡片 -->
+      <div id="dash-kpi" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;"></div>
+      <!-- 图表区域 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">⭐ 等级分布</div><div id="chart-tier" style="height:220px;"></div><div id="insight-tier" class="insight"></div></div>
+        <div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">📱 各平台分布</div><div id="chart-platform" style="height:220px;"></div><div id="insight-platform" class="insight"></div></div>
+        <div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">📊 积分分布</div><div id="chart-points" style="height:220px;"></div><div id="insight-points" class="insight"></div></div>
+        <div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">📈 月度趋势</div><div id="chart-trend" style="height:220px;"></div><div id="insight-trend" class="insight"></div></div>
+      </div>
+      <!-- 榜单 -->
+      <div class="card" style="padding:12px;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:6px;">🏆 投稿榜 Top 10</div>
+        <div id="dash-rank-list" style="font-size:12px;"></div>
+        <div id="insight-top" class="insight" style="margin-top:6px;"></div>
+      </div>
+      <!-- 底部关键洞察 -->
+      <div class="card" style="padding:14px;background:linear-gradient(135deg,#fce4ec,#fff5f9);border:2px solid #f8bbd0;">
+        <div style="font-size:14px;font-weight:700;color:#ad1457;">💡 莎莎的关键洞察</div>
+        <div id="dash-summary" style="font-size:13px;margin-top:6px;line-height:1.6;color:#333;">加载中...</div>
+      </div>
+    </div>
+
+    <!-- ======== TAB: 社群周报 ======== -->
+    <div id="tab-community" class="tab-content">
+      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>📈 社群周报 · <span id="community-period-label"></span></span>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm" style="background:#5865F2;color:white;" onclick="loadCommunityReport()">🔄 拉取本周数据</button>
         </div>
       </div>
-      <div id="dash-detail" style="background:white;border-radius:14px;padding:14px;border:1px solid var(--border);">
-        <div style="font-size:13px;font-weight:600;margin-bottom:6px;">📋 本月投稿排名</div>
-        <div id="dash-rank-list"><div style="color:var(--text-light);font-size:12px;">加载中...</div></div>
+      <!-- KPI 卡片 -->
+      <div id="community-kpi" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;"></div>
+      <!-- 图表 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">📊 内容画像</div><div id="chart-content" style="height:220px;"></div><div id="insight-content" class="insight"></div></div>
+        <div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">📈 周度活跃趋势</div><div id="chart-weekly" style="height:220px;"></div><div id="insight-weekly" class="insight"></div></div>
+      </div>
+      <!-- 榜单 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="card" style="padding:12px;">
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px;">💬 最活跃频道 Top 5</div>
+          <div id="community-channels" style="font-size:12px;"></div>
+        </div>
+        <div class="card" style="padding:12px;">
+          <div style="font-size:13px;font-weight:600;margin-bottom:6px;">👑 发言之星 Top 10</div>
+          <div id="community-users" style="font-size:12px;"></div>
+        </div>
+      </div>
+      <div class="card" style="padding:14px;background:linear-gradient(135deg,#e3f2fd,#fff5f9);border:2px solid #90caf9;margin-top:12px;">
+        <div style="font-size:14px;font-weight:700;color:#1565c0;">💡 莎莎的关键洞察</div>
+        <div id="community-summary" style="font-size:13px;margin-top:6px;line-height:1.6;color:#333;">暂无数据，点击上方按钮拉取本周社群数据</div>
       </div>
     </div>
 
@@ -2216,6 +2252,7 @@ function switchTab(name) {
   }
   // Refresh tab content
   if (name === 'dashboard') loadDashboard();
+  if (name === 'community') document.getElementById('community-summary').textContent = '\u70B9\u51FB\u4E0A\u65B9\u201C\u62C9\u53D6\u672C\u5468\u6570\u636E\u201D\u6309\u94AE\u62C9\u53D6\u793E\u7FA4\u5468\u62A5';
   if (name === 'koc-ledger') renderKocTable();
   if (name === 'scoring') renderScoringTable();
   if (name === 'merch') renderMerchTab();
@@ -2809,7 +2846,7 @@ function shiftSettleMonth(delta) {
   if (lbl) lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
   // Refresh current active tab
   var activeId = null;
-  var tabIds = ['dashboard','koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules','audit'];
+  var tabIds = ['dashboard','community','koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules','audit'];
   tabIds.forEach(function(id) {
     var el = document.getElementById('tab-'+id);
     if (el && el.style.display !== 'none') activeId = id;
@@ -2837,7 +2874,7 @@ function changeSettlePeriod() {
   if (lbl) lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
   // Refresh current active tab
   var activeId = null;
-  var tabIds = ['dashboard','koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules','audit'];
+  var tabIds = ['dashboard','community','koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules','audit'];
   tabIds.forEach(function(id) {
     var el = document.getElementById('tab-'+id);
     if (el && el.style.display !== 'none') activeId = id;
@@ -2928,71 +2965,326 @@ function toggleCC(uid, notes) {
 
 // ===== DASHBOARD =====
 async function loadDashboard() {
-  var periodLabel = document.getElementById('dash-period-label');
-  if (periodLabel) periodLabel.textContent = currentPeriod.replace('-', '年') + '月';
+  var label = document.getElementById('dash-period-label');
+  if (label) label.textContent = currentPeriod.replace('-', '\u5E74') + '\u6708';
+  document.getElementById('dash-refresh-time').textContent = '\u66F4\u65B0: ' + new Date().toLocaleString('zh-CN');
 
   try {
-    var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=id,discord_name,uid,tier');
+    var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=uid,discord_name,tier,name,created_at,notes');
     var kocs = kocRes.ok ? await kocRes.json() || [] : [];
-
-    var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=id,uid,discord_name,status,points_earned,links_engagement,links_views,created_at&order=created_at.desc');
+    var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=uid,discord_name,status,points_earned,links_engagement,links_views,created_at&order=created_at.desc');
     var subs = subRes.ok ? await subRes.json() || [] : [];
-
-    var ordRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?select=id,uid,option_type,period&order=created_at.desc&limit=500');
+    var ordRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?select=uid,points_spent,option_type,status,period,created_at&order=created_at.desc&limit=500');
     var orders = ordRes.ok ? await ordRes.json() || [] : [];
 
-    // Filter by current period
     var monthSubs = subs.filter(function(s) { return (s.created_at||'').substring(0,7) === currentPeriod; });
     var monthOrders = orders.filter(function(o) { return (o.period||'') === currentPeriod; });
 
-    // 创作者总数（所有已注册 KOC）
-    var totalKocs = kocs.length;
-    // 本月投稿的创作者数（去重）
-    var activeKocs = monthSubs.reduce(function(m, s) { m[s.uid] = true; return m; }, {});
+    // ===== KPI Cards =====
+    var activeKocs = {}; monthSubs.forEach(function(s) { activeKocs[s.uid] = true; });
     var activeCount = Object.keys(activeKocs).length;
-    // 本月总链接数（所有submission的links加起来）
-    var totalSubs = monthSubs.reduce(function(su, s) { 
-      return su + (s.links_engagement||'').split('\n').filter(Boolean).length + (s.links_views||'').split('\n').filter(Boolean).length; 
-    }, 0);
-    // 待审核的链接条数
-    var pendingSubs = monthSubs.filter(function(s) { return s.status === 'pending'; })
-      .reduce(function(su, s) { 
-        return su + (s.links_engagement||'').split('\n').filter(Boolean).length + (s.links_views||'').split('\n').filter(Boolean).length; 
-      }, 0);
-    // 本月兑换的总积分
-    var totalOrders = monthOrders.reduce(function(su, o) { return su + (o.points_spent || 0); }, 0);
-
-    document.getElementById('dash-total-kocs').textContent = activeCount;
-    document.getElementById('dash-total-subs').textContent = totalSubs;
-    document.getElementById('dash-pending-subs').textContent = pendingSubs;
-    document.getElementById('dash-total-orders').textContent = totalOrders;
-
-    // Rank list: top submitters by link count
-    var rankMap = {};
+    var totalLinks = 0;
+    var pendingLinks = 0;
     monthSubs.forEach(function(s) {
-      var key = (s.discord_name || s.uid || 'unknown');
-      if (!rankMap[key]) rankMap[key] = { name: s.discord_name || '', uid: s.uid || '', links: 0, pts: 0 };
-      rankMap[key].links += (s.links_engagement||'').split('\n').filter(Boolean).length;
-      rankMap[key].pts += (s.points_earned||0);
+      var eng = (s.links_engagement||'').split('\n').filter(Boolean).length;
+      var views = (s.links_views||'').split('\n').filter(Boolean).length;
+      totalLinks += eng + views;
+      if (s.status === 'pending') pendingLinks += eng + views;
     });
-    var rankList = Object.keys(rankMap).map(function(k) { return rankMap[k]; });
-    rankList.sort(function(a,b) { return b.links - a.links; });
-    rankList = rankList.slice(0, 10);
+    var totalPts = monthSubs.reduce(function(su, s) { return su + (s.points_earned||0); }, 0);
+    var redeemedPts = monthOrders.filter(function(o) { return o.status === 'shipped'; }).reduce(function(su, o) { return su + (o.points_spent||0); }, 0);
+    var tierCounts = {}; kocs.forEach(function(k) { var t = k.tier||'certified'; tierCounts[t] = (tierCounts[t]||0) + 1; });
 
+    document.getElementById('dash-kpi').innerHTML =
+      '<div class="kpi-card" style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:14px;padding:14px 8px;text-align:center;">' +
+        '<div style="font-size:26px;font-weight:800;color:#ad1457;">' + activeCount + '</div>' +
+        '<div style="font-size:11px;color:#880e4f;">\uD83D\uDC64 \u672C\u6708\u6295\u7A3F\u521B\u4F5C\u8005</div></div>' +
+      '<div class="kpi-card" style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border-radius:14px;padding:14px 8px;text-align:center;">' +
+        '<div style="font-size:26px;font-weight:800;color:#2e7d32;">' + totalLinks + '</div>' +
+        '<div style="font-size:11px;color:#1b5e20;">\uD83D\uDCDD \u672C\u6708\u6295\u7A3F\u94FE\u63A5\u6570</div></div>' +
+      '<div class="kpi-card" style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:14px;padding:14px 8px;text-align:center;">' +
+        '<div style="font-size:26px;font-weight:800;color:#e65100;">' + totalPts + '</div>' +
+        '<div style="font-size:11px;color:#bf360c;">\uD83C\uDFC6 \u672C\u6708\u603B\u79EF\u5206</div></div>' +
+      '<div class="kpi-card" style="background:linear-gradient(135deg,#fce4ec,#f8bbd0);border-radius:14px;padding:14px 8px;text-align:center;">' +
+        '<div style="font-size:26px;font-weight:800;color:#c62828;">' + Math.round(redeemedPts/totalPts*100||0) + '%</div>' +
+        '<div style="font-size:11px;color:#b71c1c;">\uD83D\uDCB1 \u79EF\u5206\u5151\u6362\u7387</div></div>' +
+      '<div class="kpi-card" style="background:linear-gradient(135deg,#e8e0ff,#d1c4e9);border-radius:14px;padding:14px 8px;text-align:center;">' +
+        '<div style="font-size:26px;font-weight:800;color:#6a3de8;">' + (tierCounts['platinum']||0) + '/' + (tierCounts['gold']||0) + '/' + (tierCounts['certified']||0) + '</div>' +
+        '<div style="font-size:11px;color:#4a148c;">\u2B50 \u94C2\u91D1/\u91D1\u7EA7/\u8BA4\u8BC1</div></div>';
+
+    // ===== Charts =====
+    drawTierChart(tierCounts);
+    drawPlatformChart(monthSubs);
+    drawPointsChart(monthSubs);
+    drawTrendChart(subs);
+
+    // ===== Top 10 =====
+    var userPts = {}; monthSubs.forEach(function(s) { userPts[s.uid] = (userPts[s.uid]||0) + (s.points_earned||0); });
+    var userLinks = {}; monthSubs.forEach(function(s) {
+      userLinks[s.uid] = (userLinks[s.uid]||0) + (s.links_engagement||'').split('\n').filter(Boolean).length + (s.links_views||'').split('\n').filter(Boolean).length;
+    });
+    var ranked = Object.keys(userPts).sort(function(a,b) { return (userPts[b]||0) - (userPts[a]||0); }).slice(0,10);
+    var kocMap = {}; kocs.forEach(function(k) { kocMap[k.uid] = k; });
     var rankHtml = '';
-    if (rankList.length === 0) {
-      rankHtml = '<div style="color:var(--text-light);font-size:12px;">本月暂无投稿</div>';
+    ranked.forEach(function(uid, i) {
+      var k = kocMap[uid]||{};
+      rankHtml += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;">' +
+        '<span><span style="font-weight:700;color:' + (i===0?'#ad1457':i<3?'#e65100':'#666') + ';margin-right:6px;">#' + (i+1) + '</span>' +
+        esc(k.discord_name||k.name||uid) + '</span>' +
+        '<span>' + (userLinks[uid]||0) + ' \u6761 \u00B7 ' + (userPts[uid]||0) + ' \u5206</span></div>';
+    });
+    document.getElementById('dash-rank-list').innerHTML = rankHtml || '<div style="color:var(--text-light);">\u6682\u65E0\u6570\u636E</div>';
+
+    // ===== 莎莎的关键洞察 =====
+    var insight = '\uD83D\uDCA1 ';
+    if (activeCount > 0) {
+      insight += '\u672C\u6708\u5171\u6709 ' + activeCount + ' \u4F4D\u521B\u4F5C\u8005\u6295\u7A3F\uFF0C\u603B\u8BA1 ' + totalLinks + ' \u6761\u94FE\u63A5\uFF0C\u5171\u8BA1 ' + totalPts + ' \u5206\u3002';
+      if (tierCounts['gold'] > 0 || tierCounts['platinum'] > 0) {
+        insight += ' \u9AD8\u7EA7\u521B\u4F5C\u8005\uFF08\u91D1\u7EA7+\u94C2\u91D1\uFF09\u5360\u6BD4 ' + Math.round(((tierCounts['gold']||0)+(tierCounts['platinum']||0))/kocs.length*100) + '%\uFF0C\u793E\u7FA4\u6574\u4F53\u8D28\u91CF\u8F83\u9AD8\u3002';
+      }
+      if (redeemedPts > 0) {
+        insight += ' \u79EF\u5206\u5151\u6362\u7387 ' + Math.round(redeemedPts/totalPts*100) + '%\uFF0C';
+        if (redeemedPts/totalPts < 0.5) insight += '\u5269\u4F59\u79EF\u5206\u8F83\u591A\uFF0C\u5EFA\u8BAE\u4E0B\u6708\u63A8\u51FA\u9650\u65F6\u5151\u6362\u6D3B\u52A8\u50AC\u5316\u3002';
+        else insight += '\u5151\u6362\u79EF\u6781\uFF0C\u597D\u8BC4\u3002';
+      }
+      if (pendingLinks > 0) insight += ' \u5F85\u5BA1\u6838\u94FE\u63A5 ' + pendingLinks + ' \u6761\uFF0C\u8BF7\u53CA\u65F6\SAF\u5BA1\u6838\u3002';
     } else {
-      rankList.forEach(function(r, i) {
-        rankHtml += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;">';
-        rankHtml += '<span><span style="font-weight:700;color:' + (i === 0 ? '#ad1457' : i < 3 ? '#e65100' : 'var(--text)') + ';margin-right:6px;">#' + (i+1) + '</span>' + esc(r.name || r.uid) + '</span>';
-        rankHtml += '<span style="color:var(--text-light);">' + r.links + ' 条' + (r.pts > 0 ? ' · ' + r.pts + ' 分' : '') + '</span>';
-        rankHtml += '</div>';
-      });
+      insight += '\u672C\u6708\u5C1A\u65E0\u6295\u7A3F\u6570\u636E\uFF0C\u8BF7\u7B49\u5F85\u521B\u4F5C\u8005\u63D0\u4EA4\u4F5C\u54C1\u3002';
     }
-    document.getElementById('dash-rank-list').innerHTML = rankHtml;
+    document.getElementById('dash-summary').textContent = insight;
+
+  } catch(e) { document.getElementById('dash-summary').textContent = '\u52A0\u8F7D\u5931\u8D25: ' + e.message; }
+}
+
+// ===== ECharts helper functions =====
+function drawTierChart(tierCounts) {
+  var el = document.getElementById('chart-tier'); if (!el) return;
+  if (typeof echarts === 'undefined') { el.innerHTML = '<div style="color:#999;text-align:center;padding:40px;">ECharts \u52A0\u8F7D\u4E2D...</div>'; return; }
+  var c = echarts.init(el);
+  var total = (tierCounts['platinum']||0)+(tierCounts['gold']||0)+(tierCounts['certified']||0);
+  c.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c} \u4EBA ({d}%)' },
+    color: ['#7e57c2','#ffca28','#81c784'],
+    series: [{
+      type: 'pie', radius: ['35%','65%'],
+      data: [
+        { name: '\u94C2\u91D1\u521B\u4F5C\u5B98', value: tierCounts['platinum']||0 },
+        { name: '\u91D1\u7EA7\u521B\u4F5C\u5B98', value: tierCounts['gold']||0 },
+        { name: '\u8BA4\u8BC1\u521B\u4F5C\u5B98', value: tierCounts['certified']||0 }
+      ].filter(function(d) { return d.value > 0; }),
+      label: { show: total > 0, formatter: '{b}\n{d}%', fontSize: 11 }
+    }]
+  });
+  var insight = document.getElementById('insight-tier');
+  if (insight && total > 0) insight.textContent = '\u2B50 \u94C2\u91D1 ' + (tierCounts['platinum']||0) + ' \u4EBA / \u91D1\u7EA7 ' + (tierCounts['gold']||0) + ' \u4EBA / \u8BA4\u8BC1 ' + (tierCounts['certified']||0) + ' \u4EBA';
+}
+
+function drawPlatformChart(monthSubs) {
+  var el = document.getElementById('chart-platform'); if (!el) return;
+  if (typeof echarts === 'undefined') return;
+  var c = echarts.init(el);
+  var platforms = { 'TikTok':0, 'YouTube':0, 'Facebook':0, 'Instagram':0, 'X':0, 'Reddit':0, 'Pinterest':0 };
+  var other = 0;
+  monthSubs.forEach(function(s) {
+    var allLinks = ((s.links_engagement||'') + '\n' + (s.links_views||'')).split('\n').filter(Boolean);
+    allLinks.forEach(function(l) {
+      var found = false;
+      Object.keys(platforms).forEach(function(p) { if (l.toLowerCase().indexOf(p.toLowerCase()) >= 0) { platforms[p]++; found = true; } });
+      if (!found) other++;
+    });
+  });
+  var data = Object.keys(platforms).filter(function(p) { return platforms[p] > 0; }).map(function(p) { return { name: p, value: platforms[p] }; });
+  if (other > 0) data.push({ name: '\u5176\u4ED6', value: other });
+  if (data.length === 0) { el.innerHTML = '<div style="color:#999;text-align:center;padding:40px;">\u6682\u65E0\u6570\u636E</div>'; return; }
+  var colors = ['#ff0050','#ff0000','#1877f2','#e4405f','#000000','#ff4500','#e60023','#999'];
+  c.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c} \u6761 ({d}%)' },
+    color: colors,
+    series: [{ type: 'pie', radius: ['35%','65%'], data: data, label: { show: data.length > 0, formatter: '{b}\n{d}%', fontSize: 11 } }]
+  });
+  var maxP = data.reduce(function(a,b) { return a.value > b.value ? a : b; }, {value:0});
+  var insight = document.getElementById('insight-platform');
+  if (insight && maxP.value > 0) insight.textContent = '\uD83D\uDCF1 \u6700\u591A\u7684\u5E73\u53F0\u662F ' + maxP.name + '\uFF0C\u5171 ' + maxP.value + ' \u6761\u94FE\u63A5';
+}
+
+function drawPointsChart(monthSubs) {
+  var el = document.getElementById('chart-points'); if (!el) return;
+  if (typeof echarts === 'undefined') return;
+  var c = echarts.init(el);
+  var buckets = {'0\u5206':0, '1-5\u5206':0, '6-10\u5206':0, '11-20\u5206':0, '20+\u5206':0};
+  var userPts = {};
+  monthSubs.forEach(function(s) { userPts[s.uid] = (userPts[s.uid]||0) + (s.points_earned||0); });
+  Object.values(userPts).forEach(function(p) {
+    if (p === 0) buckets['0\u5206']++;
+    else if (p <= 5) buckets['1-5\u5206']++;
+    else if (p <= 10) buckets['6-10\u5206']++;
+    else if (p <= 20) buckets['11-20\u5206']++;
+    else buckets['20+\u5206']++;
+  });
+  var data = Object.keys(buckets).filter(function(k) { return buckets[k] > 0; }).map(function(k) { return { name: k, value: buckets[k] }; });
+  if (data.length === 0) { el.innerHTML = '<div style="color:#999;text-align:center;padding:40px;">\u6682\u65E0\u6570\u636E</div>'; return; }
+  c.setOption({
+    tooltip: { trigger: 'item', formatter: '{b}: {c} \u4EBA ({d}%)' },
+    color: ['#f8bbd0','#f48fb1','#ec407a','#e91e63','#c2185b'],
+    series: [{ type: 'pie', radius: ['35%','65%'], data: data, label: { show: true, formatter: '{b}\n{d}%', fontSize: 11 } }]
+  });
+  var maxB = data.reduce(function(a,b) { return a.value > b.value ? a : b; }, {value:0});
+  var insight = document.getElementById('insight-points');
+  if (insight && maxB.value > 0) insight.textContent = '\uD83D\uDCC8 \u6700\u591A\u521B\u4F5C\u8005\u7684\u79EF\u5206\u5728 ' + maxB.name + '\uFF0C' + maxB.value + ' \u4EBA';
+}
+
+function drawTrendChart(allSubs) {
+  var el = document.getElementById('chart-trend'); if (!el) return;
+  if (typeof echarts === 'undefined') return;
+  var c = echarts.init(el);
+  var months = {};
+  allSubs.forEach(function(s) {
+    var m = (s.created_at||'').substring(0,7);
+    if (m) { if (!months[m]) months[m] = {links:0, pts:0}; months[m].links++; months[m].pts += (s.points_earned||0); }
+  });
+  var sorted = Object.keys(months).sort();
+  var recent = sorted.slice(-6);
+  if (recent.length === 0) { el.innerHTML = '<div style="color:#999;text-align:center;padding:40px;">\u6682\u65E0\u6570\u636E</div>'; return; }
+  c.setOption({
+    tooltip: { trigger: 'axis' },
+    legend: { data: ['\u6295\u7A3F\u6570','\u79EF\u5206'], bottom: 0, textStyle: {fontSize:10} },
+    color: ['#f06292','#ba68c8'],
+    xAxis: { type: 'category', data: recent, axisLabel: {fontSize:10} },
+    yAxis: { type: 'value' },
+    series: [
+      { name: '\u6295\u7A3F\u6570', type: 'line', data: recent.map(function(m) { return months[m].links; }), smooth: true },
+      { name: '\u79EF\u5206', type: 'line', data: recent.map(function(m) { return months[m].pts; }), smooth: true }
+    ]
+  });
+  if (recent.length >= 2) {
+    var last = months[recent[recent.length-1]];
+    var prev = months[recent[recent.length-2]];
+    var growth = prev ? Math.round((last.links - prev.links)/prev.links*100) : 0;
+    var insight = document.getElementById('insight-trend');
+    if (insight) insight.textContent = '\uD83D\uDCC8 \u8FD1\u4E24\u6708\u6295\u7A3F\u6570\u53D8\u5316: ' + (growth >= 0 ? '+':'') + growth + '%';
+  }
+}
+
+
+// ===== 社群周报 =====
+async function loadCommunityReport() {
+  var label = document.getElementById('community-period-label');
+  var now = new Date();
+  var dayOfWeek = now.getDay();
+  var diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  var monday = new Date(now); monday.setDate(now.getDate() + diffToMonday);
+  monday.setHours(0,0,0,0);
+  var sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23,59,59,999);
+  var weekLabel = monday.toLocaleDateString('zh-CN') + ' ~ ' + sunday.toLocaleDateString('zh-CN');
+  if (label) label.textContent = weekLabel;
+
+  document.getElementById('community-summary').textContent = '\uD83D\uDD04 \u6B63\u5728\u62C9\u53D6\u793E\u7FA4\u6570\u636E\uFF0C\u8BF7\u7A0D\u5019...';
+
+  try {
+    var token = MOCHI_TOKEN;
+    if (!token) { document.getElementById('community-summary').textContent = '\u274C \u8BF7\u5148\u5728 Mochi \u8BBE\u7F6E\u4E2D\u586B\u5199 Bot Token'; return; }
+
+    var weekEnd = Math.floor(sunday.getTime() / 1000);
+    var weekStart = Math.floor(monday.getTime() / 1000);
+
+    // Use discord proxy
+    var proxyRes = await discordProxyFetch('fetchJSON', {
+      url: '/guilds/' + DISCORD_GUILD_ID + '?with_counts=true'
+    }, token);
+    if (!proxyRes || proxyRes.error) throw new Error(proxyRes ? proxyRes.error : '\u8BF7\u6C42\u5931\u8D25');
+    var guild = proxyRes;
+
+    // Get channels
+    var channelsRes = await discordProxyFetch('fetchJSON', {
+      url: '/guilds/' + DISCORD_GUILD_ID + '/channels'
+    }, token);
+    var channels = channelsRes || [];
+    var skipPatterns = ['log', 'welcome', 'rules', 'faq', 'reward'];
+    var textChannels = channels.filter(function(c) { return c.type === 0 && !skipPatterns.some(function(p) { return c.name.includes(p); }); });
+
+    // Scan messages (simplified - get last 100 per channel)
+    var totalMessages = 0;
+    var activeUsers = {};
+    var channelStats = {};
+    var userStats = {};
+
+    for (var ci = 0; ci < textChannels.length; ci++) {
+      var ch = textChannels[ci];
+      try {
+        var msgsRes = await discordProxyFetch('fetchJSON', {
+          url: '/channels/' + ch.id + '/messages?limit=100'
+        }, token);
+        var msgs = msgsRes || [];
+        msgs.forEach(function(msg) {
+          var ts = new Date(msg.timestamp).getTime();
+          if (ts >= monday.getTime() && ts <= sunday.getTime() && msg.author && !msg.author.bot) {
+            totalMessages++;
+            activeUsers[msg.author.id] = true;
+            if (!channelStats[ch.id]) channelStats[ch.id] = 0;
+            channelStats[ch.id]++;
+            if (!userStats[msg.author.id]) userStats[msg.author.id] = { name: msg.author.global_name || msg.author.username, count: 0 };
+            userStats[msg.author.id].count++;
+          }
+        });
+      } catch(e) {}
+    }
+
+    var activeCount = Object.keys(activeUsers).length;
+    var avgDaily = totalMessages / 7;
+
+    // KPI cards
+    document.getElementById('community-kpi').innerHTML =
+      '<div class="kpi-card" style="background:linear-gradient(135deg,#e8e0ff,#d1c4e9);border-radius:14px;padding:14px 8px;text-align:center;">' +
+        '<div style="font-size:26px;font-weight:800;color:#6a3de8;">' + totalMessages + '</div>' +
+        '<div style="font-size:11px;color:#4a148c;">\uD83D\uDCAC \u6D88\u606F\u603B\u91CF</div></div>' +
+      '<div class="kpi-card" style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:14px;padding:14px 8px;text-align:center;">' +
+        '<div style="font-size:26px;font-weight:800;color:#ad1457;">' + activeCount + '</div>' +
+        '<div style="font-size:11px;color:#880e4f;">\uD83D\uDC64 \u53D1\u8A00\u4EBA\u6570</div></div>' +
+      '<div class="kpi-card" style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border-radius:14px;padding:14px 8px;text-align:center;">' +
+        '<div style="font-size:26px;font-weight:800;color:#2e7d32;">' + avgDaily.toFixed(0) + '</div>' +
+        '<div style="font-size:11px;color:#1b5e20;">\uD83D\uDCC5 \u65E5\u5747\u6D88\u606F</div></div>' +
+      '<div class="kpi-card" style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:14px;padding:14px 8px;text-align:center;">' +
+        '<div style="font-size:26px;font-weight:800;color:#e65100;">' + Math.round(activeCount/(guild.approximate_member_count||1)*100) + '%</div>' +
+        '<div style="font-size:11px;color:#bf360c;">\u2B50 \u6D3B\u8DC3\u7387</div></div>';
+
+    // Channel top 5
+    var sortedCh = Object.keys(channelStats).sort(function(a,b) { return channelStats[b] - channelStats[a]; }).slice(0,5);
+    var chHtml = '';
+    sortedCh.forEach(function(cid, i) {
+      var ch = channels.find(function(c) { return c.id === cid; });
+      var name = ch ? '#' + ch.name : cid;
+      chHtml += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;">' +
+        '<span><span style="font-weight:700;margin-right:4px;">#' + (i+1) + '</span>' + name + '</span>' +
+        '<span>' + channelStats[cid] + ' \u6761</span></div>';
+    });
+    document.getElementById('community-channels').innerHTML = chHtml || '<div style="color:var(--text-light);">\u6682\u65E0\u6570\u636E</div>';
+
+    // User top 10
+    var sortedUsers = Object.keys(userStats).sort(function(a,b) { return userStats[b].count - userStats[a].count; }).slice(0,10);
+    var userHtml = '';
+    sortedUsers.forEach(function(uid, i) {
+      var u = userStats[uid];
+      userHtml += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;">' +
+        '<span><span style="font-weight:700;color:' + (i===0?'#ad1457':i<3?'#e65100':'#666') + ';margin-right:4px;">#' + (i+1) + '</span>' + esc(u.name) + '</span>' +
+        '<span>' + u.count + ' \u6761</span></div>';
+    });
+    document.getElementById('community-users').innerHTML = userHtml || '<div style="color:var(--text-light);">\u6682\u65E0\u6570\u636E</div>';
+
+    // Summary
+    var summary = '\uD83D\uDCA1 ';
+    if (totalMessages > 0) {
+      summary += '\u672C\u5468\u793E\u7FA4\u5171\u6709 ' + totalMessages + ' \u6761\u6D88\u606F\uFF0C' + activeCount + ' \u4EBA\u53D1\u8A00\uFF0C\u65E5\u5747 ' + avgDaily.toFixed(0) + ' \u6761\u3002';
+      if (activeCount > 5) summary += '\u53D1\u8A00\u4EBA\u6570\u8F83\u591A\uFF0C\u793E\u7FA4\u6D3B\u8DC3\u5EA6\u826F\u597D\u3002';
+      var topUser = sortedUsers.length > 0 ? userStats[sortedUsers[0]].name : '';
+      if (topUser) summary += '\u672C\u5468\u6700\u6D3B\u8DC3\u6210\u5458: ' + topUser + '\u3002';
+    } else {
+      summary += '\u672C\u5468\u5C1A\u65E0\u793E\u7FA4\u6570\u636E\uFF0C\u8BF7\u786E\u8BA4 Token \u662F\u5426\u6B63\u786E\u3002';
+    }
+    document.getElementById('community-summary').textContent = summary;
+
   } catch(e) {
-    document.getElementById('dash-rank-list').innerHTML = '<div style="color:#e74c3c;font-size:12px;">加载失败</div>';
+    document.getElementById('community-summary').textContent = '\u274C \u62C9\u53D6\u5931\u8D25: ' + (e.message||e);
   }
 }
 function renderKocTable() {
