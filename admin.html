@@ -229,22 +229,28 @@
     <!-- ======== TAB: KOC信息库 ======== -->
     <div id="tab-koc-ledger" class="tab-content">
       <div class="card">
-        <div class="card-title">📋 KOC信息库 <span style="font-size:12px;color:var(--text-light);font-weight:normal;">— 所有板块的信息源，双击可编辑</span></div>
-        <div class="row" style="margin-bottom:4px;">
-          <input type="text" id="new-discord" placeholder="Discord name" style="width:150px;">
-          <input type="text" id="new-uid" placeholder="UID" style="width:130px;">
-          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="cb-welcome" checked> 🎁 Welcome gift</label>
-          <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" id="cb-new-creator" checked> 🆕 New Creator</label>
-          <button class="btn btn-primary btn-sm" onclick="addKOC()">+ Add KOC</button>
-          <button class="btn btn-sm" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80;" onclick="batchMarkOldCreator()">📋 标记为老创作者</button>
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>📋 KOC信息库 <span style="font-size:12px;color:var(--text-light);font-weight:normal;">— 所有板块的信息源，双击可编辑</span></span>
+          <span id="koc-count" style="font-size:13px;color:var(--text-light);"></span>
         </div>
-        <div class="row">
-          <input type="text" id="search-input" placeholder="Search Discord or UID..." style="width:220px;" oninput="renderKocTable()">
-          <span id="koc-count" style="font-size:12px;color:var(--text-light);"></span>
+        <div class="row" style="margin-bottom:4px;gap:6px;flex-wrap:wrap;">
+          <input type="text" id="new-discord" placeholder="Discord name" style="width:140px;">
+          <input type="text" id="new-uid" placeholder="UID" style="width:120px;">
+          <input type="text" id="new-name" placeholder="Real name" style="width:120px;">
+          <label style="font-size:12px;display:flex;align-items:center;gap:3px;cursor:pointer;"><input type="checkbox" id="cb-welcome" checked> 🎁</label>
+          <label style="font-size:12px;display:flex;align-items:center;gap:3px;cursor:pointer;"><input type="checkbox" id="cb-new-creator" checked> 🆕</label>
+          <button class="btn btn-primary btn-sm" onclick="addKOC()">+ Add</button>
+        </div>
+        <div class="row" style="margin-bottom:4px;gap:6px;">
+          <input type="text" id="search-input" placeholder="Search Discord or UID..." style="width:200px;" oninput="renderKocTable()">
+          <button class="btn btn-sm" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80;" onclick="batchMarkSelected('old_creator')">📋 标记老创作者</button>
+          <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;" onclick="batchMarkSelected('new_creator')">🆕 标记新创作者</button>
+          <button class="btn btn-sm" style="background:#fce4ec;color:#c62828;border:1px solid #ef9a9a;" onclick="batchDeleteSelected()">🗑 删除所选</button>
         </div>
         <div style="overflow-x:auto;">
         <table>
           <thead><tr>
+            <th style="width:32px;"><input type="checkbox" id="koc-select-all" onchange="toggleAllKoc()"></th>
             <th>Discord</th>
             <th>UID</th>
             <th>⭐ 等级</th>
@@ -259,9 +265,7 @@
         </table>
         </div>
       </div>
-    </div>
-
-    <!-- ======== TAB: 积分计算 ======== -->
+    </div><!-- ======== TAB: 积分计算 ======== -->
     <div id="tab-scoring" class="tab-content">
       <div class="card">
         <div class="row" style="margin-bottom:8px;background:var(--pink-light);padding:8px 12px;border-radius:8px;align-items:center;justify-content:space-between;">
@@ -3213,7 +3217,7 @@ async function addKOC() {
   try {
     await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs', {
       method: 'POST',
-      body: JSON.stringify({ uid: uid, discord_name: discord, name: discord, status: 'active', created_at: new Date().toISOString() })
+      body: JSON.stringify({ uid: uid, discord_name: discord, name: name, status: 'active', created_at: new Date().toISOString() })
     });
     
     // Auto-create welcome gift if checkbox is checked
