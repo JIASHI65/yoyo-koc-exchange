@@ -160,6 +160,22 @@
   50% { transform:translateY(-8px) rotate(15deg); }
 }
 </style>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<script>
+// ===== 缓存熔断 =====
+(function() {
+  var VERSION = 'v2.1.0';
+  var cached = localStorage.getItem('admin_version');
+  if (cached && cached !== VERSION) {
+    // 发现旧缓存，强制清除并刷新
+    localStorage.clear();
+    location.reload(true);
+  }
+  localStorage.setItem('admin_version', VERSION);
+})();
+</script>
 </head>
 <body>
 <div class="container">
