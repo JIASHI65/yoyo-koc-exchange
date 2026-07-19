@@ -185,7 +185,7 @@
     <div style="font-size:20px;font-weight:800;color:#880e4f;margin-bottom:4px;">Yoyo Town · Admin</div>
     <div style="font-size:13px;color:#ad1457;margin-bottom:24px;">KOC 创作者管理系统</div>
     <input type="text" id="admin-pw" placeholder="输入管理员密码" style="width:100%;padding:12px 16px;border:2px solid #f8bbd0;border-radius:12px;font-size:15px;text-align:center;background:white;box-sizing:border-box;outline:none;" onkeydown="if(event.key==='Enter')adminLogin()" onfocus="this.style.borderColor='#f2a6c4'" onblur="this.style.borderColor='#f8bbd0'">
-    <button class="btn btn-primary" onclick="adminLogin()" style="width:100%;margin-top:14px;padding:12px;font-size:15px;font-weight:700;border-radius:12px;cursor:pointer;">🔐 进入管理后台</button>
+    <button id="login-btn" onclick="adminLogin()" style="width:100%;margin-top:14px;padding:14px;font-size:16px;font-weight:700;border-radius:14px;cursor:pointer;transition:all 0.2s;letter-spacing:1px;background:linear-gradient(135deg,#f2a6c4,#d4749a);color:white;border:none;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 20px rgba(242,166,196,0.4)'" onmouseout="this.style.transform='none';this.style.boxShadow='none'">🔐 进入管理后台</button>
     <div style="font-size:11px;color:#999;margin-top:20px;line-height:1.6;">
         <div style="font-weight:600;font-size:13px;color:#ad1457;margin-bottom:2px;">✨ 全栈自主研发 · KOC 创作者管理系统</div>
         <div>👩‍💻 开发运维：<strong>Seraphina 莎莎</strong></div>
@@ -797,7 +797,7 @@ function showToast(m, t = '') {
 }
 
 // ===== LOGIN =====
-function adminLogin() {
+window.adminLogin = function adminLogin() {
   var pw = document.getElementById('admin-pw').value;
   if (pw === ADMIN_PASSWORD) {
     localStorage.setItem('admin_session', 'logged_in');
@@ -809,7 +809,7 @@ function adminLogin() {
   }
 }
 
-function adminLogout() {
+window.adminLogout = function adminLogout() {
   localStorage.removeItem('admin_session');
   localStorage.removeItem('admin_active_tab');
   document.getElementById('login-screen').classList.remove('hidden');
