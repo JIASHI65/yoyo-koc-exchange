@@ -645,7 +645,7 @@ Elite: 连续 6 个月达到 5 分</textarea>
     <h3>💬 Mochi 消息中心</h3>
     <label>Bot Token <span style="font-size:11px;color:var(--text-light);">（首次使用填写）</span></label>
     <div style="display:flex;gap:4px;margin-bottom:8px;">
-      <input type="password" id="mochi-token-input" style="flex:1;" placeholder="Enter Mochi Bot Token">
+      <input type="text" id="mochi-token-input" style="flex:1;" placeholder="Enter Mochi Bot Token">
       <button class="btn btn-sm" style="background:#5865F2;color:white;white-space:nowrap;" onclick="saveMochiToken()">💾 保存</button>
     </div>
 
@@ -3127,7 +3127,157 @@ async function loadDashboard() {
     document.getElementById('dash-summary').innerHTML = ins;
 
   } catch(e) { document.getElementById('dash-summary').textContent = '\u52A0\u8F7D\u5931\u8D25: ' + e.message; }
-}function renderKocTable() {
+}
+
+async function loadCommunityReport() {
+  if (!MOCHI_TOKEN) {
+    var inp = document.getElementById('mochi-token-input');
+    if (inp && inp.value.trim()) MOCHI_TOKEN = inp.value.trim();
+  }
+  if (!MOCHI_TOKEN) { showToast('请先在 Mochi 设置中填写 Bot Token', 'error'); return; }
+
+  var label = document.getElementById('community-period-label');
+  if (label) {
+    var now = new Date();
+    var y = now.getFullYear();
+    var m = String(now.getMonth() + 1).padStart(2, '0');
+    var d = String(now.getDate()).padStart(2, '0');
+    label.textContent = y + '-' + m + '-' + d;
+  }
+
+  document.getElementById('community-kpi').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-light);">⏳ 正在拉取 Discord 社群数据...</div>';
+  document.getElementById('community-channels').innerHTML = '';
+  document.getElementById('community-users').innerHTML = '';
+  document.getElementById('community-summary').innerHTML = '加载中...';
+
+  try {
+    // Step 1: Fetch Discord members
+    var memberRes = await discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN);
+    if (!memberRes.ok) {
+      document.getElementById('community-summary').innerHTML = '获取成员失败: ' + JSON.stringify(memberRes);
+      return;
+    }
+    var members = memberRes.data || [];
+    members = members.filter(function(m) { return m && m.username && !m.username.toLowerCase().includes('bot'); });
+
+    // Step 2: Fetch KOC data
+    var kocData = [];
+    try {
+      var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=discord_name,uid,tier,created_at');
+      if (kocRes.ok) kocData = await kocRes.json() || [];
+    } catch(e) { console.warn('KOC fetch failed:', e); }
+
+    // Step 3: Build KOC map
+    var kocMap = {};
+    (kocData||[]).forEach(function(k) {
+      if (k && k.discord_name) kocMap[(k.discord_name||'').toLowerCase().trim()] = k;
+    });
+
+    var totalMembers = members.length;
+    var kocInDiscord = 0;
+    var registeredKocs = 0;
+    members.forEach(function(m) {
+      var name = (m.username||'').toLowerCase().trim();
+      var nick = (m.nick||'').toLowerCase().trim();
+      if (kocMap[name] || kocMap[nick]) kocInDiscord++;
+    });
+    (kocData||[]).forEach(function(k) {
+      if (k && k.discord_name) registeredKocs++;
+    });
+
+    // Step 4: Render KPI cards
+    var kpiHtml = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;">';
+    var kpiItems = [
+      { label: '👥 社群总人数', value: totalMembers },
+      { label: '📝 已注册 KOC', value: registeredKocs },
+      { label: '🎯 社群内 KOC', value: kocInDiscord },
+      { label: '📊 注册率', value: totalMembers > 0 ? Math.round(kocInDiscord/totalMembers*100) + '%' : '0%' }
+    ];
+    kpiItems.forEach(function(item) {
+      kpiHtml += '<div class="kpi-card"><div style="font-size:11px;color:var(--text-light);">' + item.label + '</div><div style="font-size:22px;font-weight:700;margin-top:2px;">' + item.value + '</div></div>';
+    });
+    kpiHtml += '</div>';
+
+    // Tier distribution
+    var tierCounts = { 'platinum': 0, 'gold': 0, 'certified': 0 };
+    var platformCounts = {};
+    (kocData||[]).forEach(function(k) {
+      var t = k.tier || 'certified';
+      tierCounts[t] = (tierCounts[t]||0) + 1;
+    });
+
+    document.getElementById('community-kpi').innerHTML = kpiHtml;
+
+    // Step 5: Channel activity (mock since we can't easily get historical messages via bot API in browser)
+    // We'll use member join times as a proxy for activity
+    var recentJoins = 0;
+    var weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    members.forEach(function(m) {
+      if (m.joined_at && new Date(m.joined_at).getTime() > weekAgo) recentJoins++;
+    });
+
+    // Step 6: Render channels
+    var channelsHtml = '';
+    channelsHtml += '<div style="padding:4px 0;font-size:12px;">';
+    channelsHtml += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;"><span>👥 总成员</span><span><strong>' + totalMembers + '</strong></span></div>';
+    channelsHtml += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;"><span>🆕 本周加入</span><span><strong>' + recentJoins + '</strong></span></div>';
+    channelsHtml += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;"><span>✅ 认证创作官</span><span><strong>' + (tierCounts['certified']||0) + '</strong></span></div>';
+    channelsHtml += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;"><span>🟡 金级创作官</span><span><strong>' + (tierCounts['gold']||0) + '</strong></span></div>';
+    channelsHtml += '<div style="display:flex;justify-content:space-between;padding:4px 0;"><span>💎 铂金创作官</span><span><strong>' + (tierCounts['platinum']||0) + '</strong></span></div>';
+    channelsHtml += '</div>';
+    document.getElementById('community-channels').innerHTML = channelsHtml;
+
+    // Step 7: Top 10 users (by joining order - newest first among those in KOC)
+    var memberWithKoc = [];
+    members.forEach(function(m) {
+      var name = (m.username||'').toLowerCase().trim();
+      var nick = (m.nick||'').toLowerCase().trim();
+      var display = m.nick || m.global_name || m.username;
+      var koc = kocMap[name] || kocMap[nick];
+      memberWithKoc.push({ display: display, username: m.username, koc: !!koc, tier: koc ? (koc.tier||'certified') : '' });
+    });
+
+    // Prioritize KOC members, sort by tier (platinum > gold > certified > non-koc)
+    var tierOrder = { 'platinum': 0, 'gold': 1, 'certified': 2 };
+    memberWithKoc.sort(function(a, b) {
+      var ta = a.koc ? (tierOrder[a.tier]||9) : 9;
+      var tb = b.koc ? (tierOrder[b.tier]||9) : 9;
+      return ta - tb;
+    });
+
+    var top10 = memberWithKoc.slice(0, 10);
+    var usersHtml = '';
+    usersHtml += '<div style="padding:4px 0;font-size:12px;">';
+    top10.forEach(function(m, i) {
+      var badge = '';
+      if (m.tier === 'platinum') badge = '💎';
+      else if (m.tier === 'gold') badge = '🟡';
+      else if (m.tier === 'certified') badge = '✅';
+      else badge = '👤';
+      usersHtml += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;">';
+      usersHtml += '<span><span style="font-weight:700;color:' + (i===0?'#ad1457':'#666') + ';margin-right:4px;">#' + (i+1) + '</span>' + badge + ' ' + esc(m.display||m.username) + '</span>';
+      usersHtml += '<span style="color:var(--text-light);">' + (m.koc ? (m.tier==='platinum'?'铂金':m.tier==='gold'?'金级':'认证') : '未注册') + '</span>';
+      usersHtml += '</div>';
+    });
+    usersHtml += '</div>';
+    document.getElementById('community-users').innerHTML = usersHtml;
+
+    // Step 8: 莎莎的关键洞察
+    var ins = '';
+    ins += '💡 本周社群共 <strong>' + totalMembers + '</strong> 人，KOC 注册 <strong>' + registeredKocs + '</strong> 人';
+    ins += '（社群内 ' + kocInDiscord + ' 人，覆盖率 ' + (totalMembers > 0 ? Math.round(kocInDiscord/totalMembers*100) : 0) + '%）';
+    ins += '。';
+    if (recentJoins > 0) ins += '本周新增 <strong>' + recentJoins + '</strong> 人，社群持续增长中。';
+    if (tierCounts['platinum'] > 0) ins += '铂金创作官 ' + tierCounts['platinum'] + ' 人、金级 ' + tierCounts['gold'] + ' 人，高阶创作者占比 ' + Math.round((tierCounts['platinum']+tierCounts['gold'])/Math.max(registeredKocs,1)*100) + '%。';
+    document.getElementById('community-summary').innerHTML = ins;
+
+  } catch(e) {
+    document.getElementById('community-summary').innerHTML = '加载失败: ' + e.message;
+    console.error('loadCommunityReport error:', e);
+  }
+}
+
+function renderKocTable() {
   var q = document.getElementById('search-input').value.toLowerCase();
   var filtered = allKocs.filter(function(k) {
     return (k.discord_name || '').toLowerCase().includes(q) || (k.uid || '').toLowerCase().includes(q);
