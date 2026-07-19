@@ -152,10 +152,13 @@
 <body>
 <div class="container">
   <!-- ===== LOGIN ===== -->
-  <div id="login-screen" class="card" style="max-width:320px;margin:80px auto;">
-    <div class="card-title">🔐 Admin</div>
-    <input type="text" id="admin-pw" placeholder="Password" style="width:100%;margin-bottom:8px;" onkeydown="if(event.key==='Enter')adminLogin()">
-    <button class="btn btn-primary" onclick="adminLogin()" style="width:100%;">Login</button>
+  <div id="login-screen" style="max-width:420px;margin:120px auto;background:linear-gradient(145deg,#fff5f9,#fce4ec);border-radius:24px;padding:40px 36px;text-align:center;box-shadow:0 8px 40px rgba(242,166,196,0.25);border:1px solid #f8bbd0;">
+    <div style="font-size:36px;margin-bottom:8px;">🎀</div>
+    <div style="font-size:20px;font-weight:800;color:#880e4f;margin-bottom:4px;">Yoyo Town · Admin</div>
+    <div style="font-size:13px;color:#ad1457;margin-bottom:24px;">KOC 创作者管理系统</div>
+    <input type="text" id="admin-pw" placeholder="输入管理员密码" style="width:100%;padding:12px 16px;border:2px solid #f8bbd0;border-radius:12px;font-size:15px;text-align:center;background:white;box-sizing:border-box;outline:none;" onkeydown="if(event.key==='Enter')adminLogin()" onfocus="this.style.borderColor='#f2a6c4'" onblur="this.style.borderColor='#f8bbd0'">
+    <button class="btn btn-primary" onclick="adminLogin()" style="width:100%;margin-top:14px;padding:12px;font-size:15px;font-weight:700;border-radius:12px;cursor:pointer;">🔐 进入管理后台</button>
+    <div style="font-size:11px;color:#ccc;margin-top:20px;">Yoyo Creative Studio © 2026</div>
   </div>
 
   <!-- ===== ADMIN PANEL ===== -->
@@ -247,10 +250,7 @@
       <div id="community-users" style="display:none;"></div>
       <div id="chart-content" style="display:none;"></div>
       <div id="chart-weekly" style="display:none;"></div>
-      <div class="card" style="padding:14px;background:linear-gradient(135deg,#e3f2fd,#fff5f9);border:2px solid #90caf9;margin-top:12px;">
-        <div style="font-size:14px;font-weight:700;color:#1565c0;">💡 莎莎的关键洞察</div>
-        <div id="community-summary" style="font-size:13px;margin-top:6px;line-height:1.6;color:#333;">暂无数据，点击上方按钮拉取本周社群数据</div>
-      </div>
+
     </div>
 
     <!-- ======== TAB: KOC信息库 ======== -->
@@ -2243,7 +2243,7 @@ function switchTab(name) {
   }
   // Refresh tab content
   if (name === 'dashboard') loadDashboard();
-  if (name === 'community') {} // removed = '\u70B9\u51FB\u4E0A\u65B9\u201C\u62C9\u53D6\u672C\u5468\u6570\u636E\u201D\u6309\u94AE\u62C9\u53D6\u793E\u7FA4\u5468\u62A5';
+  if (name === 'community') { return; } = '\u70B9\u51FB\u4E0A\u65B9\u201C\u62C9\u53D6\u672C\u5468\u6570\u636E\u201D\u6309\u94AE\u62C9\u53D6\u793E\u7FA4\u5468\u62A5';
   if (name === 'koc-ledger') renderKocTable();
   if (name === 'scoring') renderScoringTable();
   if (name === 'merch') renderMerchTab();
@@ -3123,6 +3123,8 @@ async function loadDashboard() {
 
 
 async function loadCommunityReport() {
+  showToast('社群周报已移至外部链接，请在仪表盘顶部点击查看', 'info');
+  return;
   if (!MOCHI_TOKEN) {
     var inp = document.getElementById('mochi-token-input');
     if (inp && inp.value.trim()) MOCHI_TOKEN = inp.value.trim();
@@ -3144,7 +3146,7 @@ async function loadCommunityReport() {
     // Step 1: Fetch Discord members
     var memberRes = await discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN);
     if (!memberRes.ok) {
-      document.getElementById('community-summary').innerHTML = '获取成员失败: ' + JSON.stringify(memberRes.error||memberRes);
+      console.log('获取成员失败: ' + JSON.stringify(memberRes.error||memberRes);
       return;
     }
     var members = memberRes.data || [];
@@ -3349,7 +3351,7 @@ async function loadCommunityReport() {
     if (plat > 0) ins += ' 铂金创作官 ' + plat + ' 人、金级 ' + gold + ' 人，高阶创作者占比 ' + (registeredKocs > 0 ? Math.round((plat+gold)/registeredKocs*100) : 0) + '%。';
     if (redeemedPts > 0 && totalPts > 0) ins += ' 积分兑换率 ' + Math.round(redeemedPts/totalPts*100) + '%，' + (redeemedPts/totalPts < 0.3 ? '剩余积分较多，建议推出限时兑换活动。' : '兑换积极。');
     else ins += ' 本月暂无积分兑换。';
-    document.getElementById('community-summary').innerHTML = ins;
+    console.log(ins);
 
   } catch(e) {
     document.getElementById('community-summary').innerHTML = '加载失败: ' + e.message;
