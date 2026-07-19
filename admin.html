@@ -3169,7 +3169,162 @@ function drawTrendChart(allSubs) {
 // ===== 社群周报 =====
 
 async function loadCommunityReport() {
-  document.getElementById('community-summary').textContent = '\uD83D\uDD04 \u793E\u7FA4\u5468\u62A5\u529F\u80FD\u5F00\u53D1\u4E2D...\n\u8BF7\u5148\u786E\u4FDD\u5DF2\u5728 Mochi \u8BBE\u7F6E\u4E2D\u586B\u5199 Bot Token\u3002';
+  var label = document.getElementById('community-period-label');
+  var summary = document.getElementById('community-summary');
+  if (!summary) return;
+  summary.innerHTML = '\uD83D\udd04 \u6B63\u5728\u62C9\u53D6\u793E\u7FA4\u6570\u636E...';
+
+  var token = MOCHI_TOKEN;
+  if (!token) { summary.textContent = '\u274C \u8BF7\u5148\u5728 Mochi \u8BBE\u7F6E\u4E2D\u586B\u5199 Bot Token'; return; }
+
+  try {
+    var now = new Date();
+    var dow = now.getDay();
+    var diff = dow === 0 ? -6 : 1 - dow;
+    var mon = new Date(now); mon.setDate(now.getDate() + diff); mon.setHours(0,0,0,0);
+    var sun = new Date(mon); sun.setDate(mon.getDate() + 6); sun.setHours(23,59,59,999);
+    var prevMon = new Date(mon); prevMon.setDate(prevMon.getDate() - 7);
+    var prevSun = new Date(prevMon); prevSun.setDate(prevSun.getDate() + 6); prevSun.setHours(23,59,59,999);
+
+    if (label) label.textContent = mon.toLocaleDateString('zh-CN') + ' ~ ' + sun.toLocaleDateString('zh-CN');
+
+    // Use XHR to avoid CORS (same pattern as discordProxyFetch in the codebase)
+    function discordFetch(url) {
+      return new Promise(function(resolve, reject) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', 'https://discord.com/api/v10' + url, true);
+        xhr.setRequestHeader('Authorization', 'Bot ' + token);
+        xhr.onload = function() {
+          try { resolve(JSON.parse(xhr.responseText)); } catch(e) { reject(new Error(xhr.responseText)); }
+        };
+        xhr.onerror = function() { reject(new Error('Network error')); };
+        xhr.send();
+      });
+    }
+
+    // 1. Get guild info
+    var guild = await discordFetch('/guilds/' + DISCORD_GUILD_ID + '?with_counts=true');
+    var totalMembers = guild.approximate_member_count || guild.member_count || 0;
+
+    // 2. Get channels
+    var channels = await discordFetch('/guilds/' + DISCORD_GUILD_ID + '/channels');
+    var skip = ['log','welcome','rules','faq','reward'];
+    var textChannels = channels.filter(function(c) { return c.type === 0 && !skip.some(function(p) { return c.name.includes(p); }); });
+
+    // 3. Scan messages from this week (limit 100 per channel for speed)
+    var totalMsgs = 0, activeUsers = {}, chStats = {}, userStats = {}, contentTypes = { share:0, feedback:0, question:0, game:0, other:0 };
+    var weekStartTs = mon.getTime(), weekEndTs = sun.getTime();
+
+    for (var ci = 0; ci < textChannels.length; ci++) {
+      try {
+        var msgs = await discordFetch('/channels/' + textChannels[ci].id + '/messages?limit=100');
+        msgs.forEach(function(msg) {
+          var ts = new Date(msg.timestamp).getTime();
+          if (ts >= weekStartTs && ts <= weekEndTs && msg.author && !msg.author.bot) {
+            totalMsgs++;
+            activeUsers[msg.author.id] = true;
+            chStats[textChannels[ci].id] = (chStats[textChannels[ci].id]||0) + 1;
+            if (!userStats[msg.author.id]) userStats[msg.author.id] = { name: msg.author.global_name || msg.author.username, count: 0 };
+            userStats[msg.author.id].count++;
+            // Content type classification
+            var c = (msg.content||'').toLowerCase();
+            if (c.indexOf('share')>=0||c.indexOf('作品')>=0||c.indexOf('link')>=0||c.indexOf('http')>=0) contentTypes.share++;
+            else if (c.indexOf('feedback')>=0||c.indexOf('好评')>=0||c.indexOf('nice')>=0||c.indexOf('喜欢')>=0) contentTypes.feedback++;
+            else if (c.indexOf('question')>=0||c.indexOf('?')>=0||c.indexOf('问题')>=0||c.indexOf('怎么')>=0) contentTypes.question++;
+            else if (c.indexOf('game')>=0||c.indexOf('design')>=0||c.indexOf('游戏')>=0||c.indexOf('设计')>=0) contentTypes.game++;
+            else contentTypes.other++;
+          }
+        });
+      } catch(e) {}
+    }
+
+    var activeCount = Object.keys(activeUsers).length;
+    var avgDaily = Math.round(totalMsgs / 7);
+
+    // ===== Previous week comparison =====
+    var prevTotal = 0, prevActive = 0;
+    for (var ci2 = 0; ci2 < textChannels.length; ci2++) {
+      try {
+        var prevMsgs = await discordFetch('/channels/' + textChannels[ci2].id + '/messages?limit=100');
+        prevMsgs.forEach(function(msg) {
+          var ts = new Date(msg.timestamp).getTime();
+          if (ts >= prevMon.getTime() && ts <= prevSun.getTime() && msg.author && !msg.author.bot) {
+            prevTotal++;
+            if (!prevActive) { prevActive = {}; }
+            prevActive[msg.author.id] = true;
+          }
+        });
+      } catch(e) {}
+    }
+    var prevActiveCount = prevActive ? Object.keys(prevActive).length : 0;
+
+    function growth(cur, prev) { if (prev === 0) return cur > 0 ? '+NEW' : '-'; return (cur >= prev ? '+' : '') + Math.round((cur-prev)/prev*100) + '%'; }
+
+    // ===== RENDER =====
+    // KPI
+    document.getElementById('community-kpi').innerHTML =
+      '<div class="kpi-card" style="background:linear-gradient(135deg,#e8e0ff,#d1c4e9);border-radius:14px;padding:14px 8px;text-align:center;"><div style="font-size:26px;font-weight:800;color:#6a3de8;">' + totalMsgs + '</div><div style="font-size:11px;color:#4a148c;">\uD83D\uDCAC \u6D88\u606F\u603B\u91CF</div></div>' +
+      '<div class="kpi-card" style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:14px;padding:14px 8px;text-align:center;"><div style="font-size:26px;font-weight:800;color:#ad1457;">' + activeCount + '</div><div style="font-size:11px;color:#880e4f;">\uD83D\uDC64 \u53D1\u8A00\u4EBA\u6570</div></div>' +
+      '<div class="kpi-card" style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border-radius:14px;padding:14px 8px;text-align:center;"><div style="font-size:26px;font-weight:800;color:#2e7d32;">' + avgDaily + '</div><div style="font-size:11px;color:#1b5e20;">\uD83D\uDCC5 \u65E5\u5747\u6D88\u606F</div></div>' +
+      '<div class="kpi-card" style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:14px;padding:14px 8px;text-align:center;"><div style="font-size:26px;font-weight:800;color:#e65100;">' + (totalMembers > 0 ? Math.round(activeCount/totalMembers*100) : 0) + '%</div><div style="font-size:11px;color:#bf360c;">\u2B50 \u6D3B\u8DC3\u7387</div></div>';
+
+    // Content type chart
+    var ctHtml = '';
+    var ctTotal = contentTypes.share + contentTypes.feedback + contentTypes.question + contentTypes.game + contentTypes.other;
+    if (ctTotal > 0) {
+      var ctItems = [
+        {label:'\uD83D\uDCE4 \u4F5C\u54C1\u5206\u4EAB', key:'share', color:'#f06292'},
+        {label:'\uD83D\uDC4D \u6B63\u5411\u53CD\u9988', key:'feedback', color:'#81c784'},
+        {label:'\u2753 \u95EE\u9898\u54A8\u8BE2', key:'question', color:'#64b5f6'},
+        {label:'\uD83C\uDFAE \u6E38\u620F\u8BBE\u8BA1', key:'game', color:'#ba68c8'},
+        {label:'\uD83D\uDCAC \u5176\u4ED6\u8BA8\u8BBA', key:'other', color:'#bdbdbd'}
+      ];
+      ctHtml = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px;">';
+      ctItems.forEach(function(item) {
+        var val = contentTypes[item.key];
+        var pct = Math.round(val/ctTotal*100);
+        ctHtml += '<div style="padding:4px 0;border-bottom:1px solid #f0f0f0;"><span style="color:' + item.color + ';font-weight:600;">' + item.label + '</span> <span style="float:right;font-weight:700;">' + val + ' (' + pct + '%)</span></div>';
+      });
+      ctHtml += '</div>';
+    } else {
+      ctHtml = '<div style="color:var(--text-light);font-size:12px;">\u6682\u65E0\u6570\u636E</div>';
+    }
+    document.getElementById('chart-content').innerHTML = ctHtml;
+
+    // Channel top 5
+    var sortedCh = Object.keys(chStats).sort(function(a,b) { return chStats[b] - chStats[a]; }).slice(0,5);
+    var chHtml = '';
+    sortedCh.forEach(function(cid, i) {
+      var ch = channels.find(function(c) { return c.id === cid; });
+      chHtml += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:12px;">' +
+        '<span><span style="font-weight:700;margin-right:4px;">#' + (i+1) + '</span>' + (ch?'#'+ch.name:cid) + '</span><span>' + chStats[cid] + ' \u6761</span></div>';
+    });
+    document.getElementById('community-channels').innerHTML = chHtml || '<div style="color:var(--text-light);font-size:12px;">\u6682\u65E0\u6570\u636E</div>';
+
+    // User top 10
+    var sortedUsers = Object.keys(userStats).sort(function(a,b) { return userStats[b].count - userStats[a].count; }).slice(0,10);
+    var userHtml = '';
+    sortedUsers.forEach(function(uid, i) {
+      var u = userStats[uid];
+      userHtml += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;font-size:12px;">' +
+        '<span><span style="font-weight:700;color:' + (i===0?'#ad1457':i<3?'#e65100':'#666') + ';margin-right:4px;">#' + (i+1) + '</span>' + esc(u.name) + '</span><span>' + u.count + ' \u6761</span></div>';
+    });
+    document.getElementById('community-users').innerHTML = userHtml || '<div style="color:var(--text-light);font-size:12px;">\u6682\u65E0\u6570\u636E</div>';
+
+    // Insight
+    var insight = '\uD83D\uDCA1 \u672C\u5468\u793E\u7FA4\u5171\u6709 <strong>' + totalMsgs + '</strong> \u6761\u6D88\u606F\uFF0C<strong>' + activeCount + '</strong> \u4EBA\u53D1\u8A00\uFF0C\u65E5\u5747 ' + avgDaily + ' \u6761\u3002';
+    insight += ' \u4E0A\u5468: ' + prevTotal + ' \u6761/' + prevActiveCount + ' \u4EBA\uFF0C';
+    insight += '\u6D88\u606F\u5468\u73AF\u6BD4 ' + growth(totalMsgs, prevTotal) + '\uFF0C\u53D1\u8A00\u4EBA\u6570 ' + growth(activeCount, prevActiveCount) + '\u3002';
+    if (sortedUsers.length > 0) {
+      var topU = userStats[sortedUsers[0]];
+      insight += ' \u672C\u5468\u6700\u6D3B\u8DC3\u6210\u5458: ' + esc(topU.name) + '\uFF08' + topU.count + ' \u6761\uFF09\u3002';
+    }
+    if (contentTypes.share > 0) insight += ' \u4F5C\u54C1\u5206\u4EAB ' + contentTypes.share + ' \u6761\uFF0C\u5185\u5BB9\u4EA7\u51FA\u7A33\u5B9A\u3002';
+    document.getElementById('community-summary').innerHTML = insight;
+
+  } catch(e) {
+    summary.innerHTML = '\u274C \u62C9\u53D6\u5931\u8D25: ' + (e.message||e) + '<br><span style="font-size:11px;color:#999;">\u8BF7\u786E\u8BA4 Bot Token \u6709\u6548\u4E14\u5177\u5907\u8BFB\u53D6\u6D88\u606F\u6743\u9650</span>';
+  }
 }
 function renderKocTable() {
   var q = document.getElementById('search-input').value.toLowerCase();
