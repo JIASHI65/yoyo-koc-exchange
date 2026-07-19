@@ -85,7 +85,7 @@
 <div class="container">
   <div class="header">
     <h1>🎀 Yoyo Town</h1>
-    <p data-i18n="subtitle">Creator Reward Redemption</p>
+    <p>Creator Reward Redemption</p>
   </div>
   <!-- Language Toggle -->
   <div style="text-align:right;margin-bottom:8px;padding:0 4px;">
@@ -173,10 +173,10 @@
     <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">📊 Dashboard</span></div>
     <!-- Creator Tabs -->
     <div class="tabs">
-      <button class="tab active" onclick="switchCreatorTab('submit')" data-i18n="tab_submit">🎨 Submit Works</button>
-      <button class="tab" onclick="switchCreatorTab('history')" data-i18n="tab_history">📋 My Submissions</button>
-      <button class="tab" onclick="switchCreatorTab('redeem')" data-i18n="tab_redeem">🎁 Redeem Rewards</button>
-      <button class="tab" onclick="switchCreatorTab('faq')" data-i18n="tab_faq">❓ FAQ</button>
+      <button class="tab active" onclick="switchCreatorTab('submit')">🎨 Submit Works</button>
+      <button class="tab" onclick="switchCreatorTab('history')">📋 My Submissions</button>
+      <button class="tab" onclick="switchCreatorTab('redeem')">🎁 Redeem Rewards</button>
+      <button class="tab" onclick="switchCreatorTab('faq')">❓ FAQ</button>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
       <span id="display-user" style="font-size:13px;font-weight:600;"></span>
@@ -216,7 +216,7 @@
     <div id="creator-tab-submit" class="tab-content">
       <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">🎨 Submit Works</span></div>
       <div class="card">
-        <div class="card-title" data-i18n="submit_title">🎨 Submit Works</div><div style="font-size:12px;color:var(--text-light);">📅 <span id="current-period-label"></span></div>
+        <div class="card-title">🎨 Submit Works</div><div style="font-size:12px;color:var(--text-light);">📅 <span id="current-period-label"></span></div>
         <div id="submit-form-area">
         <label>Discord Username</label>
         <input type="text" id="submit-discord" placeholder="Your Discord name" disabled>
@@ -244,7 +244,7 @@
         <div id="submit-countdown" style="background:#fce4ec;border:1px solid #f8bbd0;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:13px;color:#880e4f;text-align:center;font-weight:600;">
           📌 你有 <strong id="submit-remaining">2</strong> 次提交机会，检查好链接后再提交
         </div>
-        <button class="btn btn-primary" id="btn-submit" onclick="submitWorks()" data-i18n="submit_btn">📤 Submit Works</button>
+        <button class="btn btn-primary" id="btn-submit" onclick="submitWorks()">📤 Submit Works</button>
         <div id="submit-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
         </div>
       </div>
@@ -263,18 +263,18 @@
     <div id="creator-tab-faq" class="tab-content">
       <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">❓ FAQ</span></div>
       <div class="card" style="text-align:center;">
-        <div style="font-size:22px;font-weight:700;margin-bottom:6px;" data-i18n="faq_title">❓ 常见问题解答</div>
-        <div style="font-size:13px;color:var(--text-light);margin-bottom:16px;" data-i18n="faq_hint">点击下方按钮在新标签页打开 FAQ，搜索你的问题</div>
-        <a href="https://jiashi65.github.io/yoyo-koc-faq/" target="_blank" rel="noopener" style="display:inline-block;padding:14px 40px;background:var(--pink-dark);color:white;border-radius:30px;font-size:16px;font-weight:600;text-decoration:none;margin-bottom:8px;" data-i18n="faq_btn">📖 打开 FAQ</a>
+        <div style="font-size:22px;font-weight:700;margin-bottom:6px;">❓ 常见问题解答</div>
+        <div style="font-size:13px;color:var(--text-light);margin-bottom:16px;">点击下方按钮在新标签页打开 FAQ，搜索你的问题</div>
+        <a href="https://jiashi65.github.io/yoyo-koc-faq/" target="_blank" rel="noopener" style="display:inline-block;padding:14px 40px;background:var(--pink-dark);color:white;border-radius:30px;font-size:16px;font-weight:600;text-decoration:none;margin-bottom:8px;">📖 打开 FAQ</a>
       </div>
       <div class="card" style="text-align:center;">
-        <div style="font-size:14px;font-weight:600;margin-bottom:6px;" data-i18n="faq_noanswer">🤔 没找到答案？去发帖提问</div>
-        <div style="font-size:12px;color:var(--text-light);margin-bottom:12px;" data-i18n="faq_reply">客服会尽快回复你</div>
-        <a href="https://discord.com/channels/1263505733180854392/1458347958389965035" target="_blank" rel="noopener" style="display:inline-block;padding:10px 24px;background:#5865F2;color:white;border-radius:20px;font-size:14px;text-decoration:none;"><span data-i18n="faq_post">🎫｜town-service-station 发帖</span></a>
+        <div style="font-size:14px;font-weight:600;margin-bottom:6px;">🤔 没找到答案？去发帖提问</div>
+        <div style="font-size:12px;color:var(--text-light);margin-bottom:12px;">客服会尽快回复你</div>
+        <a href="https://discord.com/channels/1263505733180854392/1458347958389965035" target="_blank" rel="noopener" style="display:inline-block;padding:10px 24px;background:#5865F2;color:white;border-radius:20px;font-size:14px;text-decoration:none;"><span>🎫｜town-service-station 发帖</span></a>
       </div>
     </div>
 
-    <button class="btn" style="width:100%;border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--card);font-size:14px;color:var(--text-light);cursor:pointer;" onclick="logout()" data-i18n="switch_account">← Switch Account</button>
+    <button class="btn" style="width:100%;border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--card);font-size:14px;color:var(--text-light);cursor:pointer;" onclick="logout()">← Switch Account</button>
     <div style="margin-top:14px;font-size:12px;color:var(--text-light);text-align:center;line-height:1.6;">
       Questions or issues? Create a thread in <strong>｜town-service-station</strong> — we reply in submission order.
     </div>
@@ -1108,175 +1108,11 @@ tryAutoLogin();
 // ===== I18N =====
 var LANG = localStorage.getItem('koc_lang') || 'zh';
 var I18N = {
-  zh: {
-    title: 'Yoyo Town · 创作者中心',
-    subtitle: '创作者积分兑换系统',
-    lang_toggle: '🌐 中文 / EN',
-    tab_submit: '🎨 Submit Works',
-    tab_history: '📋 My Submissions',
-    tab_redeem: '🎁 Redeem Rewards',
-    tab_faq: '❓ FAQ',
-    nav_dashboard: '📊 首页',
-    nav_submit: '🎨 提交作品',
-    nav_history: '📋 我的提交',
-    nav_redeem: '🎁 兑换奖励',
-    nav_faq: '❓ 常见问题',
-    submit_title: '🎨 提交作品',
-    submit_links_placeholder: '请粘贴您的所有作品链接（每行一条）：\nhttps://tiktok.com/@user/video/...\nhttps://youtube.com/watch?v=...\nhttps://instagram.com/p/...\nhttps://x.com/user/status/...\nhttps://pinterest.com/pin/...',
-    submit_address: '国家、完整地址、邮编、电话',
-    submit_account: '6位数 Account ID',
-    submit_gameuid: '字母串 UID',
-    submit_feedback: '我们的新规对您有帮助吗？欢迎反馈',
-    submit_countdown: '📌 你有 <strong>{remaining}</strong> 次提交机会，检查好链接后再提交',
-    submit_btn: '📤 提交作品',
-    submit_status_submitting: '⏳ 提交中...',
-    submit_status_done: '{count} 条链接已提交！',
-    submit_server: t('submit_server'),
-    server_standard: '正式服',
-    server_lighthouse: '灯塔服',
-    history_title: '📋 我的提交',
-    history_empty: '暂无提交记录',
-    history_empty_hint: '去 Submit Works 提交你的作品链接吧',
-    history_hero: '{links} 条',
-    history_scored: '{scored}/{total} 已评分',
-    history_pending: '⏳ {count} 待审核',
-    history_scored_label: '✅ {count} 已评分',
-    cc_title: '🎁 连续创作奖励',
-    cc_progress: '{current} / 15 条',
-    cc_hint: '📌 再投 <strong>{remaining} 条</strong> → 🎁 月卡×1 + 🪙 蜗壳币×500 + 💰 金币×1000',
-    cc_done: '✅ 已达 15 条！符合连续创作奖励条件',
-    cc_40pt: '🔥 投了很多作品！再冲 <strong>40 分</strong> 可全额结算<br><span style="font-size:11px;">（超20未达40算20，达40按40结算）</span>',
-    grade_cert: '⭐ 连续 2 个月每月 ≥ 5 分 → 升级 <strong>🟡 金级创作官</strong> 🎉',
-    grade_gold: '⭐ 再坚持 1 个月每月 ≥ 5 分 → 升级 <strong>💎 铂金创作官</strong> 🎉',
-    submit_remaining: '📌 你有 <strong>{remaining}</strong> 次提交机会，检查好链接后再提交',
-    redeem_title: '🎁 兑换奖励',
-    redeem_select: '选择你的奖励',
-    redeem_confirm: '确认兑换',
-    redeem_balance: '当前积分',
-    redeem_history: '兑换记录',
-    faq_title: '❓ 常见问题解答',
-    faq_hint: '点击下方按钮在新标签页打开 FAQ，搜索你的问题',
-    faq_btn: '📖 打开 FAQ',
-    faq_noanswer: '🤔 没找到答案？去发帖提问',
-    faq_reply: '客服会尽快回复你',
-    faq_post: '🎫｜town-service-station',
-    login_title: '登录',
-    login_btn: '登录',
-    login_placeholder: '输入你的 Discord 名字',
-    login_or: '或者',
-    login_new: '我是新创作者',
-    login_existing: '已有 UID？',
-    login_uid_placeholder: '输入你的 UID',
-    newbie_banner_title: '🌱 本月是你的新人活动月！',
-    newbie_banner_task: '📌 <strong>新人任务：</strong>本月投稿 ≥ <strong>5 积分</strong>，额外获得 <strong>+2 积分</strong> 🎯<br>📊 当前积分：<strong>{pts} 分</strong> · {status}',
-    newbie_banner_need: '还差 <strong>{need} 分</strong> 即可达成',
-    newbie_banner_done: '✅ 已完成！等待结算',
-    newbie_complete: '✅ 新人任务已完成！+2 积分将在结算时发放',
-    switch_account: '← 切换账号',
-  },
-  en: {
-    title: 'Yoyo Town · Creator Portal',
-    subtitle: 'Creator Reward Redemption',
-    lang_toggle: '🌐 中 / EN',
-    tab_submit: '🎨 Submit Works',
-    tab_history: '📋 My Submissions',
-    tab_redeem: '🎁 Redeem Rewards',
-    tab_faq: '❓ FAQ',
-    nav_dashboard: '📊 Dashboard',
-    nav_submit: '🎨 Submit Works',
-    nav_history: '📋 My Submissions',
-    nav_redeem: '🎁 Redeem Rewards',
-    nav_faq: '❓ FAQ',
-    submit_title: '🎨 Submit Works',
-    submit_links_placeholder: 'Paste your content links here (one per line):\nhttps://tiktok.com/@user/video/...\nhttps://youtube.com/watch?v=...\nhttps://instagram.com/p/...\nhttps://x.com/user/status/...\nhttps://pinterest.com/pin/...',
-    submit_address: 'Country + full shipping address (with postal code & phone)',
-    submit_account: '6-digit Account ID',
-    submit_gameuid: 'Game UID (letter string)',
-    submit_feedback: 'Have our new rules benefited you? We\'d love to hear your thoughts.',
-    submit_countdown: '📌 You have <strong>{remaining}</strong> submission chances. Check your links before submitting.',
-    submit_btn: '📤 Submit Works',
-    submit_status_submitting: '⏳ Submitting...',
-    submit_status_done: '{count} links submitted!',
-    submit_server: 'Reward Server',
-    server_standard: 'Official Server',
-    server_lighthouse: 'Beacon Server',
-    history_title: '📋 My Submissions',
-    history_empty: 'No submissions yet',
-    history_empty_hint: 'Go to Submit Works and post your creations',
-    history_hero: '{links} links',
-    history_scored: '{scored}/{total} scored',
-    history_pending: '⏳ {count} pending',
-    history_scored_label: '✅ {count} scored',
-    cc_title: '🎁 Continuous Creation Bonus',
-    cc_progress: '{current} / 15 links',
-    cc_hint: '📌 Submit <strong>{remaining} more</strong> → 🎁 Monthly Card×1 + 🪙 Shelly Coins×500 + 💰 Gold×1000',
-    cc_done: '✅ 15 links reached! You\'re eligible for the Continuous Creation Bonus',
-    cc_40pt: '🔥 Great output! Push to <strong>40 pts</strong> for full settlement<br><span style="font-size:11px;">(20-39 = 20 pts settled, 40+ = full 40 pts)</span>',
-    grade_cert: '⭐ 2 consecutive months ≥ 5 pts → Upgrade to <strong>🟡 Gold Creator</strong> 🎉',
-    grade_gold: '⭐ 1 more month ≥ 5 pts → Upgrade to <strong>💎 Platinum Creator</strong> 🎉',
-    submit_remaining: '📌 You have <strong>{remaining}</strong> submission chances. Check your links before submitting.',
-    redeem_title: '🎁 Redeem Rewards',
-    redeem_select: 'Select Your Reward',
-    redeem_confirm: 'Confirm Redemption',
-    redeem_balance: 'Current Points',
-    redeem_history: 'Redemption History',
-    faq_title: '❓ FAQ',
-    faq_hint: 'Click below to search the FAQ in a new tab',
-    faq_btn: '📖 Open FAQ',
-    faq_noanswer: '🤔 Still have questions? Post in the channel',
-    faq_reply: 'Our team will get back to you as soon as possible',
-    faq_post: '🎫｜town-service-station',
-    login_title: 'Login',
-    login_btn: 'Login',
-    login_placeholder: 'Enter your Discord name',
-    login_or: 'or',
-    login_new: 'I\'m a New Creator',
-    login_existing: 'Already have UID?',
-    login_uid_placeholder: 'Enter your UID',
-    newbie_banner_title: '🌱 Welcome! This is your first creation month!',
-    newbie_banner_task: '📌 <strong>New Creator Task:</strong> Submit ≥ <strong>5 pts</strong> this month → get <strong>+2 bonus pts</strong> 🎯<br>📊 Current: <strong>{pts} pts</strong> · {status}',
-    newbie_banner_need: '<strong>{need} more pts</strong> needed to qualify',
-    newbie_banner_done: '✅ Completed! Waiting for settlement',
-    newbie_complete: '✅ New Creator Task completed! +2 pts will be granted at settlement',
-    switch_account: '← Switch Account',
-  }
+  zh: { btn: '🌐 中文 / EN', submit: '📤 提交作品', submitting: '⏳ 提交中...', done: '{count} 条链接已提交！', empty: '暂无提交记录', empty_hint: '去 Submit Works 提交你的作品链接吧', cc: '🎁 连续创作奖励', cc_progress: '{current} / 15 条', cc_hint: '📌 再投 <strong>{remaining} 条</strong> → 🎁 月卡×1 + 🪙 蜗壳币×500 + 💰 金币×1000', cc_done: '✅ 已达 15 条！符合连续创作奖励条件', grade_cert: '⭐ 连续 2 个月每月 ≥ 5 分 → 升级 <strong>🟡 金级创作官</strong> 🎉', grade_gold: '⭐ 再坚持 1 个月每月 ≥ 5 分 → 升级 <strong>💎 铂金创作官</strong> 🎉', countdown: '📌 你有 <strong>{remaining}</strong> 次提交机会，检查好链接后再提交', login_new: '🆕 我是新创作者', login_existing: '🔑 已有 UID？', login_placeholder: '输入你的 Discord 名字', uid_placeholder: '输入你的 UID', server: '选择服务器', server_std: '正式服', server_lh: '灯塔服', faq_title: '❓ 常见问题解答', faq_hint: '点击下方按钮在新标签页打开 FAQ，搜索你的问题', faq_btn: '📖 打开 FAQ', faq_no: '🤔 没找到答案？去发帖提问', faq_reply: '客服会尽快回复你', faq_post: '🎫｜town-service-station', switch_btn: '← 切换账号', hero_links: '{links} 条', hero_scored: '{scored}/{total} 已评分', pending: '⏳ {count} 待审核', scored: '✅ {count} 已评分' },
+  en: { btn: '🌐 中 / EN', submit: '📤 Submit Works', submitting: '⏳ Submitting...', done: '{count} links submitted!', empty: 'No submissions yet', empty_hint: 'Go to Submit Works and post your creations', cc: '🎁 Continuous Creation Bonus', cc_progress: '{current} / 15 links', cc_hint: '📌 Submit <strong>{remaining} more</strong> → 🎁 Monthly Card×1 + 🪙 Shelly Coins×500 + 💰 Gold×1000', cc_done: "✅ 15 links reached! You're eligible for the Continuous Creation Bonus", grade_cert: '⭐ 2 consecutive months ≥ 5 pts → Upgrade to <strong>🟡 Gold Creator</strong> 🎉', grade_gold: '⭐ 1 more month ≥ 5 pts → Upgrade to <strong>💎 Platinum Creator</strong> 🎉', countdown: '📌 You have <strong>{remaining}</strong> submission chances. Check your links before submitting.', login_new: "🆕 I'm a New Creator", login_existing: '✅ Already have UID?', login_placeholder: 'Enter your Discord name', uid_placeholder: 'Enter your UID', server: 'Reward Server', server_std: 'Official Server', server_lh: 'Beacon Server', faq_title: '❓ FAQ', faq_hint: 'Click below to search the FAQ in a new tab', faq_btn: '📖 Open FAQ', faq_no: '🤔 Still have questions? Post in the channel', faq_reply: 'Our team will get back to you as soon as possible', faq_post: '🎫｜town-service-station', switch_btn: '← Switch Account', hero_links: '{links} links', hero_scored: '{scored}/{total} scored', pending: '⏳ {count} pending', scored: '✅ {count} scored' }
 };
-
-function t(key, vars) {
-  var s = (I18N[LANG]||I18N.zh)[key] || key;
-  if (vars) { for (var k in vars) { s = s.replace('{'+k+'}', vars[k]); } }
-  return s;
-}
-
-function toggleLang() {
-  LANG = (LANG === 'zh' ? 'en' : 'zh');
-  localStorage.setItem('koc_lang', LANG);
-  applyLang();
-}
-
-function applyLang() {
-  document.title = t('title');
-  var els = document.querySelectorAll('[data-i18n]');
-  els.forEach(function(el) {
-    var key = el.getAttribute('data-i18n');
-    if (key) el.innerHTML = t(key, el._i18nVars);
-  });
-  // Update lang button
-  var btn = document.getElementById('btn-lang');
-  if (btn) btn.innerHTML = t('lang_toggle');
-}
-
-// Apply lang on page load
-document.addEventListener('DOMContentLoaded', function() {
-  // Set data-i18n attributes on all translatable elements
-  document.querySelectorAll('[data-i18n]').forEach(function(el) {
-    var key = el.getAttribute('data-i18n');
-    el._i18nVars = el._i18nVars || {};
-    el.innerHTML = t(key, el._i18nVars);
-  });
-  var btn = document.getElementById('btn-lang');
-  if (btn) btn.innerHTML = t('lang_toggle');
-});
+function t(key, v) { var s = (I18N[LANG]||I18N.zh)[key]; if (!s) return key; if (v) { for (var k in v) { s = s.replace('{'+k+'}', v[k]); } } return s; }
+function toggleLang() { LANG = (LANG === 'zh' ? 'en' : 'zh'); localStorage.setItem('koc_lang', LANG); document.getElementById('btn-lang').innerHTML = t('btn'); }
 </script>
 </body>
 </html>
