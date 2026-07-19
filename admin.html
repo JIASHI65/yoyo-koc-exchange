@@ -147,7 +147,6 @@
 
   .tier-certified { background: linear-gradient(145deg,#e8f5e9 0%,#a5d6a7 30%,#81c784 60%,#66bb6a 100%); color: #003300; border: 2.5px solid #43a047; box-shadow: 0 0 30px rgba(76,175,80,0.4), 0 8px 30px rgba(76,175,80,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); }
 
-
   .tier- { background: linear-gradient(135deg,#e8e0ff,#fff8e1); color: #6a3de8; border: 1.5px solid #ce93d8; }
   .insight { font-size:11px; color:#888; margin-top:4px; font-style:italic; padding:4px 8px; background:#fafafa; border-radius:6px; }
 @keyframes fadeInDown {
@@ -158,42 +157,7 @@
   from { opacity:0; transform:translateY(15px); }
   to { opacity:1; transform:translateY(0); }
 }
-@keyframes float {
-  0%,100% { transform:translateY(0) rotate(15deg); }
-  50% { transform:translateY(-8px) rotate(15deg); }
-}
-@keyframes pulse {
-  0%,100% { transform:scale(1); opacity:0.15; }
-  50% { transform:scale(1.8); opacity:0.4; }
-}
-@keyframes sparkle {
-  0%,100% { opacity:0.3; transform:scale(1) rotate(0deg); }
-  50% { opacity:0.9; transform:scale(1.5) rotate(30deg); }
-}
-@keyframes bowBounce {
-  0%,100% { transform:translateY(0) scale(1); }
-  15% { transform:translateY(-14px) scale(1.08); }
-  30% { transform:translateY(-6px) scale(1.04); }
-  45% { transform:translateY(-2px) scale(1.01); }
-}
-@keyframes gentleGlow {
-  0%,100% { text-shadow:0 0 4px rgba(242,166,196,0.2); opacity:0.9; }
-  50% { text-shadow:0 0 20px rgba(242,166,196,0.5),0 0 40px rgba(242,166,196,0.2); opacity:1; }
-}
-@keyframes softBlink {
-  0%,100% { opacity:0.8; }
-  50% { opacity:1; }
-}
-@keyframes glowRotate {
-  0% { opacity:0.1; transform:rotate(0deg); }
-  50% { opacity:0.25; }
-  100% { opacity:0.1; transform:rotate(360deg); }
-}
-@keyframes gradientShift {
-  0% { background-position:0% 50%; }
-  50% { background-position:100% 50%; }
-  100% { background-position:0% 50%; }
-}
+
 </style>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -212,70 +176,47 @@
 })();
 </script>
 
-<script>
-// ===== JS动画补充（不与 CSS animation 争夺 transform）=====
-(function() {
-  function startAnimations() {
-    var screen = document.getElementById('login-screen');
-    if (!screen) return;
-    // 按钮渐变流动——这是唯一无冲突的 JS 动画（只操作 backgroundPosition）
-    var btn = document.getElementById('login-btn');
-    if (btn) {
-      (function() {
-        function s() {
-          var p = ((Date.now()/4000)%1)*100;
-          btn.style.backgroundPosition = p+'% 50%';
-          requestAnimationFrame(s);
-        }
-        s();
-      })();
-    }
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startAnimations);
-  else startAnimations();
-})();
-</script>
 </head>
 <body>
 <div class="container">
   <!-- ===== LOGIN ===== -->
   <div id="login-screen" style="max-width:520px;margin:60px auto;background:linear-gradient(145deg,#fff5f9,#fce4ec);border-radius:36px;padding:56px 48px 44px;text-align:center;box-shadow:0 20px 100px rgba(242,166,196,0.35),0 0 0 1px rgba(248,187,208,0.3);position:relative;overflow:hidden;">
     <!-- 装饰粒子 - 持续飘动 -->
-    <div style="position:absolute;top:-30px;right:-30px;font-size:120px;opacity:0.1;transform:rotate(20deg);font-family:Apple Color Emoji,Segoe UI Emoji;animation:float 6s ease-in-out infinite;">🎀</div>
-    <div style="position:absolute;bottom:-40px;left:-40px;font-size:160px;opacity:0.05;transform:rotate(-25deg);font-family:Apple Color Emoji,Segoe UI Emoji;animation:float 8s ease-in-out infinite reverse;">🌸</div>
-    <div style="position:absolute;top:10%;left:10%;width:80px;height:80px;border-radius:50%;background:radial-gradient(circle,rgba(242,166,196,0.25),transparent 70%);animation:pulse 4s ease-in-out infinite;"></div>
-    <div style="position:absolute;bottom:20%;right:8%;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(248,187,208,0.15),transparent 70%);animation:pulse 5s ease-in-out infinite 1s;"></div>
+    <div style="position:absolute;top:-30px;right:-30px;font-size:120px;opacity:0.1;transform:rotate(20deg);font-family:Apple Color Emoji,Segoe UI Emoji;">🎀</div>
+    <div style="position:absolute;bottom:-40px;left:-40px;font-size:160px;opacity:0.05;transform:rotate(-25deg);font-family:Apple Color Emoji,Segoe UI Emoji;">🌸</div>
+    <div style="position:absolute;top:10%;left:10%;width:80px;height:80px;border-radius:50%;background:radial-gradient(circle,rgba(242,166,196,0.25),transparent 70%);"></div>
+    <div style="position:absolute;bottom:20%;right:8%;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(248,187,208,0.15),transparent 70%);"></div>
     <!-- 小星星装饰 -->
-    <div style="position:absolute;top:15%;right:16%;font-size:18px;animation:sparkle 3s ease-in-out infinite;opacity:0.4;">✨</div>
-    <div style="position:absolute;bottom:25%;left:12%;font-size:14px;animation:sparkle 3.5s ease-in-out infinite 0.8s;opacity:0.3;">✨</div>
-    <div style="position:absolute;top:40%;right:8%;font-size:12px;animation:sparkle 4s ease-in-out infinite 1.6s;opacity:0.25;">✨</div>
+    <div style="position:absolute;top:15%;right:16%;font-size:18px;opacity:0.4;">✨</div>
+    <div style="position:absolute;bottom:25%;left:12%;font-size:14px;opacity:0.3;">✨</div>
+    <div style="position:absolute;top:40%;right:8%;font-size:12px;opacity:0.25;">✨</div>
 
     <!-- 主蝴蝶结 带弹跳 -->
-    <div style="font-size:60px;margin-bottom:8px;animation:bowBounce 2s ease-in-out infinite;position:relative;display:inline-block;transform-origin:center;filter:drop-shadow(0 0 8px rgba(242,166,196,0.3));">🎀</div>
+    <div style="font-size:60px;margin-bottom:8px;position:relative;display:inline-block;transform-origin:center;filter:drop-shadow(0 0 8px rgba(242,166,196,0.3));">🎀</div>
     
     <!-- 标题依次淡入 -->
-    <div style="font-size:28px;font-weight:800;color:#880e4f;margin-bottom:2px;animation:gentleGlow 3s ease-in-out infinite 0.15s;letter-spacing:2px;">Yoyo Town · Admin</div>
-    <div style="font-size:15px;color:#ad1457;margin-bottom:2px;animation:gentleGlow 3s ease-in-out infinite 0.4s;letter-spacing:3px;">KOC 创作者管理系统</div>
+    <div style="font-size:28px;font-weight:800;color:#880e4f;margin-bottom:2px;letter-spacing:2px;">Yoyo Town · Admin</div>
+    <div style="font-size:15px;color:#ad1457;margin-bottom:2px;letter-spacing:3px;">KOC 创作者管理系统</div>
     
     <!-- 署名行： 莎莎 + 全栈 合在一行-->
-    <div style="font-size:12px;color:#d4869c;margin-bottom:36px;animation:softBlink 3s ease-in-out infinite 0.6s;">
+    <div style="font-size:12px;color:#d4869c;margin-bottom:36px;">
       ✦ <span style="font-weight:600;color:#ad1457;">Seraphina 莎莎</span> · 产品设计 / 全栈开发 / 运维 ✦
     </div>
 
     <!-- 输入区域 -->
-    <div style="position:relative;animation:fadeInUp 0.6s ease-out 0.45s both;animation-fill-mode:both;">
+    <div style="position:relative;">
       <!-- 输入框光效背景 -->
-      <div style="position:absolute;top:-4px;left:-4px;right:-4px;bottom:-4px;border-radius:20px;background:linear-gradient(135deg,#f2a6c4,#d4749a,#f2a6c4);opacity:0.15;animation:glowRotate 3s linear infinite;pointer-events:none;"></div>
+      <div style="position:absolute;top:-4px;left:-4px;right:-4px;bottom:-4px;border-radius:20px;background:linear-gradient(135deg,#f2a6c4,#d4749a,#f2a6c4);opacity:0.15;pointer-events:none;"></div>
       <input type="text" id="admin-pw" placeholder="输入管理员密码" autocomplete="off" style="width:100%;padding:18px 24px;border:2px solid #f8bbd0;border-radius:18px;font-size:17px;text-align:center;background:rgba(255,255,255,0.95);box-sizing:border-box;outline:none;transition:all 0.3s ease;backdrop-filter:blur(4px);color:#3d2b36;position:relative;z-index:1;" onkeydown="if(event.key==='Enter')adminLogin()" onfocus="this.style.borderColor='#f2a6c4';this.style.boxShadow='0 0 0 6px rgba(242,166,196,0.12)'" onblur="this.style.borderColor='#f8bbd0';this.style.boxShadow='none'">
     </div>
 
     <!-- 按钮 -->
-    <div style="animation:fadeInUp 0.6s ease-out 0.55s both;animation-fill-mode:both;margin-top:18px;">
-      <button id="login-btn" onclick="adminLogin()" style="width:100%;padding:18px;font-size:18px;font-weight:700;border-radius:18px;cursor:pointer;transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);letter-spacing:3px;background:linear-gradient(135deg,#f2a6c4,#d4749a,#e88dae);color:white;border:none;box-shadow:0 6px 24px rgba(212,116,154,0.35);background-size:200% 200%;animation:gradientShift 4s ease infinite;" onmouseover="this.style.transform='translateY(-3px) scale(1.01)';this.style.boxShadow='0 12px 36px rgba(212,116,154,0.45)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 6px 24px rgba(212,116,154,0.35)'" onmousedown="this.style.transform='scale(0.96)'" onmouseup="this.style.transform='translateY(-3px) scale(1.01)'">🔐 进入管理后台</button>
+    <div style="margin-top:18px;">
+      <button id="login-btn" onclick="adminLogin()" style="width:100%;padding:18px;font-size:18px;font-weight:700;border-radius:18px;cursor:pointer;transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);letter-spacing:3px;background:linear-gradient(135deg,#f2a6c4,#d4749a,#e88dae);color:white;border:none;box-shadow:0 6px 24px rgba(212,116,154,0.35);background-size:200% 200%;animation:none;" onmouseover="this.style.transform='translateY(-3px) scale(1.01)';this.style.boxShadow='0 12px 36px rgba(212,116,154,0.45)'" onmouseout="this.style.transform='none';this.style.boxShadow='0 6px 24px rgba(212,116,154,0.35)'" onmousedown="this.style.transform='scale(0.96)'" onmouseup="this.style.transform='translateY(-3px) scale(1.01)'">🔐 进入管理后台</button>
     </div>
 
     <!-- 底部版权 -->
-    <div style="font-size:11px;color:#d4869c;margin-top:36px;line-height:1.8;animation:fadeInUp 0.6s ease-out 0.65s both;animation-fill-mode:both;opacity:0.8;">
+    <div style="font-size:11px;color:#d4869c;margin-top:36px;line-height:1.8;opacity:0.8;">
       <div style="display:flex;justify-content:center;align-items:center;gap:8px;">
         <span>💖</span>
         <span>全栈自研 · 用心做好每一个细节</span>
@@ -340,7 +281,7 @@
         </div>
         <a href="https://jiashi65.github.io/yoyo-community-report/" target="_blank" style="text-decoration:none;display:block;">
           <div style="background:linear-gradient(135deg,#667eea,#764ba2);border-radius:16px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.1);cursor:pointer;transition:transform 0.15s;position:relative;">
-            <div style="position:absolute;top:-8px;right:-8px;font-size:20px;animation:float 3s ease-in-out infinite;">📈</div>
+            <div style="position:absolute;top:-8px;right:-8px;font-size:20px;">📈</div>
             <div style="font-size:16px;font-weight:700;color:white;">社群运营周报</div>
             <div style="font-size:11px;color:rgba(255,255,255,0.85);margin-top:4px;">点击查看 Discord 社群相关运营数据 · 每周更新</div>
           </div>
@@ -812,7 +753,6 @@ Elite: 连续 6 个月达到 5 分</textarea>
   </div>
 </div>
 
-
 <div id="toast" class="toast"></div>
 <script>/* v1784200691 */
 const SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
@@ -859,7 +799,6 @@ let editingUid = null;
 function supabaseFetch(url, opts = {}) {
   return fetch(url, { ...opts, headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json', ...opts.headers } });
 }
-
 
 // Discord proxy via XHR (avoids Safari CORS issue with Edge Functions)
 function discordProxyFetch(action, data, token) {
@@ -1660,7 +1599,6 @@ async function importScoreResult(text) {
   var successCount = 0;
   var errors = [];
 
-  
   // ===== MERGE same-uid submissions =====
   var merged = {};
   result.submissions.forEach(function(sub) {
@@ -1921,10 +1859,8 @@ async function pasteScoreResult() {
   }
 }
 
-
 // ===== PREVIEW & CONFIRM SCORE IMPORT =====
 var pendingScoreResult = null;
-
 
 // ===== 传送积分到前端（写入 point_logs）=====
 // pushPointsToFrontend disabled - confirmScoreImport already writes points
@@ -2391,7 +2327,6 @@ document.addEventListener('DOMContentLoaded', function() {
 var mochiPresetType = '';
 var mochiPresetMessage = '';
 
-
 // ===== MOCHI BROADCAST - preview/confirm =====
 var mochiBroadcastTargets = [];
 var mochiBroadcastType = '';
@@ -2684,7 +2619,6 @@ function sendDMPreset(type) { /* deprecated - use previewBroadcast */ }
 
 // sendMochiDMPreset removed - use previewBroadcast/confirmBroadcast instead
 
-
 // ===== AUTO WELCOME (poll join-leave-log channel) =====
 var autoWelcomeInterval = null;
 var lastCheckedJoinId = null;
@@ -2824,7 +2758,6 @@ function openMochiBroadcast() {
 function closeMochiModal() {
   document.getElementById('mochi-modal').classList.add('hidden');
 }
-
 
 function confirmMochiBroadcast() { /* deprecated - use previewBroadcast/confirmBroadcast */ }
 
@@ -3389,8 +3322,6 @@ async function loadDashboard() {
 
   } catch(e) { document.getElementById('dash-summary').textContent = '加载失败: ' + e.message; }
 }
-
-
 
 async function loadCommunityReport() {
   showToast('社群周报已移至外部链接，请在仪表盘顶部点击查看', 'info');
@@ -4047,7 +3978,6 @@ function loadPointHistory(uid) {
   }).catch(function() {});
 }
 
-
 function toggleOrderExpand(uid) {
   var el = document.getElementById('orders-' + uid);
   if (!el) return;
@@ -4084,7 +4014,6 @@ async function submitPoints() {
     renderScoringTable();
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
-
 
 function openEditModal(uid) {
   var koc = allKocs.find(function(k) { return k.uid === uid; });
@@ -4241,11 +4170,7 @@ function editOrderRow(orderId, field) {
   }
 }
 
-
-
 // ===== RENDER SHIPPING TABS =====
-
-
 
 // ===== INLINE EDIT for Points (积分计算板块) =====
 function inlineEditPts(uid, discord) {
@@ -4753,8 +4678,6 @@ function updateDeadlineDisplay(date, time) {
   document.getElementById('deadline-status').textContent = date ? '\u23F0 ' + date + ' ' + time : '';
   document.getElementById('deadline-show').textContent = date ? '\u23F0 Closes: ' + date : '';
 }
-
-
 
 // Auto-login + restore tab on page load — 用 DOMContentLoaded 确保 DOM 渲染完成再执行
 document.addEventListener('DOMContentLoaded', function() {
