@@ -1017,7 +1017,15 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
 
       
       // New Creator Task (新人任务)
-      if (isCurrent && currentUser.notes && currentUser.notes.indexOf('newbie_month:' + ym) >= 0 && currentUser.notes.indexOf('old_creator') === -1) {
+      if (isCurrent && currentUser.notes) {
+        var notesStr3 = currentUser.notes;
+        var notesObj3 = {};
+        try { notesObj3 = JSON.parse(notesStr3); } catch(e) {}
+        var nbMonth3 = notesObj3.newbie_month || '';
+        var ptMatch3 = notesStr3.match(/newbie_month:(\d{4}-\d{2})/);
+        if (ptMatch3) nbMonth3 = ptMatch3[1];
+        var isOld3 = notesStr3.indexOf('old_creator') >= 0 || notesObj3.old_creator === true || notesObj3.old_creator === 'true';
+        if (nbMonth3 === ym && !isOld3) {
         var newbieDone = currentUser.notes.indexOf('newbie_bonus:' + ym) >= 0;
         if (!newbieDone) {
           html += '<div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border:2px solid #66bb6a;border-radius:14px;padding:14px;margin-bottom:8px;">';

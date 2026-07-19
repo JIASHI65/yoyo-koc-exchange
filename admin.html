@@ -1706,9 +1706,16 @@ async function importScoreResult(text) {
               var koc = kocData[0];
               var notes = koc.notes || '';
               // Skip if old_creator (no newbie task)
-              if (notes.indexOf('old_creator') >= 0) { /* skip */ }
-              // Check if newbie_month matches current settlement period AND not already claimed
-              else if (notes.indexOf('newbie_month:' + currentPeriod) >= 0 && notes.indexOf('newbie_bonus:' + currentPeriod) === -1) {
+                            // Parse notes - support both JSON and plain text
+              var notesObj_p = {};
+              try { notesObj_p = JSON.parse(notes); } catch(e) {}
+              var isOld = notes.indexOf('old_creator') >= 0 || (notesObj_p.old_creator === true || notesObj_p.old_creator === 'true');
+              var newbieMonth = notesObj_p.newbie_month || '';
+              var ptMatch = notes.match(/newbie_month:(\d{4}-\d{2})/);
+              if (ptMatch) newbieMonth = ptMatch[1];
+              var bonusClaimed = notes.indexOf('newbie_bonus:' + currentPeriod) >= 0 || notesObj_p['newbie_bonus:' + currentPeriod] === true;
+              if (isOld) { /* skip */ }
+              else if (newbieMonth === currentPeriod && !bonusClaimed) {
                 var bonusBalance = newBalance + 2;
                 await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
                   method: 'POST',
@@ -2079,7 +2086,14 @@ async function confirmScoreImport() {
             if (kocData && kocData.length > 0) {
               var notes = kocData[0].notes || '';
               // Check if user is old_creator (skip newbie)
-              if (notes.indexOf('old_creator') === -1 && notes.indexOf('newbie_month:' + currentPeriod) >= 0 && notes.indexOf('newbie_bonus:' + currentPeriod) === -1 && pts >= 5) {
+              if (notes.indexOf('old_creator') === -1) {
+              var notesObj2 = {};
+              try { notesObj2 = JSON.parse(notes); } catch(e) {}
+              var nbMonth2 = notesObj2.newbie_month || '';
+              var ptMatch2 = notes.match(/newbie_month:(\d{4}-\d{2})/);
+              if (ptMatch2) nbMonth2 = ptMatch2[1];
+              var bonusClaimed2 = notes.indexOf('newbie_bonus:' + currentPeriod) >= 0 || notesObj2['newbie_bonus:' + currentPeriod] === true;
+              if (nbMonth2 === currentPeriod && !bonusClaimed2 && pts >= 5)
                 // Grant +2 bonus
                 var bonusBal = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&order=created_at.desc&limit=1');
                 var bonusCur = 0;
