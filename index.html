@@ -1015,6 +1015,23 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
         html += '🔥 投了很多作品！再冲 <strong>40 分</strong> 可全额结算<br><span style="font-size:11px;">（超20未达40算20，达40按40结算）</span></div>';
       }
 
+      
+      // New Creator Task (新人任务)
+      if (isCurrent && currentUser.notes && currentUser.notes.indexOf('newbie_month:' + ym) >= 0 && currentUser.notes.indexOf('old_creator') === -1) {
+        var newbieDone = currentUser.notes.indexOf('newbie_bonus:' + ym) >= 0;
+        if (!newbieDone) {
+          html += '<div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border:2px solid #66bb6a;border-radius:14px;padding:14px;margin-bottom:8px;">';
+          html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:24px;">🌱</span><span style="font-size:14px;font-weight:700;color:#2e7d32;">本月是你的新人活动月！</span></div>';
+          html += '<div style="font-size:13px;color:#1b5e20;line-height:1.6;">';
+          html += '📌 <strong>新人任务：</strong>本月投稿 ≥ <strong>5 积分</strong>，额外获得 <strong>+2 积分</strong> 🎯<br>';
+          html += '📊 当前积分：<strong>' + monthPts + ' 分</strong> · ' + (monthPts >= 5 ? '✅ 已完成！等待结算' : '还差 <strong>' + (5 - monthPts) + ' 分</strong> 即可达成');
+          html += '</div></div>';
+        } else {
+          html += '<div style="background:linear-gradient(135deg,#e8f5e9,#a5d6a7);border:2px solid #43a047;border-radius:14px;padding:12px;margin-bottom:8px;text-align:center;">';
+          html += '<span style="font-size:14px;font-weight:700;color:#1b5e20;">✅ 新人任务已完成！+2 积分将在结算时发放</span></div>';
+        }
+      }
+
       // Grade hint: based on current tier
       if (currentTier === 'certified') {
         html += '<div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#6a1b9a;">';

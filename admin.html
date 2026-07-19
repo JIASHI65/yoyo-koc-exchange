@@ -21,7 +21,7 @@
   .header { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; flex-wrap: wrap; gap: 8px; }
   .header h1 { font-size: 22px; color: var(--pink-dark); }
   .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px; }
-  .kpi-card { background: linear-gradient(135deg,#fff5f9,#fce4ec); border-radius:14px; padding:14px 8px; text-align:center; border:1px solid #f8bbd0; box-shadow:0 2px 6px rgba(242,166,196,0.15); }
+  .kpi-card { border-radius:16px; border:1px solid rgba(0,0,0,0.04); box-shadow:0 2px 8px rgba(0,0,0,0.04); cursor:default; transition:transform 0.15s,box-shadow 0.15s; } .kpi-card:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.08); }
   .insight { font-size:11px; color:#666; margin-top:4px; line-height:1.4; padding:4px 0; }
   .card-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
@@ -1337,8 +1337,8 @@ function generateAgentTemplate() {
     '      "view_links": [',
     '        { "url": "链接地址", "view_count": N }',
     '      ],',
-    '      "total_engagement": N,',
-    '      "total_views": N,',
+    '      "total_engagement": <integer> (总互动数: 点赞+评论+分享+收藏),',
+    '      "total_views": <integer> (总播放量/浏览量),',
     '      "points_earned": N,',
     '      "points_detail": "40-99=1pt, 100-199=2pt, ..."',
     '    }',
@@ -1502,7 +1502,7 @@ async function copyAgentPrompt() {
     '## 操作步骤',
     '1. 打开我给你的文件: ' + filename,
     '2. 文件里每个 submission 有 id / discord_name / uid / links 字段',
-    '3. 用浏览器打开 links 里的每条链接，查看真实互动数/播放量',
+    '3. 用浏览器打开 links 里的每条链接，查看真实互动数(点赞/评论/分享/收藏)和播放量/浏览量，两者都必须填写',
     '4. 按上方规则计算每条 submission 的积分',
     '5. 输出 JSON 结果给我',
     '',
@@ -1514,8 +1514,8 @@ async function copyAgentPrompt() {
     '      "id": 提交ID,',
     '      "discord_name": "用户名",',
     '      "uid": "UID",',
-    '      "total_engagement": N,',
-    '      "total_views": N,',
+    '      "total_engagement": <integer> (总互动数: 点赞+评论+分享+收藏),',
+    '      "total_views": <integer> (总播放量/浏览量),',
     '      "points_earned": N',
     '    }',
     '  ]',
@@ -3123,13 +3123,26 @@ async function loadDashboard() {
     var prevOld = useMock ? mr.oldC : pOld;
 
     // ========== KPI 卡片(6项) ==========
-    var kpiHtml = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;">';
-    kpiHtml += '<div class="kpi-card"><div style="font-size:24px;font-weight:800;color:#ad1457;">' + totalCreators + '</div><div style="font-size:10px;color:#880e4f;">👥 创作者总数</div></div>';
-    kpiHtml += '<div class="kpi-card"><div style="font-size:24px;font-weight:800;color:#ad1457;">' + activeCount + '</div><div style="font-size:10px;color:#880e4f;">📝 当月投稿创作者</div><div style="font-size:10px;color:#999;">' + gr(activeCount, prevActiveCount) + '</div></div>';
-    kpiHtml += '<div class="kpi-card"><div style="font-size:24px;font-weight:800;color:#2e7d32;">' + totalLinks + '</div><div style="font-size:10px;color:#1b5e20;">📎 投稿链接数</div><div style="font-size:10px;color:#999;">' + gr(totalLinks, prevLinks) + '</div></div>';
-    kpiHtml += '<div class="kpi-card"><div style="font-size:24px;font-weight:800;color:#e65100;">' + totalPts + '</div><div style="font-size:10px;color:#bf360c;">🏆 当月获得总积分</div><div style="font-size:10px;color:#999;">' + gr(totalPts, prevPts) + '</div></div>';
-    kpiHtml += '<div class="kpi-card"><div style="font-size:24px;font-weight:800;color:#6a3de8;">' + ccCount + '</div><div style="font-size:10px;color:#4a148c;">🎁 CC达标人数</div></div>';
-    kpiHtml += '<div class="kpi-card"><div style="font-size:24px;font-weight:800;color:#f57f17;">' + pendingLinks + '</div><div style="font-size:10px;color:#f57f17;">⏳ 待审核数</div></div>';
+    var kpiHtml = '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px;">';
+    var kpiCards = [
+      { icon: '👥', label: '创作者总数', val: totalCreators, color: '#ad1457', bg: 'linear-gradient(135deg,#fce4ec,#f8bbd0)' },
+      { icon: '📝', label: '当月投稿创作者', val: activeCount, color: '#ad1457', bg: 'linear-gradient(135deg,#fff5f9,#fce4ec)', cmp: gr(activeCount, prevActiveCount) },
+      { icon: '📎', label: '投稿链接数', val: totalLinks, color: '#2e7d32', bg: 'linear-gradient(135deg,#e8f5e9,#a5d6a7)', cmp: gr(totalLinks, prevLinks) },
+      { icon: '🏆', label: '当月总积分', val: totalPts, color: '#e65100', bg: 'linear-gradient(135deg,#fff3e0,#ffcc80)', cmp: gr(totalPts, prevPts) },
+      { icon: '🎁', label: 'CC达标人数', val: ccCount, color: '#6a3de8', bg: 'linear-gradient(135deg,#ede7f6,#b39ddb)' },
+      { icon: '⏳', label: '待审核数', val: pendingLinks, color: '#f57f17', bg: 'linear-gradient(135deg,#fff8e1,#ffe082)' }
+    ];
+    kpiCards.forEach(function(k) {
+      var cmpHtml = k.cmp ? '<div style="font-size:10px;color:#999;margin-top:2px;">' + k.cmp + '</div>' : '';
+      kpiHtml += '<div class="kpi-card" style="background:' + k.bg + ';padding:14px 10px;display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:6px;">' +
+        '<div style="text-align:left;">' +
+          '<div style="font-size:22px;font-weight:800;color:' + k.color + ';">' + k.val + '</div>' +
+          '<div style="font-size:10px;color:' + k.color + ';opacity:0.8;font-weight:500;">' + k.icon + ' ' + k.label + '</div>' +
+          cmpHtml +
+        '</div>' +
+        '<div style="font-size:32px;opacity:0.15;">' + k.icon + '</div>' +
+      '</div>';
+    });
     kpiHtml += '</div>';
     document.getElementById('dash-kpi').innerHTML = kpiHtml;
 
@@ -3592,7 +3605,10 @@ function renderKocTable() {
         '<option value="platinum"' + (k.tier==='platinum'?' selected':'') + '>\uD83D\uDC8E \u94C2\u91D1\u521B\u4F5C\u5B98</option>' +
       '</select></td>' +
       '<td style="text-align:center;font-size:12px;white-space:nowrap;">' +
-        (isOldCreator ? '<span style="color:#999;">\uD83D\uDC4D \u8001\u521B\u4F5C\u8005</span>' : '<span style="color:#4caf50;">\u65B0\u521B\u4F5C\u8005</span>') +
+        (isOldCreator ? 
+    '<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;background:linear-gradient(135deg,#e8eaf6,#c5cae9);color:#283593;border:1.5px solid #7986cb;box-shadow:0 2px 6px rgba(121,134,203,0.15);">\uD83D\uDC4D \u8001\u521B\u4F5C\u8005</span>' 
+    : 
+    '<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;background:linear-gradient(135deg,#e8f5e9,#c8e6c9);color:#2e7d32;border:1.5px solid #66bb6a;box-shadow:0 2px 6px rgba(102,187,106,0.15);">\uD83C\uDF1F \u65B0\u521B\u4F5C\u8005</span>') +
       '</td>' +
       '<td><span id="bal-' + k.uid + '" class="pts" style="cursor:pointer;" onclick="editBalanceInline(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">\u22EF</span></td>' +
       '<td ondblclick="inlineEdit(this,\'name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.name || '-') + '</td>' +
