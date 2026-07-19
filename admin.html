@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script>var es=document.createElement("script");es.src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js";document.head.appendChild(es);</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Yoyo Town · Admin</title>
 <style>
@@ -3167,125 +3167,9 @@ function drawTrendChart(allSubs) {
 
 
 // ===== 社群周报 =====
+
 async function loadCommunityReport() {
-  var label = document.getElementById('community-period-label');
-  var now = new Date();
-  var dayOfWeek = now.getDay();
-  var diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  var monday = new Date(now); monday.setDate(now.getDate() + diffToMonday);
-  monday.setHours(0,0,0,0);
-  var sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23,59,59,999);
-  var weekLabel = monday.toLocaleDateString('zh-CN') + ' ~ ' + sunday.toLocaleDateString('zh-CN');
-  if (label) label.textContent = weekLabel;
-
-  document.getElementById('community-summary').textContent = '\uD83D\uDD04 \u6B63\u5728\u62C9\u53D6\u793E\u7FA4\u6570\u636E\uFF0C\u8BF7\u7A0D\u5019...';
-
-  try {
-    var token = MOCHI_TOKEN;
-    if (!token) { document.getElementById('community-summary').textContent = '\u274C \u8BF7\u5148\u5728 Mochi \u8BBE\u7F6E\u4E2D\u586B\u5199 Bot Token'; return; }
-
-    var weekEnd = Math.floor(sunday.getTime() / 1000);
-    var weekStart = Math.floor(monday.getTime() / 1000);
-
-    // Use discord proxy
-    var proxyRes = await discordProxyFetch('fetchJSON', {
-      url: '/guilds/' + DISCORD_GUILD_ID + '?with_counts=true'
-    }, token);
-    if (!proxyRes || proxyRes.error) throw new Error(proxyRes ? proxyRes.error : '\u8BF7\u6C42\u5931\u8D25');
-    var guild = proxyRes;
-
-    // Get channels
-    var channelsRes = await discordProxyFetch('fetchJSON', {
-      url: '/guilds/' + DISCORD_GUILD_ID + '/channels'
-    }, token);
-    var channels = channelsRes || [];
-    var skipPatterns = ['log', 'welcome', 'rules', 'faq', 'reward'];
-    var textChannels = channels.filter(function(c) { return c.type === 0 && !skipPatterns.some(function(p) { return c.name.includes(p); }); });
-
-    // Scan messages (simplified - get last 100 per channel)
-    var totalMessages = 0;
-    var activeUsers = {};
-    var channelStats = {};
-    var userStats = {};
-
-    for (var ci = 0; ci < textChannels.length; ci++) {
-      var ch = textChannels[ci];
-      try {
-        var msgsRes = await discordProxyFetch('fetchJSON', {
-          url: '/channels/' + ch.id + '/messages?limit=100'
-        }, token);
-        var msgs = msgsRes || [];
-        msgs.forEach(function(msg) {
-          var ts = new Date(msg.timestamp).getTime();
-          if (ts >= monday.getTime() && ts <= sunday.getTime() && msg.author && !msg.author.bot) {
-            totalMessages++;
-            activeUsers[msg.author.id] = true;
-            if (!channelStats[ch.id]) channelStats[ch.id] = 0;
-            channelStats[ch.id]++;
-            if (!userStats[msg.author.id]) userStats[msg.author.id] = { name: msg.author.global_name || msg.author.username, count: 0 };
-            userStats[msg.author.id].count++;
-          }
-        });
-      } catch(e) {}
-    }
-
-    var activeCount = Object.keys(activeUsers).length;
-    var avgDaily = totalMessages / 7;
-
-    // KPI cards
-    document.getElementById('community-kpi').innerHTML =
-      '<div class="kpi-card" style="background:linear-gradient(135deg,#e8e0ff,#d1c4e9);border-radius:14px;padding:14px 8px;text-align:center;">' +
-        '<div style="font-size:26px;font-weight:800;color:#6a3de8;">' + totalMessages + '</div>' +
-        '<div style="font-size:11px;color:#4a148c;">\uD83D\uDCAC \u6D88\u606F\u603B\u91CF</div></div>' +
-      '<div class="kpi-card" style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:14px;padding:14px 8px;text-align:center;">' +
-        '<div style="font-size:26px;font-weight:800;color:#ad1457;">' + activeCount + '</div>' +
-        '<div style="font-size:11px;color:#880e4f;">\uD83D\uDC64 \u53D1\u8A00\u4EBA\u6570</div></div>' +
-      '<div class="kpi-card" style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border-radius:14px;padding:14px 8px;text-align:center;">' +
-        '<div style="font-size:26px;font-weight:800;color:#2e7d32;">' + avgDaily.toFixed(0) + '</div>' +
-        '<div style="font-size:11px;color:#1b5e20;">\uD83D\uDCC5 \u65E5\u5747\u6D88\u606F</div></div>' +
-      '<div class="kpi-card" style="background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-radius:14px;padding:14px 8px;text-align:center;">' +
-        '<div style="font-size:26px;font-weight:800;color:#e65100;">' + Math.round(activeCount/(guild.approximate_member_count||1)*100) + '%</div>' +
-        '<div style="font-size:11px;color:#bf360c;">\u2B50 \u6D3B\u8DC3\u7387</div></div>';
-
-    // Channel top 5
-    var sortedCh = Object.keys(channelStats).sort(function(a,b) { return channelStats[b] - channelStats[a]; }).slice(0,5);
-    var chHtml = '';
-    sortedCh.forEach(function(cid, i) {
-      var ch = channels.find(function(c) { return c.id === cid; });
-      var name = ch ? '#' + ch.name : cid;
-      chHtml += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;">' +
-        '<span><span style="font-weight:700;margin-right:4px;">#' + (i+1) + '</span>' + name + '</span>' +
-        '<span>' + channelStats[cid] + ' \u6761</span></div>';
-    });
-    document.getElementById('community-channels').innerHTML = chHtml || '<div style="color:var(--text-light);">\u6682\u65E0\u6570\u636E</div>';
-
-    // User top 10
-    var sortedUsers = Object.keys(userStats).sort(function(a,b) { return userStats[b].count - userStats[a].count; }).slice(0,10);
-    var userHtml = '';
-    sortedUsers.forEach(function(uid, i) {
-      var u = userStats[uid];
-      userHtml += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;">' +
-        '<span><span style="font-weight:700;color:' + (i===0?'#ad1457':i<3?'#e65100':'#666') + ';margin-right:4px;">#' + (i+1) + '</span>' + esc(u.name) + '</span>' +
-        '<span>' + u.count + ' \u6761</span></div>';
-    });
-    document.getElementById('community-users').innerHTML = userHtml || '<div style="color:var(--text-light);">\u6682\u65E0\u6570\u636E</div>';
-
-    // Summary
-    var summary = '\uD83D\uDCA1 ';
-    if (totalMessages > 0) {
-      summary += '\u672C\u5468\u793E\u7FA4\u5171\u6709 ' + totalMessages + ' \u6761\u6D88\u606F\uFF0C' + activeCount + ' \u4EBA\u53D1\u8A00\uFF0C\u65E5\u5747 ' + avgDaily.toFixed(0) + ' \u6761\u3002';
-      if (activeCount > 5) summary += '\u53D1\u8A00\u4EBA\u6570\u8F83\u591A\uFF0C\u793E\u7FA4\u6D3B\u8DC3\u5EA6\u826F\u597D\u3002';
-      var topUser = sortedUsers.length > 0 ? userStats[sortedUsers[0]].name : '';
-      if (topUser) summary += '\u672C\u5468\u6700\u6D3B\u8DC3\u6210\u5458: ' + topUser + '\u3002';
-    } else {
-      summary += '\u672C\u5468\u5C1A\u65E0\u793E\u7FA4\u6570\u636E\uFF0C\u8BF7\u786E\u8BA4 Token \u662F\u5426\u6B63\u786E\u3002';
-    }
-    document.getElementById('community-summary').textContent = summary;
-
-  } catch(e) {
-    document.getElementById('community-summary').textContent = '\u274C \u62C9\u53D6\u5931\u8D25: ' + (e.message||e);
-  }
+  document.getElementById('community-summary').textContent = '\uD83D\uDD04 \u793E\u7FA4\u5468\u62A5\u529F\u80FD\u5F00\u53D1\u4E2D...\n\u8BF7\u5148\u786E\u4FDD\u5DF2\u5728 Mochi \u8BBE\u7F6E\u4E2D\u586B\u5199 Bot Token\u3002';
 }
 function renderKocTable() {
   var q = document.getElementById('search-input').value.toLowerCase();
