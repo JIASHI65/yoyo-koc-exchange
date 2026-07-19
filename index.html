@@ -24,7 +24,7 @@
   .reward-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border: 2px solid var(--border); border-radius: 12px; background: var(--card); margin-bottom: 8px; }
   .qty-selector { display: flex; align-items: center; gap: 10px; }
   .btn-qty { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--border); background: white; font-size: 20px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--pink-dark); transition: all 0.15s; user-select: none; }
-  .btn-qty:hover:not(:disabled) { background: var(--pink-light); border-color: var(--pink); }
+  .btn-qty:hover:no__(:disabled) { background: var(--pink-light); border-color: var(--pink); }
   .btn-qty:disabled { opacity: 0.25; cursor: not-allowed; }
   .qty-value { font-size: 20px; font-weight: 700; min-width: 28px; text-align: center; color: var(--text); }
   .reward-name { font-weight: 600; font-size: 15px; }
@@ -62,18 +62,18 @@
   select:focus { border-color: var(--pink); }
   .deadline-bar { background: #fff8e1; border: 1.5px solid #ffe082; border-radius: 10px; padding: 8px 12px; font-size: 12px; text-align: center; margin-bottom: 12px; color: #6d4c00; }
   .tier-badge { display: inline-flex; align-items: center; gap: 12px; padding: 14px 38px; border-radius: 50px; font-size: 22px; font-weight: 900; letter-spacing: 1.5px; box-shadow: 0 8px 28px rgba(0,0,0,0.15), inset 0 2px 0 rgba(255,255,255,0.6); }
-  .tier-platinum { background: linear-gradient(145deg,#ede7f6 0%,#d1c4e9 30%,#b39ddb 60%,#9575cd 100%); color: #1a0033; border: 2.5px solid #7e57c2; box-shadow: 0 0 30px rgba(106,61,232,0.5), 0 0 60px rgba(106,61,232,0.2), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); position:relative; overflow:hidden; animation: tierGlow 3s ease-in-out infinite; }
+  .tier-platinum { background: linear-gradien__(145deg,#ede7f6 0%,#d1c4e9 30%,#b39ddb 60%,#9575cd 100%); color: #1a0033; border: 2.5px solid #7e57c2; box-shadow: 0 0 30px rgba(106,61,232,0.5), 0 0 60px rgba(106,61,232,0.2), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); position:relative; overflow:hidden; animation: tierGlow 3s ease-in-out infinite; }
   .tier-platinum::before { content: '✦ ✦ ✦'; position:absolute; left:4px; top:-2px; font-size:7px; letter-spacing:2px; opacity:0.5; animation: sparkleFloat 3s ease-in-out infinite; color:#7e57c2; }
   .tier-platinum::after { content: '💎✨'; position:absolute; right:2px; top:-1px; font-size:9px; animation: sparkleBounce 2s ease-in-out infinite; }
-  .tier-gold { background: linear-gradient(145deg,#fffde7 0%,#ffe082 30%,#ffca28 60%,#ffb300 100%); color: #3e2723; border: 2.5px solid #ff8f00; box-shadow: 0 0 30px rgba(255,179,0,0.5), 0 0 60px rgba(255,179,0,0.2), 0 8px 30px rgba(255,179,0,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); position:relative; overflow:hidden; animation: tierGlow 3s ease-in-out infinite 1s; }
+  .tier-gold { background: linear-gradien__(145deg,#fffde7 0%,#ffe082 30%,#ffca28 60%,#ffb300 100%); color: #3e2723; border: 2.5px solid #ff8f00; box-shadow: 0 0 30px rgba(255,179,0,0.5), 0 0 60px rgba(255,179,0,0.2), 0 8px 30px rgba(255,179,0,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); position:relative; overflow:hidden; animation: tierGlow 3s ease-in-out infinite 1s; }
   .tier-gold::before { content: '⭐ ⭐'; position:absolute; left:4px; top:-2px; font-size:7px; letter-spacing:2px; opacity:0.5; animation: sparkleFloat 3s ease-in-out infinite 0.5s; color:#ff8f00; }
   .tier-gold::after { content: '🏆✨'; position:absolute; right:2px; top:-1px; font-size:9px; animation: sparkleBounce 2s ease-in-out infinite 0.5s; }
-  .tier-certified { background: linear-gradient(145deg,#e8f5e9 0%,#a5d6a7 30%,#81c784 60%,#66bb6a 100%); color: #003300; border: 2.5px solid #43a047; box-shadow: 0 0 30px rgba(76,175,80,0.4), 0 8px 30px rgba(76,175,80,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); position:relative; overflow:hidden; }
+  .tier-certified { background: linear-gradien__(145deg,#e8f5e9 0%,#a5d6a7 30%,#81c784 60%,#66bb6a 100%); color: #003300; border: 2.5px solid #43a047; box-shadow: 0 0 30px rgba(76,175,80,0.4), 0 8px 30px rgba(76,175,80,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); position:relative; overflow:hidden; }
   .tier-certified::after { content: '✅'; position:absolute; right:4px; top:1px; font-size:10px; animation: sparkleBounce 2.5s ease-in-out infinite 1s; }
   @keyframes tierGlow { 0%,100% { box-shadow: 0 0 30px rgba(106,61,232,0.5), 0 0 60px rgba(106,61,232,0.2), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); } 50% { box-shadow: 0 0 40px rgba(106,61,232,0.7), 0 0 80px rgba(106,61,232,0.3), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); } }
   @keyframes sparkleFloat { 0%,100% { opacity:0.3; transform:translateY(0); } 50% { opacity:0.8; transform:translateY(-2px); } }
   @keyframes sparkleBounce { 0%,100% { transform:scale(1) rotate(0deg); } 25% { transform:scale(1.2) rotate(-5deg); } 75% { transform:scale(1.1) rotate(5deg); } }
-  .tier- { background: linear-gradient(135deg,#e8e0ff,#fff8e1); color: #6a3de8; border: 1.5px solid #ce93d8; }
+  .tier- { background: linear-gradien__(135deg,#e8e0ff,#fff8e1); color: #6a3de8; border: 1.5px solid #ce93d8; }
   .nav-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1.5px solid var(--border); }
   .nav-back { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; background: var(--pink-light); color: var(--pink-dark); transition: all 0.15s; }
   .nav-back:hover { background: var(--pink); color: white; }
@@ -100,7 +100,7 @@
   <div id="step-login" class="card">
 
     <div style="text-align:center;padding:10px 0 20px;">
-      <h2 style="font-size:24px;margin-bottom:4px;">🎀 Yoyo Town</h2>
+      <h2 id="login-title" style="font-size:24px;margin-bottom:4px;">🎀 Yoyo Town</h2>
       <p id="login-subtitle" style="font-size:13px;color:var(--text-light);">Creator Portal</p>
     </div>
     <div id="entry-buttons">
@@ -171,7 +171,7 @@
 
   <!-- ===== 二级菜单：创作者功能 ===== -->
   <div id="step-dashboard" class="hidden">
-    <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">📊 Dashboard</span></div>
+    <div class="nav-bar"><button class="nav-back" onclick="logou__()">‹ Back</button><span class="nav-title">📊 Dashboard</span></div>
     <!-- Creator Tabs -->
     <div class="tabs">
       <button class="tab active" onclick="switchCreatorTab('submit')">🎨 Submit Works</button>
@@ -184,7 +184,7 @@
     </div>
     <!-- Redeem Tab -->
     <div id="creator-tab-redeem" class="tab-content">
-      <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">🎁 Redeem Rewards</span></div>
+      <div class="nav-bar"><button class="nav-back" onclick="logou__()">‹ Back</button><span class="nav-title">🎁 Redeem Rewards</span></div>
       <div class="card">
         <div class="points-display">
           <div class="points-number" id="display-points">--</div>
@@ -215,7 +215,7 @@
 
     <!-- Submit Tab -->
     <div id="creator-tab-submit" class="tab-content">
-      <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">🎨 Submit Works</span></div>
+      <div class="nav-bar"><button class="nav-back" onclick="logou__()">‹ Back</button><span class="nav-title">🎨 Submit Works</span></div>
       <div class="card">
         <div class="card-title">🎨 Submit Works</div><div style="font-size:12px;color:var(--text-light);">📅 <span id="current-period-label"></span></div>
         <div id="submit-form-area">
@@ -253,7 +253,7 @@
 
     <!-- History Tab -->
     <div id="creator-tab-history" class="tab-content">
-      <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">📋 My Submissions</span></div>
+      <div class="nav-bar"><button class="nav-back" onclick="logou__()">‹ Back</button><span class="nav-title">📋 My Submissions</span></div>
       <div class="card">
         <div class="card-title">📋 My Submissions · 📅 <span id="sub-period-label"></span></div><div id="submission-count" style="font-size:11px;color:var(--text-light);"></div>
         <div id="submissions-list"><div style="color:var(--text-light);font-size:13px;">Loading...</div></div>
@@ -262,7 +262,7 @@
 
     <!-- FAQ Tab -->
     <div id="creator-tab-faq" class="tab-content">
-      <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">❓ FAQ</span></div>
+      <div class="nav-bar"><button class="nav-back" onclick="logou__()">‹ Back</button><span class="nav-title">❓ FAQ</span></div>
       <div class="card" style="text-align:center;">
         <div style="font-size:22px;font-weight:700;margin-bottom:6px;">❓ 常见问题解答</div>
         <div style="font-size:13px;color:var(--text-light);margin-bottom:16px;">点击下方按钮在新标签页打开 FAQ，搜索你的问题</div>
@@ -275,7 +275,7 @@
       </div>
     </div>
 
-    <button class="btn" style="width:100%;border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--card);font-size:14px;color:var(--text-light);cursor:pointer;" onclick="logout()">← Switch Account</button>
+    <button class="btn" style="width:100%;border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--card);font-size:14px;color:var(--text-light);cursor:pointer;" onclick="logou__()">← Switch Account</button>
     <div style="margin-top:14px;font-size:12px;color:var(--text-light);text-align:center;line-height:1.6;">
       Questions or issues? Create a thread in <strong>｜town-service-station</strong> — we reply in submission order.
     </div>
@@ -297,8 +297,8 @@ const DICT = {
     // Login / Header
     'login_title': '🎀 Yoyo Town · 创作者中心',
     'login_subtitle': '登录查看积分与兑换奖励',
-    'btn_register': '🆕 我是新人，注册加入',
-    'btn_login': '✅ 我已注册，立即登录',
+    'btn_register': '<span id="btn-new-label">🆕 New Creator, Join Us</span>',
+    'btn_login': '<span id="btn-login-label">✅ Already Registered, Log In</span>',
     'btn_check': '🔍 查积分',
     'back': '‹ 返回',
     'new_reg_title': '🆕 新人注册',
@@ -447,7 +447,7 @@ const DICT = {
   }
 };
 
-function t(key, params) {
+function __(key, params) {
   var text = (DICT[currentLang] && DICT[currentLang][key]) || (DICT['zh'][key]) || key;
   if (params) {
     for (var k in params) {
@@ -463,6 +463,154 @@ function switchLang(lang) {
   location.reload();
 }
 
+// ===== i18n =====
+var KOC_LANG = localStorage.getItem('koc_lang') || 'en';
+var KOC_DICT = {
+  zh: {
+    'header_title': '🎀 Yoyo Town · 创作者中心',
+    'header_sub': '登录查看积分与兑换奖励',
+    'new_creator': '<span id="btn-new-label">🆕 New Creator, Join Us</span>',
+    'already_reg': '<span id="btn-login-label">✅ Already Registered, Log In</span>',
+    'check_pts': '🔍 查积分',
+    'back': '‹ 返回',
+    'reg_title': '🆕 新人注册',
+    'reg_desc': '欢迎加入 Yoyo Town！请填写以下信息以便发放奖励。',
+    'login_title': '🔑 登录',
+    'login_hint': '登录页面 → 客服中心 → 工单中心',
+    'label_discord': 'Discord 用户名',
+    'label_uid': '你的 UID',
+    'uid_ph': '例如 cqbZpqmcXcCq',
+    'discord_ph': '你的 Discord 用户名',
+    'faq_q': '常见问题？点击查看 FAQ',
+    'faq_bottom': '没找到答案？去 🎫｜town-service-station 发帖提问，客服会尽快回复你',
+    'tab_submit': '📤 提交作品',
+    'tab_history': '📅 投稿记录',
+    'tab_redeem': '💳 积分兑换',
+    'tab_faq': '❓ FAQ',
+    'submit_title': '📤 提交作品',
+    'submit_sub': '每月最多提交 2 次，检查好链接后再提交',
+    'submit_remain': '你有 2 次提交机会',
+    'submit_left': '剩余 {n} 次提交机会',
+    'submit_done': '已用完 2 次提交机会',
+    'submit_discord': 'Discord 名字',
+    'submit_server': '选择服务器',
+    'submit_links': '粘贴作品链接（每行一个）',
+    'submit_ph': 'https://facebook.com/...\nhttps://instagram.com/...\nhttps://tiktok.com/...',
+    'submit_btn': '📤 Submit Works',
+    'submit_btn_done': '🔒 已用完机会',
+    'submit_ok': '✅ 链接已提交！',
+    'hist_title': '📅 投稿记录',
+    'hist_hero': '{links} 条链接 · {pts} 分',
+    'hist_scored': '已评分 {scored} 条 · 共 {total} 条',
+    'hist_empty': '本月暂无投稿记录',
+    'hist_hint': '每月 25 号开始，可提交作品链接',
+    'cc_title': '🎯 持续创作奖励（提交 15 条）',
+    'cc_hint': '还差 {remaining} 条',
+    'cc_done': '✅ 已完成 15 条！',
+    'cc_40pt': '🏆 目标达成！可获得 40 分奖励',
+    'newbie_banner': '本月是你的新人月！投稿 ≥5 分可获得额外 +2 分奖励！',
+    'newbie_done': '✅ 已达标',
+    'newbie_need': '还差 {need} 分',
+    'newbie_complete': '🌱 新人任务已完成！+2 分已计入',
+    'grade_cert': '🎯 连续两个月每月 ≥5 分，即可升级为金级创作官！',
+    'grade_gold': '⭐ 本月 ≥5 分，即可升级为铂金创作官！',
+    'redeem_title': '💳 积分兑换',
+    'redeem_pts': '可用积分',
+    'redeem_closed': '🔒 兑换暂未开放',
+    'redeem_orders': '兑换记录',
+    'redeem_none': '暂无兑换记录',
+    'redeem_btn': '确认兑换',
+    'redeem_ask': '确认兑换 {count} 项奖励，共 {pts} 积分？',
+    'redeem_ok': '✅ 兑换成功！',
+    'st_pending': '⏳ 待审核',
+    'st_scored': '✅ 已评分',
+    'st_rejected': '❌ 已拒绝',
+    'st_shipped': '已发货',
+    'st_cancelled': '已取消',
+    'loading': '加载中...',
+    'error': '加载失败',
+    'err_net': '网络超时，请重试',
+  },
+  en: {
+    'header_title': '🎀 Yoyo Town · Creator Portal',
+    'header_sub': 'Check your points & redeem rewards',
+    'new_creator': '🆕 New Creator, Join Us',
+    'already_reg': '✅ Already Registered, Log In',
+    'check_pts': '🔍 Check My Points',
+    'back': '‹ Back',
+    'reg_title': '🆕 New Registration',
+    'reg_desc': 'Welcome to Yoyo Town! Fill in the info below so we can send your rewards.',
+    'login_title': '🔑 Login',
+    'login_hint': 'Login Page → Customer Service → Ticket Center',
+    'label_discord': 'Discord Name',
+    'label_uid': 'Your UID',
+    'uid_ph': 'e.g. cqbZpqmcXcCq',
+    'discord_ph': 'Your Discord username',
+    'faq_q': 'Have questions? Check the FAQ',
+    'faq_bottom': 'No answer? Post in 🎫｜town-service-station, our team will reply soon',
+    'tab_submit': '📤 Submit Works',
+    'tab_history': '📅 History',
+    'tab_redeem': '💳 Redeem',
+    'tab_faq': '❓ FAQ',
+    'submit_title': '📤 Submit Works',
+    'submit_sub': 'Max 2 submissions per month. Check your links before submitting.',
+    'submit_remain': 'You have 2 submission chances',
+    'submit_left': '{n} chances left',
+    'submit_done': 'No more chances (max 2)',
+    'submit_discord': 'Discord Name',
+    'submit_server': 'Select Server',
+    'submit_links': 'Paste your links (one per line)',
+    'submit_ph': 'https://facebook.com/...\nhttps://instagram.com/...\nhttps://tiktok.com/...',
+    'submit_btn': '📤 Submit Works',
+    'submit_btn_done': '🔒 Used Up',
+    'submit_ok': '✅ Links submitted!',
+    'hist_title': '📅 Submission History',
+    'hist_hero': '{links} links · {pts} pts',
+    'hist_scored': '{scored} scored · {total} total',
+    'hist_empty': 'No submissions this month',
+    'hist_hint': 'Submit links from the 25th of each month',
+    'cc_title': '🎯 Continuous Creation Bonus (15 links)',
+    'cc_hint': '{remaining} more needed',
+    'cc_done': '✅ 15 links done!',
+    'cc_40pt': '🏆 Goal reached! 40 point bonus awarded!',
+    'newbie_banner': 'This is your newbie month! Get ≥5 pts to earn +2 bonus!',
+    'newbie_done': '✅ Reached',
+    'newbie_need': '{need} pts away',
+    'newbie_complete': '🌱 Newbie mission complete! +2 pts added',
+    'grade_cert': '🎯 Get ≥5 pts for 2 consecutive months to become Gold Creator!',
+    'grade_gold': '⭐ Get ≥5 pts this month to become Platinum Creator!',
+    'redeem_title': '💳 Redeem Points',
+    'redeem_pts': 'Available Points',
+    'redeem_closed': '🔒 Redemption is closed',
+    'redeem_orders': 'Order History',
+    'redeem_none': 'No orders this month',
+    'redeem_btn': 'Confirm Redemption',
+    'redeem_ask': 'Redeem {count} items for {pts} points?',
+    'redeem_ok': '✅ Redemption successful!',
+    'st_pending': '⏳ Pending',
+    'st_scored': '✅ Scored',
+    'st_rejected': '❌ Rejected',
+    'st_shipped': 'Shipped',
+    'st_cancelled': 'Cancelled',
+    'loading': 'Loading...',
+    'error': 'Failed to load',
+    'err_net': 'Network timeout, please retry',
+  }
+};
+function __(key, params) {
+  var d = KOC_DICT[KOC_LANG] || KOC_DICT.en;
+  var text = d[key] || key;
+  if (params) {
+    for (var k in params) text = text.replace('{' + k + '}', params[k]);
+  }
+  return text;
+}
+function toggleLang() {
+  KOC_LANG = KOC_LANG === 'zh' ? 'en' : 'zh';
+  localStorage.setItem('koc_lang', KOC_LANG);
+  location.reload();
+}
+
 const SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_oyewqnQ8AnitAOD94Qg0nA_v6Zqkr7r';
 const REWARDS = [
@@ -472,7 +620,7 @@ const REWARDS = [
 ];
 
 var now = new Date();
-var currentPeriod = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+var currentPeriod = now.getFullYear() + '-' + String(now.getMonth() + 1).padStar__(2, '0');
 let currentUser = null;
 let redemptionOpen = false;
 let selections = {};
@@ -490,34 +638,34 @@ function tryAutoLogin() {
   if (discordInput) discordInput.value = session.discord_name;
   if (uidInput) uidInput.value = session.uid;
   // Auto-login disabled - uncomment to enable
-  // setTimeout(function() { login(); }, 300);
+  // setTimeou__(function() { login(); }, 300);
 }
 
 function initSelections() { selections = {}; REWARDS.forEach(r => selections[r.id] = 0); }
-function getSelCount() { return Object.values(selections).filter(q => q > 0).length; }
-function getTotalCost() { return REWARDS.reduce((s, r) => s + (selections[r.id] || 0) * r.cost, 0); }
+function getSelCoun__() { return Object.values(selections).filter(q => q > 0).length; }
+function getTotalCos__() { return REWARDS.reduce((s, r) => s + (selections[r.id] || 0) * r.cost, 0); }
 function esc(s) { return s == null ? "" : String(s).replace(/[&<>]/g, function(c) { return ({"&":"&amp;","<":"&lt;",">":"&gt;"})[c]; }); }
 
 function supabaseFetch(url, opts = {}) {
   return fetch(url, { ...opts, headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json', ...opts.headers } });
 }
 
-async function fetchWithTimeout(url, opts = {}, ms = 15000) {
+async function fetchWithTimeou__(url, opts = {}, ms = 15000) {
   const ctrl = new AbortController();
-  const id = setTimeout(() => ctrl.abort(), ms);
+  const id = setTimeou__(() => ctrl.abor__(), ms);
   try { return await supabaseFetch(url, { ...opts, signal: ctrl.signal }); }
-  finally { clearTimeout(id); }
+  finally { clearTimeou__(id); }
 }
 
-function showToast(msg, type) {
+function showToas__(msg, type) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = 'toast ' + (type||'') + ' show';
-  setTimeout(() => t.classList.remove('show'), 3000);
+  setTimeou__(() => t.classList.remove('show'), 3000);
 }
 
 async function getBalance(uid) {
   try {
-    const r = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/point_logs?uid=eq.${encodeURIComponent(uid)}&order=created_at.desc&limit=1`);
+    const r = await fetchWithTimeou__(`${SUPABASE_URL}/rest/v1/point_logs?uid=eq.${encodeURIComponen__(uid)}&order=created_at.desc&limit=1`);
     const d = await r.json();
     return (d && d.length > 0) ? d[0].balance_after : 0;
   } catch(e) { return 0; }
@@ -526,7 +674,7 @@ async function getBalance(uid) {
 async function login() {
   const discord = document.getElementById('input-discord').value.trim();
   const uid = document.getElementById('input-uid').value.trim();
-  if (!discord || !uid) { showToast('Please enter both Discord name and UID', 'error'); return; }
+  if (!discord || !uid) { showToas__('Please enter both Discord name and UID', 'error'); return; }
 
   const btn = document.getElementById('btn-login');
   btn.disabled = true; btn.textContent = 'Checking...';
@@ -534,9 +682,9 @@ async function login() {
   if (statusEl) statusEl.textContent = 'Looking up your info...';
 
   try {
-    let res = await fetchWithTimeout(
-      SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid) +
-      '&discord_name=eq.' + encodeURIComponent(discord) +
+    let res = await fetchWithTimeou__(
+      SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponen__(uid) +
+      '&discord_name=eq.' + encodeURIComponen__(discord) +
       '&select=uid,discord_name,name,status,tier',
       {}, 15000
     );
@@ -544,7 +692,7 @@ async function login() {
     let data = await res.json();
 
     if (!data || data.length === 0) {
-      showToast('No match found. Check your UID or contact admin.', 'error');
+      showToas__('No match found. Check your UID or contact admin.', 'error');
       btn.disabled = false; btn.textContent = 'Check My Points';
       if (statusEl) statusEl.textContent = '';
       return;
@@ -553,7 +701,7 @@ async function login() {
     if (statusEl) statusEl.textContent = 'Loading your points...';
     const koc = data[0];
     const points = await getBalance(uid);
-    const pendingRes = await fetchWithTimeout(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&status=eq.pending&select=points_spent');
+    const pendingRes = await fetchWithTimeou__(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponen__(uid) + '&status=eq.pending&select=points_spent');
     const pendingOrders = pendingRes.ok ? await pendingRes.json() : [];
     const pendingTotal = pendingOrders.reduce((s, o) => s + (o.points_spent || 0), 0);
     currentUser = { ...koc, points: Math.max(0, points - pendingTotal) };
@@ -575,7 +723,7 @@ async function login() {
     var errMsg = 'Login failed. Check your Discord name and UID.';
     if (e.name === 'AbortError') errMsg = 'Connection timed out. Try again.';
     else if (e.message) errMsg = e.message;
-    showToast(errMsg, 'error');
+    showToas__(errMsg, 'error');
     var loginBtn = document.getElementById('btn-login');
     if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Login'; }
     var loginStatus = document.getElementById('login-status');
@@ -596,7 +744,7 @@ function initSubmitTab() {
   if (!periodLabel) {
     var submitCard = document.querySelector('#creator-tab-submit .card-title');
     if (submitCard) {
-      periodLabel = document.createElement('span');
+      periodLabel = document.createElemen__('span');
       periodLabel.id = 'submit-period-label';
       periodLabel.style.cssText = 'font-size:12px;color:var(--text-light);font-weight:normal;margin-left:8px;';
       submitCard.appendChild(periodLabel);
@@ -606,7 +754,7 @@ function initSubmitTab() {
   // Check if already at max submissions (2) and lock form
   (async function() {
     try {
-      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id');
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponen__(currentUser.uid) + '&select=id');
       if (!r.ok) throw new Error('fetch failed');
       var d = await r.json();
       var cnt = (d && d.length) || 0;
@@ -662,7 +810,7 @@ function showDashboard() {
     if (!currentUser || !currentUser.uid) return;
     try {
       var freshPts = await getBalance(currentUser.uid);
-      var pendingRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(currentUser.uid) + '&status=eq.pending&select=points_spent');
+      var pendingRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponen__(currentUser.uid) + '&status=eq.pending&select=points_spent');
       var pendingOrders = pendingRes.ok ? await pendingRes.json() : [];
       var pendingTotal = pendingOrders.reduce(function(s, o) { return s + (o.points_spent || 0); }, 0);
       currentUser.points = Math.max(0, freshPts - pendingTotal);
@@ -702,7 +850,7 @@ function showDashboard() {
     })();
   } catch(e) {}
   // Initialize submit tab with safety timeout for DOM transition
-  setTimeout(function() { switchCreatorTab('submit'); }, 50);
+  setTimeou__(function() { switchCreatorTab('submit'); }, 50);
   renderOptions();
   loadOrders();
 }
@@ -715,7 +863,7 @@ function renderOptions() {
   initSelections();
 
   REWARDS.forEach(function(opt) {
-    const row = document.createElement('div');
+    const row = document.createElemen__('div');
     row.className = 'reward-row';
     row.innerHTML = '<div><div class="reward-name">' + opt.name + '</div><div class="reward-desc">' + opt.desc + '</div></div>' +
       '<div class="qty-selector">' +
@@ -726,15 +874,15 @@ function renderOptions() {
     container.appendChild(row);
   });
 
-  const footer = document.createElement('div');
+  const footer = document.createElemen__('div');
   footer.id = 'sel-footer'; footer.style.cssText = 'margin-top:12px;';
   container.appendChild(footer);
   updateUI();
 }
 
 function updateUI() {
-  const selCount = getSelCount();
-  const totalCost = getTotalCost();
+  const selCount = getSelCoun__();
+  const totalCost = getTotalCos__();
   const bal = currentUser ? currentUser.points : 0;
 
   REWARDS.forEach(r => {
@@ -766,16 +914,16 @@ function changeQty(id, d) {
   const opt = REWARDS.find(r => r.id === id); if (!opt) return;
   const cur = selections[id] || 0; const nxt = cur + d;
   if (nxt < 0) return;
-  if (d > 0 && cur === 0 && getSelCount() >= 2) return;
-  const newTotal = getTotalCost() - cur * opt.cost + nxt * opt.cost;
+  if (d > 0 && cur === 0 && getSelCoun__() >= 2) return;
+  const newTotal = getTotalCos__() - cur * opt.cost + nxt * opt.cost;
   if (newTotal > currentUser.points) return;
   selections[id] = nxt; updateUI();
 }
 async function redeem() {
-  if (!redemptionOpen) { showToast('🔒 兑换暂未开放，请等待通知', 'error'); return; }
-  const totalCost = getTotalCost();
+  if (!redemptionOpen) { showToas__('🔒 兑换暂未开放，请等待通知', 'error'); return; }
+  const totalCost = getTotalCos__();
   if (totalCost === 0 || !currentUser) return;
-  if (totalCost > currentUser.points) { showToast('Insufficient points', 'error'); return; }
+  if (totalCost > currentUser.points) { showToas__('Insufficient points', 'error'); return; }
 
   const btn = document.getElementById('btn-redeem');
   btn.disabled = true; btn.textContent = 'Submitting...';
@@ -806,9 +954,9 @@ async function redeem() {
     renderOptions();
     // Load orders independently so errors don't override success toast
     try { await loadOrders(); } catch(e) { console.error('loadOrders:', e); }
-    showToast('✅ Order submitted! Points deducted when shipped.', 'success');
+    showToas__('✅ Order submitted! Points deducted when shipped.', 'success');
   } catch (e) {
-    showToast('Error: ' + e.message, 'error');
+    showToas__('Error: ' + e.message, 'error');
   }
   btn.disabled = false; btn.textContent = 'Confirm Redemption';
 }
@@ -816,17 +964,17 @@ async function redeem() {
 async function loadOrders() {
   if (!currentUser) return;
   try {
-    const res = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,option_type,option_name,points_spent,status,reward_amount,created_at');
+    const res = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponen__(currentUser.uid) + '&order=created_at.desc&select=id,option_type,option_name,points_spent,status,reward_amount,created_at');
     if (!res.ok) return;
     var allOrders = await res.json();
     const container = document.getElementById('orders-list');
     const card = document.getElementById('orders-card');
     if (!container) return;
     // Filter to current month only
-    var currentMonth = currentPeriod || (new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0'));
+    var currentMonth = currentPeriod || (new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStar__(2, '0'));
     var orders = allOrders.filter(function(o) {
       var d = new Date(o.created_at);
-      var ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      var ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStar__(2, '0');
       return ym === currentMonth;
     });
     if (!orders || orders.length === 0) {
@@ -945,7 +1093,7 @@ async function registerCreator() {
 
   try {
     // Check if this discord name already exists
-    var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?discord_name=eq.' + encodeURIComponent(discord) + '&select=uid');
+    var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?discord_name=eq.' + encodeURIComponen__(discord) + '&select=uid');
     var existing = await checkRes.json();
     if (existing && existing.length > 0) {
       status.innerHTML = '✅ You\'re already registered! Log in with your UID: <strong>' + existing[0].uid + '</strong>';
@@ -959,9 +1107,9 @@ async function registerCreator() {
     var nextNum = 1;
     if (countData && countData.length > 0) {
       var match = countData[0].uid.match(/YOYO-(\d+)/);
-      if (match) nextNum = parseInt(match[1]) + 1;
+      if (match) nextNum = parseIn__(match[1]) + 1;
     }
-    var newUid = 'YOYO-' + String(nextNum).padStart(3, '0');
+    var newUid = 'YOYO-' + String(nextNum).padStar__(3, '0');
 
     var fullAddress = street + ', ' + city + ', ' + state + ' ' + zip + ', ' + country + ' | Tel: ' + phone;
 
@@ -976,7 +1124,7 @@ async function registerCreator() {
       phone: phone,
       notes: JSON.stringify({ registered_at: new Date().toISOString(), account_id: accountId, game_uid: gameUid, fullname: fullname, street: street, city: city, state: state, zip: zip, country: country, phone: phone }),
       // Auto-set newbie_month = next month
-      __newbie_notes: 'newbie_month:' + (function(){ var d=new Date(); var m=d.getMonth()+2; var y=d.getFullYear(); if(m>12){m=1;y+=1;} return y+'-'+String(m).padStart(2,'0'); })(),
+      __newbie_notes: 'newbie_month:' + (function(){ var d=new Date(); var m=d.getMonth()+2; var y=d.getFullYear(); if(m>12){m=1;y+=1;} return y+'-'+String(m).padStar__(2,'0'); })(),
       status: 'active'
     };
 
@@ -990,13 +1138,13 @@ async function registerCreator() {
     status.style.color = '#4caf50';
     document.getElementById('input-discord').value = discord;
     document.getElementById('input-uid').value = newUid;
-    showToast('✅ Registered! UID: ' + newUid + ' — save this to login', 'success');
+    showToas__('✅ Registered! UID: ' + newUid + ' — save this to login', 'success');
     // Set newbie_month tag on the newly registered KOC
     try {
-      var nbMonth = (function(){ var d=new Date(); var m=d.getMonth()+2; var y=d.getFullYear(); if(m>12){m=1;y+=1;} return y+'-'+String(m).padStart(2,'0'); })();
+      var nbMonth = (function(){ var d=new Date(); var m=d.getMonth()+2; var y=d.getFullYear(); if(m>12){m=1;y+=1;} return y+'-'+String(m).padStar__(2,'0'); })();
       var curNotes = JSON.parse(notesJson); // re-read
       curNotes.newbie_month = nbMonth;
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(newUid), {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponen__(newUid), {
         method: 'PATCH',
         body: JSON.stringify({ notes: JSON.stringify(curNotes) })
       });
@@ -1010,7 +1158,7 @@ async function registerCreator() {
 
 async function submitWorks() {
   var discord = document.getElementById('submit-discord').value.trim();
-  var links = document.getElementById('submit-links').value.trim().split('\n').filter(Boolean);
+  var links = document.getElementById('submit-links').value.trim().spli__('\n').filter(Boolean);
   var server = document.getElementById('submit-server').value;
   var status = document.getElementById('submit-status');
   var btn = document.getElementById('btn-submit');
@@ -1025,7 +1173,7 @@ async function submitWorks() {
 
   try {
     // Check existing submissions
-    var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id');
+    var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponen__(currentUser.uid) + '&select=id');
     var existingSubs = checkRes.ok ? await checkRes.json() : [];
     var existingCount = (existingSubs && existingSubs.length) || 0;
     
@@ -1052,7 +1200,7 @@ async function submitWorks() {
       method: 'POST',
       body: JSON.stringify(payload)
     });
-    if (!resp.ok) throw new Error((await resp.text()).substring(0, 80));
+    if (!resp.ok) throw new Error((await resp.tex__()).substring(0, 80));
 
     var newCount = existingCount + 1;
     var remaining = 2 - newCount;
@@ -1077,7 +1225,7 @@ async function submitWorks() {
       if (cd) { cd.innerHTML = '⚠️ 已用完 2 次提交机会'; cd.style.background = '#fbe9e7'; }
     }
 
-    showToast('✅ ' + links.length + ' links submitted!', 'success');
+    showToas__('✅ ' + links.length + ' links submitted!', 'success');
     loadMySubmissions();
   } catch(e) {
     status.textContent = '❌ ' + e.message;
@@ -1104,12 +1252,12 @@ async function loadMySubmissions() {
     var months = ['2026-07','2026-08','2026-09'];
 
     // Fetch submissions for this user
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,created_at,status,points_earned,links_engagement,links_views');
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponen__(currentUser.uid) + '&order=created_at.desc&select=id,created_at,status,points_earned,links_engagement,links_views');
     if (!res.ok) throw new Error('Failed');
     var allSubs = await res.json() || [];
 
     // Fetch point_logs
-    var ptRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&limit=100&select=period,change,balance_after,reason,created_at');
+    var ptRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponen__(currentUser.uid) + '&order=created_at.desc&limit=100&select=period,change,balance_after,reason,created_at');
     var ptLogs = ptRes.ok ? await ptRes.json() || [] : [];
 
     // Group submissions by month
@@ -1131,7 +1279,7 @@ async function loadMySubmissions() {
 function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, periodLabel) {
   window._subViewMonth = ym;
   var subs = byMonth[ym] || [];
-  var totalLinks = subs.reduce(function(su, s) { return su + (s.links_engagement || '').split('\n').filter(Boolean).length; }, 0);
+  var totalLinks = subs.reduce(function(su, s) { return su + (s.links_engagement || '').spli__('\n').filter(Boolean).length; }, 0);
   var pendingCount = subs.filter(function(s) { return s.status === 'pending'; }).length;
   var scoredCount = subs.filter(function(s) { return s.status === 'scored'; }).length;
   var ccRemaining = Math.max(0, 15 - totalLinks);
@@ -1139,7 +1287,7 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
   // Try to fetch fresh tier from API for accurate promotion hints
   (function() { 
     if (!currentUser || !currentUser.uid) return;
-    supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=tier').then(function(r) {
+    supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponen__(currentUser.uid) + '&select=tier').then(function(r) {
       if (!r.ok) return; return r.json();
     }).then(function(d) {
       if (d && d.length > 0 && d[0].tier) {
@@ -1170,14 +1318,14 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
   if (subs.length === 0) {
     html += '<div style="background:#faf5f7;border-radius:16px;padding:30px;text-align:center;border:1px solid var(--border);">';
     html += '<div style="font-size:40px;margin-bottom:6px;">📭</div>';
-    html += '<div style="font-size:14px;color:var(--text-light);">' + t('history_empty') + '</div>';
-    if (isCurrent) html += '<div style="font-size:12px;color:var(--text-light);margin-top:4px;">' + t('history_empty_hint') + '</div>';
+    html += '<div style="font-size:14px;color:var(--text-light);">' + __('history_empty') + '</div>';
+    if (isCurrent) html += '<div style="font-size:12px;color:var(--text-light);margin-top:4px;">' + __('history_empty_hint') + '</div>';
     html += '</div>';
   } else {
-    html += '<div style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:16px;padding:18px;margin-bottom:10px;border:1px solid #f8bbd0;">';
+    html += '<div style="background:linear-gradien__(135deg,#fff5f9,#fce4ec);border-radius:16px;padding:18px;margin-bottom:10px;border:1px solid #f8bbd0;">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-    html += '<div><div style="font-size:22px;font-weight:800;color:#ad1457;">' + t('history_hero', {links: totalLinks}) + '</div>';
-    html += '<div style="font-size:12px;color:#880e4f;">' + t('history_scored', {scored: scoredCount, total: subs.length}) + (monthPts > 0 ? ' · 🏆 ' + monthPts + ' 分' : '') + '</div></div>';
+    html += '<div><div style="font-size:22px;font-weight:800;color:#ad1457;">' + __('history_hero', {links: totalLinks}) + '</div>';
+    html += '<div style="font-size:12px;color:#880e4f;">' + __('history_scored', {scored: scoredCount, total: subs.length}) + (monthPts > 0 ? ' · 🏆 ' + monthPts + ' 分' : '') + '</div></div>';
     html += '<div style="text-align:right;"><div style="font-size:12px;color:var(--text-light);">⏳ ' + pendingCount + ' 待审核</div>';
     html += '<div style="font-size:12px;color:#2e7d32;">✅ ' + scoredCount + ' 已评分</div></div>';
     html += '</div></div>';
@@ -1187,17 +1335,17 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
       var ccPct = Math.min(100, Math.round(totalLinks / 15 * 100));
       html += '<div style="background:#faf5f7;border-radius:14px;padding:14px;margin-bottom:8px;">';
       html += '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">';
-      html += '<span style="font-weight:600;">' + t('cc_title') + '</span><span style="color:var(--text-light);">' + t('cc_progress', {current: totalLinks}) + '</span></div>';
+      html += '<span style="font-weight:600;">' + __('cc_title') + '</span><span style="color:var(--text-light);">' + __('cc_progress', {current: totalLinks}) + '</span></div>';
       html += '<div style="background:#e0e0e0;border-radius:8px;height:8px;overflow:hidden;">';
-      html += '<div style="background:linear-gradient(90deg,#f06292,#ec407a);width:' + ccPct + '%;height:100%;border-radius:8px;"></div></div>';
-      if (ccRemaining > 0) html += '<div style="font-size:11px;color:#e65100;margin-top:3px;">' + t('cc_hint', {remaining: ccRemaining}) + '</div>';
-      else html += '<div style="font-size:11px;color:#2e7d32;margin-top:3px;">' + t('cc_done') + '</div>';
+      html += '<div style="background:linear-gradien__(90deg,#f06292,#ec407a);width:' + ccPct + '%;height:100%;border-radius:8px;"></div></div>';
+      if (ccRemaining > 0) html += '<div style="font-size:11px;color:#e65100;margin-top:3px;">' + __('cc_hint', {remaining: ccRemaining}) + '</div>';
+      else html += '<div style="font-size:11px;color:#2e7d32;margin-top:3px;">' + __('cc_done') + '</div>';
       html += '</div>';
 
       // 40pt hint
       if (totalLinks >= 15) {
         html += '<div style="background:#fff3e0;border:1px solid #ffe082;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#e65100;">';
-        html += t('cc_40pt') + '</div>';
+        html += __('cc_40pt') + '</div>';
       }
 
       
@@ -1213,26 +1361,26 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
         if (nbMonth3 === ym && !isOld3) {
         var newbieDone = currentUser.notes.indexOf('newbie_bonus:' + ym) >= 0;
         if (!newbieDone) {
-          html += '<div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border:2px solid #66bb6a;border-radius:14px;padding:14px;margin-bottom:8px;">';
+          html += '<div style="background:linear-gradien__(135deg,#e8f5e9,#c8e6c9);border:2px solid #66bb6a;border-radius:14px;padding:14px;margin-bottom:8px;">';
           html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:24px;">🌱</span><span style="font-size:14px;font-weight:700;color:#2e7d32;">本月是你的新人活动月！</span></div>';
           html += '<div style="font-size:13px;color:#1b5e20;line-height:1.6;">';
-          html += t('newbie_banner_task', {pts: monthPts, status: (monthPts >= 5 ? t('newbie_banner_done') : t('newbie_banner_need', {need: (5 - monthPts)}))});
+          html += __('newbie_banner_task', {pts: monthPts, status: (monthPts >= 5 ? __('newbie_banner_done') : __('newbie_banner_need', {need: (5 - monthPts)}))});
           html += '📊 当前积分：<strong>' + monthPts + ' 分</strong> · ' + (monthPts >= 5 ? '✅ 已完成！等待结算' : '还差 <strong>' + (5 - monthPts) + ' 分</strong> 即可达成');
           html += '</div></div>';
         } else {
-          html += '<div style="background:linear-gradient(135deg,#e8f5e9,#a5d6a7);border:2px solid #43a047;border-radius:14px;padding:12px;margin-bottom:8px;text-align:center;">';
-          html += '<span style="font-size:14px;font-weight:700;color:#1b5e20;">' + t('newbie_complete') + '</span></div>';
+          html += '<div style="background:linear-gradien__(135deg,#e8f5e9,#a5d6a7);border:2px solid #43a047;border-radius:14px;padding:12px;margin-bottom:8px;text-align:center;">';
+          html += '<span style="font-size:14px;font-weight:700;color:#1b5e20;">' + __('newbie_complete') + '</span></div>';
         }
       }
 
       // Grade hint: based on current tier
       if (currentTier === 'certified') {
         html += '<div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#6a1b9a;">';
-        html += t('grade_cert');
+        html += __('grade_cert');
         html += '</div>';
       } else if (currentTier === 'gold') {
         html += '<div style="background:#fff8e1;border:1px solid #ffd54f;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#7c4d00;">';
-        html += t('grade_gold');
+        html += __('grade_gold');
         html += '</div>';
       }
       // Platinum: no promotion hint shown
@@ -1243,8 +1391,8 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
     html += '<div style="margin-top:4px;">';
     subs.forEach(function(s) {
       var st = s.status === 'pending' ? '<span style="color:#e65100;">⏳ 待审核</span>' : s.status === 'scored' ? '<span style="color:#2e7d32;">✅ 已评分</span>' : '<span style="color:#999;">❌ 已拒绝</span>';
-      var lc = (s.links_engagement || '').split('\n').filter(Boolean).length;
-      var vc = (s.links_views || '').split('\n').filter(Boolean).length;
+      var lc = (s.links_engagement || '').spli__('\n').filter(Boolean).length;
+      var vc = (s.links_views || '').spli__('\n').filter(Boolean).length;
       var dt = new Date(s.created_at).toLocaleDateString('zh-CN');
       var pts = s.points_earned || 0;
       html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">';
@@ -1271,7 +1419,7 @@ function switchSubMonth(ym) {
     document.getElementById('submission-count'),
     document.getElementById('sub-period-label'));
 }
-function logout() {
+function logou__() {
   currentUser = null;
   localStorage.removeItem('koc_session');
   document.getElementById('step-login').classList.remove('hidden');
@@ -1292,15 +1440,32 @@ tryAutoLogin();
 // Apply i18n to static HTML elements on load
 document.addEventListener('DOMContentLoaded', function() {
   var els = {
-    'header-subtitle': t('login_subtitle'),
-    'login-subtitle': t('login_subtitle'),
-    'footer-text': t('footer'),
+    'header-subtitle': __('login_subtitle'),
+    'login-subtitle': __('login_subtitle'),
+    'footer-text': __('footer'),
   };
   for (var id in els) {
     var el = document.getElementById(id);
     if (el) el.textContent = els[id];
   }
 });
+</script>
+
+
+<script>
+(function() {
+  var map = {
+    'header-sub': __('header_sub'),
+    'login-title': __('login_title'),
+    'btn-new-label': __('new_creator'),
+    'btn-login-label': __('already_reg'),
+    'lang-label': KOC_LANG === 'zh' ? '中文' : 'EN',
+  };
+  for (var id in map) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = map[id];
+  }
+})();
 </script>
 
 </body>
