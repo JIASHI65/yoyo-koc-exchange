@@ -3022,20 +3022,19 @@ function renderKocTable() {
       '<td><strong ondblclick="inlineEdit(this,\'discord_name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.discord_name) + '</strong></td>' +
       '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();inlineEdit(this,\'uid\',\'' + k.uid + '\')">' + esc(k.uid) + '</td>' +
       '<td>' + getTierBadge(k.tier || 'certified') + '<br><select id="koc-tier-select-' + k.uid + '" style="width:100px;font-size:11px;margin-top:2px;" onchange="updateKocTierInline(\'' + k.uid + '\')" class="tier-select">' +
-        '<option value="certified"' + ((k.tier||'certified')==='certified'?' selected':'') + '>✅ 认证创作官</option>' +
-        '<option value="gold"' + (k.tier==='gold'?' selected':'') + '>🟡 金级创作官</option>' +
-        '<option value="platinum"' + (k.tier==='platinum'?' selected':'') + '>💎 铂金创作官</option>' +
-      '</select>' +
-      (isOldCreator ? '<br><span style="font-size:10px;color:#999;">👌 老创作者</span>' : '<br><span style="font-size:10px;color:#4caf50;">🆕 新创作者</span>') +
+        '<option value="certified"' + ((k.tier||'certified')==='certified'?' selected':'') + '>\u2705 \u8BA4\u8BC1\u521B\u4F5C\u5B98</option>' +
+        '<option value="gold"' + (k.tier==='gold'?' selected':'') + '>\uD83D\uDFE1 \u91D1\u7EA7\u521B\u4F5C\u5B98</option>' +
+        '<option value="platinum"' + (k.tier==='platinum'?' selected':'') + '>\uD83D\uDC8E \u94C2\u91D1\u521B\u4F5C\u5B98</option>' +
+      '</select></td>' +
+      '<td style="text-align:center;font-size:12px;white-space:nowrap;">' +
+        (isOldCreator ? '<span style="color:#999;">\uD83D\uDC4D \u8001\u521B\u4F5C\u8005</span>' : '<span style="color:#4caf50;">\u65B0\u521B\u4F5C\u8005</span>') +
       '</td>' +
-      '<td><span id="bal-' + k.uid + '" class="pts" style="cursor:pointer;" onclick="editBalanceInline(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">⋯</span></td>' +
+      '<td><span id="bal-' + k.uid + '" class="pts" style="cursor:pointer;" onclick="editBalanceInline(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">\u22EF</span></td>' +
       '<td ondblclick="inlineEdit(this,\'name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.name || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'region\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.region || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'account_id\',\'' + k.uid + '\')" title="Double-click to edit" style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.account_id || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'server\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.server || '-') + '</td>' +
-      '<td ondblclick="inlineEdit(this,\'address\',\'' + k.uid + '\')" title="Double-click to edit" style="font-size:12px;white-space:pre-wrap;max-width:200px;">' + esc(k.address || '-') + 
-        (isOldCreator ? '<br><span style="font-size:10px;color:#999;">👌 老创作者</span>' : '<br><span style="font-size:10px;color:#4caf50;">🆕 新创作者</span>') +
-      '</td>' +
+      '<td ondblclick="inlineEdit(this,\'address\',\'' + k.uid + '\')" title="Double-click to edit" style="font-size:12px;white-space:pre-wrap;max-width:200px;">' + esc(k.address || '-') + '</td>' +
     '</tr>';
   }).join('');
   allKocs.forEach(function(k) {
@@ -3044,9 +3043,7 @@ function renderKocTable() {
       if (el) el.textContent = p;
     });
   });
-}
-
-function toggleAllKoc() {
+}function toggleAllKoc() {
   var checked = document.getElementById('koc-select-all').checked;
   document.querySelectorAll('.koc-select').forEach(function(cb) { cb.checked = checked; });
 }
