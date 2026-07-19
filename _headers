@@ -1,3 +1,2 @@
-cache-Control: no-cache
-cache-control: no-store
-expires: 0
+/*
+  cache-control: no-cache
