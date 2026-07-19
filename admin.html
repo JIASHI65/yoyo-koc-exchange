@@ -2128,10 +2128,27 @@ async function loadAuditLog() {
   if (!list) return;
 
   try {
-    var url = SUPABASE_URL + '/rest/v1/audit_logs?order=created_at.desc&limit=200&select=*';
-    var res = await supabaseFetch(url);
-    if (!res.ok) { list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-light);">加载失败</div>'; return; }
-    var logs = await res.json() || [];
+    // First try audit_logs table, fallback to point_logs if table doesn't exist
+    var logs = [];
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/audit_logs?order=created_at.desc&limit=200&select=*');
+    if (res.ok) {
+      logs = await res.json() || [];
+    } else {
+      // Fallback: point_logs table
+      var plRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?order=created_at.desc&limit=200&select=uid,change,balance_after,source,reason,created_by,created_at');
+      if (plRes.ok) {
+        var plData = await plRes.json() || [];
+        logs = plData.map(function(p) {
+          var types = { 'manual': 'score', 'redemption': 'diamond', 'auto_settlement': 'score' };
+          return {
+            action_type: types[p.source] || 'score',
+            operator: p.created_by || '\u7CFB\u7EDF',
+            detail: (p.change > 0 ? '+' : '') + p.change + ' pts (' + (p.reason||'') + ')',
+            created_at: p.created_at
+          };
+        });
+      }
+    }
 
     if (filter) logs = logs.filter(function(l) { return l.action_type === filter; });
     if (search) logs = logs.filter(function(l) {
