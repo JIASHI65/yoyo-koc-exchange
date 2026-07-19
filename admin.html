@@ -4628,5 +4628,68 @@ document.addEventListener('visibilitychange', function() {
     }
   })();
 </script>
+<script>
+// ===== 登录页循环动画 =====
+(function() {
+  function startAnim() {
+    var loginScreen = document.getElementById('login-screen');
+    if (!loginScreen) { setTimeout(startAnim, 500); return; }
+    
+    // 蝴蝶结持续弹跳
+    var bow = loginScreen.querySelector('div:nth-child(8)');
+    if (bow) {
+      var t = 0;
+      setInterval(function() {
+        t += 0.04;
+        var phase = (t % 2.5) / 2.5;
+        var y = 0;
+        if (phase < 0.15) y = -16 * Math.sin(phase / 0.15 * Math.PI);
+        else if (phase < 0.30) y = -16 * Math.sin((phase-0.15)/0.15*Math.PI) * 0.6;
+        else if (phase < 0.45) y = -6 * Math.sin((phase-0.30)/0.15*Math.PI);
+        bow.style.transform = 'translateY(' + y + 'px) scale(' + (1 + y/120) + ')';
+      }, 16);
+    }
+    
+    // 星星闪烁
+    var stars = loginScreen.querySelectorAll('[style*="animation:sparkle"]');
+    stars.forEach(function(s, i) {
+      s.style.animation = 'none';
+      var bright = true;
+      setInterval(function() {
+        bright = !bright;
+        s.style.opacity = bright ? '0.8' : '0.15';
+        s.style.transform = bright ? 'scale(1.5)' : 'scale(1)';
+      }, 1200 + i * 400);
+    });
+    
+    // 标题发光
+    var titles = loginScreen.querySelectorAll('[style*="animation:gentleGlow"]');
+    titles.forEach(function(t) {
+      t.style.animation = 'none';
+      var dir = 1;
+      setInterval(function() {
+        var val = 0.7 + Math.sin(Date.now() / 1500) * 0.15;
+        t.style.opacity = val;
+        t.style.textShadow = '0 0 ' + (8 + val * 8) + 'px rgba(242,166,196,' + (0.2 + val * 0.3) + ')';
+      }, 50);
+    });
+    
+    // 署名闪烁
+    var credit = loginScreen.querySelector('[style*="animation:softBlink"]');
+    if (credit) {
+      credit.style.animation = 'none';
+      setInterval(function() {
+        credit.style.opacity = 0.6 + Math.sin(Date.now() / 1800) * 0.2;
+      }, 50);
+    }
+  }
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', startAnim);
+  } else {
+    startAnim();
+  }
+})();
+</script>
 </body>
 </html>
