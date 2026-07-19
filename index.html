@@ -310,8 +310,8 @@ function tryAutoLogin() {
   var uidInput = document.getElementById('input-uid');
   if (discordInput) discordInput.value = session.discord_name;
   if (uidInput) uidInput.value = session.uid;
-  // Auto-login: call login() directly
-  setTimeout(function() { login(); }, 300);
+  // Auto-login disabled - uncomment to enable
+  // setTimeout(function() { login(); }, 300);
 }
 
 function initSelections() { selections = {}; REWARDS.forEach(r => selections[r.id] = 0); }
@@ -393,9 +393,14 @@ async function login() {
     initSubmitTab();
   } catch (e) {
     console.error('login error:', e);
-    showToast(e.name === 'AbortError' ? 'Connection timed out. Try again.' : 'Error: ' + e.message, 'error');
-    btn.disabled = false; btn.textContent = 'Check My Points';
-    if (statusEl) statusEl.textContent = '';
+    var errMsg = 'Login failed. Check your Discord name and UID.';
+    if (e.name === 'AbortError') errMsg = 'Connection timed out. Try again.';
+    else if (e.message) errMsg = e.message;
+    showToast(errMsg, 'error');
+    var loginBtn = document.getElementById('btn-login');
+    if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Login'; }
+    var loginStatus = document.getElementById('login-status');
+    if (loginStatus) loginStatus.textContent = '';
   }
 }
 
