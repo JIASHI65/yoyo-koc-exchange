@@ -2985,24 +2985,22 @@ function renderKocTable() {
   document.getElementById('koc-count').textContent = filtered.length + ' creators';
   var tbody = document.getElementById('koc-table');
   if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
     return;
   }
   tbody.innerHTML = filtered.map(function(k) {
     var notes = k.notes || '';
+    var isOldCreator = notes.indexOf('old_creator') >= 0;
     var createdYm = '';
     try {
       var d = new Date(k.created_at);
       createdYm = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     } catch(e) {}
-    var hasNewbieBonus = notes.indexOf('newbie_bonus:') >= 0;
-    var hasNewbieMonth = (notes || '').indexOf('newbie_month:') >= 0;
-    var isNewbie = createdYm && (createdYm === currentPeriod || (function(){
-      var now = new Date();
-      var currentYm = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-      return createdYm === currentYm || createdYm === currentPeriod;
-    })());
+    if (!isOldCreator && createdYm && createdYm < currentPeriod) {
+      isOldCreator = true;
+    }
     return '<tr>' +
+      '<td style="text-align:center;"><input type="checkbox" class="koc-select" value="' + k.uid + '"></td>' +
       '<td><strong ondblclick="inlineEdit(this,\'discord_name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.discord_name) + '</strong></td>' +
       '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();inlineEdit(this,\'uid\',\'' + k.uid + '\')">' + esc(k.uid) + '</td>' +
       '<td>' + getTierBadge(k.tier || 'certified') + '<br><select id="koc-tier-select-' + k.uid + '" style="width:100px;font-size:11px;margin-top:2px;" onchange="updateKocTierInline(\'' + k.uid + '\')" class="tier-select">' +
@@ -3010,19 +3008,16 @@ function renderKocTable() {
         '<option value="gold"' + (k.tier==='gold'?' selected':'') + '>🟡 金级创作官</option>' +
         '<option value="platinum"' + (k.tier==='platinum'?' selected':'') + '>💎 铂金创作官</option>' +
       '</select></td>' +
-      '<td><span id="bal-' + k.uid + '" class="pts" style="cursor:pointer;" onclick="editBalanceInline(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">\u22EF</span></td>' +
+      '<td><span id="bal-' + k.uid + '" class="pts" style="cursor:pointer;" onclick="editBalanceInline(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">⋯</span></td>' +
       '<td ondblclick="inlineEdit(this,\'name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.name || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'region\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.region || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'account_id\',\'' + k.uid + '\')" title="Double-click to edit" style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.account_id || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'server\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.server || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'address\',\'' + k.uid + '\')" title="Double-click to edit" style="font-size:12px;white-space:pre-wrap;max-width:200px;">' + esc(k.address || '-') + 
-        (hasNewbieBonus ? '<br><span style="font-size:10px;color:#4caf50;">✅ 新人+2已领</span>' : 
-         hasNewbieMonth ? '<br><span style="font-size:10px;color:#7b1fa2;">🆕 新人月</span>' :
-         isNewbie ? '<br><span style="font-size:10px;color:#ff9800;">🆕 未注册</span>' : '') +
+        (isOldCreator ? '<br><span style="font-size:10px;color:#999;">👌 老创作者</span>' : '<br><span style="font-size:10px;color:#4caf50;">🆕 新创作者</span>') +
       '</td>' +
     '</tr>';
   }).join('');
-  // Load balances
   allKocs.forEach(function(k) {
     getBalance(k.uid).then(function(p) {
       var el = document.getElementById('bal-' + k.uid);
@@ -3031,7 +3026,54 @@ function renderKocTable() {
   });
 }
 
+function toggleAllKoc() {
+  var checked = document.getElementById('koc-select-all').checked;
+  document.querySelectorAll('.koc-select').forEach(function(cb) { cb.checked = checked; });
+}
 
+function getSelectedKocUids() {
+  var uids = [];
+  document.querySelectorAll('.koc-select:checked').forEach(function(cb) { uids.push(cb.value); });
+  return uids;
+}
+
+async function batchMarkSelected(type) {
+  var uids = getSelectedKocUids();
+  if (!uids.length) { showToast('请先勾选创作者', 'error'); return; }
+  var tag = type === 'old_creator' ? 'old_creator:true' : '';
+  var label = type === 'old_creator' ? '老创作者' : '新创作者';
+  if (type === 'new_creator') tag = '';
+  if (!confirm('确定将 ' + uids.length + ' 位标记为' + label + '？')) return;
+  var ok = 0;
+  for (var i = 0; i < uids.length; i++) {
+    try {
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uids[i]), {
+        method: 'PATCH',
+        body: JSON.stringify({ notes: type === 'old_creator' ? 'old_creator:true' : '' })
+      });
+      if (r.ok) ok++;
+    } catch(e) {}
+  }
+  showToast('✅ ' + ok + '/' + uids.length + ' 已标记为' + label, 'success');
+  await loadData();
+}
+
+async function batchDeleteSelected() {
+  var uids = getSelectedKocUids();
+  if (!uids.length) { showToast('请先勾选创作者', 'error'); return; }
+  if (!confirm('确定删除 ' + uids.length + ' 位创作者？此操作不可撤销！')) return;
+  var ok = 0;
+  for (var i = 0; i < uids.length; i++) {
+    try {
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uids[i]), {
+        method: 'DELETE'
+      });
+      if (r.ok) ok++;
+    } catch(e) {}
+  }
+  showToast('✅ ' + ok + '/' + uids.length + ' 已删除', 'success');
+  await loadData();
+}
 function renderScoringTable() {
   // Load redemption state
   (async function() {
