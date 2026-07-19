@@ -1082,6 +1082,7 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
   if (countEl) countEl.textContent = '📅 ' + ym.replace('-', '年') + '月 · ' + totalLinks + ' 条';
   if (periodLabel) periodLabel.textContent = ym.replace('-', '年') + '月';
 }
+}
 
 function switchSubMonth(ym) {
   window._subViewMonth = ym;
