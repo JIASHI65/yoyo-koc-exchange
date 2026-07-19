@@ -239,25 +239,12 @@
           <button class="btn btn-sm" style="background:#5865F2;color:white;" onclick="loadCommunityReport()">🔄 拉取本周数据</button>
         </div>
       </div>
-      <!-- KPI 卡片 -->
       <div id="community-kpi" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;"></div>
       <div id="community-charts-area"></div>
-      <!-- 图表 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-        <div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">📊 内容画像</div><div id="chart-content" style="height:220px;"></div><div id="insight-content" class="insight"></div></div>
-        <div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">📈 周度活跃趋势</div><div id="chart-weekly" style="height:220px;"></div><div id="insight-weekly" class="insight"></div></div>
-      </div>
-      <!-- 榜单 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="card" style="padding:12px;">
-          <div style="font-size:13px;font-weight:600;margin-bottom:6px;">💬 最活跃频道 Top 5</div>
-          <div id="community-channels" style="font-size:12px;"></div>
-        </div>
-        <div class="card" style="padding:12px;">
-          <div style="font-size:13px;font-weight:600;margin-bottom:6px;">👑 发言之星 Top 10</div>
-          <div id="community-users" style="font-size:12px;"></div>
-        </div>
-      </div>
+      <div id="community-channels" style="display:none;"></div>
+      <div id="community-users" style="display:none;"></div>
+      <div id="chart-content" style="display:none;"></div>
+      <div id="chart-weekly" style="display:none;"></div>
       <div class="card" style="padding:14px;background:linear-gradient(135deg,#e3f2fd,#fff5f9);border:2px solid #90caf9;margin-top:12px;">
         <div style="font-size:14px;font-weight:700;color:#1565c0;">💡 莎莎的关键洞察</div>
         <div id="community-summary" style="font-size:13px;margin-top:6px;line-height:1.6;color:#333;">暂无数据，点击上方按钮拉取本周社群数据</div>
