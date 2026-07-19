@@ -147,6 +147,18 @@
 
   .tier- { background: linear-gradient(135deg,#e8e0ff,#fff8e1); color: #6a3de8; border: 1.5px solid #ce93d8; }
   .insight { font-size:11px; color:#888; margin-top:4px; font-style:italic; padding:4px 8px; background:#fafafa; border-radius:6px; }
+@keyframes fadeInDown {
+  from { opacity:0; transform:translateY(-20px); }
+  to { opacity:1; transform:translateY(0); }
+}
+@keyframes fadeInUp {
+  from { opacity:0; transform:translateY(15px); }
+  to { opacity:1; transform:translateY(0); }
+}
+@keyframes float {
+  0%,100% { transform:translateY(0) rotate(15deg); }
+  50% { transform:translateY(-8px) rotate(15deg); }
+}
 </style>
 </head>
 <body>
