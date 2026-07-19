@@ -254,6 +254,7 @@
             <th>Discord</th>
             <th>UID</th>
             <th>⭐ 等级</th>
+            <th>👤 状态</th>
             <th>💳 最新剩余积分</th>
             <th>Name</th>
             <th>Region</th>
@@ -3002,7 +3003,7 @@ function renderKocTable() {
   document.getElementById('koc-count').textContent = filtered.length + ' creators';
   var tbody = document.getElementById('koc-table');
   if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
     return;
   }
   tbody.innerHTML = filtered.map(function(k) {
