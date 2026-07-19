@@ -2276,7 +2276,7 @@ function switchTab(name) {
   }
   // Refresh tab content
   if (name === 'dashboard') loadDashboard();
-  if (name === 'community') { return; } = '\u70B9\u51FB\u4E0A\u65B9\u201C\u62C9\u53D6\u672C\u5468\u6570\u636E\u201D\u6309\u94AE\u62C9\u53D6\u793E\u7FA4\u5468\u62A5';
+  if (name === 'community') { return; }
   if (name === 'koc-ledger') renderKocTable();
   if (name === 'scoring') renderScoringTable();
   if (name === 'merch') renderMerchTab();
@@ -3179,7 +3179,7 @@ async function loadCommunityReport() {
     // Step 1: Fetch Discord members
     var memberRes = await discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN);
     if (!memberRes.ok) {
-      console.log('获取成员失败: ' + JSON.stringify(memberRes.error||memberRes);
+      console.log('获取成员失败: ' + JSON.stringify(memberRes.error||memberRes));
       return;
     }
     var members = memberRes.data || [];
@@ -4444,7 +4444,7 @@ function applyOrder(type, month, items) {
   return r;
 }
 function resetOrder(type, month) {
-  if(!confirm('Reset "'+month+'" order?'))return;
+  if(!confirm('Reset \"' + month + '\" order?'))return;
   try{localStorage.removeItem('koc_order_'+type+'_'+month)}catch(e){}
   supabaseFetch(SUPABASE_URL+'/rest/v1/kocs?uid=eq.__config__&select=notes')
   .then(function(r){return r.json()}).then(function(d){
