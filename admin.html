@@ -3162,7 +3162,7 @@ async function loadDashboard() {
         series: [{
           type: 'pie', radius: ['35%','65%'], center: ['50%','55%'],
           data: [
-            { value: plat, name: '💎 铂金创作官', itemStyle: { color: 'linear-gradient(135deg,#7e57c2,#b39ddb)' } },
+            { value: plat, name: '💎 铂金创作官', itemStyle: { color: '#7e57c2' } },
             { value: gold, name: '🟡 金级创作官', itemStyle: { color: '#ff8f00' } },
             { value: cert, name: '✅ 认证创作官', itemStyle: { color: '#43a047' } }
           ].filter(function(d) { return d.value > 0; }),
@@ -3171,10 +3171,14 @@ async function loadDashboard() {
         }]
       });
       var ti = '⭐ ';
-      if (plat > 0 && gold > 0 && cert > 0) ti += '三级创作官体系完整。';
-      else if (plat > 0) ti += '已有' + plat + '位铂金创作官，高阶创作者生态初现。';
-      else if (gold > 0) ti += '金级创作官' + gold + '人，成长空间充足。';
-      else ti += '当前以认证创作官为主(' + cert + '人)，鼓励冲刺更高等级。';
+      if (plat > 0) ti += '铂金' + plat + '人 · ';
+      if (gold > 0) ti += '金级' + gold + '人 · ';
+      ti += '认证' + cert + '人';
+      if (newC > 0) ti += '（新创作者' + newC + '人）';
+      ti += '。';
+      if (plat > 0 && gold > 0) ti += '高等级创作者占比' + Math.round((plat+gold)/(plat+gold+cert)*100) + '%，创作生态成熟。';
+      else if (gold > 0 && cert > gold) ti += '中级创作者占主体，具备晋升潜力。';
+      else ti += '新人比例较高，成长空间充足。';
       document.getElementById('insight-tier').innerHTML = ti;
 
       // ---- 2. 各平台分布(饼图) ----
@@ -3268,43 +3272,41 @@ async function loadDashboard() {
       document.getElementById('insight-trend').innerHTML = tri;
     }
 
-    // ========== 月度指标对比表 ==========
-    var html = '<div class="card" style="padding:14px;margin-bottom:12px;">';
-    html += '<div style="font-size:14px;font-weight:600;margin-bottom:6px;">📅 月度指标对比表</div>';
-    html += '<table style="width:100%;font-size:12px;border-collapse:collapse;">';
-    html += '<tr style="background:#fce4ec;"><th style="padding:6px;text-align:left;">指标</th><th style="padding:6px;text-align:right;">' + prevP + '</th><th style="padding:6px;text-align:right;">' + currentPeriod + '</th><th style="padding:6px;text-align:right;">环比涨幅</th></tr>';
-    html += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">👥 投稿创作者</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + prevActiveCount + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + activeCount + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:700;">' + gr(activeCount, prevActiveCount) + '</td></tr>';
-    html += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">📎 投稿链接数</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + prevLinks + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + totalLinks + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:700;">' + gr(totalLinks, prevLinks) + '</td></tr>';
-    html += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">🏆 总积分</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + prevPts + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + totalPts + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:700;">' + gr(totalPts, prevPts) + '</td></tr>';
-    html += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">✅ 认证创作官</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + prevCert + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + cert + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:700;">' + gr(cert, prevCert) + '</td></tr>';
-    html += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">🟡 金级创作官</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + prevGold + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;">' + gold + '</td><td style="padding:5px 6px;text-align:right;border-bottom:1px solid #f0f0f0;font-weight:700;">' + gr(gold, prevGold) + '</td></tr>';
-    html += '<tr><td style="padding:5px 6px;">💎 铂金创作官</td><td style="padding:5px 6px;text-align:right;">' + prevPlat + '</td><td style="padding:5px 6px;text-align:right;">' + plat + '</td><td style="padding:5px 6px;text-align:right;font-weight:700;">' + gr(plat, prevPlat) + '</td></tr>';
+    // ========== 月度指标对比表 (BI style) ==========
+    var html = '<div class="card" style="padding:20px;margin-bottom:16px;background:linear-gradient(135deg,rgba(20,30,60,0.45),rgba(15,20,40,0.45));border:1px solid rgba(242,166,196,0.12);">';
+    html += '<div style="font-size:15px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">📅</span> 月度核心指标对比</div>';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:12.5px;">';
+    html += '<tr><th style="padding:9px 8px;text-align:left;color:#8892b0;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid rgba(255,255,255,0.05);">指标</th><th style="padding:9px 8px;text-align:right;color:#8892b0;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid rgba(255,255,255,0.05);">' + prevP + '</th><th style="padding:9px 8px;text-align:right;color:#8892b0;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid rgba(255,255,255,0.05);">' + currentPeriod + '</th><th style="padding:9px 8px;text-align:right;color:#8892b0;font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid rgba(255,255,255,0.05);">环比涨幅</th></tr>';
+    html += '<tr><td style="padding:9px 8px;color:#e0e6f0;border-bottom:1px solid rgba(255,255,255,0.03);">👥 投稿创作者</td><td style="padding:9px 8px;text-align:right;font-weight:500;border-bottom:1px solid rgba(255,255,255,0.03);">' + prevActiveCount + '</td><td style="padding:9px 8px;text-align:right;font-weight:500;border-bottom:1px solid rgba(255,255,255,0.03);">' + activeCount + '</td><td style="padding:9px 8px;text-align:right;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.03);color:' + (activeCount>=prevActiveCount?'#00d4ff':'#ff6b6b') + ';">' + gr(activeCount, prevActiveCount) + '</td></tr>';
+    html += '<tr><td style="padding:9px 8px;color:#e0e6f0;border-bottom:1px solid rgba(255,255,255,0.03);">📎 投稿链接数</td><td style="padding:9px 8px;text-align:right;font-weight:500;border-bottom:1px solid rgba(255,255,255,0.03);">' + prevLinks + '</td><td style="padding:9px 8px;text-align:right;font-weight:500;border-bottom:1px solid rgba(255,255,255,0.03);">' + totalLinks + '</td><td style="padding:9px 8px;text-align:right;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.03);color:' + (totalLinks>=prevLinks?'#00d4ff':'#ff6b6b') + ';">' + gr(totalLinks, prevLinks) + '</td></tr>';
+    html += '<tr><td style="padding:9px 8px;color:#e0e6f0;border-bottom:1px solid rgba(255,255,255,0.03);">🏆 总积分</td><td style="padding:9px 8px;text-align:right;font-weight:500;border-bottom:1px solid rgba(255,255,255,0.03);">' + prevPts + '</td><td style="padding:9px 8px;text-align:right;font-weight:500;border-bottom:1px solid rgba(255,255,255,0.03);">' + totalPts + '</td><td style="padding:9px 8px;text-align:right;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.03);color:' + (totalPts>=prevPts?'#00d4ff':'#ff6b6b') + ';">' + gr(totalPts, prevPts) + '</td></tr>';
+    html += '<tr><td style="padding:9px 8px;color:#e0e6f0;border-bottom:1px solid rgba(255,255,255,0.03);">✅ 认证创作官</td><td style="padding:9px 8px;text-align:right;font-weight:500;border-bottom:1px solid rgba(255,255,255,0.03);">' + prevCert + '</td><td style="padding:9px 8px;text-align:right;font-weight:500;border-bottom:1px solid rgba(255,255,255,0.03);">' + cert + '</td><td style="padding:9px 8px;text-align:right;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.03);color:' + (cert>=prevCert?'#00d4ff':'#ff6b6b') + ';">' + gr(cert, prevCert) + '</td></tr>';
+    html += '<tr><td style="padding:9px 8px;color:#e0e6f0;border-bottom:1px solid rgba(255,255,255,0.03);">🟡 金级创作官</td><td style="padding:9px 8px;text-align:right;font-weight:500;border-bottom:1px solid rgba(255,255,255,0.03);">' + prevGold + '</td><td style="padding:9px 8px;text-align:right;font-weight:500;border-bottom:1px solid rgba(255,255,255,0.03);">' + gold + '</td><td style="padding:9px 8px;text-align:right;font-weight:700;border-bottom:1px solid rgba(255,255,255,0.03);color:' + (gold>=prevGold?'#00d4ff':'#ff6b6b') + ';">' + gr(gold, prevGold) + '</td></tr>';
+    html += '<tr><td style="padding:9px 8px;color:#e0e6f0;">💎 铂金创作官</td><td style="padding:9px 8px;text-align:right;font-weight:500;">' + prevPlat + '</td><td style="padding:9px 8px;text-align:right;font-weight:500;">' + plat + '</td><td style="padding:9px 8px;text-align:right;font-weight:700;color:' + (plat>=prevPlat?'#00d4ff':'#ff6b6b') + ';">' + gr(plat, prevPlat) + '</td></tr>';
     html += '</table></div>';
 
     // ========== 投稿榜 Top 10 ==========
-    var userLinks = {}; monthSubs.forEach(function(s) { userLinks[s.uid] = (userLinks[s.uid]||0) + (s.links_engagement||'').split('\n').filter(Boolean).length + (s.links_views||'').split('\n').filter(Boolean).length; });
+        var userLinks = {}; monthSubs.forEach(function(s) { userLinks[s.uid] = (userLinks[s.uid]||0) + (s.links_engagement||'').split(String.fromCharCode(92,110)).filter(Boolean).length + (s.links_views||'').split(String.fromCharCode(92,110)).filter(Boolean).length; });;
     var ranked = Object.keys(userPts).sort(function(a,b) { return (userPts[b]||0) - (userPts[a]||0); }).slice(0,10);
-    html += '<div class="card" style="padding:14px;margin-bottom:12px;">';
-    html += '<div style="font-size:14px;font-weight:600;margin-bottom:6px;">🏆 投稿榜 Top 10</div>';
+    html += '<div class="card" style="padding:18px;margin-bottom:12px;background:linear-gradient(135deg,rgba(20,30,60,0.45),rgba(15,20,40,0.45));border:1px solid rgba(242,166,196,0.1);">';
+    html += '<div style="font-size:15px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">🏆</span> 投稿榜 Top 10</div>';
     html += '<div style="font-size:12px;">';
+    var rankColors = ['#ff6b9d','#ffab00','#00d4ff'];
     ranked.forEach(function(uid, i) {
       var k = kocMap[uid]||{};
-      html += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;">' +
-        '<span><span style="font-weight:700;color:' + (i===0?'#ad1457':i<3?'#e65100':'#666') + ';margin-right:6px;">#' + (i+1) + '</span>' +
-        esc(k.discord_name||k.name||uid) + '</span>' +
-        '<span>' + (userLinks[uid]||0) + '条·' + (userPts[uid]||0) + '分</span></div>';
+      var name = k.discord_name || k.name || uid;
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
+        '<span><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:' + (rankColors[i]||'rgba(255,255,255,0.06)') + ';color:' + (i<3?'white':'#8892b0') + ';font-size:10px;font-weight:700;margin-right:8px;">' + (i+1) + '</span>' +
+        esc(name) + '</span>' +
+        '<span style="color:#e0e6f0;font-weight:600;">' + (userLinks[uid]||0) + '条 · ' + (userPts[uid]||0) + '分</span></div>';
     });
-    if (ranked.length === 0) html += '<div style="color:#999;padding:8px;text-align:center;">暂无投稿数据</div>';
-    html += '</div><div id="insight-top" style="font-size:11px;color:#666;margin-top:6px;">';
+    if (ranked.length === 0) html += '<div style="color:#8892b0;padding:12px;text-align:center;">暂无投稿数据</div>';
+    html += '</div><div style="font-size:11px;color:#8892b0;margin-top:6px;">';
     if (ranked.length > 0) {
       var topK = kocMap[ranked[0]]||{};
-      var topUid = ranked[0];
-      var topPts = userPts[topUid]||0;
-      var topLinks = userLinks[topUid]||0;
-      html += '🏆 本月冠军：<strong>' + esc(topK.discord_name||topK.name||topUid) + '</strong>（' + topLinks + '条·' + topPts + '分）';
+      html += '🏆 本月冠军：<strong style="color:#ff6b9d;">' + esc(topK.discord_name||topK.name||ranked[0]) + '</strong>（' + (userLinks[ranked[0]]||0) + '条 · ' + (userPts[ranked[0]]||0) + '分）';
     }
     html += '</div></div>';
-
     document.getElementById('dash-detail').innerHTML = html;
 
     // ========== 莎莎的关键洞察 ==========
