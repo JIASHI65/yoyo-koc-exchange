@@ -190,7 +190,7 @@
 
     <!-- Tab Navigation -->
     <div class="tabs" id="tab-nav">
-      <button class="tab active" onclick="switchTab('dashboard')">📊 KOC投稿月报</button>
+      <button class="tab active" onclick="switchTab('dashboard')">📊 KOC数据报告</button>
       
       <button class="tab" onclick="switchTab('koc-ledger')">📋 KOC信息库</button>
       <button class="tab" onclick="switchTab('scoring')">🧮 积分计算</button>
@@ -204,14 +204,18 @@
 
     <!-- ======== TAB: KOC投稿月报 ======== -->
     <div id="tab-dashboard" class="tab-content active">
-      <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-        <span>📊 KOC投稿月报 · <span id="dash-period-label"></span></span>
-        <div style="display:flex;gap:8px;align-items:center;">
-          <span style="font-size:12px;color:var(--text-light);" id="dash-refresh-time"></span>
-          <a href="https://jiashi65.github.io/yoyo-community-report/" target="_blank" style="text-decoration:none;">
-            <button class="btn btn-sm" style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;font-size:11px;">📈 社群运营周报 ↗</button>
-          </a>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div style="background:linear-gradient(135deg,#fce4ec,#f8bbd0);border-radius:16px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+          <div style="font-size:15px;font-weight:700;color:#880e4f;">📊 KOC投稿月报</div>
+          <div style="font-size:12px;color:#ad1457;margin-top:2px;"><span id="dash-period-label"></span></div>
+          <div style="font-size:10px;color:#999;margin-top:2px;" id="dash-refresh-time"></div>
         </div>
+        <a href="https://jiashi65.github.io/yoyo-community-report/" target="_blank" style="text-decoration:none;display:block;">
+          <div style="background:linear-gradient(135deg,#667eea,#764ba2);border-radius:16px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.1);cursor:pointer;transition:transform 0.15s;">
+            <div style="font-size:16px;font-weight:700;color:white;">📈 社群运营周报 ↗</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:2px;">查看Discord社群活跃度 · 每周更新</div>
+          </div>
+        </a>
       </div>
       <!-- KPI 卡片 -->
       <div id="dash-kpi" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;"></div>
