@@ -948,7 +948,7 @@ async function loadMySubmissions() {
 
     renderMonthView(window._subViewMonth, months, byMonth, ptLogs, container, countEl, periodLabel);
   } catch(e) {
-    container.innerHTML = '<div style="color:#e74c3c;font-size:13px;">Failed to load: ' + (e.message||e) + '</div>';
+    container.innerHTML = '<div style="color:#e74c3c;font-size:13px;">Failed to load</div>';
   }
 }
 
