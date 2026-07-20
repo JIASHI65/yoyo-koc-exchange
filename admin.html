@@ -348,7 +348,6 @@
           <button class="btn btn-primary btn-sm" onclick="addKOC()">+ Add</button>
         </div>
         <div class="row" style="margin-bottom:4px;gap:6px;">
-          <button class="btn btn-sm" id="btn-silent-filter" style="background:#f3e5f5;color:#7b1fa2;border:1px solid #ce93d8;" onclick="toggleSilentFilter()">📵 隐藏沉默</button>
           <input type="text" id="search-input" placeholder="Search Discord or UID..." style="width:200px;" oninput="renderKocTable()">
           <button class="btn btn-sm" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80;" onclick="batchMarkSelected('old_creator')">📋 标记老创作者</button>
           <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;" onclick="batchMarkSelected('new_creator')">🆕 标记新创作者</button>
@@ -3697,19 +3696,9 @@ async function loadCommunityReport() {
 function getActiveStatusBadge(uid, counts) {
   var n = counts[uid]||0;
   if (n === 0) {
-    return '<td style="text-align:center;"><span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:#f3e5f5;color:#7b1fa2;border:1px solid #ce93d8;">\uD83D\uDCF5 \u6C89\u9ED8</span></td>';
+    return '<td style="text-align:center;"><span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:#f3e5f5;color:#7b1fa2;border:1px solid #ce93d8;">U0001f4f5 沉默</span></td>';
   }
-  return '<td style="text-align:center;"><span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;">\uD83D\uDC4D \u6D3B\u8DC3</span></td>';
-}
-var silentFilterOn = false;
-function toggleSilentFilter() {
-  silentFilterOn = !silentFilterOn;
-  var btn = document.getElementById('btn-silent-filter');
-  if (btn) {
-    btn.textContent = silentFilterOn ? '\uD83D\uDC41 \u663E\u793A\u5168\u90E8' : '\uD83D\uDCF5 \u9690\u85CF\u6C89\u9ED8';
-    btn.style.background = silentFilterOn ? '#e8eaf6' : '#f3e5f5';
-  }
-  renderKocTable();
+  return '<td style="text-align:center;"><span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;">U0001f44d 活跃</span></td>';
 }
 
 function renderKocTable() {
@@ -3718,32 +3707,24 @@ function renderKocTable() {
     return (k.discord_name || '').toLowerCase().includes(q) || (k.uid || '').toLowerCase().includes(q);
   });
   document.getElementById('koc-count').textContent = filtered.length + ' creators';
+  var curP = currentPeriod;
+  var curY = parseInt(curP.split('-')[0]), curM = parseInt(curP.split('-')[1]);
+  var prevM = curM === 1 ? 12 : curM - 1;
+  var prevY = curM === 1 ? curY - 1 : curY;
+  var prevPeriod = prevY + '-' + String(prevM).padStart(2, '0');
+  var activeCounts = {};
+  (allSubs||[]).forEach(function(s) {
+    var sm = (s.created_at||'').substring(0,7);
+    if (sm === curP || sm === prevPeriod) {
+      activeCounts[s.uid] = (activeCounts[s.uid]||0) + 1;
+    }
+  });
+
   var tbody = document.getElementById('koc-table');
   if (!filtered.length) {
     tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
     return;
   }
-  // 计算沉默 KOC：连续 2 个月没有投稿
-  var curP = currentPeriod; // '2026-07'
-  var curY = parseInt(curP.split('-')[0]), curM = parseInt(curP.split('-')[1]);
-  var prevM = curM === 1 ? 12 : curM - 1;
-  var prevY = curM === 1 ? curY - 1 : curY;
-  var prevPeriod = prevY + '-' + String(prevM).padStart(2, '0');
-  var submissionCounts = {};
-  (allSubs||[]).forEach(function(s) {
-    var sm = (s.created_at||'').substring(0,7);
-    if (sm === curP || sm === prevPeriod) {
-      submissionCounts[s.uid] = (submissionCounts[s.uid]||0) + 1;
-    }
-  });
-  var SILENT_THRESHOLD = 0;
-  // 沉默筛选模式：只显示沉默 KOC
-  if (typeof silentFilterOn !== 'undefined' && silentFilterOn) {
-    filtered = filtered.filter(function(k) {
-      return (submissionCounts[k.uid]||0) <= SILENT_THRESHOLD;
-    });
-  }
-  
   tbody.innerHTML = filtered.map(function(k) {
     var notes = k.notes || '';
     var isOldCreator = notes.indexOf('old_creator') >= 0;
@@ -3777,7 +3758,6 @@ function renderKocTable() {
     '<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;background:linear-gradient(135deg,#e8eaf6,#c5cae9);color:#283593;border:1.5px solid #7986cb;box-shadow:0 2px 6px rgba(121,134,203,0.15);">\uD83D\uDC4D \u8001\u521B\u4F5C\u8005</span>' 
     : 
     '<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;background:linear-gradient(135deg,#e8f5e9,#c8e6c9);color:#2e7d32;border:1.5px solid #66bb6a;box-shadow:0 2px 6px rgba(102,187,106,0.15);">\uD83C\uDF1F \u65B0\u521B\u4F5C\u8005</span>') +
-      getActiveStatusBadge(k.uid, submissionCounts) +
       '</td>' +
       '<td><span id="bal-' + k.uid + '" class="pts" style="cursor:pointer;" onclick="editBalanceInline(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">\u22EF</span></td>' +
       '<td ondblclick="inlineEdit(this,\'name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.name || '-') + '</td>' +
@@ -4568,7 +4548,7 @@ function renderMerchTab() {
     '<button class="btn btn-primary btn-sm export-btn" data-type="merch" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
     '</div></div>' +
     '<table class="month-table"><thead><tr>' +
-    '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>📵 状态</th><th>Address</th><th>Reward</th>' +
+    '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Address</th><th>Reward</th>' +
     '</tr></thead><tbody>' +
     merchOrders.map(function(o) {
       var koc = kmap[o.uid];
