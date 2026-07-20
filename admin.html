@@ -3105,6 +3105,8 @@ async function loadDashboard() {
       if (s.status === 'pending') pendingLinks += eng + vws;
     });
     var totalPts = monthSubs.reduce(function(su, s) { return su + (s.points_earned||0); }, 0);
+    var shippedOrders = monthOrders.filter(function(o) { return o.status === 'shipped'; });
+    var redeemedPts = shippedOrders.reduce(function(acc, o) { return acc + (o.points_spent||0); }, 0);
     var tierStats = {}; kocs.forEach(function(k) { var t = k.tier||'certified'; tierStats[t] = (tierStats[t]||0) + 1; });
     var plat = tierStats['platinum']||0, gold = tierStats['gold']||0, cert = tierStats['certified']||0;
     var ccCount = kocs.filter(function(k) { return (k.notes||'').indexOf('CC:' + currentPeriod) >= 0; }).length;
@@ -3125,8 +3127,9 @@ async function loadDashboard() {
     });
     // ========== 积分分段 ==========
     var userPts = {}; monthSubs.forEach(function(s) { userPts[s.uid] = (userPts[s.uid]||0) + (s.points_earned||0); });
-    var buckets = {};
+    var buckets = {}; var maxPts = 0;
     Object.values(userPts).forEach(function(p) {
+      if (p > maxPts) maxPts = p;
       var label = p <= 0 ? '0' : (Math.floor((p-1)/5)*5+1) + '-' + (Math.floor((p-1)/5)*5+5);
       if (p > 40) label = '40+';
       buckets[label] = (buckets[label]||0) + 1;
@@ -3143,6 +3146,8 @@ async function loadDashboard() {
     // ========== 如果没有真实上月数据，使用模拟数据 ==========
     var useMock = (Object.keys(pActive).length === 0);
     var mr = useMock ? MOCK_JUNE : null;
+    var pTier = {plat:0,gold:0,cert:0}; pSubs.forEach(function(s) { var k = kocMap[s.uid]; if(k) pTier[k.tier||'certified']++; });
+    var pNew = 0, pOld = 0;
     var gr = function(c, p) {
       if (p === 0 || useMock) return c > 0 ? '<span style="color:#43a047;">+NEW</span>' : '<span style="color:#999;">-</span>';
       var r = Math.round((c-p)/p*100);
@@ -3151,6 +3156,12 @@ async function loadDashboard() {
     var prevActiveCount = useMock ? mr.activeCount : Object.keys(pActive).length;
     var prevLinks = useMock ? mr.totalLinks : pLinks;
     var prevPts = useMock ? mr.totalPts : pPts;
+    var prevCert = useMock ? mr.cert : pTier.cert||0;
+    var prevGold = useMock ? mr.gold : pTier.gold||0;
+    var prevPlat = useMock ? mr.plat : pTier.plat||0;
+    var prevCC = useMock ? mr.ccCount : 0;
+    var prevNew = useMock ? mr.newC : pNew;
+    var prevOld = useMock ? mr.oldC : pOld;
     // ========== KPI 卡片(6项) ==========
     var kpiHtml = '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;">';
     var kpiCards = [
