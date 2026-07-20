@@ -158,6 +158,7 @@
   to { opacity:1; transform:translateY(0); }
 }
 
+.koc-table-wrap thead th { position:sticky; top:0; z-index:2; background:#fef6f9; }
 </style>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -341,7 +342,7 @@
           <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;" onclick="batchMarkSelected('new_creator')">🆕 标记新创作者</button>
           <button class="btn btn-sm" style="background:#fce4ec;color:#c62828;border:1px solid #ef9a9a;" onclick="batchDeleteSelected()">🗑 删除所选</button>
         </div>
-        <div style="overflow-x:auto;">
+        <div style="overflow-x:auto;overflow-y:auto;max-height:70vh;" class="koc-table-wrap">
         <table>
           <thead><tr>
             <th style="width:32px;"><input type="checkbox" id="koc-select-all" onchange="toggleAllKoc()"></th>
@@ -4514,7 +4515,7 @@ function renderDiamondTab() {
       '</tbody></table></div>';
   }
   container.innerHTML = html;
-  setTimeout(function() { initSortable('diamonds'); }, 100);
+  setTimeout(function() { initSortable('diamond'); }, 100);
 }
 function renderGplayTab() {
   var kmap = getKocMap();
