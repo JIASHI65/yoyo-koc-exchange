@@ -1214,6 +1214,17 @@ async function loadMySubmissions() {
   }
 }
 
+function getLast6Months(ym) {
+  var parts = ym.split('-');
+  var y = parseInt(parts[0]), m = parseInt(parts[1]);
+  var result = [];
+  for (var i = 5; i >= 0; i--) {
+    var my = m - i; var yy = y;
+    while (my < 1) { my += 12; yy--; }
+    result.push(yy + '-' + String(my).padStart(2,'0'));
+  }
+  return result;
+}
 function getPrevMonth(ym) {
   var parts = ym.split('-');
   var y = parseInt(parts[0]), m = parseInt(parts[1]);
@@ -1331,6 +1342,55 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
       }).catch(function(){});
     })(currentUser.uid, ym);
     html += '</div></div>';
+
+    // === POINTS TREND (last 6 months mini line chart) ===
+    html += '<div style="background:white;border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;">';
+    html += '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">📈 积分趋势</div>';
+    var allMonths = getLast6Months(ym);
+    var trendPts = [];
+    allMonths.forEach(function(m) {
+      var pts = 0;
+      (ptLogs||[]).forEach(function(p) { if (p.period === m && p.change > 0) pts += p.change; });
+      trendPts.push(pts);
+    });
+    var maxPts = Math.max.apply(null, trendPts) || 1;
+    html += '<div style="display:flex;align-items:flex-end;gap:6px;height:100px;padding:0 4px;">';
+    allMonths.forEach(function(m, i) {
+      var pts = trendPts[i];
+      var h = Math.max(4, Math.round(pts / maxPts * 80));
+      var isCur = m === ym;
+      var barBg = isCur ? 'linear-gradient(180deg,#ff6b9d,#f06292)' : 'linear-gradient(180deg,#90caf9,#64b5f6)';
+      html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;">';
+      html += '<span style="font-size:9px;font-weight:600;color:'+(pts>0?'var(--text)':'var(--text-muted)')+';">'+(pts||0)+'</span>';
+      html += '<div style="width:100%;max-width:36px;height:'+h+'px;background:'+barBg+';border-radius:4px 4px 0 0;min-height:4px;" title="'+m+': '+pts+' pts"></div>';
+      html += '<span style="font-size:9px;color:'+(isCur?'var(--pink-dark)':'var(--text-dim)')+';font-weight:'+(isCur?'700':'400')+';">' + m.substring(5).replace(/^0/,'') + '月</span>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+
+    // === RANK for current month ===
+    var rankId2 = 'rank-display2-' + Date.now();
+    html += '<div style="background:linear-gradient(135deg,#f3e5f5,#e8eaf6);border:2px solid #ce93d8;border-radius:14px;padding:12px 16px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;" id="' + rankId2 + '">';
+    html += '<div><div style="font-size:12px;font-weight:600;color:#6a1b9a;">🏆 ' + ym.replace('-','/') + ' 积分排名</div>';
+    html += '<div style="font-size:10px;color:#999;margin-top:2px;">' + monthPts + ' 分 · 加载排名中...</div></div>';
+    html += '<div style="font-size:32px;font-weight:800;color:#7b1fa2;line-height:1;">...</div>';
+    html += '</div>';
+    (function(uid, month, elId, myPts) {
+      supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?period=eq.' + month + '&select=uid,change,source').then(function(r) {
+        return r.ok ? r.json() : [];
+      }).then(function(allPt) {
+        var scoreMap = {};
+        allPt.forEach(function(p) { if (p.change > 0 && p.source !== 'redemption') scoreMap[p.uid] = (scoreMap[p.uid]||0) + p.change; });
+        var sorted = Object.entries(scoreMap).sort(function(a,b) { return b[1] - a[1]; });
+        var total = sorted.length;
+        var rank = 0;
+        for (var i = 0; i < sorted.length; i++) { if (sorted[i][0] === uid && sorted[i][1] > 0) { rank = i + 1; break; } }
+        var el = document.getElementById(elId);
+        if (!el) return;
+        el.querySelector('div:first-child div:nth-child(2)').textContent = myPts + ' 分 · ' + (rank > 0 ? '第 ' + rank + ' / ' + total + ' 人' : '暂未上榜（共 ' + total + ' 人）');
+        el.querySelector('div:last-child').textContent = rank > 0 ? '#' + rank : '—';
+      }).catch(function(e){});
+    })(currentUser.uid, ym, rankId2, monthPts);
 
     // CC progress
     if (isCurrent) {
