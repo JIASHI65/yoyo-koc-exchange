@@ -3614,8 +3614,16 @@ function renderKocTable() {
       var d = new Date(k.created_at);
       createdYm = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     } catch(e) {}
-    if (!isOldCreator && createdYm && createdYm < currentPeriod) {
-      isOldCreator = true;
+    if (!isOldCreator && createdYm) {
+      // Newbie period: registration month + next full month
+      var regParts = createdYm.split('-');
+      var regMonthNum = parseInt(regParts[0]) * 12 + parseInt(regParts[1]);
+      var curParts = currentPeriod.split('-');
+      var curMonthNum = parseInt(curParts[0]) * 12 + parseInt(curParts[1]);
+      // If current month is beyond registration month + 1, mark as old
+      if (curMonthNum > regMonthNum + 1) {
+        isOldCreator = true;
+      }
     }
     return '<tr>' +
       '<td style="text-align:center;"><input type="checkbox" class="koc-select" value="' + k.uid + '"></td>' +
