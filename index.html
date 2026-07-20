@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Yoyo Town · 创作者中心</title>
+<title>Yoyo Town · Creator Portal</title>
 <style>
   :root { --pink: #f2a6c4; --pink-light: #fce4ec; --pink-dark: #d4749a; --bg: #fef6f9; --card: #ffffff; --text: #3d2b36; --text-light: #8a7a83; --border: #f0dae4; --shadow: 0 4px 20px rgba(210,120,150,0.12); --radius: 16px; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -83,35 +83,34 @@
 </head>
 <body>
 <div class="container">
-  <div style="display:flex;justify-content:flex-end;gap:6px;padding:8px 0 0;">
-    <button onclick="switchLang('zh')" style="padding:4px 12px;border:1.5px solid var(--pink-dark);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:var(--pink-light);color:var(--pink-dark);">🇨🇳 中文</button>
-    <button onclick="" style="padding:4px 12px;border:1.5px solid var(--pink-dark);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--pink-dark);">🇬🇧 English</button>
+  <div style="display:flex;justify-content:flex-end;padding:6px 0;">
+    <a href="index.html" style="padding:4px 14px;border:1.5px solid var(--pink-dark);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--pink-dark);text-decoration:none;">🇨🇳 中文</a>
   </div>
   <div class="header">
     <h1>🎀 Yoyo Town</h1>
-    <p id="header-subtitle">Creator Reward Redemption</p>
+    <p>Check your points & redeem rewards</p>
   </div>
 
 
   <!-- Deadline Info -->
   <div id="deadline-bar" class="deadline-bar hidden"></div>
 
-  <!-- ===== 一级菜单：首页 ===== -->
+  <!-- ===== ：Home ===== -->
   <div id="step-login" class="card">
 
     <div style="text-align:center;padding:10px 0 20px;">
       <h2 style="font-size:24px;margin-bottom:4px;">🎀 Yoyo Town</h2>
-      <p id="login-subtitle" style="font-size:13px;color:var(--text-light);">Creator Portal</p>
+      <p style="font-size:13px;color:var(--text-light);">Creator Portal</p>
     </div>
     <div id="entry-buttons">
-      <button class="btn btn-primary" onclick="showNewCreatorForm()" style="margin-bottom:10px;">🆕 我是新人，注册加入</button>
-      <button class="btn btn-outline" onclick="showExistingLogin()" style="width:100%;padding:12px 24px;border:2px solid var(--pink);border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;background:transparent;color:var(--pink-dark);">✅ 我已注册，立即登录</button>
+      <button class="btn btn-primary" onclick="showNewCreatorForm()" style="margin-bottom:10px;">🆕 I'm a New Creator</button>
+      <button class="btn btn-outline" onclick="showExistingLogin()" style="width:100%;padding:12px 24px;border:2px solid var(--pink);border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;background:transparent;color:var(--pink-dark);">✅ I'm Already Registered</button>
     </div>
 
-    <!-- New Creator Form (hidden) — 二级菜单 -->
+    <!-- New Creator Form (hidden) —  -->
     <div id="new-creator-form" style="display:none;margin-top:16px;padding-top:16px;border-top:2px solid var(--border);">
-      <div class="nav-bar"><button class="nav-back" onclick="showEntryScreen()">‹ 返回</button><span class="nav-title">🆕 新人注册</span></div>
-      <div class="level-1-title">🆕 新人注册</div>
+      <div class="nav-bar"><button class="nav-back" onclick="showEntryScreen()">‹ Back</button><span class="nav-title">🆕 New Registration</span></div>
+      <div class="level-1-title">🆕 New Creator Registration</div>
       <p style="font-size:12px;color:var(--text-light);margin-bottom:12px;">A warm welcome! Please fill in all info below so we can send your points & rewards.</p>
       
       <label>Discord Username *</label>
@@ -119,7 +118,7 @@
       
       <label>Account ID (6-digit number) *</label>
       <input type="text" id="reg-account-id" placeholder="6-digit Account ID" style="margin-bottom:8px;">
-      <span style="font-size:11px;color:var(--text-light);display:block;margin-bottom:8px;">登录页面 → 客服中心 → 工单中心</span>
+      <span style="font-size:11px;color:var(--text-light);display:block;margin-bottom:8px;">Login Page → Customer Service Center → Ticket Center</span>
       
       <label>Game UID (letters + numbers) *</label>
       <input type="text" id="reg-game-uid" placeholder="Your game UID" style="margin-bottom:8px;">
@@ -152,10 +151,10 @@
       <div id="reg-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
     </div>
 
-    <!-- Existing Creator Login (hidden) — 二级菜单 -->
+    <!-- Existing Creator Login (hidden) —  -->
     <div id="existing-login-form" style="display:none;margin-top:16px;padding-top:16px;border-top:2px solid var(--border);">
-      <div class="nav-bar"><button class="nav-back" onclick="showEntryScreen()">‹ 返回</button><span class="nav-title">🔑 登录</span></div>
-      <div class="level-1-title">🔑 登录</div>
+      <div class="nav-bar"><button class="nav-back" onclick="showEntryScreen()">‹ Back</button><span class="nav-title">🔑 Login</span></div>
+      <div class="level-1-title">🔑 Creator Login</div>
       <label>Discord Username</label>
       <input type="text" id="input-discord" placeholder="Your Discord username" autocomplete="off" style="margin-bottom:8px;">
       <label>UID</label>
@@ -169,14 +168,14 @@
     </div>
   </div>
 
-  <!-- ===== 二级菜单：创作者功能 ===== -->
+  <!-- ===== ：Creator Features ===== -->
   <div id="step-dashboard" class="hidden">
-    <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ 返回</button><span class="nav-title">📊 控制面板</span></div>
+    <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">📊 Dashboard</span></div>
     <!-- Creator Tabs -->
     <div class="tabs">
-      <button class="tab active" onclick="switchCreatorTab('submit')">🎨 提交作品</button>
-      <button class="tab" onclick="switchCreatorTab('history')">📋 我的投稿</button>
-      <button class="tab" onclick="switchCreatorTab('redeem')">🎁 兑换奖励</button>
+      <button class="tab active" onclick="switchCreatorTab('submit')">🎨 Submit Works</button>
+      <button class="tab" onclick="switchCreatorTab('history')">📋 My Submissions</button>
+      <button class="tab" onclick="switchCreatorTab('redeem')">🎁 Redeem Rewards</button>
       <button class="tab" onclick="switchCreatorTab('faq')">❓ FAQ</button>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -184,7 +183,7 @@
     </div>
     <!-- Redeem Tab -->
     <div id="creator-tab-redeem" class="tab-content">
-      <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ 返回</button><span class="nav-title">🎁 兑换奖励</span></div>
+      <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">🎁 Redeem Rewards</span></div>
       <div class="card">
         <div class="points-display">
           <div class="points-number" id="display-points">--</div>
@@ -202,7 +201,7 @@
           <input type="text" id="input-contact" placeholder="Required for merch delivery">
         </div>
         <div id="redeem-locked-msg" style="display:none;background:#fff3e0;border:1px solid #ffe082;border-radius:10px;padding:12px;text-align:center;font-size:13px;color:#e65100;margin-bottom:8px;">
-          🔒 暂不开放兑换<br><span style="font-size:11px;">请静静等待积分计算结束，结束后会通知你兑换奖励</span>
+          🔒 Redemption is not open yet<br><span style="font-size:11px;">Please wait for scoring to complete. You will be notified when redemption opens.</span>
         </div>
         <button class="btn btn-primary" id="btn-redeem" onclick="redeem()" disabled>Confirm Redemption</button>
       </div>
@@ -215,9 +214,9 @@
 
     <!-- Submit Tab -->
     <div id="creator-tab-submit" class="tab-content">
-      <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ 返回</button><span class="nav-title">🎨 提交作品</span></div>
+      <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">🎨 Submit Works</span></div>
       <div class="card">
-        <div class="card-title">🎨 提交作品</div><div style="font-size:12px;color:var(--text-light);">📅 <span id="current-period-label"></span></div>
+        <div class="card-title">🎨 Submit Works</div><div style="font-size:12px;color:var(--text-light);">📅 <span id="current-period-label"></span></div>
         <div id="submit-form-area">
         <label>Discord Username</label>
         <input type="text" id="submit-discord" placeholder="Your Discord name" disabled>
@@ -243,7 +242,7 @@
         <label>Feedback <span style="color:var(--text-light);font-size:11px;">(Optional)</span></label>
         <textarea id="submit-feedback" placeholder="Have our new rules benefited you? We'd love to hear your thoughts." style="min-height:60px;"></textarea>
         <div id="submit-countdown" style="background:#fce4ec;border:1px solid #f8bbd0;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:13px;color:#880e4f;text-align:center;font-weight:600;">
-          📌 你有 <strong id="submit-remaining">2</strong> 次提交机会，检查好链接后再提交
+          📌 You have <strong id="submit-remaining">2</strong> chances. Double-check your links before submitting.
         </div>
         <button class="btn btn-primary" id="btn-submit" onclick="submitWorks()">📤 Submit Works</button>
         <div id="submit-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
@@ -253,25 +252,25 @@
 
     <!-- History Tab -->
     <div id="creator-tab-history" class="tab-content">
-      <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ 返回</button><span class="nav-title">📋 我的投稿</span></div>
+      <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">📋 My Submissions</span></div>
       <div class="card">
-        <div class="card-title">📋 我的投稿 · 📅 <span id="sub-period-label"></span></div><div id="submission-count" style="font-size:11px;color:var(--text-light);"></div>
+        <div class="card-title">📋 My Submissions · 📅 <span id="sub-period-label"></span></div><div id="submission-count" style="font-size:11px;color:var(--text-light);"></div>
         <div id="submissions-list"><div style="color:var(--text-light);font-size:13px;">Loading...</div></div>
       </div>
     </div>
 
     <!-- FAQ Tab -->
     <div id="creator-tab-faq" class="tab-content">
-      <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ 返回</button><span class="nav-title">❓ FAQ</span></div>
+      <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">❓ FAQ</span></div>
       <div class="card" style="text-align:center;">
-        <div style="font-size:22px;font-weight:700;margin-bottom:6px;">❓ 常见问题解答</div>
-        <div style="font-size:13px;color:var(--text-light);margin-bottom:16px;">点击下方按钮在新标签页打开 FAQ，搜索你的问题</div>
-        <a href="https://jiashi65.github.io/yoyo-koc-faq/" target="_blank" rel="noopener" style="display:inline-block;padding:14px 40px;background:var(--pink-dark);color:white;border-radius:30px;font-size:16px;font-weight:600;text-decoration:none;margin-bottom:8px;">📖 打开 FAQ</a>
+        <div style="font-size:22px;font-weight:700;margin-bottom:6px;">❓ Frequently Asked Questions</div>
+        <div style="font-size:13px;color:var(--text-light);margin-bottom:16px;">Click the button below to open FAQ in a new tab FAQ，Search for your question</div>
+        <a href="https://jiashi65.github.io/yoyo-koc-faq/" target="_blank" rel="noopener" style="display:inline-block;padding:14px 40px;background:var(--pink-dark);color:white;border-radius:30px;font-size:16px;font-weight:600;text-decoration:none;margin-bottom:8px;">📖 Open FAQ</a>
       </div>
       <div class="card" style="text-align:center;">
-        <div style="font-size:14px;font-weight:600;margin-bottom:6px;">🤔 没找到答案？去发帖提问</div>
-        <div style="font-size:12px;color:var(--text-light);margin-bottom:12px;">客服会尽快回复你</div>
-        <a href="https://discord.com/channels/1263505733180854392/1458347958389965035" target="_blank" rel="noopener" style="display:inline-block;padding:10px 24px;background:#5865F2;color:white;border-radius:20px;font-size:14px;text-decoration:none;"><span>🎫｜town-service-station 发帖</span></a>
+        <div style="font-size:14px;font-weight:600;margin-bottom:6px;">🤔 Didn't find your answer? Post in our channel</div>
+        <div style="font-size:12px;color:var(--text-light);margin-bottom:12px;">Our team will reply to you soon</div>
+        <a href="https://discord.com/channels/1263505733180854392/1458347958389965035" target="_blank" rel="noopener" style="display:inline-block;padding:10px 24px;background:#5865F2;color:white;border-radius:20px;font-size:14px;text-decoration:none;"><span>🎫｜town-service-station Post</span></a>
       </div>
     </div>
 
@@ -287,7 +286,7 @@
 </div>
 <div id="toast" class="toast"></div>
 
-<script>
+<script>/*v2*/
 const SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_oyewqnQ8AnitAOD94Qg0nA_v6Zqkr7r';
 const REWARDS = [
@@ -427,7 +426,7 @@ function initSubmitTab() {
       submitCard.appendChild(periodLabel);
     }
   }
-  if (periodLabel) periodLabel.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
+  if (periodLabel) periodLabel.textContent = '📅 ' + currentPeriod.replace('-', '') + '';
   // Check if already at max submissions (2) and lock form
   (async function() {
     try {
@@ -441,15 +440,15 @@ function initSubmitTab() {
       var remEl = document.getElementById('submit-remaining');
       if (cnt >= 2) {
         if (formArea) { formArea.style.opacity = '0.4'; formArea.style.pointerEvents = 'none'; }
-        if (btn) { btn.disabled = true; btn.textContent = '🔒 已用完机会'; }
-        if (cd) { cd.innerHTML = '⚠️ 已用完 2 次提交机会'; cd.style.background = '#fbe9e7'; }
+        if (btn) { btn.disabled = true; btn.textContent = '🔒 Used Up'; }
+        if (cd) { cd.innerHTML = '⚠️ Used up (max 2 submissions)'; cd.style.background = '#fbe9e7'; }
         if (remEl) remEl.textContent = '0';
       } else {
         var remaining = 2 - cnt;
         if (remEl) remEl.textContent = remaining;
         if (formArea) { formArea.style.opacity = '1'; formArea.style.pointerEvents = 'auto'; }
         if (btn) { btn.disabled = false; btn.textContent = '📤 Submit Works'; }
-        if (cd) { cd.innerHTML = '📌 你有 <strong>' + remaining + '</strong> 次提交机会，检查好链接后再提交'; cd.style.background = '#fce4ec'; }
+        if (cd) { cd.innerHTML = '📌 You have <strong>' + remaining + '</strong> chances left. Check before submitting.'; cd.style.background = '#fce4ec'; }
       }
     } catch(e) {
       // If check fails (network error etc.), show form unlocked rather than broken
@@ -460,7 +459,7 @@ function initSubmitTab() {
       if (formArea) { formArea.style.opacity = '1'; formArea.style.pointerEvents = 'auto'; }
       if (btn) { btn.disabled = false; btn.textContent = '📤 Submit Works'; }
       if (remEl) remEl.textContent = '2';
-      if (cd) { cd.innerHTML = '📌 你有 <strong>2</strong> 次提交机会，检查好链接后再提交'; cd.style.background = '#fce4ec'; }
+      if (cd) { cd.innerHTML = '📌 You have <strong>2</strong> chances left. Check before submitting.'; cd.style.background = '#fce4ec'; }
     }
   })();
 }
@@ -507,8 +506,8 @@ function showDashboard() {
   var displayName = currentUser.discord_name;
   if (typeof displayName === 'object' && displayName !== null) displayName = displayName.discord_name || 'Unknown';
   document.getElementById('display-user').textContent = 'Welcome, ' + displayName;
-  var spl = document.getElementById('sub-period-label'); if (spl) spl.textContent = currentPeriod.replace('-', '年') + '月';
-  document.getElementById('current-period-label').textContent = currentPeriod.replace('-', '年') + '月';
+  var spl = document.getElementById('sub-period-label'); if (spl) spl.textContent = currentPeriod.replace('-', '') + '';
+  document.getElementById('current-period-label').textContent = currentPeriod.replace('-', '') + '';
   // initSubmitTab called by switchCreatorTab
   // Fetch and show tier badge
   try {
@@ -518,10 +517,10 @@ function showDashboard() {
       var te = document.getElementById('display-tier');
       if (td && td.length > 0 && td[0].tier && te) {
         var t = td[0].tier;
-        var tm = {'platinum':'💎 铂金创作官','gold':'🟡 金级创作官','certified':'✅ 认证创作官'};
+        var tm = {'platinum':'💎 Platinum Creator','gold':'🟡 Gold Creator','certified':'✅ Certified Creator'};
         var cm = {'platinum':'tier-platinum','gold':'tier-gold','certified':'tier-certified'};
         var badgeClass = cm[t] || 'tier-certified';
-        var badgeText = tm[t] || '✅ 认证创作官';
+        var badgeText = tm[t] || '✅ Certified Creator';
         te.innerHTML = '<span class=\"tier-badge ' + badgeClass + '\">' + badgeText + '</span>';
       }
     })();
@@ -597,7 +596,7 @@ function changeQty(id, d) {
   selections[id] = nxt; updateUI();
 }
 async function redeem() {
-  if (!redemptionOpen) { showToast('🔒 兑换暂未开放，请等待通知', 'error'); return; }
+  if (!redemptionOpen) { showToast('🔒 Redemption Not Open，Please wait for notification', 'error'); return; }
   const totalCost = getTotalCost();
   if (totalCost === 0 || !currentUser) return;
   if (totalCost > currentUser.points) { showToast('Insufficient points', 'error'); return; }
@@ -655,12 +654,12 @@ async function loadOrders() {
       return ym === currentMonth;
     });
     if (!orders || orders.length === 0) {
-      container.innerHTML = '<div style="color:var(--text-light);font-size:13px;">📅 ' + currentMonth.replace('-', '年') + '月 暂无兑换记录</div>';
+      container.innerHTML = '<div style="color:var(--text-light);font-size:13px;">📅 ' + currentMonth.replace('-', '') + ' No orders this month</div>';
       if (card) card.style.display = 'none';
       return;
     }
     if (card) card.style.display = 'block';
-    container.innerHTML = '<div style="font-size:12px;color:var(--text-light);margin-bottom:6px;">📅 ' + currentMonth.replace('-', '年') + '月 兑换记录</div>' +
+    container.innerHTML = '<div style="font-size:12px;color:var(--text-light);margin-bottom:6px;">📅 ' + currentMonth.replace('-', '') + ' Order History</div>' +
     orders.map(function(o) {
       var statusClass = o.status === 'shipped' ? 'badge-shipped' : o.status === 'pending' ? 'badge-pending' : 'badge-cancelled';
       return '<div class="order-item">' +
@@ -855,12 +854,12 @@ async function submitWorks() {
     var existingCount = (existingSubs && existingSubs.length) || 0;
     
     if (existingCount >= 2) {
-      status.innerHTML = '⚠️ 已达 <strong>2 次</strong>提交上限<br><span style="font-size:11px;">联系管理员处理</span>';
+      status.innerHTML = '⚠️ Reached <strong>2 submission</strong> limit<br><span style="font-size:11px;">Contact admin for help</span>';
       status.style.color = '#e65100';
       document.getElementById('submit-form-area').style.opacity = '0.4';
       document.getElementById('submit-form-area').style.pointerEvents = 'none';
       btn.disabled = true;
-      btn.textContent = '🔒 已锁定';
+      btn.textContent = '🔒 Locked';
       return;
     }
     
@@ -882,9 +881,9 @@ async function submitWorks() {
     var newCount = existingCount + 1;
     var remaining = 2 - newCount;
     
-    status.innerHTML = '✅ ' + links.length + ' links submitted!（第 ' + newCount + '/2 次）';
+    status.innerHTML = '✅ ' + links.length + ' links submitted!（ ' + newCount + '/2 ）';
     if (remaining > 0) {
-      status.innerHTML += '<br><span style="font-size:11px;">📌 还剩 <strong>' + remaining + '</strong> 次</span>';
+      status.innerHTML += '<br><span style="font-size:11px;">📌  <strong>' + remaining + '</strong> </span>';
     }
     status.style.color = '#4caf50';
     
@@ -897,9 +896,9 @@ async function submitWorks() {
       document.getElementById('submit-form-area').style.opacity = '0.4';
       document.getElementById('submit-form-area').style.pointerEvents = 'none';
       btn.disabled = true;
-      btn.textContent = '🔒 已用完机会';
+      btn.textContent = '🔒 Used Up';
       var cd = document.getElementById('submit-countdown');
-      if (cd) { cd.innerHTML = '⚠️ 已用完 2 次提交机会'; cd.style.background = '#fbe9e7'; }
+      if (cd) { cd.innerHTML = '⚠️ Used up (max 2 submissions)'; cd.style.background = '#fbe9e7'; }
     }
 
     showToast('✅ ' + links.length + ' links submitted!', 'success');
@@ -949,7 +948,7 @@ async function loadMySubmissions() {
 
     renderMonthView(window._subViewMonth, months, byMonth, ptLogs, container, countEl, periodLabel);
   } catch(e) {
-    container.innerHTML = '<div style="color:#e74c3c;font-size:13px;">加载失败</div>';
+    container.innerHTML = '<div style="color:#e74c3c;font-size:13px;">Failed to load</div>';
   }
 }
 
@@ -995,16 +994,16 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
   if (subs.length === 0) {
     html += '<div style="background:#faf5f7;border-radius:16px;padding:30px;text-align:center;border:1px solid var(--border);">';
     html += '<div style="font-size:40px;margin-bottom:6px;">📭</div>';
-    html += '<div style="font-size:14px;color:var(--text-light);">' + t('history_empty') + '</div>';
+    html += '<div style="font-size:14px;color:var(--text-light);">' + 'No submissions this month' + '</div>';
     if (isCurrent) html += '<div style="font-size:12px;color:var(--text-light);margin-top:4px;">' + t('history_empty_hint') + '</div>';
     html += '</div>';
   } else {
     html += '<div style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:16px;padding:18px;margin-bottom:10px;border:1px solid #f8bbd0;">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
     html += '<div><div style="font-size:22px;font-weight:800;color:#ad1457;">' + t('history_hero', {links: totalLinks}) + '</div>';
-    html += '<div style="font-size:12px;color:#880e4f;">' + t('history_scored', {scored: scoredCount, total: subs.length}) + (monthPts > 0 ? ' · 🏆 ' + monthPts + ' 分' : '') + '</div></div>';
-    html += '<div style="text-align:right;"><div style="font-size:12px;color:var(--text-light);">⏳ ' + pendingCount + ' 待审核</div>';
-    html += '<div style="font-size:12px;color:#2e7d32;">✅ ' + scoredCount + ' 已评分</div></div>';
+    html += '<div style="font-size:12px;color:#880e4f;">' + scoredCount + ' scored · ' + subs.length + ' total' + (monthPts > 0 ? ' · 🏆 ' + monthPts + ' pts' : '') + '</div></div>';
+    html += '<div style="text-align:right;"><div style="font-size:12px;color:var(--text-light);">⏳ ' + pendingCount + ' pending</div>';
+    html += '<div style="font-size:12px;color:#2e7d32;">✅ ' + scoredCount + ' Scored</div></div>';
     html += '</div></div>';
 
     // CC progress
@@ -1012,21 +1011,21 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
       var ccPct = Math.min(100, Math.round(totalLinks / 15 * 100));
       html += '<div style="background:#faf5f7;border-radius:14px;padding:14px;margin-bottom:8px;">';
       html += '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">';
-      html += '<span style="font-weight:600;">' + t('cc_title') + '</span><span style="color:var(--text-light);">' + t('cc_progress', {current: totalLinks}) + '</span></div>';
+      html += '<span style="font-weight:600;">' + t('cc_title') + '</span><span style="color:var(--text-light);">' + totalLinks + '/15' + '</span></div>';
       html += '<div style="background:#e0e0e0;border-radius:8px;height:8px;overflow:hidden;">';
       html += '<div style="background:linear-gradient(90deg,#f06292,#ec407a);width:' + ccPct + '%;height:100%;border-radius:8px;"></div></div>';
-      if (ccRemaining > 0) html += '<div style="font-size:11px;color:#e65100;margin-top:3px;">' + t('cc_hint', {remaining: ccRemaining}) + '</div>';
-      else html += '<div style="font-size:11px;color:#2e7d32;margin-top:3px;">' + t('cc_done') + '</div>';
+      if (ccRemaining > 0) html += '<div style="font-size:11px;color:#e65100;margin-top:3px;">' + ccRemaining + ' more needed' + '</div>';
+      else html += '<div style="font-size:11px;color:#2e7d32;margin-top:3px;">' + '✅ 15 links done!' + '</div>';
       html += '</div>';
 
       // 40pt hint
       if (totalLinks >= 15) {
         html += '<div style="background:#fff3e0;border:1px solid #ffe082;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#e65100;">';
-        html += t('cc_40pt') + '</div>';
+        html += '🏆 Goal reached! 40 point bonus awarded!' + '</div>';
       }
 
       
-      // New Creator Task (新人任务)
+      // New Creator Task (Newbie Mission)
       if (isCurrent && currentUser.notes) {
         var notesStr3 = currentUser.notes;
         var notesObj3 = {};
@@ -1039,25 +1038,25 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
         var newbieDone = currentUser.notes.indexOf('newbie_bonus:' + ym) >= 0;
         if (!newbieDone) {
           html += '<div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border:2px solid #66bb6a;border-radius:14px;padding:14px;margin-bottom:8px;">';
-          html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:24px;">🌱</span><span style="font-size:14px;font-weight:700;color:#2e7d32;">本月是你的新人活动月！</span></div>';
+          html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:24px;">🌱</span><span style="font-size:14px;font-weight:700;color:#2e7d32;">This is your newbie month!</span></div>';
           html += '<div style="font-size:13px;color:#1b5e20;line-height:1.6;">';
-          html += t('newbie_banner_task', {pts: monthPts, status: (monthPts >= 5 ? t('newbie_banner_done') : t('newbie_banner_need', {need: (5 - monthPts)}))});
-          html += '📊 当前积分：<strong>' + monthPts + ' 分</strong> · ' + (monthPts >= 5 ? '✅ 已完成！等待结算' : '还差 <strong>' + (5 - monthPts) + ' 分</strong> 即可达成');
+          html += 'This is your newbie month! Get ≥5 pts to earn +2 bonus!';
+          html += '📊 Current Points: <strong>' + monthPts + ' pts</strong> · ' + (monthPts >= 5 ? '✅ Completed!Waiting for settlement' : 'Need <strong>' + (5 - monthPts) + ' pts</strong> to go');
           html += '</div></div>';
         } else {
           html += '<div style="background:linear-gradient(135deg,#e8f5e9,#a5d6a7);border:2px solid #43a047;border-radius:14px;padding:12px;margin-bottom:8px;text-align:center;">';
-          html += '<span style="font-size:14px;font-weight:700;color:#1b5e20;">' + t('newbie_complete') + '</span></div>';
+          html += '<span style="font-size:14px;font-weight:700;color:#1b5e20;">' + '🌱 Newbie mission complete! +2 pts added' + '</span></div>';
         }
       }
 
       // Grade hint: based on current tier
       if (currentTier === 'certified') {
         html += '<div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#6a1b9a;">';
-        html += t('grade_cert');
+        html += '🎯 Get ≥5 pts for 2 consecutive months to become Gold Creator!';
         html += '</div>';
       } else if (currentTier === 'gold') {
         html += '<div style="background:#fff8e1;border:1px solid #ffd54f;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#7c4d00;">';
-        html += t('grade_gold');
+        html += '⭐ Get ≥5 pts this month to become Platinum Creator!';
         html += '</div>';
       }
       // Platinum: no promotion hint shown
@@ -1067,14 +1066,14 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
     // Submission list
     html += '<div style="margin-top:4px;">';
     subs.forEach(function(s) {
-      var st = s.status === 'pending' ? '<span style="color:#e65100;">⏳ 待审核</span>' : s.status === 'scored' ? '<span style="color:#2e7d32;">✅ 已评分</span>' : '<span style="color:#999;">❌ 已拒绝</span>';
+      var st = s.status === 'pending' ? '<span style="color:#e65100;">⏳ Pending</span>' : s.status === 'scored' ? '<span style="color:#2e7d32;">✅ Scored</span>' : '<span style="color:#999;">❌ Rejected</span>';
       var lc = (s.links_engagement || '').split('\n').filter(Boolean).length;
       var vc = (s.links_views || '').split('\n').filter(Boolean).length;
       var dt = new Date(s.created_at).toLocaleDateString('zh-CN');
       var pts = s.points_earned || 0;
       html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">';
-      html += '<div><div style="font-size:13px;color:var(--text);">📅 ' + dt + ' · ' + lc + ' 条互动' + (vc ? ' · ' + vc + ' 条播放' : '') + '</div>';
-      if (pts > 0) html += '<div style="font-size:11px;color:#ad1457;">🏆 +' + pts + ' 分</div>';
+      html += '<div><div style="font-size:13px;color:var(--text);">📅 ' + dt + ' · ' + lc + ' interactions' + (vc ? ' · ' + vc + ' views' : '') + '</div>';
+      if (pts > 0) html += '<div style="font-size:11px;color:#ad1457;">🏆 +' + pts + ' pts</div>';
       html += '</div><div style="font-size:12px;">' + st + '</div></div>';
     });
     html += '</div>';
@@ -1083,8 +1082,8 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
 
 
   container.innerHTML = html;
-  if (countEl) countEl.textContent = '📅 ' + ym.replace('-', '年') + '月 · ' + totalLinks + ' 条';
-  if (periodLabel) periodLabel.textContent = ym.replace('-', '年') + '月';
+  if (countEl) countEl.textContent = '📅 ' + ym.replace('-', '') + ' · ' + totalLinks + ' ';
+  if (periodLabel) periodLabel.textContent = ym.replace('-', '') + '';
 }
 }
 
@@ -1113,20 +1112,7 @@ function logout() {
 tryAutoLogin();
 </script>
 
-<script>
-// Apply i18n to static HTML elements on load
-document.addEventListener('DOMContentLoaded', function() {
-  var els = {
-    'header-subtitle': t('login_subtitle'),
-    'login-subtitle': t('login_subtitle'),
-    'footer-text': t('footer'),
-  };
-  for (var id in els) {
-    var el = document.getElementById(id);
-    if (el) el.textContent = els[id];
-  }
-});
-</script>
 
 </body>
 </html>
+ 
