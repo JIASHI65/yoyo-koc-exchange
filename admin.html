@@ -3086,9 +3086,9 @@ async function loadDashboard() {
     // ========== 并行拉取数据 (Promise.all) ==========
     var startTime = Date.now();
     var [kocRes, subRes, ordRes] = await Promise.all([
-      supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=uid,discord_name,tier,name,created_at,notes,platform'),
+      supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=uid,discord_name,tier,name,created_at,notes'),
       supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=uid,discord_name,status,points_earned,links_engagement,links_views,created_at&order=created_at.desc'),
-      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?select=uid,points_spent,status,period,created_at&order=created_at.desc&limit=500')
+      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?select=uid,points_spent,status,created_at&order=created_at.desc&limit=500')
     ]);
     var [kocs, subs, orders] = await Promise.all([
       kocRes.ok ? kocRes.json() : Promise.resolve([]),
