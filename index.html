@@ -1198,33 +1198,6 @@ async function loadMySubmissions() {
     var ptRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&limit=100&select=period,change,balance_after,reason,created_at');
     var ptLogs = ptRes.ok ? await ptRes.json() || [] : [];
 
-    // Fetch all point_logs for ranking
-    (async function() {
-      try {
-        var allPtRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?period=eq.' + window._subViewMonth + '&select=uid,change,period');
-        if (allPtRes.ok) {
-          var allPt = await allPtRes.json() || [];
-          // Group by uid
-          var scoreMap = {};
-          allPt.forEach(function(p) { if (p.change > 0 && p.source !== 'redemption') scoreMap[p.uid] = (scoreMap[p.uid]||0) + p.change; });
-          var sorted = Object.entries(scoreMap).sort(function(a,b) { return b[1] - a[1]; });
-          var myUid = currentUser.uid;
-          var myRank = 0;
-          for (var i = 0; i < sorted.length; i++) {
-            if (sorted[i][0] === myUid && sorted[i][1] > 0) { myRank = i + 1; break; }
-          }
-          window._myRankInfo = { rank: myRank, total: sorted.length, month: window._subViewMonth };
-          // Re-render if still viewing this month
-          if (window._subViewMonth === window._myRankInfo.month) {
-            renderMonthView(window._subViewMonth, ['2026-07','2026-08','2026-09'], window._mySubsByMonth || {}, window._myPtLogs || [],
-              document.getElementById('submissions-list'),
-              document.getElementById('submission-count'),
-              document.getElementById('sub-period-label'));
-          }
-        }
-      } catch(e) {}
-    })();
-
     // Group submissions by month
     var byMonth = {};
     allSubs.forEach(function(s) {
@@ -1315,23 +1288,33 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
     html += '<div style="font-size:10px;color:#8892b0;text-transform:uppercase;margin-bottom:2px;">🏆 获得积分</div>';
     html += '<div style="font-size:26px;font-weight:800;color:#e65100;">' + monthPts + '</div>';
     html += '<div style="font-size:10px;color:#8892b0;margin-top:2px;">分</div></div>';
-    // 排名
-    html += '<div style="text-align:center;background:white;border-radius:12px;padding:12px 8px;box-shadow:0 1px 4px rgba(0,0,0,0.05);position:relative;">';
-    var rankText = '...';
-    var rankSub = '加载中';
-    if (window._myRankInfo && window._myRankInfo.rank) {
-      var r = window._myRankInfo.rank;
-      var t = window._myRankInfo.total;
-      if (r === 0) { rankText = '🏅'; rankSub = '暂未上榜'; }
-      else {
-        rankText = '#' + r;
-        var pct = Math.round((1 - r/t) * 100);
-        rankSub = '超过 ' + pct + '% 的人';
-      }
-    }
+    // 排名（下次刷新后显示）
+    var rankDisplayId = 'rank-display-' + Date.now();
+    html += '<div style="text-align:center;background:white;border-radius:12px;padding:12px 8px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">';
     html += '<div style="font-size:10px;color:#8892b0;text-transform:uppercase;margin-bottom:2px;">📈 积分排名</div>';
-    html += '<div style="font-size:26px;font-weight:800;color:#6a1b9a;line-height:1.1;">' + rankText + '</div>';
-    html += '<div style="font-size:10px;color:#8892b0;margin-top:2px;">' + rankSub + '</div></div>';
+    html += '<div style="font-size:26px;font-weight:800;color:#6a1b9a;line-height:1.1;">...</div>';
+    html += '<div style="font-size:10px;color:#8892b0;margin-top:2px;">加载中</div></div>';
+    // Async load ranking
+    (function(uid, month) {
+      supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?period=eq.' + month + '&select=uid,change,source').then(function(r) {
+        return r.ok ? r.json() : [];
+      }).then(function(allPt) {
+        var scoreMap = {};
+        allPt.forEach(function(p) { if (p.change > 0 && p.source !== 'redemption') scoreMap[p.uid] = (scoreMap[p.uid]||0) + p.change; });
+        var sorted = Object.entries(scoreMap).sort(function(a,b) { return b[1] - a[1]; });
+        if (sorted.length === 0) return;
+        var els = document.querySelectorAll('[id^="rank-display-"]');
+        els.forEach(function(el) {
+          var r = 0;
+          for (var i = 0; i < sorted.length; i++) { if (sorted[i][0] === uid && sorted[i][1] > 0) { r = i + 1; break; } }
+          var pct = Math.round((1 - r/sorted.length) * 100);
+          var v = el.querySelector('div:nth-child(2)');
+          var s = el.querySelector('div:nth-child(3)');
+          if (v) v.textContent = r > 0 ? '#' + r : '🏅';
+          if (s) s.textContent = r > 0 ? '超过 ' + pct + '% 的人' : '暂未上榜';
+        });
+      }).catch(function(){});
+    })(currentUser.uid, ym);
     html += '</div></div>';
 
     // CC progress
