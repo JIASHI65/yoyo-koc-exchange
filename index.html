@@ -948,7 +948,7 @@ async function loadMySubmissions() {
 
     renderMonthView(window._subViewMonth, months, byMonth, ptLogs, container, countEl, periodLabel);
   } catch(e) {
-    container.innerHTML = '<div style="color:#e74c3c;font-size:13px;">Failed to load</div>';
+    container.innerHTML = '<div style="color:#e74c3c;font-size:13px;">Failed to load: ' + (e.message||e) + '</div>';
   }
 }
 
@@ -1108,8 +1108,35 @@ function logout() {
   document.getElementById('entry-buttons').style.display = 'block';
   document.querySelector('.header').style.display = 'block';
 }
+
+// ===== I18N for My Submission =====
+var I18N = {
+  zh: {
+    history_hero: "{links} submissions this month",
+    history_empty_hint: "Submit your works above to see them here!",
+    cc_title: "Continuous Creation Reward"
+  },
+  en: {
+    history_hero: "{links} submissions this month",
+    history_empty_hint: "Submit your works above to see them here!",
+    cc_title: "Continuous Creation Reward"
+  }
+};
+var LANG = localStorage.getItem("koc_lang") || "zh";
+function t(key, vars) {
+  var s = (I18N[LANG]||I18N.zh)[key];
+  if (s === undefined) s = key;
+  if (vars) { for (var k in vars) { s = s.replace("{"+k+"}", vars[k]); } }
+  return s;
+}
+function toggleLang() {
+  LANG = (LANG === "zh" ? "en" : "zh");
+  localStorage.setItem("koc_lang", LANG);
+  location.reload();
+}
 // Auto-login after all functions defined
 tryAutoLogin();
+
 </script>
 
 
