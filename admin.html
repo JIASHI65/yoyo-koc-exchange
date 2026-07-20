@@ -2810,7 +2810,7 @@ async function loadData() {
     allKocs = await kocRes.json();
     allOrders = await ordRes.json();
     // Re-render current active tab
-    var tabIds = ['koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules','audit'];
+    var tabIds = ['dashboard','koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules','audit'];
     var activeId = null;
     tabIds.forEach(function(id) {
       var el = document.getElementById('tab-'+id);
