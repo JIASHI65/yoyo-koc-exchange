@@ -217,6 +217,13 @@
       <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">🎨 Submit Works</span></div>
       <div class="card">
         <div class="card-title">🎨 Submit Works</div><div style="font-size:12px;color:var(--text-light);">📅 <span id="current-period-label"></span></div>
+        <div id="newbie-banner-submit" style="display:none;background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border:2px solid #66bb6a;border-radius:14px;padding:14px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:24px;">🌱</span><span style="font-size:14px;font-weight:700;color:#2e7d32;">This is your newbie month!</span></div>
+          <div style="font-size:13px;color:#1b5e20;line-height:1.6;">
+            Submit works and earn <strong>≥5 pts</strong> this month to get a <strong>+2 bonus</strong>! 🎯<br>
+            <span id="newbie-pts-status">Current: <strong>0 pts</strong></span>
+          </div>
+        </div>
         <div id="submit-form-area">
         <label>Discord Username</label>
         <input type="text" id="submit-discord" placeholder="Your Discord name" disabled>
@@ -608,6 +615,29 @@ async function login() {
 
 function initSubmitTab() {
   if (!currentUser) return;
+  // Show newbie banner if applicable
+  var nbBanner = document.getElementById('newbie-banner-submit');
+  if (nbBanner) {
+    var notes = currentUser.notes || '';
+    var nbMonth = '';
+    try { var no = JSON.parse(notes); nbMonth = no.newbie_month || ''; } catch(e) {}
+    var pm = notes.match(/newbie_month:(\d{4}-\d{2})/);
+    if (pm) nbMonth = pm[1];
+    var isOld = notes.indexOf('old_creator') >= 0;
+    var bonusDone = notes.indexOf('newbie_bonus:' + currentPeriod) >= 0;
+    if (nbMonth === currentPeriod && !isOld && !bonusDone) {
+      nbBanner.style.display = 'block';
+      // Update pts status
+      setTimeout(function() {
+        getBalance(currentUser.uid).then(function(bal) {
+          var ps = document.getElementById('newbie-pts-status');
+          if (ps) ps.innerHTML = 'Current: <strong>' + bal + ' pts</strong>' + (bal >= 5 ? ' ✅ Goal reached! Waiting for settlement' : ' — Need <strong>' + (5 - bal) + ' more pts</strong>');
+        });
+      }, 500);
+    } else {
+      nbBanner.style.display = 'none';
+    }
+  }
   var discordEl = document.getElementById('submit-discord');
   if (discordEl) discordEl.value = currentUser.discord_name || '';
   var serverEl = document.getElementById('submit-server');
