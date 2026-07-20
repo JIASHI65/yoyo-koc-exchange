@@ -3696,9 +3696,9 @@ async function loadCommunityReport() {
 function getActiveStatusBadge(uid, counts) {
   var n = counts[uid]||0;
   if (n === 0) {
-    return '<td style="text-align:center;"><span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:#f3e5f5;color:#7b1fa2;border:1px solid #ce93d8;">U0001f4f5 沉默</span></td>';
+    return '<td style="text-align:center;"><span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:#f3e5f5;color:#7b1fa2;border:1px solid #ce93d8;">\uD83D\uDCF5 沉默</span></td>';
   }
-  return '<td style="text-align:center;"><span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;">U0001f44d 活跃</span></td>';
+  return '<td style="text-align:center;"><span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;">\uD83D\uDC4D 活跃</span></td>';
 }
 
 function renderKocTable() {
