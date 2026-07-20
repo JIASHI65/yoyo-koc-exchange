@@ -3159,7 +3159,7 @@ async function loadDashboard() {
     var prevOld = useMock ? mr.oldC : pOld;
 
     // ========== KPI 卡片(6项) ==========
-    var kpiHtml = '<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px;">';
+    var kpiHtml = '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;">';
     var kpiCards = [
       { icon: '👥', label: '创作者总数', val: totalCreators, color: '#ad1457', bg: 'linear-gradient(135deg,#fce4ec,#f8bbd0)' },
       { icon: '📝', label: '当月投稿创作者', val: activeCount, color: '#ad1457', bg: 'linear-gradient(135deg,#fff5f9,#fce4ec)', cmp: gr(activeCount, prevActiveCount) },
@@ -3170,13 +3170,13 @@ async function loadDashboard() {
     ];
     kpiCards.forEach(function(k) {
       var cmpHtml = k.cmp ? '<div style="font-size:10px;color:#999;margin-top:2px;">' + k.cmp + '</div>' : '';
-      kpiHtml += '<div class="kpi-card" style="background:' + k.bg + ';padding:14px 10px;display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:6px;">' +
+      kpiHtml += '<div class="kpi-card" style="background:' + k.bg + ';padding:12px 16px;display:flex;flex-direction:row;align-items:center;gap:14px;flex:1;min-width:150px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">' +
         '<div style="text-align:left;">' +
           '<div style="font-size:22px;font-weight:800;color:' + k.color + ';">' + k.val + '</div>' +
           '<div style="font-size:10px;color:' + k.color + ';opacity:0.8;font-weight:500;">' + k.icon + ' ' + k.label + '</div>' +
           cmpHtml +
         '</div>' +
-        '<div style="font-size:32px;opacity:0.15;">' + k.icon + '</div>' +
+        '<div style="font-size:30px;">' + k.icon + '</div>' +
       '</div>';
     });
     kpiHtml += '</div>';
@@ -3215,7 +3215,7 @@ async function loadDashboard() {
       if (plat > 0 && gold > 0) ti += '高等级创作者占比' + Math.round((plat+gold)/(plat+gold+cert)*100) + '%，创作生态成熟。';
       else if (gold > 0 && cert > gold) ti += '中级创作者占主体，具备晋升潜力。';
       else ti += '新人比例较高，成长空间充足。';
-      document.getElementById('insight-tier').innerHTML = ti;
+      document.getElementById('insight-tier').innerHTML = '<div style="background:#fef6f9;border-radius:10px;padding:8px 10px;margin-top:6px;font-size:12px;color:#555;line-height:1.6;border-left:3px solid #f2a6c4;">' + ti + '</div>'
 
       // ---- 2. 各平台分布(饼图) ----
       var pfData = Object.keys(pfs).filter(function(p) { return pfs[p] > 0; }).map(function(p) { return { name: p, value: pfs[p] }; });
@@ -3234,7 +3234,7 @@ async function loadDashboard() {
       var pi = '📱 主要投稿平台：<strong>' + maxPf.name + '</strong>（' + maxPf.value + '条），';
       if (pfData.length >= 3) pi += '平台分布多元，覆盖面广。';
       else pi += '可鼓励创作者尝试更多平台。';
-      document.getElementById('insight-platform').innerHTML = pi;
+      document.getElementById('insight-platform').innerHTML = '<div style="background:#fef6f9;border-radius:10px;padding:8px 10px;margin-top:6px;font-size:12px;color:#555;line-height:1.6;border-left:3px solid #f2a6c4;">' + pi + '</div>'
 
       // ---- 3. 积分分布(柱状图) ----
       var bKeys = Object.keys(buckets).sort(function(a,b) { return (parseInt(a)||0) - (parseInt(b)||0); });
@@ -3257,7 +3257,7 @@ async function loadDashboard() {
       else if (maxPts > 30) pti += '最高积分' + maxPts + '分，头部创作者表现突出。';
       else if (maxPts > 15) pti += '积分集中在' + (parseInt(bKeys[0])||0) + '-' + maxPts + '分区间，整体水平均衡。';
       else pti += '积分分布较分散，可重点关注低分段创作者的提升。';
-      document.getElementById('insight-points').innerHTML = pti;
+      document.getElementById('insight-points').innerHTML = '<div style="background:#fef6f9;border-radius:10px;padding:8px 10px;margin-top:6px;font-size:12px;color:#555;line-height:1.6;border-left:3px solid #f2a6c4;">' + pti + '</div>'
 
       // ---- 4. 月度趋势(折线图) ----
       var trendMonths = [];
@@ -3305,7 +3305,7 @@ async function loadDashboard() {
       if (trendData.creators[trendData.creators.length-1] > (trendData.creators[trendData.creators.length-2]||0)) tri += '本月投稿创作者增长，社群活跃度持续提升。';
       else if (last3.length >= 2 && last3[last3.length-1] >= last3[last3.length-2]) tri += '近三月投稿创作者稳定，社群生态健康。';
       else tri += '月度数据趋势平稳，新创作者陆续加入中。';
-      document.getElementById('insight-trend').innerHTML = tri;
+      document.getElementById('insight-trend').innerHTML = '<div style="background:#fef6f9;border-radius:10px;padding:8px 10px;margin-top:6px;font-size:12px;color:#555;line-height:1.6;border-left:3px solid #f2a6c4;">' + tri + '</div>'
     }
 
     // ========== 月度核心指标对比 ==========
