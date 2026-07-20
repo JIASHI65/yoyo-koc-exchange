@@ -3376,29 +3376,6 @@ async function loadDashboard() {
     html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">🟡 金级创作官</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + prevGold + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + gold + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (gold>=prevGold?'#43a047':'#e74c3c') + ';">' + gr(gold, prevGold) + '</td></tr>';
     html += '<tr><td style="padding:6px 8px;">💎 铂金创作官</td><td style="padding:6px 8px;text-align:right;font-weight:500;">' + prevPlat + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;">' + plat + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;color:' + (plat>=prevPlat?'#43a047':'#e74c3c') + ';">' + gr(plat, prevPlat) + '</td></tr>';
     html += '</table></div>';
-    // ========== 投稿榜 Top 10 ==========
-    var ranked = Object.keys(userPts).sort(function(a,b) { return (userPts[b]||0) - (userPts[a]||0); }).slice(0,10);
-    html += '<div class="card" style="padding:18px;margin-bottom:12px;background:linear-gradient(135deg,rgba(20,30,60,0.45),rgba(15,20,40,0.45));border:1px solid rgba(242,166,196,0.1);">';
-    html += '<div style="font-size:15px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">🏆</span> 投稿榜 Top 10</div>';
-    html += '<div style="font-size:12px;">';
-    var rankColors = ['#ff6b9d','#ffab00','#00d4ff'];
-    ranked.forEach(function(uid, i) {
-      var k = kocMap[uid]||{};
-      var name = k.discord_name || k.name || uid;
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
-        '<span><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:' + (rankColors[i]||'rgba(255,255,255,0.06)') + ';color:' + (i<3?'white':'#8892b0') + ';font-size:10px;font-weight:700;margin-right:8px;">' + (i+1) + '</span>' +
-        esc(name) + '</span>' +
-        '<span style="color:#e0e6f0;font-weight:600;">' + (userLinks[uid]||0) + '条 · ' + (userPts[uid]||0) + '分</span></div>';
-    });
-    if (ranked.length === 0) html += '<div style="color:#8892b0;padding:12px;text-align:center;">暂无投稿数据</div>';
-    html += '</div><div style="font-size:11px;color:#8892b0;margin-top:6px;">';
-    if (ranked.length > 0) {
-      var topK = kocMap[ranked[0]]||{};
-      html += '🏆 本月冠军：<strong style="color:#ff6b9d;">' + esc(topK.discord_name||topK.name||ranked[0]) + '</strong>（' + (userLinks[ranked[0]]||0) + '条 · ' + (userPts[ranked[0]]||0) + '分）';
-    }
-    html += '</div></div>';
-    document.getElementById('dash-detail').innerHTML = html;
-
     // ========== 莎莎的关键洞察（分段策略版） ==========
     var ins = '<div style="display:flex;flex-direction:column;gap:8px;">';
     if (activeCount > 0) {
