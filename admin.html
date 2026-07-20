@@ -3713,7 +3713,7 @@ function renderKocTable() {
   var prevY = curM === 1 ? curY - 1 : curY;
   var prevPeriod = prevY + '-' + String(prevM).padStart(2, '0');
   var activeCounts = {};
-  (allSubs||[]).forEach(function(s) {
+  (typeof allSubs !== 'undefined' ? allSubs : []).forEach(function(s) {
     var sm = (s.created_at||'').substring(0,7);
     if (sm === curP || sm === prevPeriod) {
       activeCounts[s.uid] = (activeCounts[s.uid]||0) + 1;
