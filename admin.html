@@ -180,7 +180,7 @@
 <script>
 // ===== 缓存熔断 =====
 (function() {
-  var VERSION = 'v2.1.1';
+  var VERSION = 'v2.1.2';
   var cached = localStorage.getItem('admin_version');
   if (cached && cached !== VERSION) {
     // 发现旧缓存，强制清除并刷新
@@ -4860,7 +4860,7 @@ document.addEventListener('visibilitychange', function() {
   (function() {
     var v = localStorage.getItem('admin_html_v');
     if (v !== '2.1') {
-      localStorage.setItem('admin_html_v', '2.1');
+      localStorage.setItem('admin_html_v', '2.2');
     }
   })();
 </script>
