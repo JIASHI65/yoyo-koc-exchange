@@ -1697,7 +1697,6 @@ async function importScoreResult(text) {
         });
         var currentBalance = 0;
         if (balRes.ok) { currentBalance = parseInt(await balRes.text()) || 0; }
-        
         var newBalance = currentBalance + sub.points_earned;
         await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
           method: 'POST',
@@ -1711,7 +1710,6 @@ async function importScoreResult(text) {
             created_by: 'agent'
           })
         });
-        
         // Check for New Creator Bonus (新人任务): newbie_month >= 5pts gets +2 bonus
         if (sub.points_earned >= 5 && sub.uid) {
           try {
@@ -2092,7 +2090,6 @@ async function confirmScoreImport() {
             })
           });
         } catch(e) { console.error('point_logs error for ' + sub.uid, e); }
-        
         // === NEW CREATOR BONUS (新人任务) ===
         try {
           var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=notes');
@@ -3206,6 +3203,8 @@ async function loadDashboard() {
     kpiHtml += '</div>';
     document.getElementById('dash-kpi').innerHTML = kpiHtml;
     try { localStorage.setItem('dash_cache_' + currentPeriod, document.getElementById('dash-kpi').outerHTML); } catch(e){}
+    // ========== 用户链接统计（前置定义，供 renderCharts 使用） ==========
+    var userLinks = {}; monthSubs.forEach(function(s) { userLinks[s.uid] = (userLinks[s.uid]||0) + (s.links_engagement||"").split("\n").filter(Boolean).length + (s.links_views||"").split("\n").filter(Boolean).length; });
     // ========== ECharts 快速渲染 ==========
     var renderCharts = function() {
       // ---- 1. 等级分布(饼图) ----
@@ -3378,7 +3377,6 @@ async function loadDashboard() {
     html += '<tr><td style="padding:6px 8px;">💎 铂金创作官</td><td style="padding:6px 8px;text-align:right;font-weight:500;">' + prevPlat + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;">' + plat + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;color:' + (plat>=prevPlat?'#43a047':'#e74c3c') + ';">' + gr(plat, prevPlat) + '</td></tr>';
     html += '</table></div>';
     // ========== 投稿榜 Top 10 ==========
-        var userLinks = {}; monthSubs.forEach(function(s) { userLinks[s.uid] = (userLinks[s.uid]||0) + (s.links_engagement||'').split(String.fromCharCode(92,110)).filter(Boolean).length + (s.links_views||'').split(String.fromCharCode(92,110)).filter(Boolean).length; });;
     var ranked = Object.keys(userPts).sort(function(a,b) { return (userPts[b]||0) - (userPts[a]||0); }).slice(0,10);
     html += '<div class="card" style="padding:18px;margin-bottom:12px;background:linear-gradient(135deg,rgba(20,30,60,0.45),rgba(15,20,40,0.45));border:1px solid rgba(242,166,196,0.1);">';
     html += '<div style="font-size:15px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">🏆</span> 投稿榜 Top 10</div>';
