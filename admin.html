@@ -379,6 +379,27 @@
         </table>
         </div>
       </div>
+
+      <!-- Bot Auto Welcome -->
+      <div class="card" style="margin-top:12px;">
+        <div class="card-title">🤖 Mochi Bot · 自动欢迎设置</div>
+        <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:12px 16px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-size:14px;font-weight:600;color:#2e7d32;">📬 Discord 新人自动欢迎</div>
+              <div style="font-size:11px;color:#666;margin-top:2px;">检测 #member-join 频道的新人入群消息，自动发送欢迎 DM（含注册链接 + 新人活动说明）。每 5 分钟检查一次。</div>
+            </div>
+            <button class="btn btn-sm" style="background:#43b581;color:white;font-weight:600;min-width:100px;" onclick="toggleAutoWelcome()" id="btn-auto-welcome">🟢 自动欢迎 关</button>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#999;line-height:1.6;">
+          💡 <strong>使用说明：</strong><br>
+          · 需要在 Mochi 广播里先设置 Bot Token<br>
+          · 开启后自动轮询 join-leave-log 频道<br>
+          · 只给未注册的新人发私信，已在 KOC 库的不会重复发送<br>
+          · 已处理的新人不会重复提醒
+        </div>
+      </div>
     </div><!-- ======== TAB: 积分计算 ======== -->
     <div id="tab-scoring" class="tab-content">
       <div class="card">
@@ -549,26 +570,6 @@ Elite: 连续 6 个月达到 5 分</textarea>
         </div>
       </div>
 
-      <!-- Bot Auto Welcome -->
-      <div class="card" style="margin-top:12px;">
-        <div class="card-title">🤖 Mochi Bot · 自动欢迎设置</div>
-        <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:10px;padding:12px 16px;margin-bottom:10px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;">
-            <div>
-              <div style="font-size:14px;font-weight:600;color:#2e7d32;">📬 Discord 新人自动欢迎</div>
-              <div style="font-size:11px;color:#666;margin-top:2px;">检测 #member-join 频道的新人入群消息，自动发送欢迎 DM（含注册链接 + 新人活动说明）。每 5 分钟检查一次。</div>
-            </div>
-            <button class="btn btn-sm" style="background:#43b581;color:white;font-weight:600;min-width:100px;" onclick="toggleAutoWelcome()" id="btn-auto-welcome">🟢 自动欢迎 关</button>
-          </div>
-        </div>
-        <div style="font-size:11px;color:#999;line-height:1.6;">
-          💡 <strong>使用说明：</strong><br>
-          · 需要在 Mochi 广播里先设置 Bot Token<br>
-          · 开启后自动轮询 join-leave-log 频道<br>
-          · 只给未注册的新人发私信，已在 KOC 库的不会重复发送<br>
-          · 已处理的新人不会重复提醒
-        </div>
-      </div>
     </div>
 
         <!-- ======== TAB: 操作日志 ======== -->
