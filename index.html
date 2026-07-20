@@ -313,8 +313,8 @@ function tryAutoLogin() {
   var uidInput = document.getElementById('input-uid');
   if (discordInput) discordInput.value = session.discord_name;
   if (uidInput) uidInput.value = session.uid;
-  // Auto-login disabled - uncomment to enable
-  // setTimeout(function() { login(); }, 300);
+  // Auto-login enabled
+  setTimeout(function() { login(); }, 500);
 }
 
 function initSelections() { selections = {}; REWARDS.forEach(r => selections[r.id] = 0); }

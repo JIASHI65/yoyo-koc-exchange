@@ -2347,7 +2347,12 @@ function switchTab(name) {
 
 // Init submissions on page load
 document.addEventListener('DOMContentLoaded', function() {
-  // We'll load submissions after admin logs in, via loadData
+  // Auto-restore session from localStorage
+  if (localStorage.getItem('admin_session') === 'logged_in') {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('admin-panel').classList.remove('hidden');
+    setTimeout(function() { loadData(); }, 100);
+  }
 });
 
 // ===== MOCHI BROADCAST MODAL =====
