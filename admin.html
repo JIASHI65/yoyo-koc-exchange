@@ -2,8 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script>var es=document.createElement("script");es.src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js";document.head.appendChild(es);
-</script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Yoyo Town · Admin</title>
 
@@ -3360,8 +3359,9 @@ async function loadDashboard() {
     if (typeof echarts === 'undefined') {
       var checkE = setInterval(function() {
         if (typeof echarts !== 'undefined') { clearInterval(checkE); renderCharts(); }
-      }, 100);
-    } else { renderCharts(); }
+      }, 200);
+      setTimeout(function() { clearInterval(checkE); console.warn('[Dashboard] ECharts timeout, retrying renderCharts'); try { renderCharts(); } catch(er) { console.error(er); } }, 10000);
+    } else { try { renderCharts(); } catch(er) { console.error('[Dashboard] renderCharts error:', er); } }
     console.log('[Dashboard] loaded in', Date.now() - startTime, 'ms');
 
 // ========== 月度核心指标对比 ==========
