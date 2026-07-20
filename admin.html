@@ -291,24 +291,22 @@
       </div>
       <!-- KPI 卡片 -->
       <div id="dash-kpi" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;"></div>
-      <!-- 图表区域 -->
+      <!-- 图表区域：交错布局，上2下3 -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
-        <div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">⭐ 等级分布</div><div id="chart-tier" style="height:220px;"></div><div id="insight-tier" class="insight"></div></div>
-        <div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">📱 各平台分布</div><div id="chart-platform" style="height:220px;"></div><div id="insight-platform" class="insight"></div></div>
+        <div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">⭐ 等级分布</div><div id="chart-tier" style="height:240px;"></div><div id="insight-tier" class="insight"></div></div>
+        <div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">📱 各平台分布</div><div id="chart-platform" style="height:240px;"></div><div id="insight-platform" class="insight"></div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
         <div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">📊 积分分布</div><div id="chart-points" style="height:220px;"></div><div id="insight-points" class="insight"></div></div>
         <div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">📈 月度趋势</div><div id="chart-trend" style="height:220px;"></div><div id="insight-trend" class="insight"></div></div>
+        <div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">🏆 投稿榜 Top 10</div><div id="chart-top10" style="height:220px;"></div><div id="insight-top10" class="insight"></div></div>
       </div>
       <div id="dash-detail"></div>
-      <!-- 榜单 -->
-      <div class="card" style="padding:12px;">
-        <div style="font-size:13px;font-weight:600;margin-bottom:6px;">🏆 投稿榜 Top 10</div>
-        <div id="dash-rank-list" style="font-size:12px;"></div>
-        <div id="insight-top" class="insight" style="margin-top:6px;"></div>
-      </div>
-      <!-- 底部关键洞察 -->
-      <div class="card" style="padding:14px;background:linear-gradient(135deg,#fce4ec,#fff5f9);border:2px solid #f8bbd0;">
-        <div style="font-size:14px;font-weight:700;color:#ad1457;">💡 莎莎的关键洞察</div>
-        <div id="dash-summary" style="font-size:13px;margin-top:6px;line-height:1.6;color:#333;">加载中...</div>
+
+      <!-- 底部关键洞察：分块策略建议 -->
+      <div class="card" style="padding:16px;background:linear-gradient(135deg,#fce4ec,#fff5f9);border:2px solid #f8bbd0;">
+        <div style="font-size:15px;font-weight:700;color:#ad1457;margin-bottom:10px;">💡 莎莎的关键洞察</div>
+        <div id="dash-summary" style="font-size:13px;line-height:1.6;color:#333;">加载中...</div>
       </div>
     </div>
 
@@ -3287,6 +3285,38 @@ async function loadDashboard() {
         ],
         grid: { left: 36, right: 16, top: 24, bottom: 40 }
       });
+      // ---- 5. 投稿榜 Top 10 (横向条形图) ----
+      var top10Ids = Object.keys(userPts).sort(function(a,b) { return (userPts[b]||0) - (userPts[a]||0); }).slice(0,10);
+      var top10Names = [], top10Pts = [], top10Links = [], top10Colors = [];
+      var barColors = ['#ff6b9d','#ff8a65','#ffab00','#ffd54f','#aed581','#81c784','#4db6ac','#4dd0e1','#7986cb','#ba68c8'];
+      top10Ids.forEach(function(uid, i) {
+        var k = kocMap[uid]||{};
+        top10Names.push(esc(k.discord_name || k.name || uid));
+        top10Pts.push(userPts[uid]||0);
+        top10Links.push(userLinks[uid]||0);
+        top10Colors.push(barColors[i]||'#999');
+      });
+      if (top10Ids.length > 0) {
+        var topChart = echarts.init(document.getElementById('chart-top10'));
+        topChart.setOption({
+          tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: function(p) { return p[0].name + '<br/>📎 ' + p[0].value + '分 · ' + (top10Links[p[0].dataIndex]||0) + '条'; } },
+          grid: { left: 8, right: 50, top: 8, bottom: 8 },
+          xAxis: { type: 'value', minInterval: 1, axisLabel: { fontSize: 9 } },
+          yAxis: { type: 'category', data: top10Names.slice().reverse(), axisLabel: { fontSize: 10, fontWeight: 'bold' } },
+          series: [{
+            type: 'bar', data: top10Pts.slice().reverse().map(function(v, i) {
+              return { value: v, itemStyle: { color: top10Colors.slice().reverse()[i] || '#f2a6c4', borderRadius: [0,4,4,0] } };
+            }),
+            barWidth: '60%', label: { show: true, position: 'right', formatter: function(p) { return p.value + '分'; }, fontSize: 10, fontWeight: 'bold', color: '#555' }
+          }]
+        });
+        var ti10 = '🏆 ';
+        var topK = kocMap[top10Ids[0]]||{};
+        ti10 += '本月冠军：<strong>' + esc(topK.discord_name||topK.name||top10Ids[0]) + '</strong>（' + (userLinks[top10Ids[0]]||0) + '条 · ' + (userPts[top10Ids[0]]||0) + '分）';
+        if (top10Ids.length > 1) ti10 += ' 亚军：' + esc((kocMap[top10Ids[1]]||{}).discord_name||'') + '（' + (userPts[top10Ids[1]]||0) + '分）';
+        document.getElementById('insight-top10').innerHTML = '<div style="background:#fef6f9;border-radius:10px;padding:8px 10px;margin-top:6px;font-size:12px;color:#555;line-height:1.6;border-left:3px solid #f2a6c4;">' + ti10 + '</div>';
+      }
+      
       var last3 = trendData.creators.slice(-3).filter(function(v) { return v > 0; });
       var tri = '📈 ';
       if (trendData.creators[trendData.creators.length-1] > (trendData.creators[trendData.creators.length-2]||0)) tri += '本月投稿创作者增长，社群活跃度持续提升。';
@@ -3331,30 +3361,71 @@ async function loadDashboard() {
     html += '</div></div>';
     document.getElementById('dash-detail').innerHTML = html;
 
-    // ========== 莎莎的关键洞察 ==========
-    var ins = '';
+    // ========== 莎莎的关键洞察（分段策略版） ==========
+    var ins = '<div style="display:flex;flex-direction:column;gap:8px;">';
     if (activeCount > 0) {
-      ins += '💡 本月共有 <strong>' + activeCount + '</strong> 位创作者投稿，共计 ' + totalLinks + ' 条链接、' + totalPts + ' 分。';
-      if (Object.keys(pActive).length > 0 || useMock) ins += ' 投稿创作者环比 ' + gr(activeCount, prevActiveCount) + '，链接数 ' + gr(totalLinks, prevLinks) + '。';
-      if (ccCount > 0) ins += ' ' + ccCount + ' 位达标 CC 奖励（≥15条），持续创作意愿强。';
+      // Block 1: 核心数据
+      ins += '<div style="background:white;border-radius:10px;padding:10px 12px;">';
+      ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">📊 本月核心数据</div>';
+      ins += '<div style="font-size:12px;color:#555;line-height:1.7;">';
+      ins += '本月共有 <strong>' + activeCount + '</strong> 位创作者投稿，共计 ' + totalLinks + ' 条链接、' + totalPts + ' 分。';
+      if (Object.keys(pActive).length > 0 || useMock) ins += '<br>投稿创作者环比 ' + gr(activeCount, prevActiveCount) + '，链接数 ' + gr(totalLinks, prevLinks) + '。';
+      ins += '</div></div>';
+      
+      // Block 2: 平台与内容分析
       var maxPfName = Object.keys(pfs).reduce(function(a,b) { return pfs[a] > pfs[b] ? a : b; });
-      if (pfs[maxPfName] > 0) ins += ' 主要平台：' + maxPfName + '(' + pfs[maxPfName] + '条)。';
-      if (newC > 0) ins += ' 新创作者' + newC + '位，后续可重点辅导。';
-      if (cert > 0 || gold > 0 || plat > 0) {
-        ins += ' 等级分布：';
-        if (plat > 0) ins += '💎铂金' + plat + '人 ';
-        if (gold > 0) ins += '🟡金级' + gold + '人 ';
-        if (cert > 0) ins += '✅认证' + cert + '人 ';
-      }
+      ins += '<div style="background:white;border-radius:10px;padding:10px 12px;">';
+      ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">📱 平台与内容</div>';
+      ins += '<div style="font-size:12px;color:#555;line-height:1.7;">';
+      ins += '主要投稿平台：<strong>' + maxPfName + '</strong>（' + pfs[maxPfName] + '条）。';
+      var pfCount = Object.keys(pfs).filter(function(p) { return pfs[p] > 0; }).length;
+      if (pfCount >= 3) ins += ' 平台分布多元，覆盖面广。';
+      else ins += ' 创作者集中在少数平台，可引导拓展。';
+      if (ccCount > 0) ins += '<br>🎁 ' + ccCount + ' 位创作者达标 CC 奖励（≥15条），持续创作意愿强。';
+      ins += '</div></div>';
+      
+      // Block 3: 等级与创作者结构
+      ins += '<div style="background:white;border-radius:10px;padding:10px 12px;">';
+      ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">⭐ 创作者结构</div>';
+      ins += '<div style="font-size:12px;color:#555;line-height:1.7;">';
+      ins += '等级分布：';
+      if (plat > 0) ins += '💎铂金' + plat + '人 ';
+      if (gold > 0) ins += '🟡金级' + gold + '人 ';
+      if (cert > 0) ins += '✅认证' + cert + '人。';
+      if (newC > 0) ins += '<br>🆕 新创作者 ' + newC + ' 位，后续可重点辅导完成新人任务。';
+      if (plat > 0 && gold > 0) ins += '<br>高等级创作者占比 ' + Math.round((plat+gold)/(plat+gold+cert)*100) + '%，创作生态趋于成熟。';
+      else ins += '<br>新人比例较高，成长空间充足。';
+      ins += '</div></div>';
+      
+      // Block 4: 积分与兑换策略
       if (totalPts > 0) {
         var rate = Math.round(redeemedPts/totalPts*100);
-        ins += ' 兑换率' + rate + '%，';
-        if (rate < 30) ins += '剩余积分较多，建议下月推出限时兑换活动催化。';
-        else ins += '兑换积极，表现不错。';
+        ins += '<div style="background:white;border-radius:10px;padding:10px 12px;">';
+        ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">🎯 积分与兑换策略</div>';
+        ins += '<div style="font-size:12px;color:#555;line-height:1.7;">';
+        ins += '当前积分总量 ' + totalPts + ' 分，已兑换 ' + redeemedPts + ' 分（' + rate + '%）。';
+        if (rate < 30) ins += '<br>剩余积分较多，建议下月推出限时兑换活动催化消费。';
+        else ins += '<br>兑换积极，可维持当前激励节奏。';
+        ins += '</div></div>';
       }
+      
+      // Block 5: 行动建议
+      ins += '<div style="background:linear-gradient(135deg,#fce4ec,#fff5f9);border-radius:10px;padding:10px 12px;border:1px solid #f8bbd0;">';
+      ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">📋 下月行动建议</div>';
+      ins += '<div style="font-size:12px;color:#555;line-height:1.7;">';
+      var suggestions = [];
+      if (newC > 0) suggestions.push('🆕 跟进 ' + newC + ' 位新创作者，辅导完成新人任务（满5分+2分）');
+      if (ccCount > 0) suggestions.push('🎁 确认 ' + ccCount + ' 位 CC 达标创作者的奖励发放');
+      if (totalPts > 0 && rate < 30) suggestions.push('💎 推动积分兑换，减少积分沉淀');
+      if (pfCount < 3) suggestions.push('📱 引导创作者拓展投稿平台，降低单平台依赖');
+      if (cert > gold + plat) suggestions.push('⭐ 关注认证创作官的晋升路径，鼓励冲刺金级');
+      ins += suggestions.length > 0 ? suggestions.join('<br>') : '保持当前运营节奏，持续关注创作者活跃度。';
+      ins += '</div></div>';
+      
     } else {
-      ins += '💡 本月尚无投稿数据，请等待创作者提交作品。';
+      ins += '<div style="background:white;border-radius:10px;padding:10px 12px;font-size:12px;color:#555;">💡 本月尚无投稿数据，请等待创作者提交作品。</div>';
     }
+    ins += '</div>';
     document.getElementById('dash-summary').innerHTML = ins;
 
   } catch(e) { document.getElementById('dash-summary').textContent = '加载失败: ' + e.message; }
