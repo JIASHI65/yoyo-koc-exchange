@@ -742,11 +742,11 @@ function showDashboard() {
           var cfg = d[0];
           redemptionOpen = cfg.redemption_open === true;
           window._submissionsOpen = cfg.submissions_open === true;
-          // Update submit form state
-          updateSubmitLockState();
         }
       }
-    } catch(e) { console.error('Config fetch:', e); }
+      // Fallback: if campaign_config not available yet, default to open
+      if (window._submissionsOpen === undefined) window._submissionsOpen = true;
+    } catch(e) { console.error('Config fetch:', e); window._submissionsOpen = true; }
     var lockEl = document.getElementById('redeem-locked-msg');
     var btnEl = document.getElementById('btn-redeem');
     if (lockEl) lockEl.style.display = redemptionOpen ? 'none' : 'block';
