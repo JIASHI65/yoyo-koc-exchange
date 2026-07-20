@@ -1214,6 +1214,12 @@ async function loadMySubmissions() {
   }
 }
 
+function getPrevMonth(ym) {
+  var parts = ym.split('-');
+  var y = parseInt(parts[0]), m = parseInt(parts[1]);
+  m--; if (m < 1) { m = 12; y--; }
+  return y + '-' + String(m).padStart(2,'0');
+}
 function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, periodLabel) {
   window._subViewMonth = ym;
   var subs = byMonth[ym] || [];
@@ -1268,25 +1274,34 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
     html += '<div style="font-size:12px;color:#2e7d32;">✅ ' + scoredCount + ' Scored</div></div>';
     html += '</div></div>';
 
-    // === MONTHLY SUMMARY CARD ===
+    // === MONTHLY SUMMARY CARD (previous month) ===
+    var prevYm = getPrevMonth(ym);
+    var prevSubs = byMonth[prevYm] || [];
+    var prevTotalLinks = prevSubs.reduce(function(su, s) { return su + (s.links_engagement || '').split('
+').filter(Boolean).length; }, 0);
+    var prevMonthPts = 0;
+    (ptLogs||[]).forEach(function(p) {
+      if (p.period === prevYm && p.change > 0) prevMonthPts += p.change;
+    });
     html += '<div style="background:linear-gradient(135deg,#e3f2fd,#fff9c4);border:2px solid #90caf9;border-radius:16px;padding:18px;margin-bottom:10px;">';
     html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">';
     html += '<span style="font-size:22px;">📊</span>';
-    html += '<span style="font-size:15px;font-weight:700;color:#1565c0;">' + ym.replace('-','/') + ' 月度小结</span>';
-    if (monthPts >= 30) html += '<span style="font-size:11px;background:#ffd700;color:#5d4037;padding:2px 8px;border-radius:10px;font-weight:600;">🌟 头部创作者</span>';
-    else if (monthPts >= 15) html += '<span style="font-size:11px;background:#a5d6a7;color:#1b5e20;padding:2px 8px;border-radius:10px;font-weight:600;">📈 活跃创作者</span>';
-    else if (subs.length > 0) html += '<span style="font-size:11px;background:#bbdefb;color:#0d47a1;padding:2px 8px;border-radius:10px;font-weight:600;">🌱 成长中</span>';
+    html += '<span style="font-size:15px;font-weight:700;color:#1565c0;">' + prevYm.replace('-','/') + ' 月度小结</span>';
+    if (prevMonthPts >= 30) html += '<span style="font-size:11px;background:#ffd700;color:#5d4037;padding:2px 8px;border-radius:10px;font-weight:600;">🌟 头部创作者</span>';
+    else if (prevMonthPts >= 15) html += '<span style="font-size:11px;background:#a5d6a7;color:#1b5e20;padding:2px 8px;border-radius:10px;font-weight:600;">📈 活跃创作者</span>';
+    else if (prevSubs.length > 0) html += '<span style="font-size:11px;background:#bbdefb;color:#0d47a1;padding:2px 8px;border-radius:10px;font-weight:600;">🌱 成长中</span>';
+    else html += '<span style="font-size:11px;background:#f5f5f5;color:#999;padding:2px 8px;border-radius:10px;">暂无数据</span>';
     html += '</div>';
     html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">';
     // 投稿数
     html += '<div style="text-align:center;background:white;border-radius:12px;padding:12px 8px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">';
     html += '<div style="font-size:10px;color:#8892b0;text-transform:uppercase;margin-bottom:2px;">📝 投稿作品</div>';
-    html += '<div style="font-size:26px;font-weight:800;color:#1565c0;">' + totalLinks + '</div>';
+    html += '<div style="font-size:26px;font-weight:800;color:#1565c0;">' + prevTotalLinks + '</div>';
     html += '<div style="font-size:10px;color:#8892b0;margin-top:2px;">条作品</div></div>';
     // 得分数
     html += '<div style="text-align:center;background:white;border-radius:12px;padding:12px 8px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">';
     html += '<div style="font-size:10px;color:#8892b0;text-transform:uppercase;margin-bottom:2px;">🏆 获得积分</div>';
-    html += '<div style="font-size:26px;font-weight:800;color:#e65100;">' + monthPts + '</div>';
+    html += '<div style="font-size:26px;font-weight:800;color:#e65100;">' + prevMonthPts + '</div>';
     html += '<div style="font-size:10px;color:#8892b0;margin-top:2px;">分</div></div>';
     // 排名（下次刷新后显示）
     var rankDisplayId = 'rank-display-' + Date.now();
