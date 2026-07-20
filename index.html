@@ -1048,6 +1048,7 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
           html += '<span style="font-size:14px;font-weight:700;color:#1b5e20;">' + '🌱 Newbie mission complete! +2 pts added' + '</span></div>';
         }
       }
+      }
 
       // Grade hint: based on current tier
       if (currentTier === 'certified') {
@@ -1062,6 +1063,7 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
       // Platinum: no promotion hint shown
 
     }
+  }
 
     // Submission list
     html += '<div style="margin-top:4px;">';
@@ -1077,14 +1079,12 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
       html += '</div><div style="font-size:12px;">' + st + '</div></div>';
     });
     html += '</div>';
-  }
 
 
 
   container.innerHTML = html;
   if (countEl) countEl.textContent = '📅 ' + ym.replace('-', '') + ' · ' + totalLinks + ' ';
   if (periodLabel) periodLabel.textContent = ym.replace('-', '') + '';
-}
 }
 
 function switchSubMonth(ym) {
