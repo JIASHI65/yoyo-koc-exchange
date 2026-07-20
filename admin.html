@@ -532,6 +532,26 @@
             <input type="number" id="cfg-tier-threshold" value="5" min="1" max="20">
           </div>
         </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+          <div style="background:#faf5f7;border:2px solid #e0c4d4;border-radius:12px;padding:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-size:14px;font-weight:600;color:#ad1457;">📝 投稿开关</div>
+                <div style="font-size:11px;color:#999;margin-top:2px;">开启后创作者端才能提交作品链接</div>
+              </div>
+              <button class="btn btn-sm" style="font-weight:600;" id="btn-toggle-submissions" onclick="toggleCampaignSwitch('submissions_open')">🔒 投稿已关闭</button>
+            </div>
+          </div>
+          <div style="background:#faf5f7;border:2px solid #e0c4d4;border-radius:12px;padding:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-size:14px;font-weight:600;color:#ad1457;">🎁 兑换开关</div>
+                <div style="font-size:11px;color:#999;margin-top:2px;">开启后创作者端才能兑换奖励</div>
+              </div>
+              <button class="btn btn-sm" style="font-weight:600;" id="btn-toggle-redemption" onclick="toggleCampaignSwitch('redemption_open')">🔒 兑换已关闭</button>
+            </div>
+          </div>
+        </div>
         <div style="background:#fff3e0;border:1px solid #ffe082;border-radius:8px;padding:10px;font-size:12px;color:#6d4c00;margin-bottom:8px;">
           📐 修改的是阈值的数值，不是固定的一分二分。<br>
           例如 TikTok 设 <strong>200</strong> = 达到 200 views 得 1 分，达到 400 views 得 2 分。<br>
@@ -1044,6 +1064,36 @@ async function loadCampaignConfig() {
       document.getElementById('cfg-tier-threshold').value = (rules && rules.tier_upgrade_threshold) || 5;
     }
   } catch(e) { console.error('loadCampaignConfig:', e); }
+}
+
+function updateToggleButton(btnId, isOpen) {
+  var btn = document.getElementById(btnId);
+  if (!btn) return;
+  if (isOpen) {
+    btn.textContent = '🟢 ' + (btnId.indexOf('redemption') >= 0 ? '兑换' : '投稿') + '已开启';
+    btn.style.background = '#43b581'; btn.style.color = '#fff';
+  } else {
+    btn.textContent = '🔴 ' + (btnId.indexOf('redemption') >= 0 ? '兑换' : '投稿') + '已关闭';
+    btn.style.background = '#e74c3c'; btn.style.color = '#fff';
+  }
+}
+
+async function toggleCampaignSwitch(field) {
+  var period = document.getElementById('cfg-period').value;
+  var isOpen = window._cfgSwitches && window._cfgSwitches[field] ? false : true;
+  var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + period, {
+    method: 'PATCH',
+    body: JSON.stringify({ [field]: isOpen })
+  });
+  if (res.ok) {
+    if (!window._cfgSwitches) window._cfgSwitches = {};
+    window._cfgSwitches[field] = isOpen;
+    var btnId = field === 'submissions_open' ? 'btn-toggle-submissions' : 'btn-toggle-redemption';
+    updateToggleButton(btnId, isOpen);
+    showToast((isOpen ? '已开启' : '已关闭') + (field === 'submissions_open' ? '投稿' : '兑换'), 'success');
+  } else {
+    showToast('操作失败，请重试', 'error');
+  }
 }
 
 async function saveCampaignConfig() {

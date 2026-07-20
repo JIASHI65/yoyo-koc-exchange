@@ -620,6 +620,7 @@ async function login() {
 
 function initSubmitTab() {
   if (!currentUser) return;
+  var isSubmissionsOpen = window._submissionsOpen === true;
   // Show newbie banner if applicable — based on created_at + old_creator flag
   var nbBanner = document.getElementById('newbie-banner-submit');
   if (nbBanner) {
@@ -680,7 +681,11 @@ function initSubmitTab() {
       var btn = document.getElementById('btn-submit');
       var cd = document.getElementById('submit-countdown');
       var remEl = document.getElementById('submit-remaining');
-      if (cnt >= 2) {
+      if (!window._submissionsOpen) {
+        if (formArea) { formArea.style.opacity = '0.4'; formArea.style.pointerEvents = 'none'; }
+        if (btn) { btn.disabled = true; btn.textContent = '🔒 Not Open Yet'; }
+        if (cd) { cd.innerHTML = '🔒 Submission is not open for ' + currentPeriod.replace('-','/') + '. Please wait for notification.'; cd.style.background = '#fff3e0'; }
+      } else if (cnt >= 2) {
         if (formArea) { formArea.style.opacity = '0.4'; formArea.style.pointerEvents = 'none'; }
         if (btn) { btn.disabled = true; btn.textContent = '🔒 Used Up'; }
         if (cd) { cd.innerHTML = '⚠️ Used up (max 2 submissions)'; cd.style.background = '#fbe9e7'; }
@@ -727,17 +732,21 @@ function showDashboard() {
       if (nbBanner) nbBanner.style.display = 'block';
     }
   }, 1000);
-  // Fetch redemption status from config
+  // Fetch campaign config (submission + redemption toggle)
   (async function() {
     try {
-      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + currentPeriod + '&select=submissions_open,redemption_open');
       if (r.ok) {
         var d = await r.json();
-        if (d && d.length > 0 && d[0].notes) {
-          try { var cfg = JSON.parse(d[0].notes); redemptionOpen = cfg.redemption_open === true; } catch(e) {}
+        if (d && d.length > 0) {
+          var cfg = d[0];
+          redemptionOpen = cfg.redemption_open === true;
+          window._submissionsOpen = cfg.submissions_open === true;
+          // Update submit form state
+          updateSubmitLockState();
         }
       }
-    } catch(e) {}
+    } catch(e) { console.error('Config fetch:', e); }
     var lockEl = document.getElementById('redeem-locked-msg');
     var btnEl = document.getElementById('btn-redeem');
     if (lockEl) lockEl.style.display = redemptionOpen ? 'none' : 'block';
