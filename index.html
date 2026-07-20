@@ -569,7 +569,7 @@ async function login() {
     let res = await fetchWithTimeout(
       SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid) +
       '&discord_name=eq.' + encodeURIComponent(discord) +
-      '&select=uid,discord_name,name,status,tier,notes',
+      '&select=uid,discord_name,name,status,tier,notes,created_at',
       {}, 15000
     );
     if (!res.ok) throw new Error('Server error: ' + res.status);
@@ -588,8 +588,8 @@ async function login() {
     const pendingRes = await fetchWithTimeout(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&status=eq.pending&select=points_spent');
     const pendingOrders = pendingRes.ok ? await pendingRes.json() : [];
     const pendingTotal = pendingOrders.reduce((s, o) => s + (o.points_spent || 0), 0);
-    currentUser = { ...koc, points: Math.max(0, points - pendingTotal) };
-    localStorage.setItem('koc_session', JSON.stringify({ uid: currentUser.uid, discord_name: currentUser.discord_name }));
+    currentUser = { ...koc, points: Math.max(0, points - pendingTotal), created_at: koc.created_at };
+    localStorage.setItem('koc_session', JSON.stringify({ uid: currentUser.uid, discord_name: currentUser.discord_name, created_at: currentUser.created_at }));
     if (statusEl) statusEl.textContent = '';
     showDashboard();
     checkDeadline();
@@ -618,17 +618,26 @@ async function login() {
 
 function initSubmitTab() {
   if (!currentUser) return;
-  // Show newbie banner if applicable
+  // Show newbie banner if applicable — based on created_at + old_creator flag
   var nbBanner = document.getElementById('newbie-banner-submit');
   if (nbBanner) {
     var notes = currentUser.notes || '';
-    var nbMonth = '';
-    try { var no = JSON.parse(notes); nbMonth = no.newbie_month || ''; } catch(e) {}
-    var pm = notes.match(/newbie_month:(\d{4}-\d{2})/);
-    if (pm) nbMonth = pm[1];
     var isOld = notes.indexOf('old_creator') >= 0;
     var bonusDone = notes.indexOf('newbie_bonus:' + currentPeriod) >= 0;
-    if (nbMonth === currentPeriod && !isOld && !bonusDone) {
+    // Calculate newbie status from created_at: register month + next month = newbie period
+    var isNewbie = false;
+    if (!isOld && currentUser.created_at) {
+      var regDate = new Date(currentUser.created_at);
+      var regYm = regDate.getFullYear() + '-' + String(regDate.getMonth() + 1).padStart(2, '0');
+      // Newbie period: registration month AND the following month
+      var regMonthNum = regDate.getFullYear() * 12 + regDate.getMonth();
+      var curMonthNum = parseInt(currentPeriod.split('-')[0]) * 12 + parseInt(currentPeriod.split('-')[1]);
+      // If current month is registration month or the month after, they're a newbie
+      if (curMonthNum >= regMonthNum && curMonthNum <= regMonthNum + 1) {
+        isNewbie = true;
+      }
+    }
+    if (isNewbie && !bonusDone) {
       nbBanner.style.display = 'block';
       // Update pts status
       setTimeout(function() {
@@ -696,16 +705,22 @@ function initSubmitTab() {
 }
 
 function showDashboard() {
-  // Check newbie status and show banner
+  // Check newbie status and show banner — based on created_at
   setTimeout(function() {
-    var notes = currentUser ? (currentUser.notes || '') : '';
-    var nbMonth = '';
-    try { var no = JSON.parse(notes); nbMonth = no.newbie_month || ''; } catch(e) {}
-    var pm = notes.match(/newbie_month:(\d{4}-\d{2})/);
-    if (pm) nbMonth = pm[1];
+    if (!currentUser) return;
+    var notes = currentUser.notes || '';
     var isOld = notes.indexOf('old_creator') >= 0;
     var bonusDone = notes.indexOf('newbie_bonus:' + currentPeriod) >= 0;
-    if (nbMonth === currentPeriod && !isOld && !bonusDone) {
+    var isNewbie = false;
+    if (!isOld && currentUser.created_at) {
+      var regDate = new Date(currentUser.created_at);
+      var regMonthNum = regDate.getFullYear() * 12 + regDate.getMonth();
+      var curMonthNum = parseInt(currentPeriod.split('-')[0]) * 12 + parseInt(currentPeriod.split('-')[1]);
+      if (curMonthNum >= regMonthNum && curMonthNum <= regMonthNum + 1) {
+        isNewbie = true;
+      }
+    }
+    if (isNewbie && !bonusDone) {
       var nbBanner = document.getElementById('newbie-banner-submit');
       if (nbBanner) nbBanner.style.display = 'block';
     }
