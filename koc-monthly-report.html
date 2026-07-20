@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Yoyo KOC · 月度报告</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0e17;color:#e0e6f0;font-family:-apple-system,'Inter','Segoe UI',sans-serif;min-height:100vh}
+.container{max-width:1200px;margin:0 auto;padding:20px}
+
+/* Header */
+.header{text-align:center;padding:40px 0 30px;border-bottom:1px solid rgba(0,255,255,.1);margin-bottom:30px}
+.header .logo{font-size:13px;color:#00d4ff;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px}
+.header h1{font-size:34px;font-weight:700;background:linear-gradient(135deg,#00d4ff,#7b2ff7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.header .subtitle{color:#8892b0;font-size:14px;margin-top:6px}
+.header .controls{display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.header .controls select,.header .controls button{padding:8px 16px;border-radius:8px;border:1px solid rgba(0,212,255,.3);background:rgba(20,30,60,.8);color:#e0e6f0;font-size:13px;cursor:pointer;outline:none}
+.header .controls select option{background:#0a0e17}
+.header .controls button{background:linear-gradient(135deg,#00d4ff,#7b2ff7);color:#fff;border:none;font-weight:600;transition:.2s}
+.header .controls button:hover{opacity:.85}
+.header .badge{display:inline-block;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);color:#00d4ff;padding:4px 14px;border-radius:12px;font-size:11px;margin-top:8px}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:28px}
+.kpi-card{background:linear-gradient(135deg,rgba(20,30,60,.8),rgba(15,20,40,.8));border:1px solid rgba(0,212,255,.12);border-radius:14px;padding:18px 20px;position:relative;overflow:hidden}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#00d4ff,#7b2ff7);opacity:.5}
+.kpi-card .label{color:#8892b0;font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:1px}
+.kpi-card .value{font-size:30px;font-weight:700;margin:6px 0 3px;letter-spacing:-1px;line-height:1.1}
+.kpi-card .change{font-size:12px;font-weight:500;margin-top:2px}
+.kpi-card .change.up{color:#00d4ff}.kpi-card .change.down{color:#ff6b6b}.kpi-card .change.flat{color:#8892b0}
+.kpi-card .mini{font-size:10px;color:#5a6480;margin-top:3px}
+.blue{color:#00d4ff}.green{color:#00e676}.orange{color:#ffab00}.purple{color:#b388ff}.pink{color:#ff6b9d}.red{color:#ff6b6b}
+
+/* Sections */
+.section{background:linear-gradient(135deg,rgba(20,30,60,.55),rgba(15,20,40,.55));border:1px solid rgba(0,212,255,.08);border-radius:14px;padding:26px;margin-bottom:22px}
+.section-title{font-size:17px;font-weight:600;color:#00d4ff;margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.section-title .icon{font-size:20px}
+
+/* Table */
+.data-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.data-table th{color:#5a6480;font-weight:500;text-transform:uppercase;letter-spacing:.5px;padding:9px 8px;text-align:left;border-bottom:1px solid rgba(255,255,255,.05);font-size:11px}
+.data-table td{padding:9px 8px;border-bottom:1px solid rgba(255,255,255,.03)}
+.data-table tr:hover td{background:rgba(0,212,255,.03)}
+.data-table .num{text-align:right;font-weight:500}
+.data-table .up{color:#00d4ff}.data-table .down{color:#ff6b6b}
+
+/* Bar Chart */
+.bar-chart{margin:10px 0}
+.bar-row{display:flex;align-items:center;margin:6px 0;gap:8px}
+.bar-label{min-width:110px;font-size:12px;color:#8892b0;white-space:nowrap}
+.bar-fill{flex:1;height:20px;background:rgba(255,255,255,.03);border-radius:4px;overflow:hidden}
+.bar-fill .bar{height:100%;border-radius:4px;transition:width .6s ease}
+.bar-val{min-width:40px;text-align:right;font-size:12px;font-weight:600}
+.bar-chg{min-width:50px;text-align:right;font-size:11px}
+
+/* Daily Chart */
+.daily-chart{display:flex;gap:6px;align-items:flex-end;height:180px;padding:16px 0;justify-content:center}
+.daily-bar{flex:1;max-width:60px;display:flex;flex-direction:column;align-items:center;gap:3px}
+.daily-bar .bar{width:100%;border-radius:4px 4px 0 0;min-height:4px;background:linear-gradient(180deg,#00d4ff,rgba(0,212,255,.2));transition:height .4s ease}
+.daily-bar .val-label{font-size:9px;font-weight:600;color:#e0e6f0}
+.daily-bar .day-label{font-size:9px;color:#5a6480;margin-top:1px}
+
+/* Insight Grid */
+.insight-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;margin-top:4px}
+.insight-card{background:rgba(0,0,0,.15);border:1px solid rgba(0,212,255,.06);border-radius:10px;padding:14px 16px}
+.insight-card .icon{font-size:22px;margin-bottom:4px}
+.insight-card h4{font-size:13px;font-weight:600;margin-bottom:3px}
+.insight-card h4.up{color:#00d4ff}.insight-card h4.down{color:#ff6b6b}.insight-card h4.flat{color:#8892b0}
+.insight-card p{font-size:11.5px;color:#8892b0;line-height:1.5}
+
+/* Loading */
+.loading{text-align:center;padding:80px 20px}
+.loading .spinner{width:40px;height:40px;border:3px solid rgba(0,212,255,.15);border-top:3px solid #00d4ff;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading p{color:#8892b0;font-size:14px}
+
+/* Error */
+.error{text-align:center;padding:60px 20px}
+.error .icon{font-size:48px;margin-bottom:12px}
+.error p{color:#ff6b6b;font-size:14px}
+.error .btn-retry{display:inline-block;margin-top:12px;padding:8px 20px;border-radius:8px;border:none;background:linear-gradient(135deg,#00d4ff,#7b2ff7);color:#fff;cursor:pointer;font-size:13px;font-weight:600}
+
+/* Rank */
+.rank-list{list-style:none;padding:0}
+.rank-item{display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.03);gap:8px}
+.rank-item:last-child{border-bottom:none}
+.rank-num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:rgba(255,255,255,.05);color:#5a6480;flex-shrink:0}
+.rank-num.top1{background:linear-gradient(135deg,#ffd700,#ffab00);color:#000}
+.rank-num.top2{background:linear-gradient(135deg,#c0c0c0,#8892b0);color:#000}
+.rank-num.top3{background:linear-gradient(135deg,#cd7f32,#a0522d);color:#fff}
+.rank-item .name{flex:1;font-size:12.5px;font-weight:500}
+.rank-item .val{font-size:12px;font-weight:600;color:#00d4ff}
+.rank-item .note{font-size:10px;color:#5a6480;margin-left:6px}
+
+/* Two columns */
+.col2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:768px){.col2{grid-template-columns:1fr}}
+
+/* Status dots */
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
+.dot.green{background:#00e676}.dot.orange{background:#ffab00}.dot.blue{background:#00d4ff}.dot.red{background:#ff6b6b}.dot.purple{background:#b388ff}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="header">
+  <div class="logo">📊 KOC Monthly Report</div>
+  <h1>Yoyo KOC · 月度数据报告</h1>
+  <div class="subtitle" id="header-subtitle">加载中...</div>
+  <div class="controls">
+    <select id="month-select" onchange="loadReport()"></select>
+    <button onclick="loadReport()">🔄 刷新数据</button>
+    <button onclick="window.print()" style="background:rgba(0,212,255,.15);color:#00d4ff;border:1px solid rgba(0,212,255,.3)">📄 导出报告</button>
+  </div>
+  <span class="badge" id="report-badge">🤖 数据来源: Supabase · 自动生成</span>
+</div>
+
+<div id="report-content">
+<div class="loading">
+  <div class="spinner"></div>
+  <p>正在加载月度数据...</p>
+</div>
+</div>
+
+</div>
+
+<script>
+// ==== CONFIG ====
+var SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
+var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyeXpvZmltcmVobWtpamtja3JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM4NTU2NTAsImV4cCI6MjAzOTQzMTY1MH0.ZX7cG0k5Ll5KGPH4JZ3jCJUNPD5JaRf5pOM1TjmJX9s';
+
+var kocs = [], subs = [], points = [], orders = [], rewards = [];
+
+function sf(path, opts) {
+  return fetch(SUPABASE_URL + path, Object.assign({
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+  }, opts || {}));
+}
+
+// ==== INIT ====
+async function init() {
+  var sel = document.getElementById('month-select');
+  sel.innerHTML = '';
+  var now = new Date();
+  for (var i = 0; i < 12; i++) {
+    var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    var val = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    var label = d.getFullYear() + '年' + (d.getMonth()+1) + '月';
+    var opt = document.createElement('option');
+    opt.value = val; opt.textContent = label;
+    sel.appendChild(opt);
+  }
+  loadReport();
+}
+
+async function loadReport() {
+  var period = document.getElementById('month-select').value;
+  document.getElementById('header-subtitle').textContent = period.replace('-','年') + ' · 数据报告中...';
+  document.getElementById('report-content').innerHTML = '<div class="loading"><div class="spinner"></div><p>正在加载 ' + period.replace('-','年') + ' 数据...</p></div>';
+  try {
+    var [kocRes, subRes, ptRes, ordRes] = await Promise.all([
+      sf('/rest/v1/kocs?select=*'),
+      sf('/rest/v1/submissions?period=eq.' + period + '&select=*'),
+      sf('/rest/v1/point_logs?period=eq.' + period + '&select=*'),
+      sf('/rest/v1/redemption_orders?order=created_at.desc&select=*')
+    ]);
+    kocs = kocRes.ok ? (await kocRes.json()).filter(function(k){return k.uid!=='__config__'}) : [];
+    subs = subRes.ok ? await subRes.json() : [];
+    points = ptRes.ok ? await ptRes.json() : [];
+    orders = ordRes.ok ? await ordRes.json() : [];
+    renderReport(period);
+  } catch(e) {
+    document.getElementById('report-content').innerHTML = '<div class="error"><div class="icon">😵</div><p>数据加载失败: ' + e.message + '</p><button class="btn-retry" onclick="loadReport()">重新加载</button></div>';
+  }
+}
+
+function getPeriodOrder(period) {
+  return orders.filter(function(o){
+    var d = new Date(o.created_at);
+    var p = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    return p === period;
+  });
+}
+
+function getPeriodPoints(period) {
+  return points.filter(function(p){return p.period === period && p.source !== 'redemption'});
+}
+
+function getTotalScore(uid, period) {
+  var pts = getPeriodPoints(period).filter(function(p){return p.uid === uid});
+  return pts.reduce(function(s,p){return s + (p.change||0)}, 0);
+}
+
+// ==== RENDER ====
+function renderReport(period) {
+  var totalKocs = kocs.length;
+  var activeKocs = kocs.filter(function(k){return k.status==='active'}).length;
+  var subbed = subs.length;
+  var scored = subs.filter(function(s){return s.status==='scored'}).length;
+  var pending = subs.filter(function(s){return s.status==='pending'}).length;
+  var totalPoints = points.filter(function(p){return p.period===period && p.source!=='redemption'}).reduce(function(s,p){return s+(p.change||0)},0);
+  var totalSpent = orders.filter(function(o){
+    var d = new Date(o.created_at);
+    var p = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    return p===period;
+  }).reduce(function(s,o){return s+(o.points_spent||0)},0);
+  var periodOrders = getPeriodOrder(period);
+  var redeemed = periodOrders.length;
+  var shipped = periodOrders.filter(function(o){return o.status==='shipped'}).length;
+
+  // Tier distribution
+  var tierDist = {};
+  kocs.forEach(function(k){var t=k.tier||'certified';tierDist[t]=(tierDist[t]||0)+1});
+
+  // Platform distribution
+  var platDist = {};
+  kocs.forEach(function(k){
+    var ch = (k.channel_tag||'unknown').toUpperCase();
+    if(!ch||ch==='')ch='OTHER';
+    platDist[ch]=(platDist[ch]||0)+1
+  });
+
+  // Creator ranking by submissions
+  var subRank = {};
+  subs.forEach(function(s){var u=s.uid;subRank[u]=(subRank[u]||0)+1});
+  var sortedRank = Object.keys(subRank).sort(function(a,b){return (subRank[b]||0)-(subRank[a]||0)}).slice(0,10);
+
+  // Platform scoring rank
+  var platScore = {};
+  subs.forEach(function(s){
+    if(s.status!=='scored')return;
+    var u = s.uid;
+    var k = kocs.find(function(k){return k.uid===u});
+    var plat = k ? ((k.channel_tag||'unknown').toUpperCase()||'OTHER') : 'OTHER';
+    platScore[plat] = (platScore[plat]||0) + (s.points_earned||0);
+  });
+
+  var html = '';
+
+  // === KPI ===
+  html += '<div class="kpi-grid">';
+  html += kpi('👥','活跃KOC',activeKocs,'/ '+totalKocs+' 总','blue');
+  html += kpi('📝','投稿作品',subbed,'已评分 '+scored,'green');
+  html += kpi('📊','产生总积分',totalPoints,'已兑换 '+totalSpent,'orange');
+  html += kpi('🎁','兑换订单',redeemed,'已发货 '+shipped,'purple');
+  html += kpi('📋','待审核',pending,'条作品','pink');
+  html += kpi('⭐','等级分布',tierDist['platinum']||0+' 铂金','金级 '+(tierDist['gold']||0),'blue');
+  html += '</div>';
+
+  // === KPI Comparison (prev month) ===
+  var parts = period.split('-');
+  var prevM = parseInt(parts[1])-1;
+  var prevY = parseInt(parts[0]);
+  if(prevM<1){prevM=12;prevY--;}
+  var prevPeriod = prevY+'-'+String(prevM).padStart(2,'0');
+
+  html += '<div class="section">';
+  html += '<div class="section-title"><span class="icon">📈</span> 核心指标环比 · '+prevPeriod.replace('-','年')+'月 → '+period.replace('-','年')+'月</div>';
+  (async function(){
+    try{
+      var prevSubRes = await sf('/rest/v1/submissions?period=eq.'+prevPeriod+'&select=*');
+      var prevPtRes = await sf('/rest/v1/point_logs?period=eq.'+prevPeriod+'&select=*');
+      var prevOrdRes = await sf('/rest/v1/redemption_orders?order=created_at.desc&select=*');
+      var prevSubs = prevSubRes.ok ? await prevSubRes.json() : [];
+      var prevPts = prevPtRes.ok ? await prevPtRes.json() : [];
+      var prevOrds = prevOrdRes.ok ? await prevOrdRes.json() : [];
+
+      var prevPtTotal = prevPts.filter(function(p){return p.period===prevPeriod&&p.source!=='redemption'}).reduce(function(s,p){return s+(p.change||0)},0);
+      var prevSubTotal = prevSubs.length;
+      var prevScored = prevSubs.filter(function(s){return s.status==='scored'}).length;
+      var prevOrdsTotal = prevOrds.filter(function(o){
+        var d=new Date(o.created_at);var p=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');return p===prevPeriod;
+      }).length;
+
+      document.getElementById('comparison-table-body').innerHTML = [
+        {label:'投稿作品', cur:subbed, prev:prevSubTotal, unit:'条'},
+        {label:'已评分作品', cur:scored, prev:prevScored, unit:'条'},
+        {label:'产生积分', cur:totalPoints, prev:prevPtTotal, unit:'分'},
+        {label:'兑换订单', cur:redeemed, prev:prevOrdsTotal, unit:'单'}
+      ].map(function(r){
+        var chg = r.prev > 0 ? ((r.cur - r.prev) / r.prev * 100).toFixed(1) : (r.cur > 0 ? '+100' : '0');
+        var cls = chg > 0 ? 'up' : (chg < 0 ? 'down' : 'flat');
+        var arrow = chg > 0 ? '📈' : (chg < 0 ? '📉' : '➡️');
+        return '<tr><td>'+r.label+'</td><td class="num">'+r.cur+' '+r.unit+'</td><td class="num">'+r.prev+' '+r.unit+'</td><td class="num '+cls+'">'+arrow+' '+chg+'%</td></tr>';
+      }).join('');
+    }catch(e){}
+  })();
+  html += '<table class="data-table"><tr><th>指标</th><th class="num">'+period.replace('-','年')+'月</th><th class="num">'+prevPeriod.replace('-','年')+'月</th><th class="num">环比</th></tr><tbody id="comparison-table-body"><tr><td colspan="4" style="text-align:center;color:#5a6480;padding:20px">加载环比数据...</td></tr></tbody></table>';
+  html += '</div>';
+
+  // === SCORE RANKING ===
+  html += '<div class="section"><div class="section-title"><span class="icon">🏆</span> '+period.replace('-','年')+'月 积分排行榜 TOP10</div>';
+  html += '<ol class="rank-list">';
+  var topKocs = kocs.slice().sort(function(a,b){return (getTotalScore(b.uid,period)||0)-(getTotalScore(a.uid,period)||0)}).slice(0,10);
+  topKocs.forEach(function(k,i){
+    var cls = i===0?'top1':(i===1?'top2':(i===2?'top3':''));
+    var score = getTotalScore(k.uid,period);
+    var badge = getTierBadge(k.tier);
+    html += '<li class="rank-item"><span class="rank-num '+cls+'">'+(i+1)+'</span><span class="name">'+esc(k.discord_name)+'</span>'+badge+'<span class="val">'+score+' 分</span><span class="note">'+esc(k.channel_tag||'')+'</span></li>';
+  });
+  html += '</ol></div>';
+
+  // === SUBMISSION RANKING ===
+  html += '<div class="section"><div class="section-title"><span class="icon">📝</span> '+period.replace('-','年')+'月 投稿排行榜 TOP10</div>';
+  html += '<ol class="rank-list">';
+  sortedRank.forEach(function(uid,i){
+    var k = kocs.find(function(k){return k.uid===uid});
+    if(!k)return;
+    var cnt = subRank[uid];
+    var cls = i===0?'top1':(i===1?'top2':(i===2?'top3':''));
+    html += '<li class="rank-item"><span class="rank-num '+cls+'">'+(i+1)+'</span><span class="name">'+esc(k.discord_name)+'</span><span class="val">'+cnt+' 条</span></li>';
+  });
+  html += '</ol></div>';
+
+  // === TIER DISTRIBUTION ===
+  var maxTier = Math.max(tierDist['platinum']||0, tierDist['gold']||0, tierDist['certified']||0, tierDist['new']||0) || 1;
+  html += '<div class="section"><div class="section-title"><span class="icon">⭐</span> 等级分布</div>';
+  html += '<div class="bar-chart">';
+  html += barRow('💎 铂金创作官', tierDist['platinum']||0, maxTier, '#b388ff');
+  html += barRow('🟡 金级创作官', tierDist['gold']||0, maxTier, '#ffab00');
+  html += barRow('✅ 认证创作官', (tierDist['certified']||0)+(tierDist['new']||0), maxTier, '#00e676');
+  html += '</div></div>';
+
+  // === PLATFORM DISTRIBUTION ===
+  var maxPlat = Math.max.apply(null, Object.values(platDist)) || 1;
+  html += '<div class="section"><div class="section-title"><span class="icon">📱</span> 平台分布</div>';
+  html += '<div class="bar-chart">';
+  Object.keys(platDist).sort(function(a,b){return platDist[b]-platDist[a]}).forEach(function(p){
+    html += barRow(p, platDist[p], maxPlat, '#00d4ff');
+  });
+  html += '</div></div>';
+
+  // === PLATFORM SCORE DISTRIBUTION ===
+  var maxPlatScore = Math.max.apply(null, Object.values(platScore)) || 1;
+  html += '<div class="section"><div class="section-title"><span class="icon">🎯</span> 各平台贡献积分</div>';
+  html += '<div class="bar-chart">';
+  Object.keys(platScore).sort(function(a,b){return platScore[b]-platScore[a]}).forEach(function(p){
+    html += barRow(p, platScore[p], maxPlatScore, '#ff6b9d');
+  });
+  html += '</div></div>';
+
+  // === REDEMPTION BREAKDOWN ===
+  var rType = {};
+  periodOrders.forEach(function(o){rType[o.option_type]=(rType[o.option_type]||0)+1});
+  var maxRType = Math.max.apply(null, Object.values(rType)) || 1;
+  html += '<div class="section"><div class="section-title"><span class="icon">🎁</span> 兑换类型分布</div>';
+  html += '<div class="bar-chart">';
+  html += barRow('💎 钻石', rType['diamonds']||0, maxRType, '#00d4ff');
+  html += barRow('🎮 谷歌卡', rType['gplay']||0, maxRType, '#ffab00');
+  html += barRow('📦 周边', rType['merch']||0, maxRType, '#b388ff');
+  html += '</div></div>';
+
+  // === INSIGHTS ===
+  var insights = [];
+  if (subbed > 0) insights.push({icon:'📈',title:subbed+' 条投稿',cls:'up',desc:'本月共收到 '+subbed+' 条作品投稿，其中 '+scored+' 条已完成评分。'});
+  if (totalPoints > 0) insights.push({icon:'💰',title:totalPoints+' 总积分',cls:'up',desc:'本月累计产生 '+totalPoints+' 积分，KOC 已兑换 '+totalSpent+' 分。'});
+  if (pending > 0) insights.push({icon:'⏳',title:pending+' 条待审核',cls:'flat',desc:'还有 '+pending+' 条作品等待审核评分，请及时处理。'});
+  if (redeemed > 0) insights.push({icon:'🎁',title:redeemed+' 单已兑换',cls:'up',desc:'本月 '+redeemed+' 位 KOC 发起兑换，已发货 '+shipped+' 单。'});
+  var tierInfo = (tierDist['platinum']||0)+' 铂金 · '+(tierDist['gold']||0)+' 金级 · '+((tierDist['certified']||0)+(tierDist['new']||0))+' 认证';
+  insights.push({icon:'⭐',title:tierInfo,cls:'flat',desc:'当前 KOC 等级体系分布如上，铂金级 KOC 持续增长。'});
+
+  html += '<div class="section"><div class="section-title"><span class="icon">💡</span> 关键洞察</div><div class="insight-grid">';
+  insights.forEach(function(ins){
+    html += '<div class="insight-card"><div class="icon">'+ins.icon+'</div><h4 class="'+ins.cls+'">'+ins.title+'</h4><p>'+ins.desc+'</p></div>';
+  });
+  html += '</div></div>';
+
+  // === FOOTER ===
+  html += '<div class="section" style="text-align:center;padding:16px"><p style="color:#5a6480;font-size:11px">🤖 Yoyo KOC · 月度数据报告 · '+period.replace('-','年')+'月 · 自动生成</p><p style="color:#5a6480;font-size:11px;margin-top:2px">数据来源: Supabase · KOC 投稿/积分/兑换系统</p></div>';
+
+  document.getElementById('report-content').innerHTML = html;
+  document.getElementById('header-subtitle').textContent = period.replace('-','年')+'月 · '+totalKocs+' 位 KOC · '+subbed+' 条投稿 · '+totalPoints+' 积分';
+  document.getElementById('report-badge').textContent = '🤖 数据来源: Supabase · 更新于 '+new Date().toLocaleString('zh-CN');
+}
+
+// ==== HELPERS ====
+function kpi(icon,label,val,mini,color){
+  return '<div class="kpi-card"><div class="label">'+icon+' '+label+'</div><div class="value '+color+'">'+val+'</div><div class="mini">'+mini+'</div></div>';
+}
+function barRow(label,val,max,color){
+  if(max===0)max=1;
+  var pct = Math.round(val/max*100);
+  return '<div class="bar-row"><span class="bar-label">'+label+'</span><div class="bar-fill"><div class="bar" style="width:'+pct+'%;background:'+color+'"></div></div><span class="bar-val">'+val+'</span></div>';
+}
+function getTierBadge(tier){
+  var map={'platinum':'💎 铂金','gold':'🟡 金级','certified':'✅ 认证','new':'✅ 认证'};
+  return '<span style="display:inline-block;font-size:10px;padding:1px 6px;border-radius:6px;margin-left:4px;background:rgba(0,212,255,.1);color:#8892b0">'+(map[tier]||'✅ 认证')+'</span>';
+}
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+init();
+</script>
+</body>
+</html>
