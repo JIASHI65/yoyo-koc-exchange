@@ -88,7 +88,7 @@
   </div>
   <div class="header">
     <h1>🎀 Yoyo Town</h1>
-    <p id="header-subtitle">Creator Reward Redemption</p>
+    <p>Check your points & redeem rewards</p>
   </div>
 
 
@@ -100,7 +100,7 @@
 
     <div style="text-align:center;padding:10px 0 20px;">
       <h2 style="font-size:24px;margin-bottom:4px;">🎀 Yoyo Town</h2>
-      <p id="login-subtitle" style="font-size:13px;color:var(--text-light);">Creator Portal</p>
+      <p style="font-size:13px;color:var(--text-light);">Creator Portal</p>
     </div>
     <div id="entry-buttons">
       <button class="btn btn-primary" onclick="showNewCreatorForm()" style="margin-bottom:10px;">🆕 I'm a New Creator</button>
@@ -994,14 +994,14 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
   if (subs.length === 0) {
     html += '<div style="background:#faf5f7;border-radius:16px;padding:30px;text-align:center;border:1px solid var(--border);">';
     html += '<div style="font-size:40px;margin-bottom:6px;">📭</div>';
-    html += '<div style="font-size:14px;color:var(--text-light);">' + t('history_empty') + '</div>';
+    html += '<div style="font-size:14px;color:var(--text-light);">' + 'No submissions this month' + '</div>';
     if (isCurrent) html += '<div style="font-size:12px;color:var(--text-light);margin-top:4px;">' + t('history_empty_hint') + '</div>';
     html += '</div>';
   } else {
     html += '<div style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:16px;padding:18px;margin-bottom:10px;border:1px solid #f8bbd0;">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
     html += '<div><div style="font-size:22px;font-weight:800;color:#ad1457;">' + t('history_hero', {links: totalLinks}) + '</div>';
-    html += '<div style="font-size:12px;color:#880e4f;">' + t('history_scored', {scored: scoredCount, total: subs.length}) + (monthPts > 0 ? ' · 🏆 ' + monthPts + ' pts' : '') + '</div></div>';
+    html += '<div style="font-size:12px;color:#880e4f;">' + scoredCount + ' scored · ' + subs.length + ' total' + (monthPts > 0 ? ' · 🏆 ' + monthPts + ' pts' : '') + '</div></div>';
     html += '<div style="text-align:right;"><div style="font-size:12px;color:var(--text-light);">⏳ ' + pendingCount + ' pending</div>';
     html += '<div style="font-size:12px;color:#2e7d32;">✅ ' + scoredCount + ' Scored</div></div>';
     html += '</div></div>';
@@ -1011,17 +1011,17 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
       var ccPct = Math.min(100, Math.round(totalLinks / 15 * 100));
       html += '<div style="background:#faf5f7;border-radius:14px;padding:14px;margin-bottom:8px;">';
       html += '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">';
-      html += '<span style="font-weight:600;">' + t('cc_title') + '</span><span style="color:var(--text-light);">' + t('cc_progress', {current: totalLinks}) + '</span></div>';
+      html += '<span style="font-weight:600;">' + t('cc_title') + '</span><span style="color:var(--text-light);">' + totalLinks + '/15' + '</span></div>';
       html += '<div style="background:#e0e0e0;border-radius:8px;height:8px;overflow:hidden;">';
       html += '<div style="background:linear-gradient(90deg,#f06292,#ec407a);width:' + ccPct + '%;height:100%;border-radius:8px;"></div></div>';
-      if (ccRemaining > 0) html += '<div style="font-size:11px;color:#e65100;margin-top:3px;">' + t('cc_hint', {remaining: ccRemaining}) + '</div>';
-      else html += '<div style="font-size:11px;color:#2e7d32;margin-top:3px;">' + t('cc_done') + '</div>';
+      if (ccRemaining > 0) html += '<div style="font-size:11px;color:#e65100;margin-top:3px;">' + ccRemaining + ' more needed' + '</div>';
+      else html += '<div style="font-size:11px;color:#2e7d32;margin-top:3px;">' + '✅ 15 links done!' + '</div>';
       html += '</div>';
 
       // 40pt hint
       if (totalLinks >= 15) {
         html += '<div style="background:#fff3e0;border:1px solid #ffe082;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#e65100;">';
-        html += t('cc_40pt') + '</div>';
+        html += '🏆 Goal reached! 40 point bonus awarded!' + '</div>';
       }
 
       
@@ -1040,23 +1040,23 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
           html += '<div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border:2px solid #66bb6a;border-radius:14px;padding:14px;margin-bottom:8px;">';
           html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:24px;">🌱</span><span style="font-size:14px;font-weight:700;color:#2e7d32;">This is your newbie month!</span></div>';
           html += '<div style="font-size:13px;color:#1b5e20;line-height:1.6;">';
-          html += t('newbie_banner_task', {pts: monthPts, status: (monthPts >= 5 ? t('newbie_banner_done') : t('newbie_banner_need', {need: (5 - monthPts)}))});
+          html += 'This is your newbie month! Get ≥5 pts to earn +2 bonus!';
           html += '📊 Current Points: <strong>' + monthPts + ' pts</strong> · ' + (monthPts >= 5 ? '✅ Completed!Waiting for settlement' : 'Need <strong>' + (5 - monthPts) + ' pts</strong> to go');
           html += '</div></div>';
         } else {
           html += '<div style="background:linear-gradient(135deg,#e8f5e9,#a5d6a7);border:2px solid #43a047;border-radius:14px;padding:12px;margin-bottom:8px;text-align:center;">';
-          html += '<span style="font-size:14px;font-weight:700;color:#1b5e20;">' + t('newbie_complete') + '</span></div>';
+          html += '<span style="font-size:14px;font-weight:700;color:#1b5e20;">' + '🌱 Newbie mission complete! +2 pts added' + '</span></div>';
         }
       }
 
       // Grade hint: based on current tier
       if (currentTier === 'certified') {
         html += '<div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#6a1b9a;">';
-        html += t('grade_cert');
+        html += '🎯 Get ≥5 pts for 2 consecutive months to become Gold Creator!';
         html += '</div>';
       } else if (currentTier === 'gold') {
         html += '<div style="background:#fff8e1;border:1px solid #ffd54f;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#7c4d00;">';
-        html += t('grade_gold');
+        html += '⭐ Get ≥5 pts this month to become Platinum Creator!';
         html += '</div>';
       }
       // Platinum: no promotion hint shown
@@ -1112,20 +1112,6 @@ function logout() {
 tryAutoLogin();
 </script>
 
-<script>
-// Apply i18n to static HTML elements on load
-document.addEventListener('DOMContentLoaded', function() {
-  var els = {
-    'header-subtitle': t('login_subtitle'),
-    'login-subtitle': t('login_subtitle'),
-    'footer-text': t('footer'),
-  };
-  for (var id in els) {
-    var el = document.getElementById(id);
-    if (el) el.textContent = els[id];
-  }
-});
-</script>
 
 </body>
 </html>

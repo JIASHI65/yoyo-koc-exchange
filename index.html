@@ -88,7 +88,7 @@
   </div>
   <div class="header">
     <h1>🎀 Yoyo Town</h1>
-    <p id="header-subtitle">Creator Reward Redemption</p>
+    <p >登录查看积分与兑换奖励<Creator Reward Redemption</p>
   </div>
 
 
@@ -100,7 +100,7 @@
 
     <div style="text-align:center;padding:10px 0 20px;">
       <h2 style="font-size:24px;margin-bottom:4px;">🎀 Yoyo Town</h2>
-      <p id="login-subtitle" style="font-size:13px;color:var(--text-light);">Creator Portal</p>
+      <p style="font-size:13px;color:var(--text-light);">Creator Portal</p>
     </div>
     <div id="entry-buttons">
       <button class="btn btn-primary" onclick="showNewCreatorForm()" style="margin-bottom:10px;">🆕 I'm a New Creator</button>
@@ -994,14 +994,14 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
   if (subs.length === 0) {
     html += '<div style="background:#faf5f7;border-radius:16px;padding:30px;text-align:center;border:1px solid var(--border);">';
     html += '<div style="font-size:40px;margin-bottom:6px;">📭</div>';
-    html += '<div style="font-size:14px;color:var(--text-light);">' + t('history_empty') + '</div>';
-    if (isCurrent) html += '<div style="font-size:12px;color:var(--text-light);margin-top:4px;">' + t('history_empty_hint') + '</div>';
+    html += '<div style="font-size:14px;color:var(--text-light);">' + '本月暂无投稿记录' + '</div>';
+    if (isCurrent) html += '<div style="font-size:12px;color:var(--text-light);margin-top:4px;">' + '每月 25 号开始，可提交作品链接' + '</div>';
     html += '</div>';
   } else {
     html += '<div style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:16px;padding:18px;margin-bottom:10px;border:1px solid #f8bbd0;">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-    html += '<div><div style="font-size:22px;font-weight:800;color:#ad1457;">' + t('history_hero', {links: totalLinks}) + '</div>';
-    html += '<div style="font-size:12px;color:#880e4f;">' + t('history_scored', {scored: scoredCount, total: subs.length}) + (monthPts > 0 ? ' · 🏆 ' + monthPts + ' 分' : '') + '</div></div>';
+    html += '<div><div style="font-size:22px;font-weight:800;color:#ad1457;">' + totalLinks + ' 条链接 · ' + monthPts + ' 分' + '</div>';
+    html += '<div style="font-size:12px;color:#880e4f;">' + '已评分 ' + scoredCount + ' 条 · 共 ' + subs.length + ' 条' + (monthPts > 0 ? ' · 🏆 ' + monthPts + ' 分' : '') + '</div></div>';
     html += '<div style="text-align:right;"><div style="font-size:12px;color:var(--text-light);">⏳ ' + pendingCount + ' 待审核</div>';
     html += '<div style="font-size:12px;color:#2e7d32;">✅ ' + scoredCount + ' 已评分</div></div>';
     html += '</div></div>';
@@ -1011,10 +1011,10 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
       var ccPct = Math.min(100, Math.round(totalLinks / 15 * 100));
       html += '<div style="background:#faf5f7;border-radius:14px;padding:14px;margin-bottom:8px;">';
       html += '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">';
-      html += '<span style="font-weight:600;">' + t('cc_title') + '</span><span style="color:var(--text-light);">' + t('cc_progress', {current: totalLinks}) + '</span></div>';
+      html += '<span style="font-weight:600;">' + t('cc_title') + '</span><span style="color:var(--text-light);">' + totalLinks + '/15' + '</span></div>';
       html += '<div style="background:#e0e0e0;border-radius:8px;height:8px;overflow:hidden;">';
       html += '<div style="background:linear-gradient(90deg,#f06292,#ec407a);width:' + ccPct + '%;height:100%;border-radius:8px;"></div></div>';
-      if (ccRemaining > 0) html += '<div style="font-size:11px;color:#e65100;margin-top:3px;">' + t('cc_hint', {remaining: ccRemaining}) + '</div>';
+      if (ccRemaining > 0) html += '<div style="font-size:11px;color:#e65100;margin-top:3px;">' + '还差 ' + ccRemaining + ' 条' + '</div>';
       else html += '<div style="font-size:11px;color:#2e7d32;margin-top:3px;">' + t('cc_done') + '</div>';
       html += '</div>';
 
@@ -1040,7 +1040,7 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
           html += '<div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border:2px solid #66bb6a;border-radius:14px;padding:14px;margin-bottom:8px;">';
           html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:24px;">🌱</span><span style="font-size:14px;font-weight:700;color:#2e7d32;">本月是你的新人活动月！</span></div>';
           html += '<div style="font-size:13px;color:#1b5e20;line-height:1.6;">';
-          html += t('newbie_banner_task', {pts: monthPts, status: (monthPts >= 5 ? t('newbie_banner_done') : t('newbie_banner_need', {need: (5 - monthPts)}))});
+          html += '本月是你的新人月！投稿 ≥5 分可获得额外 +2 分奖励！';
           html += '📊 当前积分：<strong>' + monthPts + ' 分</strong> · ' + (monthPts >= 5 ? '✅ 已完成！等待结算' : '还差 <strong>' + (5 - monthPts) + ' 分</strong> 即可达成');
           html += '</div></div>';
         } else {
@@ -1112,20 +1112,6 @@ function logout() {
 tryAutoLogin();
 </script>
 
-<script>
-// Apply i18n to static HTML elements on load
-document.addEventListener('DOMContentLoaded', function() {
-  var els = {
-    'header-subtitle': t('login_subtitle'),
-    'login-subtitle': t('login_subtitle'),
-    'footer-text': t('footer'),
-  };
-  for (var id in els) {
-    var el = document.getElementById(id);
-    if (el) el.textContent = els[id];
-  }
-});
-</script>
 
 </body>
 </html>
