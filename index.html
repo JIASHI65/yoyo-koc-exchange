@@ -84,7 +84,7 @@
 <body>
 <div class="container">
   <div style="display:flex;justify-content:flex-end;padding:6px 0;">
-    <a href="index.html" style="padding:4px 14px;border:1.5px solid var(--pink-dark);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--pink-dark);text-decoration:none;">🇨🇳 中文</a>
+
   </div>
   <div class="header">
     <h1>🎀 Yoyo Town</h1>
@@ -101,9 +101,9 @@
     <div style="position:absolute;bottom:-40px;left:-40px;font-size:160px;opacity:0.05;transform:rotate(-25deg);font-family:Apple Color Emoji,Segoe UI Emoji;">🌸</div>
     <div style="position:absolute;top:10%;left:10%;width:80px;height:80px;border-radius:50%;background:radial-gradient(circle,rgba(242,166,196,0.25),transparent 70%);"></div>
     <div style="position:absolute;bottom:20%;right:8%;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(248,187,208,0.15),transparent 70%);"></div>
-    <div style="font-size:60px;margin-bottom:8px;">🎀</div>
-    <div style="font-size:28px;font-weight:800;color:#880e4f;margin-bottom:2px;letter-spacing:2px;">Yoyo Town</div>
-    <div style="font-size:13px;color:#d4869c;margin-bottom:28px;">Check your points &amp; redeem rewards</div>
+    <div style="font-size:80px;margin-bottom:12px;filter:drop-shadow(0 0 12px rgba(242,166,196,0.3));">🎀</div>
+    <div style="font-size:48px;font-weight:900;color:#880e4f;margin-bottom:6px;letter-spacing:4px;text-shadow:0 2px 12px rgba(242,166,196,0.3);">Yoyo Town</div>
+    <div style="font-size:18px;color:#ad1457;margin-bottom:32px;letter-spacing:1px;font-weight:500;">Check your points &amp; redeem rewards</div>
     <div id="entry-buttons">
       <button class="btn btn-primary" onclick="showNewCreatorForm()" style="width:100%;padding:16px;font-size:16px;font-weight:700;border-radius:18px;margin-bottom:10px;background:linear-gradient(135deg,#f2a6c4,#d4749a,#e88dae);color:white;border:none;box-shadow:0 6px 24px rgba(212,116,154,0.35);cursor:pointer;">🆕 I'm a New Creator</button>
       <button class="btn btn-outline" onclick="showExistingLogin()" style="width:100%;padding:14px;font-size:15px;font-weight:600;border-radius:18px;border:2px solid #f8bbd0;background:rgba(255,255,255,0.85);color:#ad1457;cursor:pointer;">✅ I'm Already Registered</button>
@@ -327,7 +327,7 @@ html[lang="en"] body{font-family:var(--en-body)}
 <div class="container">
   <div class="search-wrap">
     <span class="icon">🔍</span>
-    <input type="text" id="search" placeholder="搜索问题..." oninput="filterFAQ(this.value)">
+    <input type="text" id="search" placeholder="Search questions..." oninput="filterFAQ(this.value)">
   </div>
   <div class="suggestions" id="suggestions"></div>
   <div id="faq-root"></div>
@@ -425,7 +425,7 @@ function switchLang(lang) {
   currentLang = lang;
   document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
   document.querySelectorAll('.lang-toggle .opt').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
-  document.getElementById('header-sub').textContent = lang === 'zh' ? '✦ KOC 常见问题 ✦' : '✦ KOC Frequently Asked Questions ✦';
+  document.getElementById('header-sub').textContent = lang === 'zh' ? '✦ KOC Frequently Asked Questions ✦' : '✦ KOC Frequently Asked Questions ✦';
   document.querySelector('.footer .zh').style.display = lang === 'zh' ? 'block' : 'none';
   document.querySelector('.footer .en').style.display = lang === 'en' ? 'block' : 'none';
   document.getElementById('search').placeholder = lang === 'zh' ? '搜索问题...' : 'Search questions...';
@@ -466,7 +466,7 @@ function searchChip(el) {
   filterFAQ(el.textContent);
 }
 
-renderFAQ(ZH_DATA);
+renderFAQ(EN_DATA);
 </script>
 
     </div>
@@ -685,6 +685,20 @@ function initSubmitTab() {
 }
 
 function showDashboard() {
+  // Check newbie status and show banner
+  setTimeout(function() {
+    var notes = currentUser ? (currentUser.notes || '') : '';
+    var nbMonth = '';
+    try { var no = JSON.parse(notes); nbMonth = no.newbie_month || ''; } catch(e) {}
+    var pm = notes.match(/newbie_month:(\d{4}-\d{2})/);
+    if (pm) nbMonth = pm[1];
+    var isOld = notes.indexOf('old_creator') >= 0;
+    var bonusDone = notes.indexOf('newbie_bonus:' + currentPeriod) >= 0;
+    if (nbMonth === currentPeriod && !isOld && !bonusDone) {
+      var nbBanner = document.getElementById('newbie-banner-submit');
+      if (nbBanner) nbBanner.style.display = 'block';
+    }
+  }, 1000);
   // Fetch redemption status from config
   (async function() {
     try {
