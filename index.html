@@ -361,7 +361,7 @@ async function login() {
     let res = await fetchWithTimeout(
       SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid) +
       '&discord_name=eq.' + encodeURIComponent(discord) +
-      '&select=uid,discord_name,name,status,tier',
+      '&select=uid,discord_name,name,status,tier,notes',
       {}, 15000
     );
     if (!res.ok) throw new Error('Server error: ' + res.status);
