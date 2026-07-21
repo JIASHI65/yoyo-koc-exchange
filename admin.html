@@ -804,17 +804,17 @@ Elite: 连续 6 个月达到 5 分</textarea>
 
 <div id="toast" class="toast"></div>
 <script>
-console.log("[FALLBACK] Loading admin-.js via fetch+eval...");
-fetch("admin-.js?v=2").then(function(r) { return r.text(); }).then(function(js) {
+console.log("[FALLBACK] Loading admin-v22.js via fetch+eval...");
+fetch("admin-v22.js").then(function(r) { return r.text(); }).then(function(js) {
   try {
     var fn = new Function(js);
     fn();
-    console.log("[FALLBACK] admin-.js executed successfully via new Function");
+    console.log("[FALLBACK] admin-v22.js executed successfully via new Function");
   } catch(e) {
-    console.error("[FALLBACK] admin-.js FAILED:", e.message, "at line", e.lineNumber);
+    console.error("[FALLBACK] admin-v22.js FAILED:", e.message, "at line", e.lineNumber);
   }
 }).catch(function(e) {
-  console.error("[FALLBACK] Failed to fetch admin-.js:", e.message);
+  console.error("[FALLBACK] Failed to fetch admin-v22.js:", e.message);
 });
 </script>
 <!-- version check removed -->
