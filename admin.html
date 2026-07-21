@@ -179,7 +179,7 @@
 <script>
 // ===== 缓存熔断 =====
 (function() {
-  var VERSION = 'v2.1.2';
+  var VERSION = 'v2.1.3';
   var cached = localStorage.getItem('admin_version');
   if (cached && cached !== VERSION) {
     // 发现旧缓存，强制清除并刷新
@@ -2401,7 +2401,8 @@ function switchTab(name) {
     c.classList.remove('active'); 
     c.style.display = 'none'; 
   });
-  document.querySelector('.tab[onclick*="' + name + '"]').classList.add('active');
+    var tabBtn = document.querySelector('.tab[onclick*="' + name + '"]');
+  if (tabBtn) tabBtn.classList.add('active');
   var activeTab = document.getElementById('tab-' + name);
   if (activeTab) {
     activeTab.classList.add('active');
@@ -4965,7 +4966,7 @@ document.addEventListener('visibilitychange', function() {
   (function() {
     var v = localStorage.getItem('admin_html_v');
     if (v !== '2.1') {
-      localStorage.setItem('admin_html_v', '2.2');
+      localStorage.setItem('admin_html_v', '2.3');
     }
   })();
 </script>
