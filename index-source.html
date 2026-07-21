@@ -285,8 +285,35 @@ const REWARDS = [
   { id: 'merch', name: '📦 Merch Pack', cost: 5, desc: '5 Points = 3 random items', amount: 'Random Merch ×3' }
 ];
 
-var now = new Date();
-var currentPeriod = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+function getSettlementPeriod(date) {
+  var d = date ? new Date(date) : new Date();
+  if (d.getDate() <= 5) d.setMonth(d.getMonth() - 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+function getNextMonthPeriod(date) {
+  var d = date ? new Date(date) : new Date();
+  d.setMonth(d.getMonth() + 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+function splitLinks(text) {
+  return (text || '').split(/\n+/).map(function(x) { return x.trim(); }).filter(Boolean);
+}
+function countUniqueLinks(items) {
+  var seen = {};
+  (items || []).forEach(function(item) {
+    splitLinks(item.links_engagement).concat(splitLinks(item.links_views)).forEach(function(url) {
+      var key = url.toLowerCase().replace(/[#?].*$/, '').replace(/\/$/, '');
+      if (key) seen[key] = true;
+    });
+  });
+  return Object.keys(seen).length;
+}
+function getSubmissionPeriod(item) {
+  if (item && item.period) return item.period;
+  if (item && item.created_at) return String(item.created_at).slice(0, 7);
+  return currentPeriod;
+}
+var currentPeriod = getSettlementPeriod();
 let currentUser = null;
 let redemptionOpen = false;
 let selections = {};
@@ -306,10 +333,8 @@ function tryAutoLogin() {
       if (!data || data.length === 0) { localStorage.removeItem('koc_session'); return; }
       var koc = data[0];
       var points = await getBalance(session.uid);
-      var pendingRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(session.uid) + '&status=eq.pending&select=points_spent');
-      var pendingOrders = pendingRes.ok ? await pendingRes.json() : [];
-      var pendingTotal = pendingOrders.reduce(function(s, o) { return s + (o.points_spent || 0); }, 0);
-      currentUser = { ...koc, points: points - pendingTotal };
+      var pendingTotal = await getPendingRedemptionTotal(session.uid);
+      currentUser = { ...koc, points: Math.max(0, points - pendingTotal) };
       localStorage.setItem('koc_session', JSON.stringify({ uid: currentUser.uid, discord_name: currentUser.discord_name }));
       showDashboard();
       checkDeadline();
@@ -357,12 +382,19 @@ function showToast(msg, type) {
 
 async function getBalance(uid) {
   try {
-    const r = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/point_logs?uid=eq.${encodeURIComponent(uid)}&order=created_at.desc&limit=1`);
+    const r = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/point_logs?uid=eq.${encodeURIComponent(uid)}&select=change`);
     const d = await r.json();
-    return (d && d.length > 0) ? d[0].balance_after : 0;
+    return (d || []).reduce(function(sum, row) { return sum + (Number(row.change) || 0); }, 0);
   } catch(e) { return 0; }
 }
 
+async function getPendingRedemptionTotal(uid) {
+  try {
+    const r = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/redemption_orders?uid=eq.${encodeURIComponent(uid)}&status=eq.pending&select=points_spent`);
+    const d = r.ok ? await r.json() : [];
+    return (d || []).reduce(function(sum, row) { return sum + (Number(row.points_spent) || 0); }, 0);
+  } catch(e) { return 0; }
+}
 async function login() {
   const discord = document.getElementById('input-discord').value.trim();
   const uid = document.getElementById('input-uid').value.trim();
@@ -403,10 +435,8 @@ async function login() {
     if (statusEl) statusEl.textContent = 'Loading your points...';
     const koc = data[0];
     const points = await getBalance(uid);
-    const pendingRes = await fetchWithTimeout(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&status=eq.pending&select=points_spent');
-    const pendingOrders = pendingRes.ok ? await pendingRes.json() : [];
-    const pendingTotal = pendingOrders.reduce((s, o) => s + (o.points_spent || 0), 0);
-    currentUser = { ...koc, points: points - pendingTotal };
+    const pendingTotal = await getPendingRedemptionTotal(uid);
+    currentUser = { ...koc, points: Math.max(0, points - pendingTotal) };
     localStorage.setItem('koc_session', JSON.stringify({ uid: currentUser.uid, discord_name: currentUser.discord_name }));
     if (statusEl) statusEl.textContent = '';
     showDashboard();
@@ -448,10 +478,10 @@ function initSubmitTab() {
   // Check if already at max submissions (2) and lock form
   (async function() {
     try {
-      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id');
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id,created_at,period');
       if (!r.ok) return;
       var d = await r.json();
-      var cnt = (d && d.length) || 0;
+      var cnt = (d || []).filter(function(s) { return getSubmissionPeriod(s) === currentPeriod; }).length;
       var formArea = document.getElementById('submit-form-area');
       var btn = document.getElementById('btn-submit');
       var cd = document.getElementById('submit-countdown');
@@ -491,7 +521,7 @@ function showDashboard() {
   })();
   document.getElementById('step-login').classList.add('hidden');
   document.getElementById('step-dashboard').classList.remove('hidden');
-  document.getElementById('display-points').textContent = currentUser.points;
+  document.getElementById('display-points').textContent = Math.max(0, currentUser.points);
   // Fix display - discord_name might be nested
   var displayName = currentUser.discord_name;
   if (typeof displayName === 'object' && displayName !== null) displayName = displayName.discord_name || 'Unknown';
@@ -595,6 +625,17 @@ async function redeem() {
   btn.disabled = true; btn.textContent = 'Submitting...';
 
   try {
+    const freshBalance = await getBalance(currentUser.uid);
+    const pendingTotal = await getPendingRedemptionTotal(currentUser.uid);
+    const available = Math.max(0, freshBalance - pendingTotal);
+    currentUser.points = available;
+    if (totalCost > available) {
+      document.getElementById('display-points').textContent = available;
+      renderOptions();
+      showToast('Insufficient points after pending redemptions', 'error');
+      return;
+    }
+
     const contact = document.getElementById('input-contact').value.trim() || '';
     const chosen = REWARDS.filter(r => selections[r.id] > 0);
 
@@ -607,15 +648,15 @@ async function redeem() {
           option_type: opt.id, option_name: opt.name + ' ×' + qty,
           points_spent: opt.cost * qty, reward_amount: qty + 'x ' + opt.amount,
           contact_info: (opt.id === 'merch') ? contact : '',
-          status: 'pending', created_at: new Date().toISOString()
+          status: 'pending', period: currentPeriod, created_at: new Date().toISOString()
         })
       });
       if (!resp.ok) throw new Error('Order failed for ' + opt.name);
     }
 
     // Points reserved until admin ships the order
-    currentUser.points -= totalCost;
-    document.getElementById('display-points').textContent = currentUser.points;
+    currentUser.points = Math.max(0, available - totalCost);
+    document.getElementById('display-points').textContent = Math.max(0, currentUser.points);
     initSelections();
     renderOptions();
     // Load orders independently so errors don't override success toast
@@ -630,7 +671,7 @@ async function redeem() {
 async function loadOrders() {
   if (!currentUser) return;
   try {
-    const res = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,option_type,option_name,points_spent,status,reward_amount,created_at');
+    const res = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,option_type,option_name,points_spent,status,reward_amount,period,created_at');
     if (!res.ok) return;
     var allOrders = await res.json();
     const container = document.getElementById('orders-list');
@@ -639,8 +680,7 @@ async function loadOrders() {
     // Filter to current month only
     var currentMonth = currentPeriod || (new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0'));
     var orders = allOrders.filter(function(o) {
-      var d = new Date(o.created_at);
-      var ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      var ym = o.period || String(o.created_at || '').slice(0, 7);
       return ym === currentMonth;
     });
     if (!orders || orders.length === 0) {
@@ -771,19 +811,28 @@ async function registerCreator() {
     var newUid = 'YOYO-' + String(nextNum).padStart(3, '0');
 
     var fullAddress = street + ', ' + city + ', ' + state + ' ' + zip + ', ' + country + ' | Tel: ' + phone;
+    var notesObj = {
+      registered_at: new Date().toISOString(),
+      account_id: accountId,
+      game_uid: gameUid,
+      fullname: fullname,
+      street: street,
+      city: city,
+      state: state,
+      zip: zip,
+      country: country,
+      phone: phone,
+      newbie_month: getNextMonthPeriod()
+    };
 
     var payload = {
       uid: newUid,
       discord_name: discord,
       name: fullname,
       account_id: accountId,
-      game_uid: gameUid,
       server: server,
       address: fullAddress,
-      phone: phone,
-      notes: JSON.stringify({ registered_at: new Date().toISOString(), account_id: accountId, game_uid: gameUid, fullname: fullname, street: street, city: city, state: state, zip: zip, country: country, phone: phone }),
-      // Auto-set newbie_month = next month
-      __newbie_notes: 'newbie_month:' + (function(){ var d=new Date(); var m=d.getMonth()+2; var y=d.getFullYear(); if(m>12){m=1;y+=1;} return y+'-'+String(m).padStart(2,'0'); })(),
+      notes: JSON.stringify(notesObj),
       status: 'active'
     };
 
@@ -798,17 +847,6 @@ async function registerCreator() {
     document.getElementById('input-discord').value = discord;
     document.getElementById('input-uid').value = newUid;
     showToast('✅ Registered! UID: ' + newUid + ' — save this to login', 'success');
-    // Set newbie_month tag on the newly registered KOC
-    try {
-      var nbMonth = (function(){ var d=new Date(); var m=d.getMonth()+2; var y=d.getFullYear(); if(m>12){m=1;y+=1;} return y+'-'+String(m).padStart(2,'0'); })();
-      var curNotes = JSON.parse(notesJson); // re-read
-      curNotes.newbie_month = nbMonth;
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(newUid), {
-        method: 'PATCH',
-        body: JSON.stringify({ notes: JSON.stringify(curNotes) })
-      });
-    } catch(e) { console.error('Failed to set newbie_month', e); }
-
   } catch(e) {
     status.textContent = '❌ Error: ' + e.message;
     status.style.color = '#e74c3c';
@@ -832,9 +870,9 @@ async function submitWorks() {
 
   try {
     // Check existing submissions
-    var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id');
+    var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id,created_at,period');
     var existingSubs = checkRes.ok ? await checkRes.json() : [];
-    var existingCount = (existingSubs && existingSubs.length) || 0;
+    var existingCount = (existingSubs || []).filter(function(s) { return getSubmissionPeriod(s) === currentPeriod; }).length;
     
     if (existingCount >= 2) {
       status.innerHTML = '⚠️ 已达 <strong>2 次</strong>提交上限<br><span style="font-size:11px;">联系管理员处理</span>';
@@ -852,6 +890,7 @@ async function submitWorks() {
       server: server,
       links_engagement: links.join('\n'),
       status: 'pending',
+      period: currentPeriod,
       created_at: new Date().toISOString()
     }];
 
@@ -902,16 +941,16 @@ async function loadMySubmissions() {
   var countEl = document.getElementById('submission-count');
   if (!container) return;
   try {
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,created_at,status,links_engagement');
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,created_at,period,status,links_engagement,links_views');
     if (!res.ok) throw new Error('Failed');
-    var subs = await res.json();
+    var subs = (await res.json() || []).filter(function(s) { return getSubmissionPeriod(s) === currentPeriod; });
     if (!subs || subs.length === 0) {
       container.innerHTML = '<div style="color:var(--text-light);font-size:13px;text-align:center;padding:30px;">\uD83D\uDCDD 你还没有提交过作品<br><span style="font-size:11px;">去 Submit Works 提交你的链接吧</span></div>';
       if (countEl) countEl.textContent = '\uD83D\uDCC5 ' + currentPeriod.replace('-', '\u5E74') + '\u6708';
       return;
     }
     
-    var totalLinks = subs.reduce(function(sum, s) { return sum + (s.links_engagement || '').split('\n').filter(Boolean).length; }, 0);
+    var totalLinks = countUniqueLinks(subs);
     var ccRemaining = Math.max(0, 15 - totalLinks);
     var currentTier = currentUser.tier || 'certified';
     
@@ -975,7 +1014,7 @@ async function loadMySubmissions() {
     html += '<div style="margin-top:6px;">';
     subs.forEach(function(s) {
       var statusText = s.status === 'pending' ? '\u5F85\u5BA1\u6838' : s.status === 'scored' ? '\u5DF2\u8BC4\u5206' : '\u5DF2\u62D2\u7EDD';
-      var linkCount = (s.links_engagement || '').split('\n').filter(Boolean).length;
+      var linkCount = countUniqueLinks([s]);
       var dateStr = new Date(s.created_at).toLocaleDateString();
       
       html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">';

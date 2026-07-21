@@ -1113,12 +1113,15 @@ async function exportSubmissionsFile() {
     batch: currentPeriod,
     rules: SCORING_RULES_TEXT,
     submissions: pending.map(function(s) {
-      var links = (s.links_engagement || '').split('\n').filter(Boolean);
+      var engagementLinks = (s.links_engagement || '').split('\n').map(function(x) { return x.trim(); }).filter(Boolean);
+      var viewLinks = (s.links_views || '').split('\n').map(function(x) { return x.trim(); }).filter(Boolean);
       return {
         id: s.id,
         discord_name: s.discord_name,
         uid: s.uid,
-        links: links
+        links: engagementLinks.concat(viewLinks),
+        engagement_links: engagementLinks,
+        view_links: viewLinks
       };
     })
   };
@@ -1149,8 +1152,8 @@ async function copyAgentPrompt() {
     '',
     '## 操作步骤',
     '1. 打开我给你的文件: ' + filename,
-    '2. 文件里每个 submission 有 id / discord_name / uid / links 字段',
-    '3. 用浏览器打开 links 里的每条链接，查看真实互动数/播放量',
+    '2. 文件里每个 submission 有 id / discord_name / uid / links / engagement_links / view_links 字段',
+    '3. 用浏览器打开 links 里的每条链接（links 已合并互动平台和视频平台链接），查看真实互动数/播放量',
     '4. 按上方规则计算每条 submission 的积分',
     '5. 输出 JSON 结果给我',
     '',
@@ -1220,275 +1223,15 @@ async function importFromPaste() {
   await importScoreResult(text);
 }
 async function importScoreResult(text) {
-  var status = document.getElementById('paste-status');
-  status.textContent = 'Processing...';
-  status.style.color = 'var(--text-light)';
-
-  // Try parsing as JSON
-  var result;
-  try {
-    result = JSON.parse(text);
-  } catch(e) {
-    // Try extracting JSON from markdown code block
-    var match = text.match(/\x60{3,}json\s*([\s\S]*?)\x60{3,}/);
-    if (match) {
-      try { result = JSON.parse(match[1].trim()); } catch(e2) { /* fail */ }
-    }
-  }
-
-  if (!result || !result.submissions || !Array.isArray(result.submissions)) {
-    status.textContent = '❌ Invalid format. Expected JSON with "submissions" array.';
-    status.style.color = '#e74c3c';
-    return;
-  }
-
-  var batch = result.batch || '2026-07';
-  var totalPoints = 0;
-  var successCount = 0;
-  var errors = [];
-
-  
-  // ===== MERGE same-uid submissions =====
-  var merged = {};
-  result.submissions.forEach(function(sub) {
-    var key = sub.uid || sub.discord_name || 'unknown_' + sub.id;
-    if (!merged[key]) {
-      merged[key] = JSON.parse(JSON.stringify(sub));
-    } else {
-      // Merge links
-      if (sub.engagement_links && merged[key].engagement_links) {
-        merged[key].engagement_links = merged[key].engagement_links.concat(sub.engagement_links);
-      } else if (sub.engagement_links) {
-        merged[key].engagement_links = sub.engagement_links;
-      }
-      if (sub.view_links && merged[key].view_links) {
-        merged[key].view_links = merged[key].view_links.concat(sub.view_links);
-      } else if (sub.view_links) {
-        merged[key].view_links = sub.view_links;
-      }
-      // Merge points
-      merged[key].points_earned = (merged[key].points_earned || 0) + (sub.points_earned || 0);
-      // Merge engagement/views
-      merged[key].total_engagement = (merged[key].total_engagement || 0) + (sub.total_engagement || 0);
-      merged[key].total_views = (merged[key].total_views || 0) + (sub.total_views || 0);
-      // Keep the first submission's id for DB update
-      if (sub.id) {
-        merged[key].links_engagement = ((merged[key].links_engagement || '') + '\n' + (sub.links_engagement || '')).trim();
-        merged[key].merged_ids = (merged[key].merged_ids || [merged[key].id]).concat([sub.id]);
-      }
-    }
-  });
-  result.submissions = Object.values(merged);
-  // ===== END MERGE =====
-
-  for (var i = 0; i < result.submissions.length; i++) {
-    var sub = result.submissions[i];
-    if (!sub.id) {
-      errors.push('Submission #' + (i+1) + ': missing id');
-      continue;
-    }
-    try {
-      // Update submissions table
-      var scoreDetails = JSON.stringify({
-        engagement_links: sub.engagement_links || [],
-        view_links: sub.view_links || []
-      });
-      var updatePayload = {
-        score_details: scoreDetails,
-        total_engagement_count: sub.total_engagement || 0,
-        total_view_count: sub.total_views || 0,
-        points_earned: sub.points_earned || 0,
-        status: 'scored',
-        scored_at: new Date().toISOString()
-      };
-      var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + sub.id, {
-        method: 'PATCH',
-        body: JSON.stringify(updatePayload)
-      });
-      if (!resp.ok) {
-        errors.push('Submission #' + sub.id + ': update failed (' + resp.status + ')');
-        continue;
-      }
-      // Also mark any merged submissions as scored (no points, just status)
-      if (sub.merged_ids) {
-        for (var mi = 0; mi < sub.merged_ids.length; mi++) {
-          var mid = sub.merged_ids[mi];
-          if (mid !== sub.id) {
-            await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + mid, {
-              method: 'PATCH',
-              body: JSON.stringify({ status: 'scored', scored_at: new Date().toISOString() })
-            });
-          }
-        }
-      }
-
-      // Add points to koc's point_logs
-      if (sub.points_earned && sub.points_earned > 0 && sub.uid) {
-        // Get current balance
-        var balRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/rpc/get_balance', {
-          method: 'POST',
-          body: JSON.stringify({ p_uid: sub.uid })
-        });
-        var currentBalance = 0;
-        if (balRes.ok) { currentBalance = parseInt(await balRes.text()) || 0; }
-        
-        var newBalance = currentBalance + sub.points_earned;
-        await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
-          method: 'POST',
-          body: JSON.stringify({
-            uid: sub.uid,
-            change: sub.points_earned,
-            balance_after: newBalance,
-            source: 'auto_settlement',
-            reason: 'July submission settlement',
-            period: currentPeriod,
-            created_by: 'agent'
-          })
-        });
-        
-        // Check for New Creator Bonus (新人任务): newbie_month >= 5pts gets +2 bonus
-        if (sub.points_earned >= 5 && sub.uid) {
-          try {
-            var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=notes');
-            var kocData = await kocRes.json();
-            if (kocData && kocData.length > 0) {
-              var koc = kocData[0];
-              var notes = koc.notes || '';
-              // Skip if old_creator (no newbie task)
-              if (notes.indexOf('old_creator') >= 0) { /* skip */ }
-              // Check if newbie_month matches current settlement period AND not already claimed
-              else if (notes.indexOf('newbie_month:' + currentPeriod) >= 0 && notes.indexOf('newbie_bonus:' + currentPeriod) === -1) {
-                var bonusBalance = newBalance + 2;
-                await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
-                  method: 'POST',
-                  body: JSON.stringify({
-                    uid: sub.uid,
-                    change: 2,
-                    balance_after: bonusBalance,
-                    source: 'auto_settlement',
-                    reason: 'New Creator Bonus (新人任务) - ' + currentPeriod + ' 5pts reach',
-                    period: currentPeriod,
-                    created_by: 'agent'
-                  })
-                });
-                var updatedNotes = notes + ', newbie_bonus:' + currentPeriod;
-                await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
-                  method: 'PATCH',
-                  body: JSON.stringify({ notes: updatedNotes })
-                });
-                totalPoints += 2;
-                sub.points_earned += 2;
-              }
-            }
-          } catch(e) { console.error('newbie bonus error:', e); }
-        }
-      }
-      totalPoints += sub.points_earned || 0;
-      successCount++;
-      // Auto-check CC + create CC order if creator has >=15 submissions this period
-      try {
-        var cntRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(sub.uid) + '&status=eq.scored&select=id&limit=50');
-        if (cntRes.ok) {
-          var subs = await cntRes.json();
-          if (subs && subs.length >= 15) {
-            var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=notes,discord_name,name,server');
-            if (kocRes.ok) {
-              var kocs = await kocRes.json();
-              if (kocs && kocs.length > 0) {
-                var koc = kocs[0];
-                var notes2 = koc.notes || '';
-                // Mark CC in notes
-                if (notes2.indexOf('CC:' + currentPeriod) === -1) {
-                  notes2 = notes2 ? notes2 + ', CC:' + currentPeriod : 'CC:' + currentPeriod;
-                  await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
-                    method: 'PATCH',
-                    body: JSON.stringify({ notes: notes2 })
-                  });
-                }
-                // Create CC order in redemption_orders (端内奖励: 月卡+蜗壳币+金币)
-                var checkOrder = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(sub.uid) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod) + '&select=id');
-                if (checkOrder.ok) {
-                  var existingOrders = await checkOrder.json();
-                  if (!existingOrders || existingOrders.length === 0) {
-                    await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
-                      method: 'POST',
-                      body: JSON.stringify({
-                        uid: sub.uid,
-                        discord_name: koc.discord_name || sub.discord_name || '',
-                        koc_name: koc.name || '',
-                        option_type: 'diamonds',
-                        option_name: 'CC:' + currentPeriod,
-                        points_spent: 0,
-                        reward_amount: '月卡x1 + 蜗壳币x500 + 金币x1000',
-                        status: 'pending',
-                        period: currentPeriod,
-                        admin_notes: 'CC:' + currentPeriod + ' - Consistent Creation Reward - ' + currentPeriod,
-                        created_at: new Date().toISOString()
-                      })
-                    });
-                  }
-                }
-              }
-            }
-          }
-        }
-      } catch(e2) { /* non-blocking */ }
-    } catch(e) {
-      errors.push('Submission #' + (sub.id || i+1) + ': ' + e.message);
-    }
-  }
-
-  // Record import
-  try {
-    await supabaseFetch(SUPABASE_URL + '/rest/v1/score_imports', {
-      method: 'POST',
-      body: JSON.stringify({
-        batch_id: batch,
-        total_submissions: successCount,
-        total_points_added: totalPoints,
-        source: 'agent',
-        import_data: JSON.stringify(result),
-        imported_by: 'admin'
-      })
-    });
-  } catch(e) {}
-
-  // Show result
-  var msg = '✅ Imported ' + successCount + '/' + result.submissions.length + ' submissions, ' + totalPoints + ' points added';
-  if (errors.length > 0) msg += '\n⚠️ Errors: ' + errors.slice(0, 5).join('\n');
-  status.textContent = msg;
-  status.style.color = errors.length > 0 ? '#ff9800' : '#4caf50';
-
-  // Send Discord DM notifications via Mochi
-  var notifiedCount = 0;
-  for (var i = 0; i < result.submissions.length; i++) {
-    var sub = result.submissions[i];
-    if (sub.points_earned && sub.points_earned > 0) {
-      try {
-        var dmResult = await sendMochiDM(sub.discord_name, 
-          '🎉 Your July submission has been scored!\n' +
-          '📊 Engagement: ' + (sub.total_engagement || 0) + ' | Views: ' + (sub.total_views || 0) + '\n' +
-          '🏆 Points Earned: **' + sub.points_earned + '**\n\n' +
-          '👉 Check your balance and redeem rewards: https://jiashi65.github.io/yoyo-koc-exchange/');
-        if (dmResult) notifiedCount++;
-      } catch(e) { console.error('DM failed for', sub.discord_name, e); }
-    }
-  }
-  if (notifiedCount > 0) {
-    msg += '\n💬 Mochi notified ' + notifiedCount + ' creators via DM';
-  }
-
-  // Refresh all related tabs
-  loadSubmissions();
-  renderKocTable();
-  renderScoringTable();
-  renderMerchTab();
-  renderDiamondTab();
-  renderGplayTab();
-  // Show the agent output card
-  document.getElementById('agent-output-card').style.display = 'block';
+  // Legacy paste entry: never write directly from here. Always route through preview + confirm.
+  previewScoreResult(text);
+  var previewArea = document.getElementById('score-preview-area');
+  var actionBar = document.getElementById('import-action-bar');
+  var confirmBtn = document.getElementById('btn-confirm-import');
+  if (previewArea) previewArea.style.display = 'block';
+  if (actionBar) actionBar.style.display = 'block';
+  if (confirmBtn) confirmBtn.disabled = !pendingScoreResult;
 }
-
 async function pasteScoreResult() {
   try {
     var input = document.getElementById('agent-score-input');
@@ -1515,84 +1258,14 @@ var pendingScoreResult = null;
 
 // ===== 传送积分到前端（写入 point_logs）=====
 async function pushPointsToFrontend() {
-  if (!confirm('确认将当前月份(' + currentPeriod + ')所有已评分作品的积分传送到创作者端？')) return;
-  var btn = document.getElementById('btn-push-points');
-  btn.disabled = true;
-  btn.textContent = '⏳ 传送中...';
+  // Confirm score import already writes point_logs. Keep this legacy button safe.
+  showToast('✅ 确认应用积分时已自动写入，不需要再次传送', 'success');
   var status = document.getElementById('paste-status');
-  status.textContent = '⏳ 正在写入积分...';
-  status.style.color = 'var(--text-light)';
-  
-  try {
-    // Get all scored submissions for current period that haven't been pushed yet
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?status=eq.scored&select=uid,discord_name,points_earned,created_at&limit=500');
-    if (!res.ok) throw new Error('Failed to fetch submissions: ' + res.status);
-    var subs = await res.json();
-    
-    // Group by uid to merge
-    var uidMap = {};
-    subs.forEach(function(s) {
-      if (!s.uid || !s.points_earned) return;
-      if (!uidMap[s.uid]) {
-        uidMap[s.uid] = { uid: s.uid, discord_name: s.discord_name, total_pts: 0 };
-      }
-      uidMap[s.uid].total_pts += s.points_earned;
-    });
-    
-    var written = 0;
-    for (var uid in uidMap) {
-      var entry = uidMap[uid];
-      var pts = entry.total_pts;
-      if (pts <= 0) continue;
-      
-      // Get current balance
-      var balRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(uid) + '&order=created_at.desc&limit=1');
-      var currentBalance = 0;
-      if (balRes.ok) {
-        var balData = await balRes.json();
-        if (balData && balData.length > 0) currentBalance = balData[0].balance_after || 0;
-      }
-      
-      var newBalance = currentBalance + pts;
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
-        method: 'POST',
-        body: JSON.stringify({
-          uid: uid,
-          change: pts,
-          balance_after: newBalance,
-          source: 'auto_settlement',
-          reason: currentPeriod + ' submission settlement',
-          period: currentPeriod,
-          created_by: 'admin_push'
-        })
-      });
-      written++;
-    }
-    
-    // Update all submissions to prevent double-push (mark with period tag)
-    for (var i = 0; i < subs.length; i++) {
-      var s = subs[i];
-      if (s.id) {
-        await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + s.id, {
-          method: 'PATCH',
-          body: JSON.stringify({ admin_notes: 'pushed:' + currentPeriod })
-        });
-      }
-    }
-    
-    status.textContent = '✅ 已传送 ' + written + ' 位创作者，积分已到账前端';
+  if (status) {
+    status.textContent = '✅ 积分已在确认应用时自动到账；此按钮不会重复写入 point_logs。';
     status.style.color = '#4caf50';
-    showToast('✅ 积分已传送到 ' + written + ' 位创作者', 'success');
-    renderScoringTable();
-  } catch(e) {
-    status.textContent = '❌ 传送失败: ' + e.message;
-    status.style.color = '#e74c3c';
-    showToast('❌ 失败: ' + e.message, 'error');
   }
-  btn.disabled = false;
-  btn.textContent = '📤 传送积分到前端';
 }
-
 function previewScoreResult(text) {
   pendingScoreResult = null;
   var status = document.getElementById('paste-status');
@@ -1696,6 +1369,7 @@ async function confirmScoreImport() {
   status.style.color = 'var(--text-light)';
   try {
     var result = pendingScoreResult;
+    pendingScoreResult = null;
     var errors = [];
     var successCount = 0;
     var totalPts = 0;
@@ -1772,14 +1446,20 @@ async function confirmScoreImport() {
             var kocData = await kocRes.json();
             if (kocData && kocData.length > 0) {
               var notes = kocData[0].notes || '';
-              // Check if user is old_creator (skip newbie)
-              if (notes.indexOf('old_creator') === -1 && notes.indexOf('newbie_month:' + currentPeriod) >= 0 && notes.indexOf('newbie_bonus:' + currentPeriod) === -1 && pts >= 5) {
+              // Check if user is old_creator (skip newbie). Support both legacy text notes and JSON notes.
+              var notesObj2 = {};
+              try { notesObj2 = JSON.parse(notes || '{}'); } catch(e) {}
+              var nbMonth2 = notesObj2.newbie_month || '';
+              var ptMatch2 = notes.match(/newbie_month:(\d{4}-\d{2})/);
+              if (ptMatch2) nbMonth2 = ptMatch2[1];
+              var bonusClaimed2 = notes.indexOf('newbie_bonus:' + currentPeriod) >= 0 || notesObj2['newbie_bonus:' + currentPeriod] === true || notesObj2.newbie_bonus === currentPeriod;
+              if (notes.indexOf('old_creator') === -1 && nbMonth2 === currentPeriod && !bonusClaimed2 && pts >= 5) {
                 // Grant +2 bonus
-                var bonusBal = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&order=created_at.desc&limit=1');
+                var bonusBal = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=change');
                 var bonusCur = 0;
                 if (bonusBal.ok) {
                   var bd = await bonusBal.json();
-                  if (bd && bd.length > 0) bonusCur = bd[0].balance_after || 0;
+                  bonusCur = (bd || []).reduce(function(sum, row) { return sum + (Number(row.change) || 0); }, 0);
                 }
                 await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
                   method: 'POST',
@@ -1788,12 +1468,19 @@ async function confirmScoreImport() {
                     change: 2,
                     balance_after: bonusCur + 2,
                     source: 'auto_settlement',
-                    reason: 'New Creator Bonus (\u65b0\u4eba\u4efb\u52a1) - ' + currentPeriod + ' 5pts reach',
+                    reason: 'New Creator Bonus (新人任务) - ' + currentPeriod + ' 5pts reach',
                     period: currentPeriod,
                     created_by: 'admin_confirm'
                   })
                 });
-                var updatedNotes = notes + ', newbie_bonus:' + currentPeriod;
+                var updatedNotes = notes;
+                try {
+                  var updatedObj = JSON.parse(notes || '{}');
+                  updatedObj['newbie_bonus:' + currentPeriod] = true;
+                  updatedNotes = JSON.stringify(updatedObj);
+                } catch(e) {
+                  updatedNotes = notes ? notes + ', newbie_bonus:' + currentPeriod : 'newbie_bonus:' + currentPeriod;
+                }
                 await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
                   method: 'PATCH', body: JSON.stringify({ notes: updatedNotes })
                 });
