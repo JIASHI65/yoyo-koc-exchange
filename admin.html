@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🌟 Yoyo Town · Admin</title>
 
@@ -179,7 +179,7 @@
 <script>
 // ===== 缓存熔断 =====
 (function() {
-  var VERSION = 'v2.1.4';
+  var VERSION = 'v2.1.5';
   var cached = localStorage.getItem('admin_version');
   if (cached && cached !== VERSION) {
     // 发现旧缓存，强制清除并刷新
@@ -205,6 +205,15 @@ window.addEventListener('unhandledrejection', function(e) {
 });
 </script>
 
+<script>
+// If echarts CDN fails to load after 8 seconds, set flag so charts degrade gracefully
+setTimeout(function() {
+  if (typeof echarts === 'undefined') {
+    console.warn('[Admin] ECharts not loaded, charts will be disabled');
+    window._echartsFailed = true;
+  }
+}, 8000);
+</script>
 </head>
 <body>
 <div class="container">
