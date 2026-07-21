@@ -1,3 +1,4 @@
+console.log('admin-core.js LOADED, starting execution...');
 /* v1784200691 */
 var SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_oyewqnQ8AnitAOD94Qg0nA_v6Zqkr7r';
@@ -4140,3 +4141,5 @@ document.addEventListener('visibilitychange', function() {
     }
   }
 });
+
+console.log('admin-core.js EXECUTION COMPLETE. SUPABASE_URL:', typeof SUPABASE_URL);
