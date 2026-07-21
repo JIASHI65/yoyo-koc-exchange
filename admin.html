@@ -190,6 +190,19 @@
 })();
 </script>
 
+
+<script>
+// Global error logger
+window._adminErrors = [];
+window.addEventListener('error', function(e) {
+  window._adminErrors.push({msg: e.message, file: e.filename, line: e.lineno, col: e.colno, time: new Date().toLocaleTimeString()});
+  console.error('[ADMIN ERROR]', e.message, 'at line', e.lineno);
+});
+window.addEventListener('unhandledrejection', function(e) {
+  window._adminErrors.push({msg: 'Promise: ' + String(e.reason), time: new Date().toLocaleTimeString()});
+  console.error('[ADMIN PROMISE]', e.reason);
+});
+</script>
 </head>
 <body>
 <div class="container">
@@ -242,6 +255,16 @@
 
   <!-- ===== ADMIN PANEL ===== -->
   <div id="admin-panel" class="hidden">
+<div id="err-box" style="display:none;position:fixed;top:0;left:0;right:0;background:#c62828;color:white;padding:6px 12px;font-family:monospace;font-size:11px;z-index:99999;max-height:100px;overflow-y:auto;"></div>
+<script>
+setInterval(function() {
+  var eb = document.getElementById('err-box');
+  if (!eb || !window._adminErrors || !window._adminErrors.length) return;
+  eb.style.display = 'block';
+  eb.innerHTML = window._adminErrors.map(function(e) { return '&#10060; ' + e.time + ' ' + e.msg + (e.line ? ' L' + e.line : ''); }).join('<br>');
+}, 500);
+</script>
+
     <div class="header">
       <h1>🌟🎀 Admin · KOC Redemption</h1>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -920,7 +943,6 @@ function getTierBadge(tier) {
 }
 
 async function renderTiersTable() {
-  console.log('[RENDER] renderTiersTable called, allKocs:', (typeof allKocs !== 'undefined' ? allKocs.length : 'undefined')); {
   var container = document.getElementById('tiers-table');
   if (!container) return;
   var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=*&order=discord_name.asc');
@@ -2396,8 +2418,6 @@ async function writeAuditLog(actionType, detail) {
   } catch(e) { /* silent */ }
 }
 function switchTab(name) {
-  console.log('[SWITCH] Switching to tab:', name);
-  try {
   localStorage.setItem('admin_active_tab', name);
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(function(c) { 
@@ -2422,10 +2442,6 @@ function switchTab(name) {
   if (name === 'tiers') renderTiersTable();
   if (name === 'rules') loadCampaignConfig();
   if (name === 'audit') loadAuditLog();
-  console.log('[SWITCH] Tab switch complete:', name);
-  } catch(e) {
-    console.error('[SWITCH] Tab switch FAILED:', name, e.message, e.stack);
-  }
 }
 
 // Init submissions on page load
@@ -3908,7 +3924,6 @@ async function batchDeleteSelected() {
   await loadData();
 }
 function renderScoringTable() {
-  console.log('[RENDER] renderScoringTable called, allKocs:', (typeof allKocs !== 'undefined' ? allKocs.length : 'undefined')); {
   // Load redemption state
   (async function() {
     try {
@@ -4618,7 +4633,6 @@ function groupByMonth(arr) {
 }
 
 function renderMerchTab() {
-  console.log('[RENDER] renderMerchTab called, allKocs:', (typeof allKocs !== 'undefined' ? allKocs.length : 'undefined')); {
   var kmap = getKocMap();
   var merchOrders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }));
   var label = currentPeriod.replace('-', '年') + '月';
@@ -4657,7 +4671,6 @@ function renderMerchTab() {
   setTimeout(function() { initSortable('merch'); }, 100);
 }
 function renderDiamondTab() {
-  console.log('[RENDER] renderDiamondTab called, allKocs:', (typeof allKocs !== 'undefined' ? allKocs.length : 'undefined')); {
   var kmap = getKocMap();
   var orders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'diamonds' && o.status === 'shipped'; }));
   var label = currentPeriod.replace('-', '年') + '月';
@@ -4725,7 +4738,6 @@ function renderDiamondTab() {
   setTimeout(function() { initSortable('diamond'); }, 100);
 }
 function renderGplayTab() {
-  console.log('[RENDER] renderGplayTab called, allKocs:', (typeof allKocs !== 'undefined' ? allKocs.length : 'undefined')); {
   var kmap = getKocMap();
   var orders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'gplay' && o.status === 'shipped'; }));
   var label = currentPeriod.replace('-', '年') + '月';
