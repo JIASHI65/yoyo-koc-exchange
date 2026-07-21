@@ -2,7 +2,25 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<script defer src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<!-- ECharts loaded dynamically with timeout fallback -->
+<script>
+(function() {
+  var script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js';
+  var loaded = false;
+  var timeout = setTimeout(function() {
+    if (!loaded) {
+      console.warn('[Admin] ECharts CDN timeout - charts disabled');
+      window._echartsFailed = true;
+      script.onload = null;
+      script.onerror = null;
+    }
+  }, 5000);
+  script.onload = function() { loaded = true; clearTimeout(timeout); };
+  script.onerror = function() { loaded = true; clearTimeout(timeout); window._echartsFailed = true; };
+  document.head.appendChild(script);
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🌟 Yoyo Town · Admin</title>
 
