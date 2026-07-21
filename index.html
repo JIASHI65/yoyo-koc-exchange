@@ -1297,8 +1297,7 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
     // === MONTHLY SUMMARY CARD (previous month) ===
     var prevYm = getPrevMonth(ym);
     var prevSubs = byMonth[prevYm] || [];
-    var prevTotalLinks = prevSubs.reduce(function(su, s) { return su + (s.links_engagement || '').split('
-').filter(Boolean).length; }, 0);
+    var prevTotalLinks = prevSubs.reduce(function(su, s) { return su + (s.links_engagement || '').split('\n').filter(Boolean).length; }, 0);
     var prevMonthPts = 0;
     (ptLogs||[]).forEach(function(p) {
       if (p.period === prevYm && p.change > 0) prevMonthPts += p.change;
