@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<!-- ECharts disabled for reliability -->
+<!-- ECharts removed - blocked page load -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🌟 Yoyo Town · Admin</title>
 
@@ -179,8 +179,7 @@
 <script>
 // ===== 缓存熔断 =====
 (function() {
-  var VERSION = 'v2.1.2';
-window._echartsFailed = true; // ECharts CDN unreliable, use table fallback
+  var VERSION = 'v2.1.3'; // ECharts disabled for page load reliability
   var cached = localStorage.getItem('admin_version');
   if (cached && cached !== VERSION) {
     // 发现旧缓存，强制清除并刷新
