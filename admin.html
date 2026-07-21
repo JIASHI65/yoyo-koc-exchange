@@ -179,7 +179,7 @@
 <script>
 // ===== 缓存熔断 =====
 (function() {
-  var VERSION = 'v2.1.3'; // ECharts disabled for page load reliability
+  var VERSION = 'v2.1.4'; // ECharts disabled for page load reliability
   var cached = localStorage.getItem('admin_version');
   if (cached && cached !== VERSION) {
     // 发现旧缓存，强制清除并刷新
@@ -242,6 +242,38 @@
 
   <!-- ===== ADMIN PANEL ===== -->
   <div id="admin-panel" class="hidden">
+<div id="debug-bar" style="position:fixed;top:0;left:0;right:0;background:#1a1a2e;color:#0f0;padding:8px 12px;font-family:monospace;font-size:11px;z-index:99999;max-height:120px;overflow-y:auto;display:none;"></div>
+<script>
+window._dlog = function(msg) {
+  var el = document.getElementById('debug-bar');
+  if (!el) return;
+  el.style.display = 'block';
+  el.innerHTML += '<span style="color:#888;">[' + new Date().toISOString().substr(11,8) + ']</span> ' + msg + '<br>';
+  el.scrollTop = el.scrollHeight;
+  console.log('[DEBUG]', msg);
+};
+// Override switchTab to log
+var _origSwitchTab = window.switchTab;
+window.switchTab = function(name) {
+  window._dlog('switchTab CALLED: ' + name);
+  try {
+    _origSwitchTab(name);
+    window._dlog('switchTab DONE: ' + name);
+  } catch(e) {
+    window._dlog('switchTab ERROR: ' + e.message + ' (stack: ' + (e.stack||'').substring(0,150) + ')');
+  }
+};
+// Also log tab clicks
+document.addEventListener('click', function(e) {
+  var tab = e.target.closest('.tab');
+  if (tab) {
+    var onclick = tab.getAttribute('onclick') || '';
+    window._dlog('Tab CLICK: ' + onclick);
+  }
+});
+window._dlog('=== Debug bar initialized ===');
+</script>
+
     <div class="header">
       <h1>🌟🎀 Admin · KOC Redemption</h1>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
