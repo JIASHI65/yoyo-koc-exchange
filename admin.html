@@ -286,6 +286,7 @@
 
     <!-- ======== TAB: KOC投稿月报 ======== -->
     <div id="tab-dashboard" class="tab-content active">
+<div id="debug-status" style="background:#1a1a2e;color:#0f0;padding:6px 10px;font-family:monospace;font-size:11px;border-radius:4px;margin-bottom:8px;">🟢 Debug ready. Click a tab to test.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
         <div style="background:linear-gradient(135deg,#fce4ec,#f8bbd0);border-radius:16px;padding:16px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
           <div style="font-size:15px;font-weight:700;color:#880e4f;">📊 KOC投稿月报</div>
@@ -2394,6 +2395,8 @@ async function writeAuditLog(actionType, detail) {
   } catch(e) { /* silent */ }
 }
 function switchTab(name) {
+  try {
+  console.log('>>> switchTab START:', name);
   localStorage.setItem('admin_active_tab', name);
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(function(c) { 
@@ -2418,6 +2421,12 @@ function switchTab(name) {
   if (name === 'tiers') renderTiersTable();
   if (name === 'rules') loadCampaignConfig();
   if (name === 'audit') loadAuditLog();
+  console.log('>>> switchTab DONE:', name);
+  var ds = document.getElementById('debug-status'); if (ds) ds.textContent = '🟢 Switched to: ' + name + ' (' + new Date().toLocaleTimeString() + ')';
+  } catch(e) {
+    console.error('>>> switchTab CRASH:', name, e.message, e.stack);
+  var ds = document.getElementById('debug-status'); if (ds) ds.textContent = '🔴 ERROR switching to ' + name + ': ' + e.message;
+  }
 }
 
 // Init submissions on page load
