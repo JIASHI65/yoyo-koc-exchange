@@ -179,7 +179,7 @@
 <script>
 // ===== 缓存熔断 =====
 (function() {
-  var VERSION = 'v2.1.5';
+  var VERSION = 'v2.1.2';
   var cached = localStorage.getItem('admin_version');
   if (cached && cached !== VERSION) {
     // 发现旧缓存，强制清除并刷新
@@ -190,30 +190,6 @@
 })();
 </script>
 
-
-<script>
-// Debug: collect all JS errors
-window._errors = [];
-window.onerror = function(msg, url, line, col, err) {
-  window._errors.push({msg: String(msg), line: line, col: col, stack: err ? err.stack : ''});
-  console.error('[DEBUG]', msg, 'at line', line);
-  return false;
-};
-window.addEventListener('unhandledrejection', function(e) {
-  window._errors.push({msg: 'Promise: ' + String(e.reason), stack: e.reason ? e.reason.stack : ''});
-  console.error('[DEBUG Promise]', e.reason);
-});
-</script>
-
-<script>
-// If echarts CDN fails to load after 8 seconds, set flag so charts degrade gracefully
-setTimeout(function() {
-  if (typeof echarts === 'undefined') {
-    console.warn('[Admin] ECharts not loaded, charts will be disabled');
-    window._echartsFailed = true;
-  }
-}, 8000);
-</script>
 </head>
 <body>
 <div class="container">
@@ -2425,8 +2401,7 @@ function switchTab(name) {
     c.classList.remove('active'); 
     c.style.display = 'none'; 
   });
-    var tabBtn = document.querySelector('.tab[onclick*="' + name + '"]');
-  if (tabBtn) tabBtn.classList.add('active');
+  document.querySelector('.tab[onclick*="' + name + '"]').classList.add('active');
   var activeTab = document.getElementById('tab-' + name);
   if (activeTab) {
     activeTab.classList.add('active');
@@ -4990,25 +4965,9 @@ document.addEventListener('visibilitychange', function() {
   (function() {
     var v = localStorage.getItem('admin_html_v');
     if (v !== '2.1') {
-      localStorage.setItem('admin_html_v', '2.3');
+      localStorage.setItem('admin_html_v', '2.2');
     }
   })();
-</script>
-
-
-<div id="debug-errors" style="position:fixed;bottom:0;left:0;right:0;max-height:200px;overflow:auto;background:#ffebee;border-top:3px solid #e53935;padding:10px;font-family:monospace;font-size:11px;z-index:9999;display:none;"></div>
-<script>
-setInterval(function() {
-  var el = document.getElementById('debug-errors');
-  if (!el) return;
-  if (window._errors && window._errors.length > 0) {
-    el.style.display = 'block';
-    el.innerHTML = '<b>🐛 JS Errors (' + window._errors.length + '):</b><br>' + 
-      window._errors.map(function(e, i) { 
-        return '<span style="color:#c62828;">#' + (i+1) + '</span> ' + e.msg + ' <span style="color:#999;">(line ' + e.line + ')</span>'; 
-      }).join('<br>');
-  }
-}, 1000);
 </script>
 
 </body>
