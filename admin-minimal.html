@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Test</title>
+<style>
+body { font-family: system-ui; background: #fef6f9; color: #3d2b36; padding: 20px; }
+.hidden { display: none !important; }
+.card { background: white; border-radius: 12px; padding: 20px; margin: 10px 0; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+.btn { padding: 12px 24px; border: none; border-radius: 10px; font-size: 16px; cursor: pointer; background: #f2a6c4; color: white; }
+input { padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; width: 200px; margin: 5px; }
+.tab { display: inline-block; padding: 10px 20px; cursor: pointer; border-radius: 8px 8px 0 0; margin-right: 4px; background: #eee; }
+.tab.active { background: #f2a6c4; color: white; }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <h2>🔐 Admin Login</h2>
+  <input id="pw" type="password" placeholder="Password">
+  <button class="btn" onclick="doLogin()">Login</button>
+  <div id="login-msg" style="margin-top:10px;color:red;"></div>
+</div>
+
+<div id="admin-panel" class="hidden">
+  <h2>Admin Panel</h2>
+  <div id="tabs">
+    <span class="tab active" onclick="showTab('t1')">Tab 1</span>
+    <span class="tab" onclick="showTab('t2')">Tab 2</span>
+    <span class="tab" onclick="showTab('t3')">Tab 3</span>
+  </div>
+  <div class="card" id="content-t1">✅ Tab 1: This should always show. API test below.<br><span id="api-result">Testing...</span></div>
+  <div class="card hidden" id="content-t2">✅ Tab 2 content</div>
+  <div class="card hidden" id="content-t3">✅ Tab 3 content</div>
+  <button class="btn" onclick="doLogout()" style="margin-top:10px;background:#999;">Logout</button>
+</div>
+
+<div id="debug" style="position:fixed;bottom:0;left:0;right:0;background:#333;color:#0f0;padding:10px;font-family:monospace;font-size:11px;max-height:150px;overflow:auto;"></div>
+
+<script>
+// Minimal debug logger
+function log(msg) {
+  var d = document.getElementById('debug');
+  d.textContent += '[' + new Date().toISOString().substring(11,19) + '] ' + msg + '\n';
+  d.scrollTop = d.scrollHeight;
+}
+log('Page loaded. Script running.');
+
+// Login
+function doLogin() {
+  var pw = document.getElementById('pw').value;
+  log('Login attempt: ' + (pw === 'yoyo2026' ? 'CORRECT' : 'wrong: ' + pw));
+  if (pw === 'yoyo2026') {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('admin-panel').classList.remove('hidden');
+    log('Login OK, panel shown');
+    testAPI();
+  } else {
+    document.getElementById('login-msg').textContent = 'Wrong password (hint: yoyo2026)';
+  }
+}
+
+function doLogout() {
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('admin-panel').classList.add('hidden');
+  log('Logged out');
+}
+
+function showTab(name) {
+  log('Switching to ' + name);
+  document.querySelectorAll('#tabs .tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('#admin-panel .card').forEach(function(c) { c.classList.add('hidden'); });
+  event.target.classList.add('active');
+  document.getElementById('content-' + name).classList.remove('hidden');
+}
+
+// Test Supabase API
+async function testAPI() {
+  log('Testing Supabase API...');
+  try {
+    var r = await fetch('https://rryzofimrehmkijkckrm.supabase.co/rest/v1/kocs?limit=2&select=uid,discord_name', {
+      headers: { 'apikey': 'sb_publishable_oyewqnQ8AnitAOD94Qg0nA_v6Zqkr7r', 'Authorization': 'Bearer sb_publishable_oyewqnQ8AnitAOD94Qg0nA_v6Zqkr7r' }
+    });
+    var d = await r.json();
+    log('API: ' + r.status + ' - ' + d.length + ' kocs');
+    document.getElementById('api-result').textContent = '✅ API OK: ' + d.length + ' creators (e.g. ' + (d[0] ? d[0].discord_name : 'none') + ')';
+  } catch(e) {
+    log('API ERROR: ' + e.message);
+    document.getElementById('api-result').textContent = '❌ API Error: ' + e.message;
+  }
+}
+</script>
+</body>
+</html>
