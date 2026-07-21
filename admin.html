@@ -179,7 +179,7 @@
 <script>
 // ===== 缓存熔断 =====
 (function() {
-  var VERSION = 'v2.1.5'; // ECharts disabled for page load reliability
+  var VERSION = 'v2.1.3'; // ECharts disabled for page load reliability
   var cached = localStorage.getItem('admin_version');
   if (cached && cached !== VERSION) {
     // 发现旧缓存，强制清除并刷新
@@ -190,19 +190,6 @@
 })();
 </script>
 
-
-<script>
-// Global error logger
-window._adminErrors = [];
-window.addEventListener('error', function(e) {
-  window._adminErrors.push({msg: e.message, file: e.filename, line: e.lineno, col: e.colno, time: new Date().toLocaleTimeString()});
-  console.error('[ADMIN ERROR]', e.message, 'at line', e.lineno);
-});
-window.addEventListener('unhandledrejection', function(e) {
-  window._adminErrors.push({msg: 'Promise: ' + String(e.reason), time: new Date().toLocaleTimeString()});
-  console.error('[ADMIN PROMISE]', e.reason);
-});
-</script>
 </head>
 <body>
 <div class="container">
@@ -255,16 +242,6 @@ window.addEventListener('unhandledrejection', function(e) {
 
   <!-- ===== ADMIN PANEL ===== -->
   <div id="admin-panel" class="hidden">
-<div id="err-box" style="display:none;position:fixed;top:0;left:0;right:0;background:#c62828;color:white;padding:6px 12px;font-family:monospace;font-size:11px;z-index:99999;max-height:100px;overflow-y:auto;"></div>
-<script>
-setInterval(function() {
-  var eb = document.getElementById('err-box');
-  if (!eb || !window._adminErrors || !window._adminErrors.length) return;
-  eb.style.display = 'block';
-  eb.innerHTML = window._adminErrors.map(function(e) { return '&#10060; ' + e.time + ' ' + e.msg + (e.line ? ' L' + e.line : ''); }).join('<br>');
-}, 500);
-</script>
-
     <div class="header">
       <h1>🌟🎀 Admin · KOC Redemption</h1>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -351,16 +328,12 @@ setInterval(function() {
         <div id="dash-summary" style="font-size:13px;line-height:1.6;color:#333;"><div class="sk-summary"></div></div>
       </div>
     </div>
-
-    </div>
       <div id="community-kpi" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:12px;"></div>
       <div id="community-charts-area"></div>
       <div id="community-channels" style="display:none;"></div>
       <div id="community-users" style="display:none;"></div>
       <div id="chart-content" style="display:none;"></div>
       <div id="chart-weekly" style="display:none;"></div>
-
-    </div>
 
     <!-- ======== TAB: KOC信息库 ======== -->
     <div id="tab-koc-ledger" class="tab-content">
@@ -4993,5 +4966,6 @@ document.addEventListener('visibilitychange', function() {
   })();
 </script>
 
+</div><!-- /container -->
 </body>
 </html>
