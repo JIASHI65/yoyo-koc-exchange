@@ -2,25 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<!-- ECharts loaded dynamically with timeout fallback -->
-<script>
-(function() {
-  var script = document.createElement('script');
-  script.src = 'https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js';
-  var loaded = false;
-  var timeout = setTimeout(function() {
-    if (!loaded) {
-      console.warn('[Admin] ECharts CDN timeout - charts disabled');
-      window._echartsFailed = true;
-      script.onload = null;
-      script.onerror = null;
-    }
-  }, 5000);
-  script.onload = function() { loaded = true; clearTimeout(timeout); };
-  script.onerror = function() { loaded = true; clearTimeout(timeout); window._echartsFailed = true; };
-  document.head.appendChild(script);
-})();
-</script>
+<!-- ECharts disabled for reliability -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🌟 Yoyo Town · Admin</title>
 
@@ -198,6 +180,7 @@
 // ===== 缓存熔断 =====
 (function() {
   var VERSION = 'v2.1.2';
+window._echartsFailed = true; // ECharts CDN unreliable, use table fallback
   var cached = localStorage.getItem('admin_version');
   if (cached && cached !== VERSION) {
     // 发现旧缓存，强制清除并刷新
