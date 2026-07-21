@@ -1,0 +1,4142 @@
+/* v1784200691 */
+var SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_oyewqnQ8AnitAOD94Qg0nA_v6Zqkr7r';
+var ADMIN_PASSWORD = 'yoyo2026';
+
+// ===== Mochi Discord Bot =====
+const DISCORD_GUILD_ID = '1458340952358785193';
+// ⚠️ Token is stored in localStorage for security. Enter it once in the Mochi settings.
+var MOCHI_TOKEN = localStorage.getItem('mochi_token') || '';
+
+function setMochiToken(token) {
+  MOCHI_TOKEN = token;
+  localStorage.setItem('mochi_token', token);
+  showToast('✅ Mochi token saved', 'success');
+
+}
+
+function saveMochiToken() {
+  var input = document.getElementById('mochi-token-input');
+  if (input && input.value.trim()) {
+    setMochiToken(input.value.trim());
+    showToast('✅ Token 已保存', 'success');
+  } else {
+    showToast('请输入 Token', 'error');
+  }
+}
+
+// -- Drag-and-Drop Reorder --
+function loadSortableJS() {
+  if (window.Sortable) return Promise.resolve();
+  return new Promise(function(resolve, reject) {
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js';
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+var allKocs = [];
+var allOrders = [];
+var editingUid = null;
+
+function supabaseFetch(url, opts = {}) {
+  return fetch(url, { ...opts, headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json', ...opts.headers } });
+}
+
+// Discord proxy via XHR (avoids Safari CORS issue with Edge Functions)
+function discordProxyFetch(action, data, token) {
+  return new Promise(function(resolve, reject) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", SUPABASE_URL + "/functions/v1/discord-proxy", true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.setRequestHeader("Authorization", "Bearer " + SUPABASE_KEY);
+    xhr.onload = function() {
+      try {
+        var result = JSON.parse(xhr.responseText);
+        resolve(result);
+      } catch(e) {
+        reject(new Error("Parse error: " + e.message));
+      }
+    };
+    xhr.onerror = function() {
+      reject(new Error("Network error"));
+    };
+    xhr.send(JSON.stringify({action: action, data: data, token: token}));
+  });
+}
+
+function showToast(m, t = '') {
+  const x = document.getElementById('toast');
+  if (!x) return;
+  x.textContent = m; x.className = 'toast ' + t + ' show';
+}
+
+// ===== LOGIN =====
+window.adminLogin = function adminLogin() {
+  var pw = document.getElementById('admin-pw').value;
+  if (pw === ADMIN_PASSWORD) {
+    localStorage.setItem('admin_session', 'logged_in');
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('admin-panel').classList.remove('hidden');
+    setTimeout(function() { loadData(); }, 100);
+  } else {
+    alert('Wrong password (hint: ' + ADMIN_PASSWORD + ')');
+  }
+}
+
+window.adminLogout = function adminLogout() {
+  localStorage.removeItem('admin_session');
+  localStorage.removeItem('admin_active_tab');
+  document.getElementById('login-screen').classList.remove('hidden');
+  document.getElementById('admin-panel').classList.add('hidden');
+  document.getElementById('admin-pw').value = '';
+}
+
+// ===== TABS =====
+
+// ===== TIER MANAGEMENT =====
+function getTierBadge(tier) {
+  var map = {'platinum':'💎 铂金创作官','gold':'🟡 金级创作官','certified':'✅ 认证创作官'};
+  var cls = {'platinum':'tier-platinum','gold':'tier-gold','certified':'tier-certified'};
+  return `<span class='tier-badge ${cls[tier]||"tier-certified"}'>${map[tier]||"✅ 认证创作官"}</span>`;
+}
+
+async function renderTiersTable() {
+  var container = document.getElementById('tiers-table');
+  if (!container) return;
+  var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=*&order=discord_name.asc');
+  if (!res.ok) return;
+  var kocs = await res.json();
+  var month = '2026-07';
+  var plRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?select=uid,change,period,created_at&order=created_at.desc');
+  var logs = plRes.ok ? await plRes.json() : [];
+  var currentMonthPoints = {};
+  logs.forEach(function(l) {
+    if ((l.period || '').indexOf('2026-07') >= 0 || (!l.period && new Date(l.created_at).getMonth() === 6)) {
+      if (l.change > 0) currentMonthPoints[l.uid] = (currentMonthPoints[l.uid] || 0) + l.change;
+    }
+  });
+  var stats = {platinum:0, gold:0, newbie:0};
+  var html = kocs.filter(function(k) { return k.uid !== '__config__'; }).map(function(k) {
+    var tier = k.tier || 'certified';
+    stats[tier] = (stats[tier]||0) + 1;
+    var thisMonth = currentMonthPoints[k.uid] || 0;
+    var history = [];
+    try { history = JSON.parse(k.tier_history || '[]'); } catch(e) {}
+    var consecutiveMonths = history.length;
+    return '<tr>' +
+      '<td><strong ondblclick="inlineEdit(this,\'discord_name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.discord_name) + '</strong></td>' +
+      '<td>' + esc(k.uid) + '</td>' +
+      '<td>' + getTierBadge(tier) + '</td>' +
+      '<td>' + (history.length > 0 ? history[history.length-1].monthly_points || 0 : 0) + '</td>' +
+      '<td style="font-weight:700;">' + thisMonth + '</td>' +
+      '<td>' + consecutiveMonths + 'm</td>' +
+      '<td>' +
+        '<select id=\'tier-select-' + k.uid + '\' style=\'width:100px;margin-bottom:2px;\'>' +
+          '<option value=\'new\'' + (tier==='certified'?' selected':'') + '>✅ 认证创作官</option>' +
+          '<option value=\'gold\'' + (tier==='gold'?' selected':'') + '>🟡 金级创作官</option>' +
+          '<option value=\'platinum\'' + (tier==='platinum'?' selected':'') + '>💎 铂金创作官</option>' +
+          
+        '</select>' +
+        '<button class="btn btn-primary btn-sm" onclick="updateKocTier(\'' + k.uid + '\')">Save</button>' +
+      '</td>' +
+      '</tr>';
+  }).join('');
+  container.innerHTML = html || '<tr><td colspan=\'7\' style=\'text-align:center;padding:20px;color:var(--text-light);\'>No KOCs found</td></tr>';
+  document.getElementById('tier-stat-platinum').textContent = '💎 铂金创作官: ' + (stats.platinum||0);
+  document.getElementById('tier-stat-gold').textContent = '🟡 金级创作官: ' + (stats.gold||0);
+  document.getElementById('tier-stat-new').textContent = '✅ 认证创作官: ' + ((stats.newbie||0)+(stats.certified||0));
+}
+
+async function updateKocTier(uid) {
+  var tier = document.getElementById('tier-select-' + uid).value;
+  try {
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + uid, {
+      method: 'PATCH',
+      body: JSON.stringify({ tier: tier, tier_updated_at: new Date().toISOString() })
+    });
+    showToast('✅ ' + uid + ' tier updated to ' + tier, 'success');
+    renderTiersTable();
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function autoUpgradeTiers() {
+  if (!confirm('Run auto tier upgrade for all active KOCs?')) return;
+  var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=*');
+  if (!res.ok) return;
+  var kocs = await res.json();
+  var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?order=created_at.desc&select=*');
+  var subs = subRes.ok ? await subRes.json() : [];
+  var upgraded = 0;
+  for (var k of kocs) {
+    if (k.uid === '__config__') continue;
+    var monthlyPoints = subs.filter(function(s) { return s.uid === k.uid && s.status === 'scored'; })
+      .reduce(function(sum, s) { return sum + (s.points_earned || 0); }, 0);
+    var history = [];
+    try { history = JSON.parse(k.tier_history || '[]'); } catch(e) {}
+    history.push({month: '2026-07', tier: k.tier || 'certified', monthly_points: monthlyPoints});
+    if (history.length > 12) history = history.slice(-12);
+    var consecutive = 0;
+    for (var i = history.length - 1; i >= 0; i--) {
+      if (history[i].monthly_points >= 5) consecutive++; else break;
+    }
+    var newTier = 'certified';
+    if (consecutive >= 6) newTier = "platinum";
+    else if (consecutive >= 3) newTier = 'platinum';
+    else if (consecutive >= 2) newTier = 'gold';
+    if (newTier !== k.tier) {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + k.uid, {
+        method: 'PATCH',
+        body: JSON.stringify({ tier: newTier, tier_history: JSON.stringify(history), tier_updated_at: new Date().toISOString() })
+      });
+      upgraded++;
+    } else {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + k.uid, {
+        method: 'PATCH',
+        body: JSON.stringify({ tier_history: JSON.stringify(history) })
+      });
+    }
+  }
+  showToast('✅ Auto upgrade done! ' + upgraded + ' changed.', 'success');
+  renderTiersTable();
+}
+
+async function syncTiersFromDiscord() {
+  if (!confirm('Sync tier data from Discord?')) return;
+  var discordTiers = { 'platinum': ['Achiru', 'diana', 'Janie', 'taylor'], 'gold': ['Ema', 'maished', 'Mia'] };
+  var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=*');
+  if (!res.ok) return;
+  var kocs = await res.json();
+  var updated = 0;
+  for (var k of kocs) {
+    if (k.uid === '__config__') continue;
+    var name = (k.discord_name || '').toLowerCase();
+    var tier = 'certified';
+    if (discordTiers.platinum.some(function(n) { return name.indexOf(n.toLowerCase()) >= 0; })) tier = 'platinum';
+    else if (discordTiers.gold.some(function(n) { return name.indexOf(n.toLowerCase()) >= 0; })) tier = 'gold';
+    if (tier !== 'certified') {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + k.uid, {
+        method: 'PATCH',
+        body: JSON.stringify({ tier: tier, tier_updated_at: new Date().toISOString() })
+      });
+      updated++;
+    }
+  }
+  showToast('✅ Sync complete. Updated ' + updated + ' KOCs.', 'success');
+  setTimeout(renderTiersTable, 1000);
+}
+
+// ===== CAMPAIGN / RULES CONFIG =====
+async function loadCampaignConfig() {
+  var period = document.getElementById('cfg-period').value;
+  try {
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + period + '&select=*');
+    if (!res.ok) return;
+    var data = await res.json();
+    if (data && data.length > 0) {
+      var cfg = data[0];
+      document.getElementById('cfg-points-cap').value = cfg.points_cap || 40;
+      var rules = typeof cfg.rules_json === 'string' ? JSON.parse(cfg.rules_json) : cfg.rules_json;
+      if (rules && rules.scoring) {
+        document.getElementById('cfg-tt-per-point').value = (rules.scoring.tiktok && rules.scoring.tiktok.per_point) || 200;
+        document.getElementById('cfg-yt-per-point').value = (rules.scoring.youtube && rules.scoring.youtube.per_point) || 200;
+        document.getElementById('cfg-eng-per-point').value = (rules.scoring.engagement && rules.scoring.engagement.per_point) || 40;
+        document.getElementById('cfg-eng-80').value = (rules.scoring.engagement && rules.scoring.engagement['80_engagements']) || 2;
+      }
+      document.getElementById('cfg-tier-threshold').value = (rules && rules.tier_upgrade_threshold) || 5;
+    }
+  } catch(e) { console.error('loadCampaignConfig:', e); }
+}
+
+function updateToggleButton(btnId, isOpen) {
+  var btn = document.getElementById(btnId);
+  if (!btn) return;
+  if (isOpen) {
+    btn.textContent = '🟢 ' + (btnId.indexOf('redemption') >= 0 ? '兑换' : '投稿') + '已开启';
+    btn.style.background = '#43b581'; btn.style.color = '#fff';
+  } else {
+    btn.textContent = '🔴 ' + (btnId.indexOf('redemption') >= 0 ? '兑换' : '投稿') + '已关闭';
+    btn.style.background = '#e74c3c'; btn.style.color = '#fff';
+  }
+}
+
+async function toggleCampaignSwitch(field) {
+  var period = document.getElementById('cfg-period').value;
+  var isOpen = window._cfgSwitches && window._cfgSwitches[field] ? false : true;
+  var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + period, {
+    method: 'PATCH',
+    body: JSON.stringify({ [field]: isOpen })
+  });
+  if (res.ok) {
+    if (!window._cfgSwitches) window._cfgSwitches = {};
+    window._cfgSwitches[field] = isOpen;
+    var btnId = field === 'submissions_open' ? 'btn-toggle-submissions' : 'btn-toggle-redemption';
+    updateToggleButton(btnId, isOpen);
+    showToast((isOpen ? '已开启' : '已关闭') + (field === 'submissions_open' ? '投稿' : '兑换'), 'success');
+  } else {
+    showToast('操作失败，请重试', 'error');
+  }
+}
+
+async function saveCampaignConfig() {
+  var period = document.getElementById('cfg-period').value;
+  var pointsCap = parseInt(document.getElementById('cfg-points-cap').value) || 40;
+  var tierThreshold = parseInt(document.getElementById('cfg-tier-threshold').value) || 5;
+  var rules = {
+    scoring: {
+      tiktok: { per_point: parseInt(document.getElementById('cfg-tt-per-point').value) || 200, '400_views': parseInt(document.getElementById('cfg-tt-400').value) || 400 },
+      youtube: { per_point: parseInt(document.getElementById('cfg-yt-per-point').value) || 200, '400_views': parseInt(document.getElementById('cfg-yt-400').value) || 400 },
+      engagement: { per_point: parseInt(document.getElementById('cfg-eng-per-point').value) || 40, '80_engagements': parseInt(document.getElementById('cfg-eng-80').value) || 80 }
+    },
+    points_cap: pointsCap,
+    tier_upgrade_threshold: tierThreshold,
+    tier_description: document.getElementById('cfg-tier-description').value,
+    consistent_creation_bonus: { min_days: 5, min_posts: 15 }
+  };
+  try {
+    var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + period + '&select=id');
+    var existing = await checkRes.json();
+    if (existing && existing.length > 0) {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?id=eq.' + existing[0].id, {
+        method: 'PATCH',
+        body: JSON.stringify({ rules_json: JSON.stringify(rules), points_cap: pointsCap, updated_at: new Date().toISOString() })
+      });
+    } else {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config', {
+        method: 'POST',
+        body: JSON.stringify({ period: period, name: period + ' Settlement', rules_json: JSON.stringify(rules), points_cap: pointsCap, is_active: true })
+      });
+    }
+    document.getElementById('cfg-status').textContent = '✅ Saved!';
+    document.getElementById('cfg-status').style.color = '#4caf50';
+    showToast('✅ Campaign config saved!', 'success');
+  } catch(e) {
+    document.getElementById('cfg-status').textContent = 'Error: ' + e.message;
+    document.getElementById('cfg-status').style.color = '#e74c3c';
+  }
+}
+
+function updateAgentRulesFromConfig() {
+  var cap = document.getElementById('cfg-points-cap').value;
+  var tt200 = document.getElementById('cfg-tt-per-point').value;
+  var tt400 = document.getElementById('cfg-tt-400').value;
+  var yt200 = document.getElementById('cfg-yt-per-point').value;
+  var yt400 = document.getElementById('cfg-yt-400').value;
+  var eng40 = document.getElementById('cfg-eng-per-point').value;
+  var eng80 = document.getElementById('cfg-eng-80').value;
+  var rulesText = '## Scoring Rules (Current Campaign)\n\n' +
+    '### TikTok\n  ' + tt200 + ' Point = 200 views; ' + tt400 + ' Points = 400 views\n\n' +
+    '### YouTube\n  ' + yt200 + ' Point = 200 views + 20s watch time; ' + yt400 + ' Points = 400 views\n\n' +
+    '### Social Platforms (Pinterest/FB/IG/X/Reddit)\n  ' + eng40 + ' Point = 40 engagements; ' + eng80 + ' Points = 80 engagements\n\n' +
+    '### Monthly Cap\n  Total points capped at ' + cap + '. Below 20 = actual; 20-39 = 20; 40 = full 40.';
+  SCORING_RULES_TEXT = rulesText;
+  showToast('✅ Agent template synced with current config!', 'success');
+}
+
+// ===== MOCHI DISCORD BOT FUNCTIONS =====
+// Send a DM to a user by their Discord username (resolves member first)
+async function sendMochiDM(discordUsername, message) {
+  if (!discordUsername) return { ok: false, reason: '空用户名' };
+  if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
+  try {
+    // Step 1: 通过 Edge Function 获取所有成员
+    var memberData = await discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN);
+    if (!memberData.ok) return { ok: false, reason: memberData.error || '获取成员失败' };
+    var members = memberData.data;
+
+    // Normalize: strip emoji/special chars, lowercase, trim
+    function norm(n) {
+      if (!n) return '';
+      return n.replace(/[^\w\- ]/g, '').trim().toLowerCase();
+    }
+    var targetNorm = norm(discordUsername);
+
+    // Try exact match first (username, nick, global_name)
+    var member = null;
+    members.forEach(function(m) {
+      if (norm(m.username) === targetNorm || norm(m.nick) === targetNorm || norm(m.global_name) === targetNorm) {
+        member = m;
+      }
+    });
+    // Fallback: substring match
+    if (!member) {
+      members.forEach(function(m) {
+        var un = norm(m.username);
+        var nick = norm(m.nick);
+        var gn = norm(m.global_name);
+        if ((un && un.indexOf(targetNorm) >= 0) || (nick && nick.indexOf(targetNorm) >= 0) || (gn && gn.indexOf(targetNorm) >= 0)) {
+          member = m;
+        }
+      });
+    }
+    if (!member) {
+      return { ok: false, reason: '在服务器中未找到用户: ' + discordUsername };
+    }
+
+    // Step 2: 通过 Edge Function 发送私信
+    var dmData = await discordProxyFetch('send_dm', { user_id: member.id, message: message }, MOCHI_TOKEN);
+    if (!dmData.ok) return { ok: false, reason: dmData.error || '发送失败' };
+    return { ok: true, reason: '' };
+    // Audit log for DMs is handled by confirmBroadcast
+  } catch(e) {
+    console.error('sendMochiDM error:', e);
+    return { ok: false, reason: '异常: ' + (e.message || e) };
+  }
+}
+// ===== SUBMISSIONS: Render table =====
+var now = new Date();
+var currentPeriod = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+if (new Date().getDate() <= 5) {
+  var d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  currentPeriod = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+var allSubmissions = [];
+async function loadSubmissions() {
+  try {
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?order=created_at.desc&select=*');
+    if (!res.ok) return;
+    allSubmissions = await res.json();
+    renderSubmissions();
+  } catch(e) { console.error('loadSubmissions:', e); }
+}
+
+function renderSubmissions() {
+  var q = (document.getElementById('submission-search').value || '').toLowerCase().trim();
+  var filter = document.getElementById('submission-filter').value;
+  var container = document.getElementById('submissions-table');
+  if (!container) return;
+  // Filter by currentPeriod
+  var list = (allSubmissions || []).filter(function(s) {
+    return (s.created_at || '').substring(0, 7) === currentPeriod;
+  });
+  // Merge by discord_name (same person = merge)
+  var merged = {};
+  list.forEach(function(s) {
+    var key = (s.discord_name||'').toLowerCase().trim();
+    if (!merged[key]) {
+      merged[key] = { discord_name: s.discord_name, uid: s.uid, links_engagement: '', links_views: '', points_earned: 0, status: 'pending', created_at: s.created_at, id: s.id, _count: 0, _pending: 0, _scored: 0 };
+    }
+    var m = merged[key];
+    m._count++;
+    if (s.status === 'pending') m._pending++;
+    if (s.status === 'scored') m._scored++;
+    m.status = m._pending > 0 ? 'pending' : m._scored > 0 ? 'scored' : m.status;
+    m.points_earned = (m.points_earned || 0) + (s.points_earned || 0);
+    // Merge links
+    if (s.links_engagement) {
+      var lines = s.links_engagement.split('\n').filter(Boolean);
+      lines.forEach(function(l) { if (m.links_engagement.indexOf(l) === -1) m.links_engagement += (m.links_engagement ? '\n' : '') + l; });
+    }
+    if (s.links_views) {
+      var vlines = s.links_views.split('\n').filter(Boolean);
+      vlines.forEach(function(l) { if (m.links_views.indexOf(l) === -1) m.links_views += (m.links_views ? '\n' : '') + l; });
+    }
+    // Keep earliest created_at
+    if (s.created_at && s.created_at < m.created_at) m.created_at = s.created_at;
+  });
+  var mergedList = Object.values(merged);
+  var filtered = mergedList.filter(function(s) {
+    if (filter !== 'all') {
+      if (filter === 'pending' && s._scored === s._count) return false;
+      if (filter === 'scored' && s._pending > 0) return false;
+    }
+    if (q && (s.discord_name || '').toLowerCase().indexOf(q) === -1 &&
+        (s.uid || '').toLowerCase().indexOf(q) === -1) return false;
+    return true;
+  });
+  var stats = document.getElementById('submission-stat');
+  if (stats) {
+    stats.textContent = filtered.length + '/' + mergedList.length + ' 人';
+  }
+  if (filtered.length === 0) {
+    container.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-light);">暂无数据</td></tr>';
+    return;
+  }
+  container.innerHTML = filtered.map(function(s, i) {
+    // Support both raw submissions and preview results
+    var rawEng = s.links_engagement || '';
+    var rawView = s.links_views || '';
+    // Preview results might have engagement_links/view_links as arrays
+    if (s.engagement_links && Array.isArray(s.engagement_links)) rawEng = s.engagement_links.join('\n');
+    if (s.view_links && Array.isArray(s.view_links)) rawView = s.view_links.join('\n');
+    var engList = rawEng.split('\n').filter(Boolean);
+    var viewList = rawView.split('\n').filter(Boolean);
+    var totalLinks = engList.length + viewList.length;
+    var statusBadge = s.status === 'scored' ? '<span class="badge badge-shipped">\u2705 \u5df2\u8bc4\u5206</span>' 
+                     : s.status === 'pending' ? '<span class="badge badge-pending">\u23F3 \u5f85\u5ba1\u6838</span>' 
+                     : '<span class="badge badge-cancelled">\u274c \u5df2\u62d2\u7edd</span>';
+    var dateStr = new Date(s.created_at).toLocaleDateString();
+    var pts = s.points_earned || 0;
+    return '<tr>' +
+      '<td>' + (i + 1) + '</td>' +
+      '<td><strong>' + esc(s.discord_name) + '</strong></td>' +
+      '<td style="font-family:monospace;font-size:12px;">' + esc(s.uid) + '</td>' +
+      '<td>' + totalLinks + '</td>' +
+      '<td>' + statusBadge + '</td>' +
+      '<td class="link-cell" style="max-width:350px;white-space:pre-wrap;font-size:11px;word-break:break-all;line-height:1.5;">' + esc(rawEng) + '</td>' +
+      '<td class="link-cell" style="max-width:350px;white-space:pre-wrap;font-size:11px;word-break:break-all;line-height:1.5;">' + esc(rawView) + '</td>' +
+      '<td style="font-weight:700;color:' + (pts > 0 ? 'var(--pink-dark)' : 'inherit') + ';">' + pts + '</td>' +
+      '<td style="font-size:10px;color:var(--text-light);white-space:nowrap;">' + dateStr + '</td>' +
+      '<td>' +
+        '<button class="btn btn-outline btn-sm" onclick="viewSubmission(' + s.id + ')" style="margin-bottom:2px;width:100%;font-size:11px;padding:3px 4px;">👁\uFE0F \u67e5\u770b</button>' +
+        (s.status === 'pending' ? '<button class="btn btn-danger btn-sm" onclick="rejectSubmission(' + s.id + ')" style="width:100%;font-size:11px;padding:3px 4px;">\u2716 \u62d2\u7edd</button>' : '') +
+      '</td>' +
+      '</tr>';
+  }).join('');
+  // Load balances
+  allKocs.forEach(function(k) {
+    getBalance(k.uid).then(function(p) {
+      var el = document.getElementById('bal-' + k.uid);
+      if (el) el.textContent = p;
+    });
+  });
+}
+function viewSubmission(id) {
+  var s = allSubmissions.find(function(x) { return x.id === id; });
+  if (!s) return;
+  var engLinks = (s.links_engagement || '').split('\n').filter(Boolean);
+  var viewLinks = (s.links_views || '').split('\n').filter(Boolean);
+  var msg = '=== Submission #' + s.id + ' ===\n' +
+    'Discord: ' + s.discord_name + ' (UID: ' + s.uid + ')\n' +
+    'Server: ' + s.server + '\n' +
+    'Status: ' + s.status + '\n' +
+    'Date: ' + new Date(s.created_at).toLocaleString() + '\n' +
+    '--- Engagement Links (' + engLinks.length + ') ---\n' +
+    (engLinks.length ? engLinks.join('\n') : '(none)') + '\n' +
+    '--- View Links (' + viewLinks.length + ') ---\n' +
+    (viewLinks.length ? viewLinks.join('\n') : '(none)') + '\n' +
+    (s.address ? 'Address: ' + s.address + '\n' : '') +
+    (s.account_id ? 'Account ID: ' + s.account_id + '\n' : '') +
+    (s.game_uid ? 'Game UID: ' + s.game_uid + '\n' : '') +
+    (s.feedback ? 'Feedback: ' + s.feedback : '');
+  alert(msg);
+}
+
+async function rejectSubmission(id) {
+  if (!confirm('Reject submission #' + id + '?')) return;
+  try {
+    var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + id, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'rejected' })
+    });
+    if (resp.ok) {
+      showToast('✅ Submission rejected', 'success');
+      loadSubmissions();
+    }
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ===== AGENT INPUT TEMPLATE =====
+var SCORING_RULES_TEXT = `# Yoyo Creator Studio · Official Incentive Rules (Updated Periodically)
+
+## Scoring Rules
+
+### 1. Video Platforms (TikTok, YouTube)
+Points are counted by view count:
+- TikTok: 200 views = 1 Point; 400 views = 2 Points
+- YouTube: 20 sec watch time AND 200 views = 1 Point; 400 views = 2 Points
+
+### 2. Image/Social Platforms (Pinterest / Facebook / Instagram / X / Reddit)
+Points by total engagement (likes + comments + shares + saves / upvotes):
+- 40 engagements = 1 Point; 80 engagements = 2 Points
+
+### Engagement Definition by Platform:
+- Pinterest: likes + comments + saves
+- Facebook: likes + comments + shares
+- Instagram: likes + comments + shares + saves
+- X (Twitter): likes + comments + reposts + bookmarks
+- Reddit: upvotes (the number on the left, NOT percentage) + comments
+
+### Points Cap
+- Monthly cap is 20 points. If total exceeds 20 but is below 40, it still counts as 20.
+- If total reaches 40 or above, the full 40 points are settled.
+
+## Agent Task Instructions
+1. Open each link in browser and read the real engagement/view count from the page.
+2. Do NOT fabricate or guess numbers. If a link is inaccessible, mark "N/A" and note the reason.
+3. TikTok: click into the creator's profile page to find the video, then read the view count.
+4. YouTube: read view count AND check if watch time meets 20 sec minimum.
+5. Image platforms: sum likes + comments + shares + saves (as defined above).
+6. Reddit: read the upvote count (the number on the left side of the post, NOT percentage).
+
+## Output Format
+Return results for ALL submissions in this JSON format:
+\`\`\`json
+{
+  "submissions": [
+    {
+      "id": <submission_id>,
+      "discord_name": "<username>",
+      "uid": "<uid>",
+      "total_engagement": <integer> (互动数: likes+comments+shares+saves),
+      "total_impressions": <integer> (浏览量/曝光量),
+      "total_views": <integer> (播放量: 视频观看次数),
+      "points_earned": <integer>
+    }
+  ]
+}
+\`\`\``;
+
+function generateAgentTemplate() {
+  var pending = allSubmissions.filter(function(s) { return s.status === 'pending'; });
+  if (pending.length === 0) {
+    showToast('No pending submissions to score', 'error');
+    return null;
+  }
+
+  var lines = [
+    '# Yoyo KOC Exchange · Agent Scoring Task',
+    '',
+    SCORING_RULES_TEXT,
+    '',
+    '## 任务',
+    '请用浏览器打开以下每个链接，查看三个数据：📺 播放量(TikTok/YouTube视频观看次数)、👁️ 浏览量/曝光量(Facebook/Instagram/Reddit/X/Pinterest的阅读数)、💬 互动数(点赞+评论+分享+收藏)。三项都必须填写，不要漏掉任何一个。',
+    '不要凭空编造数据。如果链接无法访问，请标注 "N/A"。',
+    '',
+    '## 输出格式要求',
+    '输出一个 JSON 格式的结果，严格按照以下结构：',
+    '',
+    '```json',
+    '{',
+    '  "batch": "2026-07",',
+    '  "submissions": [',
+    '    {',
+    '      "id": 提交ID,',
+    '      "discord_name": "Discord用户名",',
+    '      "uid": "UID",',
+    '      "engagement_links": [',
+    '        { "url": "链接地址", "likes": N, "comments": N, "shares": N, "saves": N, "engagement_total": N }',
+    '      ],',
+    '      "view_links": [',
+    '        { "url": "链接地址", "view_count": N }',
+    '      ],',
+    '      "total_engagement": <integer> (总互动数: 点赞+评论+分享+收藏),',
+    '      "total_impressions": <integer> (总浏览量: 曝光量/阅读数),',
+    '      "total_views": <integer> (总播放量: 视频观看次数),',
+    '      "points_earned": N,',
+    '      "points_detail": "40-99=1pt, 100-199=2pt, ..."',
+    '    }',
+    '  ]',
+    '}',
+    '```',
+    '',
+    '## 作品列表',
+    ''
+  ];
+
+  pending.forEach(function(s, i) {
+    var engLinks = (s.links_engagement || '').split('\n').filter(Boolean);
+    var viewLinks = (s.links_views || '').split('\n').filter(Boolean);
+    lines.push('--- Submission #' + s.id + ' | ' + s.discord_name + ' (UID: ' + s.uid + ') ---');
+    lines.push('');
+    if (engLinks.length > 0) {
+      lines.push('### Engagement Links (互动平台):');
+      engLinks.forEach(function(url) { lines.push(url); });
+      lines.push('');
+    }
+    if (viewLinks.length > 0) {
+      lines.push('### View Links (播放平台):');
+      viewLinks.forEach(function(url) { lines.push(url); });
+      lines.push('');
+    }
+  });
+
+  lines.push('--- END ---');
+  return lines.join('\n');
+}
+
+// ===== BATCH OPERATIONS =====
+async function batchMarkScored() {
+  if (!confirm('批量标记所有待审核 submission 为已评分？')) return;
+  try {
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?status=eq.pending&select=id,discord_name,uid,links_engagement,links_views');
+    if (!res.ok) { showToast('查询失败', 'error'); return; }
+    var pending = await res.json() || [];
+    if (pending.length === 0) { showToast('没有待审核的 submission', 'error'); return; }
+    
+    var count = 0;
+    for (var i = 0; i < pending.length; i++) {
+      var s = pending[i];
+      var linkCount = (s.links_engagement||'').split('\n').filter(Boolean).length;
+      var viewCount = (s.links_views||'').split('\n').filter(Boolean).length;
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + s.id, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'scored', points_earned: linkCount + viewCount })
+      });
+      count++;
+    }
+    showToast('✅ 已标记 ' + count + ' 条为已评分', 'success');
+    writeAuditLog('score', '批量标记 ' + count + ' 条 submission 为已评分');
+    renderSubmissions();
+  } catch(e) {
+    showToast('批量标记失败: ' + e.message, 'error');
+  }
+}
+
+async function exportCSV() {
+  try {
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?order=created_at.desc&select=id,discord_name,uid,status,points_earned,links_engagement,links_views,created_at');
+    if (!res.ok) { showToast('获取数据失败', 'error'); return; }
+    var subs = await res.json() || [];
+    
+    var csv = '\uFEFF'; // BOM for Excel
+    csv += 'Discord,UID,Status,Points,E Links,V Links,Created At\n';
+    subs.forEach(function(s) {
+      var el = (s.links_engagement||'').split('\n').filter(Boolean).length;
+      var vl = (s.links_views||'').split('\n').filter(Boolean).length;
+      csv += (s.discord_name||'') + ',' + (s.uid||'') + ',' + (s.status||'') + ',' + (s.points_earned||0) + ',' + el + ',' + vl + ',' + (s.created_at||'') + '\n';
+    });
+    
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'koc-submissions-' + currentPeriod + '.csv';
+    a.click();
+    showToast('✅ 已导出 ' + subs.length + ' 条数据', 'success');
+    writeAuditLog('score', '导出 CSV，共 ' + subs.length + ' 条');
+  } catch(e) {
+    showToast('导出失败: ' + e.message, 'error');
+  }
+}
+function exportCurrentTable() {
+  // Export whatever is currently displayed in the submissions table as CSV
+  var list = (window._previewMerged && window._previewMerged.length > 0) ? window._previewMerged : allSubmissions || [];
+  if (list.length === 0) { showToast('No data to export', 'error'); return; }
+  // Headers
+  var csv = '#\tDiscord\tUID\tLinks\tStatus\tEng Links\tView Links\tPts\tDate\n';
+  list.forEach(function(s, i) {
+    var rawEng = s.links_engagement || '';
+    var rawView = s.links_views || '';
+    if (s.engagement_links && Array.isArray(s.engagement_links)) rawEng = s.engagement_links.join('\n');
+    if (s.view_links && Array.isArray(s.view_links)) rawView = s.view_links.join('\n');
+    var engList = rawEng.split('\n').filter(Boolean);
+    var viewList = rawView.split('\n').filter(Boolean);
+    var status = s.status === 'scored' ? '\u5df2\u8bc4\u5206' : s.status === 'pending' ? '\u5f85\u5ba1\u6838' : '\u5df2\u62d2\u7edd';
+    // Escape tabs and newlines for TSV format
+    var engTsv = rawEng.replace(/\t/g, ' ').replace(/\n/g, ' | ');
+    var viewTsv = rawView.replace(/\t/g, ' ').replace(/\n/g, ' | ');
+    csv += (i+1) + '\t' + esc(s.discord_name) + '\t' + esc(s.uid) + '\t' + (engList.length + viewList.length) + '\t' + status + '\t' + engTsv + '\t' + viewTsv + '\t' + (s.points_earned || 0) + '\t' + new Date(s.created_at).toLocaleDateString() + '\n';
+  });
+  var blob = new Blob([csv], {type: 'text/tab-separated-values;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'koc-table-' + currentPeriod + '.tsv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('\u2705 \u5bfc\u51fa ' + list.length + ' \u6761', 'success');
+}
+
+function exportSubmissionsFile() {
+  var pending = allSubmissions.filter(function(s) { return s.status === 'pending'; });
+  if (pending.length === 0) {
+    showToast('No pending submissions to export', 'error');
+    return;
+  }
+  // Build compact JSON with just the essential data
+  var data = {
+    batch: currentPeriod,
+    rules: SCORING_RULES_TEXT,
+    submissions: pending.map(function(s) {
+      var links = (s.links_engagement || '').split('\n').filter(Boolean);
+      return {
+        id: s.id,
+        discord_name: s.discord_name,
+        uid: s.uid,
+        links: links
+      };
+    })
+  };
+  var json = JSON.stringify(data, null, 2);
+  // Download as file
+  var blob = new Blob([json], {type: 'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'koc-submissions-' + currentPeriod + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ 已导出 ' + pending.length + ' 条待审核到文件', 'success');
+}
+
+async function copyAgentPrompt() {
+  var pending = allSubmissions.filter(function(s) { return s.status === 'pending'; });
+  if (pending.length === 0) {
+    showToast('No pending submissions', 'error');
+    return;
+  }
+  var filename = 'koc-submissions-' + currentPeriod + '.json';
+  var prompt = [
+    '# Yoyo KOC Exchange · Agent 算分任务',
+    '',
+    '## 规则',
+    SCORING_RULES_TEXT,
+    '',
+    '## 操作步骤',
+    '1. 打开我给你的文件: ' + filename,
+    '2. 文件里每个 submission 有 id / discord_name / uid / links 字段',
+    '3. 用浏览器打开 links 里的每条链接，查看三个数据：📺 播放量（TikTok/YouTube 视频观看次数）、👁️ 浏览量/曝光量（Facebook/Instagram/Reddit/X/Pinterest 阅读数）、💬 互动数（点赞+评论+分享+收藏）。三项都必须填写。',
+    '4. 按上方规则计算每条 submission 的积分',
+    '5. 输出 JSON 结果给我',
+    '',
+    '## 输出格式',
+    '```json',
+    '{',
+    '  "submissions": [',
+    '    {',
+    '      "id": 提交ID,',
+    '      "discord_name": "用户名",',
+    '      "uid": "UID",',
+    '      "total_engagement": <integer> (总互动数: 点赞+评论+分享+收藏),',
+    '      "total_impressions": <integer> (总浏览量: 曝光量/阅读数),',
+    '      "total_views": <integer> (总播放量: 视频观看次数),',
+    '      "points_earned": N',
+    '    }',
+    '  ]',
+    '}',
+    '```'
+  ].join('\n');
+  
+  try {
+    await navigator.clipboard.writeText(prompt);
+    showToast('✅ 提示词已复制! 共 ' + pending.length + ' 条，文件名为 ' + filename, 'success');
+  } catch(e) {
+    showToast('复制失败: ' + e.message, 'error');
+  }
+}
+
+async function copyAgentTemplate() {
+  var template = generateAgentTemplate();
+  if (!template) return;
+
+  // Show preview
+  var previewBox = document.getElementById('agent-template-preview');
+  var card = document.getElementById('agent-template-card');
+  if (previewBox) previewBox.textContent = template;
+  if (card) card.style.display = 'block';
+
+  try {
+  if (allSubmissions.filter(function(s){return s.status==='pending';}).length > 0) {
+    await navigator.clipboard.writeText(template);
+    showToast('✅ Agent 输入模板已复制到剪贴板（' + allSubmissions.filter(function(s){return s.status==='pending';}).length + ' 条待审核）', 'success');
+  } else {
+    showToast('📋 模板已生成，但暂无待审核作品', 'warning');
+  }
+  } catch(e) {
+    // Fallback
+    showToast('⚠️ 请手动复制上方内容', 'error');
+  }
+}
+
+// ===== IMPORT SCORE RESULTS =====
+function togglePasteBox() {
+  var ta = document.getElementById('paste-textarea');
+  var btn = document.getElementById('paste-submit-btn');
+  if (ta.style.display === 'none') {
+    ta.style.display = 'block';
+    btn.style.display = 'inline-flex';
+  } else {
+    ta.style.display = 'none';
+    btn.style.display = 'none';
+  }
+}
+async function importFromPaste() {
+  var text = document.getElementById('paste-textarea').value;
+  if (!text.trim()) { showToast('请粘贴内容', 'error'); return; }
+  await importScoreResult(text);
+}
+async function importScoreResult(text) {
+  var status = document.getElementById('paste-status');
+  status.textContent = 'Processing...';
+  status.style.color = 'var(--text-light)';
+
+  // Try parsing as JSON
+  var result;
+  try {
+    result = JSON.parse(text);
+  } catch(e) {
+    // Try extracting JSON from markdown code block
+    var match = text.match(/\x60{3,}json\s*([\s\S]*?)\x60{3,}/);
+    if (match) {
+      try { result = JSON.parse(match[1].trim()); } catch(e2) { /* fail */ }
+    }
+  }
+
+  if (!result || !result.submissions || !Array.isArray(result.submissions)) {
+    status.textContent = '❌ Invalid format. Expected JSON with "submissions" array.';
+    status.style.color = '#e74c3c';
+    return;
+  }
+
+  var batch = result.batch || '2026-07';
+  var totalPoints = 0;
+  var successCount = 0;
+  var errors = [];
+
+  // ===== MERGE same-uid submissions =====
+  var merged = {};
+  result.submissions.forEach(function(sub) {
+    var key = (sub.discord_name||'').toLowerCase().trim();
+    if (!merged[key]) {
+      merged[key] = JSON.parse(JSON.stringify(sub));
+    } else {
+      // Merge links
+      if (sub.engagement_links && merged[key].engagement_links) {
+        merged[key].engagement_links = merged[key].engagement_links.concat(sub.engagement_links);
+      } else if (sub.engagement_links) {
+        merged[key].engagement_links = sub.engagement_links;
+      }
+      if (sub.view_links && merged[key].view_links) {
+        merged[key].view_links = merged[key].view_links.concat(sub.view_links);
+      } else if (sub.view_links) {
+        merged[key].view_links = sub.view_links;
+      }
+      // Merge points
+      merged[key].points_earned = (merged[key].points_earned || 0) + (sub.points_earned || 0);
+      // Merge engagement/views
+      merged[key].total_engagement = (merged[key].total_engagement || 0) + (sub.total_engagement || 0);
+      merged[key].total_views = (merged[key].total_views || 0) + (sub.total_views || 0);
+      // Keep the first submission's id for DB update
+      if (sub.id) {
+        merged[key].links_engagement = ((merged[key].links_engagement || '') + '\n' + (sub.links_engagement || '')).trim();
+        merged[key].merged_ids = (merged[key].merged_ids || [merged[key].id]).concat([sub.id]);
+      }
+    }
+  });
+  result.submissions = Object.values(merged);
+  // ===== END MERGE =====
+
+  for (var i = 0; i < result.submissions.length; i++) {
+    var sub = result.submissions[i];
+    if (!sub.id) {
+      errors.push('Submission #' + (i+1) + ': missing id');
+      continue;
+    }
+    try {
+      // Update submissions table
+      var scoreDetails = JSON.stringify({
+        engagement_links: sub.engagement_links || [],
+        view_links: sub.view_links || []
+      });
+      var updatePayload = {
+        score_details: scoreDetails,
+        total_engagement_count: sub.total_engagement || 0,
+        total_view_count: sub.total_views || 0,
+        points_earned: sub.points_earned || 0,
+        status: 'scored',
+        scored_at: new Date().toISOString()
+      };
+      var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + sub.id, {
+        method: 'PATCH',
+        body: JSON.stringify(updatePayload)
+      });
+      if (!resp.ok) {
+        errors.push('Submission #' + sub.id + ': update failed (' + resp.status + ')');
+        continue;
+      }
+      // Also mark any merged submissions as scored (no points, just status)
+      if (sub.merged_ids) {
+        for (var mi = 0; mi < sub.merged_ids.length; mi++) {
+          var mid = sub.merged_ids[mi];
+          if (mid !== sub.id) {
+            await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + mid, {
+              method: 'PATCH',
+              body: JSON.stringify({ status: 'scored', scored_at: new Date().toISOString() })
+            });
+          }
+        }
+      }
+
+      // Add points to koc's point_logs
+      if (sub.points_earned && sub.points_earned > 0 && sub.uid) {
+        // Get current balance
+        var balRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/rpc/get_balance', {
+          method: 'POST',
+          body: JSON.stringify({ p_uid: sub.uid })
+        });
+        var currentBalance = 0;
+        if (balRes.ok) { currentBalance = parseInt(await balRes.text()) || 0; }
+        var newBalance = currentBalance + sub.points_earned;
+        await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+          method: 'POST',
+          body: JSON.stringify({
+            uid: sub.uid,
+            change: sub.points_earned,
+            balance_after: newBalance,
+            source: 'auto_settlement',
+            reason: 'July submission settlement',
+            period: currentPeriod,
+            created_by: 'agent'
+          })
+        });
+        // Check for New Creator Bonus (新人任务): newbie_month >= 5pts gets +2 bonus
+        if (sub.points_earned >= 5 && sub.uid) {
+          try {
+            var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=notes');
+            var kocData = await kocRes.json();
+            if (kocData && kocData.length > 0) {
+              var koc = kocData[0];
+              var notes = koc.notes || '';
+              // Skip if old_creator (no newbie task)
+                            // Parse notes - support both JSON and plain text
+              var notesObj_p = {};
+              try { notesObj_p = JSON.parse(notes); } catch(e) {}
+              var isOld = notes.indexOf('old_creator') >= 0 || (notesObj_p.old_creator === true || notesObj_p.old_creator === 'true');
+              var newbieMonth = notesObj_p.newbie_month || '';
+              var ptMatch = notes.match(/newbie_month:(\d{4}-\d{2})/);
+              if (ptMatch) newbieMonth = ptMatch[1];
+              var bonusClaimed = notes.indexOf('newbie_bonus:' + currentPeriod) >= 0 || notesObj_p['newbie_bonus:' + currentPeriod] === true;
+              if (isOld) { /* skip */ }
+              else if (newbieMonth === currentPeriod && !bonusClaimed) {
+                var bonusBalance = newBalance + 2;
+                await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    uid: sub.uid,
+                    change: 2,
+                    balance_after: bonusBalance,
+                    source: 'auto_settlement',
+                    reason: 'New Creator Bonus (新人任务) - ' + currentPeriod + ' 5pts reach',
+                    period: currentPeriod,
+                    created_by: 'agent'
+                  })
+                });
+                var updatedNotes = notes + ', newbie_bonus:' + currentPeriod;
+                await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
+                  method: 'PATCH',
+                  body: JSON.stringify({ notes: updatedNotes })
+                });
+                totalPoints += 2;
+                sub.points_earned += 2;
+              }
+            }
+          } catch(e) { console.error('newbie bonus error:', e); }
+        }
+      }
+      totalPoints += sub.points_earned || 0;
+      successCount++;
+      // Auto-check CC + create CC order if creator has >=15 submissions this period
+      try {
+        var cntRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(sub.uid) + '&status=eq.scored&select=id&limit=50');
+        if (cntRes.ok) {
+          var subs = await cntRes.json();
+          if (subs && subs.length >= 15) {
+            var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=notes,discord_name,name,server');
+            if (kocRes.ok) {
+              var kocs = await kocRes.json();
+              if (kocs && kocs.length > 0) {
+                var koc = kocs[0];
+                var notes2 = koc.notes || '';
+                // Mark CC in notes
+                if (notes2.indexOf('CC:' + currentPeriod) === -1) {
+                  notes2 = notes2 ? notes2 + ', CC:' + currentPeriod : 'CC:' + currentPeriod;
+                  await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
+                    method: 'PATCH',
+                    body: JSON.stringify({ notes: notes2 })
+                  });
+                }
+                // Create CC order in redemption_orders (端内奖励: 月卡+蜗壳币+金币)
+                var checkOrder = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(sub.uid) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod) + '&select=id');
+                if (checkOrder.ok) {
+                  var existingOrders = await checkOrder.json();
+                  if (!existingOrders || existingOrders.length === 0) {
+                    await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        uid: sub.uid,
+                        discord_name: koc.discord_name || sub.discord_name || '',
+                        koc_name: koc.name || '',
+                        option_type: 'diamonds',
+                        option_name: 'CC:' + currentPeriod,
+                        points_spent: 0,
+                        reward_amount: '月卡x1 + 蜗壳币x500 + 金币x1000',
+                        status: 'pending',
+                        period: currentPeriod,
+                        admin_notes: 'CC:' + currentPeriod + ' - Consistent Creation Reward - ' + currentPeriod,
+                        created_at: new Date().toISOString()
+                      })
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch(e2) { /* non-blocking */ }
+    } catch(e) {
+      errors.push('Submission #' + (sub.id || i+1) + ': ' + e.message);
+    }
+  }
+
+  // Record import
+  try {
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/score_imports', {
+      method: 'POST',
+      body: JSON.stringify({
+        batch_id: batch,
+        total_submissions: successCount,
+        total_points_added: totalPoints,
+        source: 'agent',
+        import_data: JSON.stringify(result),
+        imported_by: 'admin'
+      })
+    });
+  } catch(e) {}
+
+  // Show result
+  var msg = '✅ Imported ' + successCount + '/' + result.submissions.length + ' submissions, ' + totalPoints + ' points added';
+  if (errors.length > 0) msg += '\n⚠️ Errors: ' + errors.slice(0, 5).join('\n');
+  status.textContent = msg;
+  status.style.color = errors.length > 0 ? '#ff9800' : '#4caf50';
+
+  // Send Discord DM notifications via Mochi
+  var notifiedCount = 0;
+  for (var i = 0; i < result.submissions.length; i++) {
+    var sub = result.submissions[i];
+    if (sub.points_earned && sub.points_earned > 0) {
+      try {
+        var dmResult = await sendMochiDM(sub.discord_name, 
+          '🎉 Your July submission has been scored!\n' +
+          '📊 Engagement: ' + (sub.total_engagement || 0) + ' | Views: ' + (sub.total_views || 0) + '\n' +
+          '🏆 Points Earned: **' + sub.points_earned + '**\n\n' +
+          '👉 Check your balance and redeem rewards: https://jiashi65.github.io/yoyo-koc-exchange/');
+        if (dmResult) notifiedCount++;
+      } catch(e) { console.error('DM failed for', sub.discord_name, e); }
+    }
+  }
+  if (notifiedCount > 0) {
+    msg += '\n💬 Mochi notified ' + notifiedCount + ' creators via DM';
+  }
+
+  // Refresh all related tabs
+  loadSubmissions();
+  renderKocTable();
+  renderScoringTable();
+  renderMerchTab();
+  renderDiamondTab();
+  renderGplayTab();
+  // Show the agent output card
+  document.getElementById('agent-output-card').style.display = 'block';
+}
+
+async function pasteScoreResult() {
+  try {
+    var input = document.getElementById('agent-score-input');
+    if (!input) { showToast('输入框未找到', 'error'); return; }
+    var text = input.value.trim();
+    if (!text) { showToast('请先粘贴算分结果', 'error'); return; }
+    previewScoreResult(text);
+    var previewArea = document.getElementById('score-preview-area');
+    var actionBar = document.getElementById('import-action-bar');
+    var confirmBtn = document.getElementById('btn-confirm-import');
+    if (previewArea) previewArea.style.display = 'block';
+    if (actionBar) actionBar.style.display = 'block';
+    if (confirmBtn) confirmBtn.disabled = false;
+    showToast('预览已就绪', 'success');
+  } catch(e) {
+    showToast('错误: ' + e.message, 'error');
+  }
+}
+
+// ===== PREVIEW & CONFIRM SCORE IMPORT =====
+var pendingScoreResult = null;
+
+// ===== 传送积分到前端（写入 point_logs）=====
+// pushPointsToFrontend disabled - confirmScoreImport already writes points
+async function pushPointsToFrontend() { showToast('\u2705 \u786e\u8ba4\u5e94\u7528\u65f6\u5df2\u81ea\u52a8\u5199\u5165\u79ef\u5206\uff0c\u4e0d\u9700\u8981\u518d\u6b21\u4f20\u9001', 'success'); }
+
+function previewScoreResult(text) {
+  pendingScoreResult = null;
+  var status = document.getElementById('paste-status');
+  status.textContent = '解析中...';
+  status.style.color = 'var(--text-light)';
+  
+  var rawResult;
+  try {
+    rawResult = JSON.parse(text);
+  } catch(e) {
+    var match = text.match(/`{3,}json\s*([\s\S]*?)`{3,}/);
+    if (match) {
+      try { rawResult = JSON.parse(match[1].trim()); } catch(e2) {}
+    }
+  }
+  
+  if (!rawResult || !rawResult.submissions || !Array.isArray(rawResult.submissions)) {
+    status.textContent = '\u274c 格式无效，需要包含 "submissions" 数组';
+    status.style.color = '#e74c3c';
+    return;
+  }
+  
+  // ===== 合并同 uid 的提交 =====
+  var mergedMap = {};
+  rawResult.submissions.forEach(function(sub) {
+    var key = (sub.discord_name||'').toLowerCase().trim() || sub.uid || 'unknown';
+    if (!mergedMap[key]) {
+      mergedMap[key] = JSON.parse(JSON.stringify(sub));
+      mergedMap[key]._merged_count = 1;
+    } else {
+      mergedMap[key].points_earned = (mergedMap[key].points_earned || 0) + (sub.points_earned || 0);
+      mergedMap[key].total_engagement = (mergedMap[key].total_engagement || 0) + (sub.total_engagement || 0);
+      mergedMap[key].total_views = (mergedMap[key].total_views || 0) + (sub.total_views || 0);
+      mergedMap[key]._merged_count++;
+      if (sub.engagement_links && sub.engagement_links.length) {
+        mergedMap[key].engagement_links = (mergedMap[key].engagement_links || []).concat(sub.engagement_links);
+      }
+      if (sub.view_links && sub.view_links.length) {
+        mergedMap[key].view_links = (mergedMap[key].view_links || []).concat(sub.view_links);
+      }
+    }
+    // Track link count
+    if (!mergedMap[key]._link_count) mergedMap[key]._link_count = 0;
+    mergedMap[key]._link_count += (sub.links_engagement || '').split('\n').filter(Boolean).length;
+  });
+  
+  var mergedSubs = Object.values(mergedMap);
+  
+  // Store for table display
+  window._previewMerged = mergedSubs;
+  window._previewRaw = rawResult.submissions;
+  
+  // Store merged result for confirm (keeps raw submissions for DB update)
+  var mergedResult = {
+    batch: rawResult.batch || currentPeriod,
+    submissions: mergedSubs,
+    _raw_submissions: rawResult.submissions
+  };
+  pendingScoreResult = mergedResult;
+  
+  // Show preview
+  document.getElementById('score-preview-area').style.display = 'block';
+  document.getElementById('import-action-bar').style.display = 'block';
+  document.getElementById('btn-confirm-import').disabled = false;
+  
+  var totalPts = 0;
+  mergedSubs.forEach(function(sub) { totalPts += sub.points_earned || 0; });
+  
+  var safeText = function(v) { return (v == null ? '' : String(v)).replace(/[&<>]/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]; }); };
+  
+  document.getElementById('score-preview-stats').innerHTML =
+    '\ud83d\udcca <strong>' + mergedSubs.length + '</strong> 人（合并 ' + rawResult.submissions.length + ' 条提交） \u00b7 ' +
+    '\ud83c\udfc6 <strong>' + totalPts + '</strong> 总积分';
+  
+  var detailHtml = '<div style="font-size:11px;color:#e65100;margin-bottom:6px;">\u2192 同一人的多次提交已自动合并，链接+积分+互动数均相加</div>';
+  mergedSubs.forEach(function(sub) {
+    var name = sub.discord_name || '?';
+    var pts = sub.points_earned || 0;
+    var mergeInfo = sub._merged_count > 1 ? '<span style="font-size:10px;color:#7b1fa2;"> \ud83d\udd04\u00d7' + sub._merged_count + '</span>' : '';
+    var linkInfo = sub._link_count > 0 ? '<span style="font-size:10px;color:var(--text-light);"> \ud83d\udd17' + sub._link_count + '</span>' : '';
+    detailHtml += '<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0;">' +
+      '<span>' + safeText(name) + mergeInfo + linkInfo + '</span>' +
+      '<span><strong>' + pts + ' pts</strong></span></div>';
+  });
+  
+  document.getElementById('score-preview-detail').innerHTML = detailHtml;
+  status.textContent = '\u2705 合并完成！' + mergedSubs.length + ' 位创作者，共 ' + totalPts + ' 分。确认后点击"确认应用积分"';
+  status.style.color = '#4caf50';
+}
+
+function cancelScoreImport() {
+  pendingScoreResult = null;
+  window._previewMerged = null;
+  window._previewRaw = null;
+  document.getElementById('score-preview-area').style.display = 'none';
+  // Refresh the submissions table (reload from DB)
+  if (typeof loadSubmissions === 'function') loadSubmissions();
+  document.getElementById('import-action-bar').style.display = 'none';
+  document.getElementById('paste-status').textContent = '';
+}
+
+async function confirmScoreImport() {
+  if (!pendingScoreResult) { showToast('没有可导入的结果', 'error'); return; }
+  // Prevent double-click race
+  if (window._confirmingImport) { showToast('已经在处理中...', 'error'); return; }
+  window._confirmingImport = true;
+  var btn = document.getElementById('btn-confirm-import');
+  btn.disabled = true;
+  btn.textContent = '\u23f3 标记中...';
+  var status = document.getElementById('paste-status');
+  status.textContent = '\u23f3 正在标记已评分并写入积分...';
+  status.style.color = 'var(--text-light)';
+  try {
+    var result = pendingScoreResult;
+    var errors = [];
+    var successCount = 0;
+    var totalPts = 0;
+    var pushedUids = {}; // track which uids already got points written
+    
+    // Mark each merged submission as scored AND write points
+    for (var i = 0; i < result.submissions.length; i++) {
+      var sub = result.submissions[i];
+      totalPts += sub.points_earned || 0;
+      
+      // Update submission: score_details + status
+      var scoreDetails = JSON.stringify({
+        engagement_links: sub.engagement_links || [],
+        view_links: sub.view_links || []
+      });
+      var updatePayload = {
+        score_details: scoreDetails,
+        total_engagement_count: sub.total_engagement || 0,
+        total_view_count: sub.total_views || 0,
+        points_earned: sub.points_earned || 0,
+        status: 'scored',
+        scored_at: new Date().toISOString()
+      };
+      
+      // Find and update all raw submissions for this merged entry
+      var rawSubs = result._raw_submissions || [];
+      var matchedRaw = rawSubs.filter(function(rs) { 
+        return (rs.uid === sub.uid) || (rs.discord_name === sub.discord_name); 
+      });
+      
+      // Write each raw submission's OWN points, not merged total
+      for (var j = 0; j < matchedRaw.length; j++) {
+        var rs = matchedRaw[j];
+        if (rs.id) {
+          // Use the raw submission's own points, not the merged total
+          var rawPts = rs.points_earned || rs.points || 0;
+          var rawEng = rs.total_engagement || rs.engagement || 0;
+          var rawViews = rs.total_views || rs.views || 0;
+          var rawScoreDetails = rs.score_details || '';
+          if (rawScoreDetails && typeof rawScoreDetails === 'object') rawScoreDetails = JSON.stringify(rawScoreDetails);
+          var rawPayload = {
+            score_details: rawScoreDetails || updatePayload.score_details,
+            total_engagement_count: rawEng || updatePayload.total_engagement_count,
+            total_view_count: rawViews || updatePayload.total_view_count,
+            points_earned: rawPts || updatePayload.points_earned,
+            status: 'scored',
+            scored_at: new Date().toISOString()
+          };
+          var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + rs.id, {
+            method: 'PATCH',
+            body: JSON.stringify(rawPayload)
+          });
+          if (resp.ok) successCount++;
+          else errors.push('#' + rs.id + ': ' + resp.status);
+        }
+      }
+      
+      // Write points to point_logs automatically (no need for separate push)
+      if (sub.uid && !pushedUids[sub.uid] && (sub.points_earned || 0) > 0) {
+        pushedUids[sub.uid] = true;
+        var pts = sub.points_earned || 0;
+        try {
+          // Check if already written for this period (prevent duplicate)
+          var dupRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&period=eq.' + currentPeriod + '&source=eq.auto_settlement&select=id&limit=1');
+          var dupData = await dupRes.json();
+          if (dupData && dupData.length > 0) {
+            console.log('Skipping duplicate points write for ' + sub.uid + ' in ' + currentPeriod);
+            continue; // Already written
+          }
+          // Get current balance
+          var balRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&order=created_at.desc&limit=1');
+          var currentBalance = 0;
+          if (balRes.ok) {
+            var balData = await balRes.json();
+            if (balData && balData.length > 0) currentBalance = balData[0].balance_after || 0;
+          }
+          var newBalance = currentBalance + pts;
+          await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+            method: 'POST',
+            body: JSON.stringify({
+              uid: sub.uid,
+              change: pts,
+              balance_after: newBalance,
+              source: 'auto_settlement',
+              reason: currentPeriod + ' submission settlement',
+              period: currentPeriod,
+              created_by: 'admin_confirm'
+            })
+          });
+        } catch(e) { console.error('point_logs error for ' + sub.uid, e); }
+        // === NEW CREATOR BONUS (新人任务) ===
+        try {
+          var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=notes');
+          if (kocRes.ok) {
+            var kocData = await kocRes.json();
+            if (kocData && kocData.length > 0) {
+              var notes = kocData[0].notes || '';
+              // Check if user is old_creator (skip newbie)
+              if (notes.indexOf('old_creator') === -1) {
+              var notesObj2 = {};
+              try { notesObj2 = JSON.parse(notes); } catch(e) {}
+              var nbMonth2 = notesObj2.newbie_month || '';
+              var ptMatch2 = notes.match(/newbie_month:(\d{4}-\d{2})/);
+              if (ptMatch2) nbMonth2 = ptMatch2[1];
+              var bonusClaimed2 = notes.indexOf('newbie_bonus:' + currentPeriod) >= 0 || notesObj2['newbie_bonus:' + currentPeriod] === true;
+              if (nbMonth2 === currentPeriod && !bonusClaimed2 && pts >= 5)
+                // Grant +2 bonus
+                var bonusBal = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&order=created_at.desc&limit=1');
+                var bonusCur = 0;
+                if (bonusBal.ok) {
+                  var bd = await bonusBal.json();
+                  if (bd && bd.length > 0) bonusCur = bd[0].balance_after || 0;
+                }
+                await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    uid: sub.uid,
+                    change: 2,
+                    balance_after: bonusCur + 2,
+                    source: 'auto_settlement',
+                    reason: 'New Creator Bonus (\u65b0\u4eba\u4efb\u52a1) - ' + currentPeriod + ' 5pts reach',
+                    period: currentPeriod,
+                    created_by: 'admin_confirm'
+                  })
+                });
+                var updatedNotes = notes + ', newbie_bonus:' + currentPeriod;
+                await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
+                  method: 'PATCH', body: JSON.stringify({ notes: updatedNotes })
+                });
+              }
+            }
+          }
+        } catch(e) { console.error('newbie bonus error:', e); }
+      }
+      
+      // Auto-detect CC (unchanged)
+      if ((sub.points_earned || 0) > 0 && sub.uid) {
+        try {
+          var cntRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(sub.uid) + '&status=eq.scored&select=id&limit=60');
+          if (cntRes.ok) {
+            var subsData = await cntRes.json();
+            if (subsData && subsData.length >= 15) {
+              var kocRes2 = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=notes,discord_name,name');
+              if (kocRes2.ok) {
+                var kocs2 = await kocRes2.json();
+                if (kocs2 && kocs2.length > 0) {
+                  var koc2 = kocs2[0];
+                  var notes2 = koc2.notes || '';
+                  if (notes2.indexOf('CC:' + currentPeriod) === -1) {
+                    notes2 = notes2 ? notes2 + ', CC:' + currentPeriod : 'CC:' + currentPeriod;
+                    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
+                      method: 'PATCH', body: JSON.stringify({ notes: notes2 })
+                    });
+                    var checkCC = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(sub.uid) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod) + '&select=id');
+                    if (checkCC.ok) {
+                      var existingCC = await checkCC.json();
+                      if (!existingCC || existingCC.length === 0) {
+                        await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
+                          method: 'POST',
+                          body: JSON.stringify({
+                            uid: sub.uid,
+                            discord_name: koc2.discord_name || sub.discord_name || '',
+                            koc_name: koc2.name || '',
+                            option_type: 'diamonds',
+                            option_name: 'CC:' + currentPeriod,
+                            points_spent: 0,
+                            reward_amount: '\u6708\u5361x1 + \u8717\u58f3\u5e01x500 + \u91d1\u5e01x1000',
+                            status: 'pending',
+                            period: currentPeriod,
+                            admin_notes: 'CC:' + currentPeriod + ' - Consistent Creation Reward',
+                            created_at: new Date().toISOString()
+                          })
+                        });
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch(e2) { console.error('CC auto error:', e2); }
+      }
+    }
+    
+    var msg = '\u2705 已标记 ' + successCount + ' 条为已评分，写入 ' + Object.keys(pushedUids).length + ' 位创作者积分';
+    if (errors.length > 0) msg += '\u26a0\ufe0f ' + errors.length + ' 条失败';
+    status.textContent = msg;
+    status.style.color = errors.length > 0 ? '#ff9800' : '#4caf50';
+    showToast(msg, errors.length > 0 ? 'warning' : 'success');
+  } catch(e) {
+    showToast('\u274c 失败: ' + e.message, 'error');
+  } finally {
+    window._confirmingImport = false;
+    btn.disabled = false;
+    btn.textContent = '\u2705 确认应用积分';
+  }
+  pendingScoreResult = null;
+  window._previewMerged = null;
+  window._previewRaw = null;
+  document.getElementById('score-preview-area').style.display = 'none';
+  // Refresh the submissions table (reload from DB)
+  if (typeof loadSubmissions === 'function') loadSubmissions();
+  document.getElementById('import-action-bar').style.display = 'none';
+  // Mark submissions as pushed to prevent double-count
+  if (!pushedUids || Object.keys(pushedUids).length === 0) pushedUids = {};
+  // Refresh all tabs
+  loadSubmissions();
+  renderKocTable();
+  renderScoringTable();
+  try { renderMerchTab(); } catch(e) {}
+  try { renderDiamondTab(); } catch(e) {}
+  try { renderGplayTab(); } catch(e) {}
+}
+
+function importScoreFile(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = async function(e) {
+    var text = e.target.result;
+    document.getElementById('agent-score-input').value = text;
+    document.getElementById('agent-output-card').style.display = 'block';
+    // Auto-preview after file load
+    try {
+      previewScoreResult(text);
+    } catch(err) {
+      showToast('Failed to parse: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// Override switchTab to also load submissions
+
+// ===== AUDIT LOG =====
+async function loadAuditLog() {
+  var list = document.getElementById('audit-list');
+  var countEl = document.getElementById('audit-count');
+  var filter = document.getElementById('audit-filter').value;
+  var search = document.getElementById('audit-search').value.toLowerCase().trim();
+  if (!list) return;
+
+  try {
+    // First try audit_logs table, fallback to point_logs if table doesn't exist
+    var logs = [];
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/audit_logs?order=created_at.desc&limit=200&select=*');
+    if (res.ok) {
+      logs = await res.json() || [];
+    } else {
+      // Fallback: point_logs table
+      var plRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?order=created_at.desc&limit=200&select=uid,change,balance_after,source,reason,created_by,created_at');
+      if (plRes.ok) {
+        var plData = await plRes.json() || [];
+        logs = plData.map(function(p) {
+          var types = { 'manual': 'score', 'redemption': 'diamond', 'auto_settlement': 'score' };
+          return {
+            action_type: types[p.source] || 'score',
+            operator: p.created_by || '\u7CFB\u7EDF',
+            detail: (p.change > 0 ? '+' : '') + p.change + ' pts (' + (p.reason||'') + ')',
+            created_at: p.created_at
+          };
+        });
+      }
+    }
+
+    if (filter) logs = logs.filter(function(l) { return l.action_type === filter; });
+    if (search) logs = logs.filter(function(l) {
+      return ((l.operator||'') + ' ' + (l.detail||'')).toLowerCase().indexOf(search) >= 0;
+    });
+
+    countEl.textContent = logs.length + ' 条';
+
+    if (logs.length === 0) {
+      list.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-light);font-size:13px;">📭 暂无操作记录</div>';
+      return;
+    }
+
+    var html = '<div style="font-size:12px;">';
+    logs.forEach(function(l) {
+      var actionLabels = {
+        'score': '📊 算分', 'cc': '🎁 CC奖励', 'merch': '📦 周边发货',
+        'diamond': '💎 端内奖励', 'gplay': '🎮 谷歌卡', 'tier': '⭐ 等级变动',
+        'koc': '👤 KOC信息', 'config': '⚙️ 系统配置'
+      };
+      var label = actionLabels[l.action_type] || l.action_type;
+      var dt = new Date(l.created_at).toLocaleString('zh-CN');
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-bottom:1px solid var(--border);">';
+      html += '<div style="display:flex;gap:8px;align-items:center;">';
+      html += '<span style="font-size:11px;background:' + (l.action_type === 'score' ? '#fff3e0' : '#f5f5f5') + ';padding:2px 6px;border-radius:4px;">' + label + '</span>';
+      html += '<span style="color:var(--text);">' + esc(l.operator || '-') + '</span>';
+      html += '<span style="color:var(--text-light);font-size:11px;">' + esc(l.detail || '') + '</span></div>';
+      html += '<span style="font-size:11px;color:var(--text-light);white-space:nowrap;">' + dt + '</span></div>';
+    });
+    html += '</div>';
+    list.innerHTML = html;
+  } catch(e) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;">加载失败</div>';
+  }
+}
+
+// Helper: write audit log entry
+async function writeAuditLog(actionType, detail) {
+  try {
+    var op = localStorage.getItem('admin_session') === 'logged_in' ? '管理员' : '系统';
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/audit_logs', {
+      method: 'POST',
+      body: JSON.stringify({
+        action_type: actionType,
+        operator: op,
+        detail: detail,
+        created_at: new Date().toISOString()
+      })
+    });
+  } catch(e) { /* silent */ }
+}
+function switchTab(name) {
+  localStorage.setItem('admin_active_tab', name);
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(function(c) { 
+    c.classList.remove('active'); 
+    c.style.display = 'none'; 
+  });
+  document.querySelector('.tab[onclick*="' + name + '"]').classList.add('active');
+  var activeTab = document.getElementById('tab-' + name);
+  if (activeTab) {
+    activeTab.classList.add('active');
+    activeTab.style.display = 'block';
+  }
+  // Refresh tab content
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'community') { return; }
+  if (name === 'koc-ledger') renderKocTable();
+  if (name === 'scoring') renderScoringTable();
+  if (name === 'merch') renderMerchTab();
+  if (name === 'diamond') renderDiamondTab();
+  if (name === 'gplay') renderGplayTab();
+  if (name === 'submissions') loadSubmissions();
+  if (name === 'tiers') renderTiersTable();
+  if (name === 'rules') loadCampaignConfig();
+  if (name === 'audit') loadAuditLog();
+}
+
+// Init submissions on page load
+document.addEventListener('DOMContentLoaded', function() {
+  // Auto-restore session from localStorage
+  if (localStorage.getItem('admin_session') === 'logged_in') {
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('admin-panel').classList.remove('hidden');
+    setTimeout(function() { loadData(); }, 100);
+  }
+});
+
+// ===== MOCHI BROADCAST MODAL =====
+// ===== MOCHI DM PRESETS =====
+var mochiPresetType = '';
+var mochiPresetMessage = '';
+
+// ===== MOCHI BROADCAST - preview/confirm =====
+var mochiBroadcastTargets = [];
+var mochiBroadcastType = '';
+
+async function previewBroadcast(type) {
+  // Read token from input if not set
+  if (!MOCHI_TOKEN) {
+    var inp = document.getElementById('mochi-token-input');
+    if (inp && inp.value.trim()) MOCHI_TOKEN = inp.value.trim();
+  }
+  if (!MOCHI_TOKEN) { showToast('请先填写 Bot Token', 'error'); return; }
+
+  // Ensure modal is open
+  var modal = document.getElementById('mochi-modal');
+  if (modal) modal.classList.remove('hidden');
+
+  mochiBroadcastType = type;
+  showToast('🔍 正在从 Discord 拉取成员...', 'info');
+
+  try {
+    // Step 1: 从 Discord 获取所有成员
+    var memberData = await discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN);
+    if (!memberData.ok) {
+      showToast('API返回错误: ' + JSON.stringify(memberData), 'error');
+      console.error('previewBroadcast memberData:', memberData);
+      return;
+    }
+    var allMembers = memberData.data || [];
+    // Filter out bots
+    allMembers = allMembers.filter(function(m) {
+      return m && m.username && !m.username.toLowerCase().includes('bot');
+    });
+
+    if (allMembers.length === 0) {
+      showToast('Discord 服务器没有找到成员，请检查 Bot Token 和服务器 ID', 'error');
+      var dbg = document.getElementById('mochi-debug');
+      if (dbg) { dbg.style.display = 'block'; dbg.textContent = 'No members returned from API - check token/guild'; }
+      return;
+    }
+
+    // Step 2: 从 KOC 信息库获取已有创作者数据
+    var kocData = [];
+    try {
+      var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=discord_name,uid,tier,notes,created_at&status=eq.active');
+      if (kocRes.ok) kocData = await kocRes.json() || [];
+    } catch(e) {
+      console.warn('KOC fetch failed, continuing without KOC data:', e);
+    }
+    var kocMap = {};
+    (kocData||[]).forEach(function(k) {
+      if (k && k.discord_name) kocMap[(k.discord_name||'').toLowerCase().trim()] = k;
+    });
+
+    // Step 3: 获取 submissions 数据
+    var subs = [];
+    try {
+      var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=id,discord_name,uid,status,points_earned,links_engagement,links_views,created_at&order=created_at.desc');
+      if (subRes.ok) subs = await subRes.json() || [];
+    } catch(e) {
+      console.warn('Submissions fetch failed, continuing:', e);
+    }
+
+    // Step 4: 按类型筛选
+    var targets = [];
+    var msg = '';
+
+    // Type-specific messages
+    var msgs = {
+      'welcome': '🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\n📅 下个月将是你首个新人活动月！\n在下个月内投稿满 5 积分，即可额外获得 +2 积分 🎯\n\n📝 请先完成注册：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n点击 "I\'m a New Creator" 填写信息\n\n完成注册后即可开始投稿！\n\n如有问题请在 🎫｜town-service-station 开帖询问',
+      'reminder': '📥 Reminder! 作品收集已开启\n\n请在 **下个月5号前** 提交所有作品链接：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\n只有通过表单提交的链接才计入积分！',
+      'scored': '✅ 你的作品已评分完成！\n\n查看积分并兑换奖励：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\n兑换选项：\n• 1 积分 = 450 钻石\n• 2 积分 = $10 Google Play 礼品卡\n• 5 积分 = 3 随机周边',
+      'tier_upgrade': '⭐ 恭喜晋升！\n\n你的创作者等级已提升！查看最新等级和权益：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\n继续创作，冲击下一级！💎'
+    };
+    msg = msgs[type] || msgs['welcome'];
+
+    allMembers.forEach(function(m) {
+      var name = m.username || '';
+      var nick = m.nick || m.global_name || '';
+      var displayName = nick || name;
+      var koc = kocMap[displayName.toLowerCase().trim()] || kocMap[name.toLowerCase().trim()];
+      var uid = koc ? (koc.uid || '') : '';
+      var isKoc = !!koc;
+
+      var checked = false;
+      var reason = '';
+
+      switch (type) {
+        case 'welcome':
+          if (!isKoc) {
+            checked = true;
+            reason = '未注册';
+          } else {
+            checked = false;
+            reason = '已注册';
+          }
+          break;
+
+        case 'reminder':
+          if (isKoc) {
+            checked = true;
+            reason = '待提交';
+          } else {
+            checked = false;
+            reason = '未注册创作者';
+          }
+          break;
+
+        case 'scored':
+          if (isKoc) {
+            var scoredPts = 0;
+            var hasScored = false;
+            var nameLower = name.toLowerCase().trim();
+            var nickLower = nick.toLowerCase().trim();
+            (subs||[]).forEach(function(s) {
+              if (s && s.status === 'scored') {
+                var sn = (s.discord_name||'').toLowerCase().trim();
+                if (sn === nameLower || sn === nickLower || sn === displayName.toLowerCase().trim()) {
+                  hasScored = true;
+                  scoredPts += (s.points_earned||0);
+                }
+              }
+            });
+            checked = hasScored;
+            reason = hasScored ? '已评分: ' + scoredPts + ' 分' : '无评分';
+          } else {
+            checked = false;
+            reason = '未注册创作者';
+          }
+          break;
+
+        case 'tier_upgrade':
+          if (isKoc && koc.tier_updated_at) {
+            var updated = new Date(koc.tier_updated_at);
+            var cutoff = new Date(Date.now() - 30*24*60*60*1000);
+            checked = updated >= cutoff;
+            reason = checked ? '新等级: ' + (koc.tier || '') : '等级未变动';
+          } else {
+            checked = false;
+            reason = '无等级信息';
+          }
+          break;
+      }
+
+      // Only include members that have a reason to be included
+      if (reason) {
+        targets.push({
+          discord_name: displayName,
+          uid: uid,
+          discord_id: m.id,
+          checked: checked,
+          reason: reason,
+          username: name
+        });
+      }
+    });
+
+    if (targets.length === 0) {
+      showToast('没有符合条件的成员', 'info');
+    }
+
+    // 按 checked 排序
+    targets.sort(function(a,b) {
+      if (a.checked === b.checked) return 0;
+      return a.checked ? -1 : 1;
+    });
+
+    mochiBroadcastTargets = targets;
+    renderBroadcastPreview(targets, msg);
+    showToast('✅ 已加载 ' + targets.length + ' 位成员', 'success');
+  } catch(e) {
+    var errMsg = (e && e.message) ? e.message : String(e);
+    var errStack = (e && e.stack) ? e.stack : '';
+    showToast('筛选失败: ' + errMsg, 'error');
+    var dbg = document.getElementById('mochi-debug');
+    if (dbg) { dbg.style.display = 'block'; dbg.textContent = 'Error: ' + errMsg + '\n' + errStack; }
+    console.error('previewBroadcast error:', e, e.stack);
+  }
+}function renderBroadcastPreview(targets, msg) {
+  var area = document.getElementById('broadcast-preview-area');
+  var checkedCount = 0;
+  targets.forEach(function(t) { if (t.checked) checkedCount++; });
+  document.getElementById('broadcast-target-count').textContent = targets.length + ' 人（已选 ' + checkedCount + ' 人）';
+  document.getElementById('broadcast-msg-editor').value = msg;
+  // Store full list for filtering
+  window._bcTargets = targets;
+  filterBroadcastList();
+  area.style.display = 'block';
+}
+
+function filterBroadcastList() {
+  var targets = window._bcTargets || [];
+  var q = (document.getElementById('broadcast-search').value || '').toLowerCase().trim();
+  var mode = (document.getElementById('broadcast-filter-mode') || {}).value || 'checked_first';
+  var listEl = document.getElementById('broadcast-target-list');
+  var html = '';
+  var filteredCount = 0;
+  var totalChecked = 0;
+  targets.forEach(function(t) { if (t.checked) totalChecked++; });
+  targets.forEach(function(t, i) {
+    var match = !q || (t.discord_name||'').toLowerCase().indexOf(q) >= 0 || (t.uid||'').toLowerCase().indexOf(q) >= 0;
+    if (!match) return;
+    if (mode === 'checked_only' && !t.checked) return;
+    if (mode === 'unchecked_only' && t.checked) return;
+    filteredCount++;
+    html += '<div style="display:grid;grid-template-columns:24px 1fr auto;gap:4px;align-items:center;padding:2px 4px;font-size:12px;' + (t.checked ? '' : 'opacity:0.5;') + '">';
+    html += '<input type="checkbox" class="bc-target-cb" data-index="' + i + '" ' + (t.checked ? 'checked' : '') + '>';
+    html += '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(t.discord_name) + (t.uid ? ' <span style="color:#999;">(' + esc(t.uid) + ')</span>' : '') + '</span>';
+    html += t.reason ? '<span style="color:#e65100;font-size:11px;text-align:right;white-space:nowrap;">' + esc(t.reason) + '</span>' : '<span></span>';
+    html += '</div>';
+  });
+  var countEl = document.getElementById('broadcast-target-count');
+  if (countEl) {
+    if (filteredCount < targets.length) countEl.textContent = filteredCount + ' / ' + targets.length + '（已选 ' + totalChecked + ' 人）';
+    else countEl.textContent = targets.length + ' 人（已选 ' + totalChecked + ' 人）';
+  }
+  listEl.innerHTML = html || '<div style="color:#999;padding:4px;">没有匹配的收件人</div>';
+}
+
+function toggleSelectAll() {
+  var checked = document.getElementById('broadcast-select-all').checked;
+  (window._bcTargets || []).forEach(function(t) { t.checked = checked; });
+  filterBroadcastList();
+}
+
+function addBroadcastTarget() {
+  var name = prompt('输入要添加的 Discord 用户名:');
+  if (name && name.trim()) {
+    mochiBroadcastTargets.push({ discord_name: name.trim(), uid: '', checked: true });
+    var msg = document.getElementById('broadcast-msg-editor').value;
+    renderBroadcastPreview(mochiBroadcastTargets, msg);
+  }
+}
+
+function removeBroadcastTarget() {
+  var cbs = document.querySelectorAll('.bc-target-cb:checked');
+  var indices = [];
+  cbs.forEach(function(cb) { indices.push(parseInt(cb.getAttribute('data-index'))); });
+  indices.sort(function(a,b){return b-a});
+  indices.forEach(function(i) { mochiBroadcastTargets.splice(i, 1); });
+  var msg = document.getElementById('broadcast-msg-editor').value;
+  renderBroadcastPreview(mochiBroadcastTargets, msg);
+}
+
+async function confirmBroadcast() {
+  if (!MOCHI_TOKEN && !document.getElementById('mochi-token-input').value) {
+    showToast('请先填写 Bot Token', 'error'); return;
+  }
+  if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
+
+  var msg = document.getElementById('broadcast-msg-editor').value.trim();
+  if (!msg) { showToast('消息不能为空', 'error'); return; }
+
+  var cbs = document.querySelectorAll('.bc-target-cb');
+  var targets = [];
+  cbs.forEach(function(cb) {
+    var i = parseInt(cb.getAttribute('data-index'));
+    if (cb.checked && mochiBroadcastTargets[i]) {
+      targets.push(mochiBroadcastTargets[i]);
+    }
+  });
+
+  if (targets.length === 0) { showToast('没有勾选收件人', 'error'); return; }
+  if (!confirm('确认给 ' + targets.length + ' 人发送私信？')) return;
+
+  var statusEl = document.getElementById('mochi-status');
+  statusEl.textContent = '⏳ 正在发送... (' + targets.length + ' 人)';
+
+  var sent = 0;
+  var failed = 0;
+  for (var i = 0; i < targets.length; i++) {
+    var result = await sendMochiDM(targets[i].discord_name, msg);
+    if (result.ok) { sent++; } else { failed++; statusEl.textContent += ' | ' + targets[i].discord_name + ': ' + result.reason; }
+    statusEl.textContent = '⏳ 进度: ' + (i+1) + '/' + targets.length + ' (成功' + sent + ', 失败' + failed + ')';
+    if (i < targets.length - 1) await new Promise(r => setTimeout(r, 1000));
+  }
+  statusEl.textContent = '✅ 完成！成功: ' + sent + ', 失败: ' + failed;
+  showToast('✅ 已发送 ' + sent + '/' + targets.length + ' 条私信', sent > 0 ? 'success' : 'error');
+  if (sent > 0) writeAuditLog('config', 'Mochi广播: ' + mochiBroadcastType + ' 发送 ' + sent + '/' + targets.length + ' 条');
+
+  setTimeout(function() {
+    document.getElementById('broadcast-preview-area').style.display = 'none';
+    statusEl.textContent = '';
+  }, 5000);
+}
+
+// sendDMPreset kept as stub for backward compat
+function sendDMPreset(type) { /* deprecated - use previewBroadcast */ }
+
+// ===== AUTO WELCOME (poll join-leave-log channel) =====
+
+// sendMochiDMPreset removed - use previewBroadcast/confirmBroadcast instead
+
+// ===== AUTO WELCOME (poll join-leave-log channel) =====
+var autoWelcomeInterval = null;
+var lastCheckedJoinId = null;
+
+async function toggleAutoWelcome() {
+  var btn = document.getElementById('btn-auto-welcome');
+  if (autoWelcomeInterval) {
+    clearInterval(autoWelcomeInterval);
+    autoWelcomeInterval = null;
+    btn.textContent = '🟢 自动欢迎 关';
+    btn.style.background = '#43b581';
+    showToast('Auto welcome stopped', 'info');
+  } else {
+    if (!MOCHI_TOKEN && !document.getElementById('mochi-token-input').value) {
+      showToast('Please set bot token first in Mochi settings', 'error');
+      return;
+    }
+    if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
+    
+    // Initialize lastCheckedJoinId
+    try {
+      var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+      var data = await res.json();
+      if (data && data.length > 0 && data[0].notes) {
+        var cfg = JSON.parse(data[0].notes);
+        lastCheckedJoinId = cfg._last_welcome_id || null;
+      }
+    } catch(e) {}
+    
+    btn.textContent = '🔴 自动欢迎 开';
+    btn.style.background = '#e74c3c';
+    autoWelcomeInterval = setInterval(checkNewMembers, 5 * 60 * 1000); // every 5 min
+    showToast('Auto welcome started (checking every 5 min)', 'success');
+    // Run immediately
+    checkNewMembers();
+  }
+}
+
+async function checkNewMembers() {
+  try {
+    var res = await fetch('https://discord.com/api/v10/channels/1458357258676211762/messages?limit=10', {
+      headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN }
+    });
+    if (!res.ok) return;
+    var msgs = await res.json();
+    
+    var welcomedAny = false;
+    for (var i = msgs.length - 1; i >= 0; i--) {
+      var m = msgs[i];
+      var embeds = m.embeds || [];
+      for (var j = 0; j < embeds.length; j++) {
+        var e = embeds[j];
+        if (e.title === 'Member joined') {
+          var msgId = m.id;
+          // Skip if we already checked this one
+          if (lastCheckedJoinId && msgId <= lastCheckedJoinId) continue;
+          if (!lastCheckedJoinId) { lastCheckedJoinId = msgId; continue; }
+          
+          // Extract Discord user ID from description <@ID>
+          var desc = e.description || '';
+          var idMatch = desc.match(/<@(\d+)>/);
+          var name = (e.author && e.author.name) || 'Unknown';
+          var discordId = idMatch ? idMatch[1] : null;
+          
+          if (discordId) {
+            // Check if already registered in KOC
+            var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?discord_name=eq.' + encodeURIComponent(name) + '&select=uid');
+            var existing = await checkRes.json();
+            if (!existing || existing.length === 0) {
+              // Send welcome DM
+              // Calculate newbie month (next month)
+              var now = new Date();
+              var nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+              var newbieMonthStr = nextMonth.getFullYear() + '-' + String(nextMonth.getMonth() + 1).padStart(2, '0');
+              var newbieMonthLabel = nextMonth.getFullYear() + '年' + (nextMonth.getMonth() + 1) + '月';
+              var welcomeMsg = '🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\n📅 **' + newbieMonthLabel + ' 将是你首个新人活动月！**\n在 ' + newbieMonthLabel + ' 内投稿满 5 积分，即可额外获得 **+2 积分** 🎯\n\n📝 **现在请先完成注册：**\n1️⃣ 打开 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n2️⃣ 点击 "I\'m a New Creator"\n3️⃣ 填写信息：Account ID / Game UID / 姓名 / 服务器(正式服/灯塔服) / 完整收货地址+电话\n\n完成注册后你将获得 UID，之后就可以开始投稿了！\n\n📌 **投稿提醒：**\n• 把作品链接粘贴到 Submit Works\n• 每条链接一行，确保公开可见并带上 #myleisuretime\n• ' + newbieMonthLabel + ' 整月投稿达到 5 分，额外 +2 分！\n\n如有问题请在 🎫｜town-service-station 开帖询问';
+              try {
+                // Create DM channel
+                var dmRes = await fetch('https://discord.com/api/v10/users/@me/channels', {
+                  method: 'POST',
+                  headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ recipient_id: discordId })
+                });
+                if (dmRes.ok) {
+                  var dm = await dmRes.json();
+                  await fetch('https://discord.com/api/v10/channels/' + dm.id + '/messages', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bot ' + MOCHI_TOKEN, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: welcomeMsg })
+                  });
+                  welcomedAny = true;
+                }
+              } catch(e) { /* skip if DM fails (e.g. user has DMs disabled) */ }
+            }
+          }
+          
+          if (msgId > (lastCheckedJoinId || '')) {
+            lastCheckedJoinId = msgId;
+          }
+        }
+      }
+    }
+    
+    // Save lastCheckedJoinId
+    if (lastCheckedJoinId) {
+      try {
+        var readRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+        var readData = await readRes.json();
+        var notes = {};
+        if (readData && readData.length > 0 && readData[0].notes) {
+          try { notes = JSON.parse(readData[0].notes); } catch(e) {}
+        }
+        notes._last_welcome_id = lastCheckedJoinId;
+        await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__', {
+          method: 'PATCH',
+          body: JSON.stringify({ notes: JSON.stringify(notes) })
+        });
+      } catch(e) {}
+    }
+    
+    if (welcomedAny) {
+      showToast('✅ Auto welcomed new members', 'success');
+    }
+  } catch(e) {
+    console.error('checkNewMembers error:', e);
+  }
+}
+
+function openMochiBroadcast() {
+  document.getElementById('mochi-modal').classList.remove('hidden');
+  // 回显已保存的 Token
+  var savedToken = localStorage.getItem('mochi_token') || '';
+  if (savedToken) document.getElementById('mochi-token-input').value = savedToken;
+  document.getElementById('mochi-status').textContent = '';
+}
+
+function closeMochiModal() {
+  document.getElementById('mochi-modal').classList.add('hidden');
+}
+
+function confirmMochiBroadcast() { /* deprecated - use previewBroadcast/confirmBroadcast */ }
+
+async function sendMochiBroadcastFromModal() { /* deprecated */ }
+// Patch loadData to also load submissions
+// Patch loadData to also load submissions
+var _origLoadData = loadData;
+loadData = async function() {
+  await _origLoadData();
+  loadSubmissions();
+};
+// ===== DATA LOADING =====
+async function loadData() {
+  try {
+    const [kocRes, ordRes] = await Promise.all([
+      supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?order=discord_name.asc&select=*'),
+      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?order=created_at.desc&limit=500&select=*')
+    ]);
+    allKocs = await kocRes.json();
+    allOrders = await ordRes.json();
+    // Re-render current active tab
+    var tabIds = ['dashboard','koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules','audit'];
+    var activeId = null;
+    tabIds.forEach(function(id) {
+      var el = document.getElementById('tab-'+id);
+      if (el && el.style.display !== 'none') activeId = id;
+    });
+    if (activeId) {
+      if (activeId === 'dashboard') loadDashboard();
+      else if (activeId === 'koc-ledger') renderKocTable();
+      else if (activeId === 'scoring') renderScoringTable();
+      else if (activeId === 'merch') renderMerchTab();
+      else if (activeId === 'diamond') renderDiamondTab();
+      else if (activeId === 'gplay') renderGplayTab();
+      else if (activeId === 'submissions') loadSubmissions();
+      else if (activeId === 'tiers') renderTiersTable();
+      else if (activeId === 'rules') loadCampaignConfig();
+      else if (activeId === 'audit') loadAuditLog();
+    } else {
+      renderKocTable();
+    }
+    loadDeadline();
+  } catch (e) { showToast('Error loading data', 'error'); }
+}
+
+async function getBalance(uid) {
+  try {
+    const r = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(uid) + '&order=created_at.desc&limit=1');
+    const d = await r.json();
+    return d.length ? d[0].balance_after : 0;
+  } catch { return 0; }
+}
+
+// ===== SETTLEMENT PERIOD =====
+
+// ===== CALENDAR MODE =====
+// Filter orders by currentPeriod - 日历逻辑：选月份即过滤所有板块
+function filterByPeriod(orders) {
+  return orders.filter(function(o) {
+    if (o.period) return o.period === currentPeriod;
+    var d = new Date(o.created_at);
+    var ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    return ym === currentPeriod;
+  });
+}
+async function toggleRedemption() {
+  try {
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+    var data = await res.json();
+    var notes = {};
+    if (data && data.length > 0 && data[0].notes) {
+      try { notes = JSON.parse(data[0].notes); } catch(e) {}
+    }
+    var currentlyOpen = notes.redemption_open === true;
+    var newState = !currentlyOpen;
+    notes.redemption_open = newState;
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__', {
+      method: 'PATCH',
+      body: JSON.stringify({ notes: JSON.stringify(notes) })
+    });
+    var btn = document.getElementById('btn-toggle-redeem');
+    var updateBtn = document.getElementById('btn-sync-balance');
+    if (updateBtn) updateBtn.textContent = '🔄 更新剩余积分';
+    if (btn) {
+      btn.textContent = newState ? '🔒 关闭兑换' : '🔓 开放兑换';
+      btn.style.background = newState ? '#e74c3c' : '#43b581';
+    }
+    showToast(newState ? '✅ 兑换已开放，创作者现在可以兑换' : '🔒 兑换已关闭', 'success');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+function initSettleSelect() {
+  var sel = document.getElementById('settle-month');
+  if (!sel || sel.options.length > 0) return;
+  // Ensure currentPeriod is set
+  if (!currentPeriod) {
+    var now = new Date();
+    currentPeriod = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  }
+  sel.innerHTML = '';
+  var now = new Date();
+  for (var i = 6; i >= -3; i--) {
+    var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    var val = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    var label = d.getFullYear() + '年' + (d.getMonth()+1) + '月';
+    var opt = document.createElement('option');
+    opt.value = val; opt.textContent = label;
+    if (val === currentPeriod) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  // Sync label
+  var lbl = document.getElementById('settle-label');
+  if (lbl) lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
+}
+function shiftSettleMonth(delta) {
+  // Parse current period
+  var parts = currentPeriod.split('-');
+  var y = parseInt(parts[0]), m = parseInt(parts[1]);
+  m += delta;
+  if (m < 1) { m = 12; y--; }
+  if (m > 12) { m = 1; y++; }
+  currentPeriod = y + '-' + String(m).padStart(2, '0');
+  // Sync select value AND selected attribute
+  var sel = document.getElementById('settle-month');
+  if (sel) {
+    sel.value = currentPeriod;
+    // Also update the selected option's attribute
+    for (var i = 0; i < sel.options.length; i++) {
+      sel.options[i].selected = (sel.options[i].value === currentPeriod);
+    }
+  }
+  // Update display
+  var disp = document.getElementById('settle-month-display');
+  if (disp) disp.textContent = currentPeriod.replace('-', '年') + '月';
+  var lbl = document.getElementById('settle-label');
+  if (lbl) lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
+  // Refresh current active tab
+  var activeId = null;
+  var tabIds = ['dashboard','community','koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules','audit'];
+  tabIds.forEach(function(id) {
+    var el = document.getElementById('tab-'+id);
+    if (el && el.style.display !== 'none') activeId = id;
+  });
+  if (activeId === 'dashboard') loadDashboard();
+  else if (activeId === 'koc-ledger') renderKocTable();
+  else if (activeId === 'scoring') renderScoringTable();
+  else if (activeId === 'submissions') loadSubmissions();
+  else if (activeId === 'merch') renderMerchTab();
+  else if (activeId === 'diamond') renderDiamondTab();
+  else if (activeId === 'gplay') renderGplayTab();
+  else if (activeId === 'tiers') renderTiersTable();
+  else if (activeId === 'rules') loadCampaignConfig();
+  else if (activeId === 'audit') loadAuditLog();
+  showToast('📅 切换到 ' + currentPeriod.replace('-', '年') + '月', 'success');
+}
+function changeSettlePeriod() {
+  var sel = document.getElementById('settle-month');
+  currentPeriod = sel.value;
+  // Mark this option as selected
+  for (var i = 0; i < sel.options.length; i++) {
+    sel.options[i].selected = (sel.options[i].value === currentPeriod);
+  }
+  var lbl = document.getElementById('settle-label');
+  if (lbl) lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
+  // Refresh current active tab
+  var activeId = null;
+  var tabIds = ['dashboard','community','koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules','audit'];
+  tabIds.forEach(function(id) {
+    var el = document.getElementById('tab-'+id);
+    if (el && el.style.display !== 'none') activeId = id;
+  });
+  if (activeId === 'dashboard') loadDashboard();
+  else if (activeId === 'koc-ledger') renderKocTable();
+  else if (activeId === 'scoring') renderScoringTable();
+  else if (activeId === 'submissions') loadSubmissions();
+  else if (activeId === 'merch') renderMerchTab();
+  else if (activeId === 'diamond') renderDiamondTab();
+  else if (activeId === 'gplay') renderGplayTab();
+  else if (activeId === 'tiers') renderTiersTable();
+  else if (activeId === 'rules') loadCampaignConfig();
+  else if (activeId === 'audit') loadAuditLog();
+  showToast('📅 切换到 ' + currentPeriod.replace('-', '年') + '月', 'success');
+}
+
+// ===== CHECK CC STATUS =====
+function hasCC(notes) {
+  if (!notes) return false;
+  return notes.includes('CC:' + currentPeriod);
+}
+
+function toggleCC(uid, notes) {
+  const tag = 'CC:' + currentPeriod;
+  let updated = notes || '';
+  var wasChecked = hasCC(notes);
+  
+  if (wasChecked) {
+    updated = updated.replace(new RegExp(',?\\s*' + tag.replace(':', '\\:'), 'g'), '');
+    updated = updated.replace(/^,\s*/, '').replace(/,\s*$/, '');
+  } else {
+    updated = updated ? updated + ', ' + tag : tag;
+  }
+  updated = updated.replace(/^,\s*/, '').replace(/,\s*$/, '');
+  
+  var koc = allKocs.find(function(k) { return k.uid === uid; });
+  var discordName = koc ? koc.discord_name || koc.name || 'Unknown' : 'Unknown';
+  
+  supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
+    method: 'PATCH',
+    body: JSON.stringify({ notes: updated })
+  }).then(async function(r) {
+    if (r.ok) {
+      if (koc) koc.notes = updated;
+      renderKocTable();
+      
+      try {
+        if (!wasChecked) {
+          // CC checked: create CC reward order for this period
+          var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod) + '&select=id');
+          var existing = await checkRes.json();
+          if (!existing || existing.length === 0) {
+            await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
+              method: 'POST',
+              body: JSON.stringify({
+                uid: uid,
+                discord_name: discordName,
+                koc_name: discordName,
+                option_type: 'diamond',
+                option_name: 'CC:' + currentPeriod,
+                points_spent: 0,
+                reward_amount: 'Premium Monthly Card x1 + Shelly Coins x500 + Gold x1000',
+                contact_info: currentPeriod,
+                status: 'pending',
+                admin_notes: 'CC:' + currentPeriod + ' - Consistent Creation Reward - ' + currentPeriod,
+                created_at: new Date().toISOString()
+              })
+            });
+          }
+          showToast('✅ CC enabled for ' + currentPeriod, 'success');
+        } else {
+          await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod), {
+            method: 'DELETE'
+          });
+          showToast('CC removed for ' + currentPeriod, 'info');
+        }
+      } catch(e) {
+        console.error('CC order error:', e);
+      }
+    } else {
+      showToast('Failed to update CC', 'error');
+    }
+  }).catch(function() { showToast('Error updating CC', 'error'); });
+}
+
+// ===== RENDER KOC LEDGER =====
+
+// ===== DASHBOARD =====
+
+// ===== DASHBOARD =====
+async function loadDashboard() {
+  var label = document.getElementById('dash-period-label');
+  if (label) label.textContent = '📊 ' + currentPeriod.replace('-', '年') + '月 KOC投稿月报';
+  document.getElementById('dash-refresh-time').textContent = new Date().toLocaleString('zh-CN') + ' 更新';
+  
+  // ========== 尝试从缓存加载 ==========
+  try {
+    var cachedKpi = localStorage.getItem('dash_cache_' + currentPeriod);
+    if (cachedKpi) {
+      document.getElementById('dash-kpi').innerHTML = cachedKpi;
+      var cachedDetail = localStorage.getItem('dash_detail_' + currentPeriod);
+      if (cachedDetail) document.getElementById('dash-detail').innerHTML = cachedDetail;
+      var cachedSummary = localStorage.getItem('dash_summary_' + currentPeriod);
+      if (cachedSummary) document.getElementById('dash-summary').innerHTML = cachedSummary;
+      ['chart-tier','chart-platform','chart-points','chart-trend','chart-top10'].forEach(function(id){
+        var el = document.getElementById(id); if (el) el.innerHTML = '';
+      });
+      ['insight-tier','insight-platform','insight-points','insight-trend','insight-top10'].forEach(function(id){
+        var el = document.getElementById(id); if (el) el.innerHTML = '';
+      });
+      document.getElementById('dash-refresh-time').textContent = new Date().toLocaleString('zh-CN') + ' (缓存)';
+    }
+  } catch(e) {}
+  
+  // ============ 模拟 6 月数据 ===========
+  var MOCK_JUNE = {
+    activeCount: 3, totalLinks: 14, totalPts: 38, ccCount: 0, pendingLinks: 0,
+    plat: 0, gold: 0, cert: 3, newC: 2, oldC: 1,
+    pfs: { 'TikTok': 7, 'YouTube': 3, 'Facebook': 4, 'Instagram': 0, 'X(Twitter)': 0, 'Reddit': 0, 'Pinterest': 0, '其他': 0 },
+    buckets: { '0': 1, '6-10': 1, '11-15': 1 },
+    top10: [
+      { uid: 'cqbZpqmcXcCq', name: 'Lil', links: 5, pts: 17 },
+      { uid: 'KDOBOZVcxTJV', name: 'Ema', links: 4, pts: 12 },
+      { uid: 'FCDmpRnUXupP', name: 'crystaldreams', links: 2, pts: 9 }
+    ]
+  };
+  try {
+    // ========== 并行拉取数据 (Promise.all) ==========
+    var startTime = Date.now();
+    var [kocRes, subRes, ordRes] = await Promise.all([
+      supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=uid,discord_name,tier,name,created_at,notes'),
+      supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=uid,discord_name,status,points_earned,links_engagement,links_views,created_at&order=created_at.desc'),
+      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?select=uid,points_spent,status,created_at&order=created_at.desc&limit=500')
+    ]);
+    var [kocs, subs, orders] = await Promise.all([
+      kocRes.ok ? kocRes.json() : Promise.resolve([]),
+      subRes.ok ? subRes.json() : Promise.resolve([]),
+      ordRes.ok ? ordRes.json() : Promise.resolve([])
+    ]);
+    // ========== 清除 skeleton ==========
+    document.getElementById('dash-kpi').innerHTML = '';
+    ['chart-tier','chart-platform','chart-points','chart-trend','chart-top10'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = '';
+    });
+    ['insight-tier','insight-platform','insight-points','insight-trend','insight-top10'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = '';
+    });
+    document.getElementById('dash-summary').innerHTML = '';
+    var monthSubs = subs.filter(function(s) { return (s.created_at||'').substring(0,7) === currentPeriod; });
+    var monthOrders = orders.filter(function(o) { return (o.period||'') === currentPeriod; });
+    var kocMap = {}; kocs.forEach(function(k) { kocMap[k.uid] = k; });
+    // ========== 指标 ==========
+    var activeKocs = {}; monthSubs.forEach(function(s) { activeKocs[s.uid] = true; });
+    var activeCount = Object.keys(activeKocs).length;
+    var totalCreators = kocs.length;
+    var totalLinks = 0, pendingLinks = 0;
+    monthSubs.forEach(function(s) {
+      var eng = (s.links_engagement||'').split('\n').filter(Boolean).length;
+      var vws = (s.links_views||'').split('\n').filter(Boolean).length;
+      totalLinks += eng + vws;
+      if (s.status === 'pending') pendingLinks += eng + vws;
+    });
+    var totalPts = monthSubs.reduce(function(su, s) { return su + (s.points_earned||0); }, 0);
+    var shippedOrders = monthOrders.filter(function(o) { return o.status === 'shipped'; });
+    var redeemedPts = shippedOrders.reduce(function(acc, o) { return acc + (o.points_spent||0); }, 0);
+    var tierStats = {}; kocs.forEach(function(k) { var t = k.tier||'certified'; tierStats[t] = (tierStats[t]||0) + 1; });
+    var plat = tierStats['platinum']||0, gold = tierStats['gold']||0, cert = tierStats['certified']||0;
+    var ccCount = kocs.filter(function(k) { return (k.notes||'').indexOf('CC:' + currentPeriod) >= 0; }).length;
+    var newC = 0, oldC = 0;
+    kocs.forEach(function(k) {
+      if ((k.notes||'').indexOf('old_creator') >= 0) oldC++;
+      else { try { var cd = new Date(k.created_at); var cy = cd.getFullYear()+'-'+String(cd.getMonth()+1).padStart(2,'0'); if (cy < currentPeriod) oldC++; else newC++; } catch(e) { newC++; } }
+    });
+    // ========== 平台分布 ==========
+    var pfs = {'TikTok':0,'YouTube':0,'Facebook':0,'Instagram':0,'X(Twitter)':0,'Reddit':0,'Pinterest':0,'其他':0};
+    var pfKeys = Object.keys(pfs);
+    monthSubs.forEach(function(s) {
+      ((s.links_engagement||'')+'\n'+(s.links_views||'')).split('\n').filter(Boolean).forEach(function(l) {
+        var found = false;
+        pfKeys.forEach(function(p) { if (l.toLowerCase().indexOf(p.toLowerCase().replace('(twitter)','')) >= 0) { pfs[p]++; found = true; } });
+        if (!found) pfs['其他']++;
+      });
+    });
+    // ========== 积分分段 ==========
+    var userPts = {}; monthSubs.forEach(function(s) { userPts[s.uid] = (userPts[s.uid]||0) + (s.points_earned||0); });
+    var buckets = {}; var maxPts = 0;
+    Object.values(userPts).forEach(function(p) {
+      if (p > maxPts) maxPts = p;
+      var label = p <= 0 ? '0' : (Math.floor((p-1)/5)*5+1) + '-' + (Math.floor((p-1)/5)*5+5);
+      if (p > 40) label = '40+';
+      buckets[label] = (buckets[label]||0) + 1;
+    });
+    // ========== 上月对比(模拟6月) ==========
+    var ym = currentPeriod.split('-');
+    var pm = parseInt(ym[1])-1, py = parseInt(ym[0]);
+    if (pm < 1) { pm = 12; py--; }
+    var prevP = py + '-' + String(pm).padStart(2,'0');
+    var pSubs = subs.filter(function(s) { return (s.created_at||'').substring(0,7) === prevP; });
+    var pActive = {}; pSubs.forEach(function(s) { pActive[s.uid] = true; });
+    var pLinks = 0; pSubs.forEach(function(s) { pLinks += (s.links_engagement||'').split('\n').filter(Boolean).length + (s.links_views||'').split('\n').filter(Boolean).length; });
+    var pPts = pSubs.reduce(function(su, s) { return su + (s.points_earned||0); }, 0);
+    // ========== 如果没有真实上月数据，使用模拟数据 ==========
+    var useMock = (Object.keys(pActive).length === 0);
+    var mr = useMock ? MOCK_JUNE : null;
+    var pTier = {plat:0,gold:0,cert:0}; pSubs.forEach(function(s) { var k = kocMap[s.uid]; if(k) pTier[k.tier||'certified']++; });
+    var pNew = 0, pOld = 0;
+    var gr = function(c, p) {
+      if (p === 0 || useMock) return c > 0 ? '<span style="color:#43a047;">+NEW</span>' : '<span style="color:#999;">-</span>';
+      var r = Math.round((c-p)/p*100);
+      return '<span style="color:' + (c>=p?'#43a047':'#e74c3c') + ';">' + (c>=p?'+':'') + r + '%</span>';
+    };
+    var prevActiveCount = useMock ? mr.activeCount : Object.keys(pActive).length;
+    var prevLinks = useMock ? mr.totalLinks : pLinks;
+    var prevPts = useMock ? mr.totalPts : pPts;
+    var prevCert = useMock ? mr.cert : pTier.cert||0;
+    var prevGold = useMock ? mr.gold : pTier.gold||0;
+    var prevPlat = useMock ? mr.plat : pTier.plat||0;
+    var prevCC = useMock ? mr.ccCount : 0;
+    var prevNew = useMock ? mr.newC : pNew;
+    var prevOld = useMock ? mr.oldC : pOld;
+    // ========== KPI 卡片(6项) ==========
+    var kpiHtml = '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;">';
+    var kpiCards = [
+      { icon: '👥', label: '创作者总数', val: totalCreators, color: '#ad1457', bg: 'linear-gradient(135deg,#fce4ec,#f8bbd0)' },
+      { icon: '📝', label: '当月投稿创作者', val: activeCount, color: '#ad1457', bg: 'linear-gradient(135deg,#fff5f9,#fce4ec)', cmp: gr(activeCount, prevActiveCount) },
+      { icon: '📎', label: '投稿链接数', val: totalLinks, color: '#2e7d32', bg: 'linear-gradient(135deg,#e8f5e9,#a5d6a7)', cmp: gr(totalLinks, prevLinks) },
+      { icon: '🏆', label: '当月总积分', val: totalPts, color: '#e65100', bg: 'linear-gradient(135deg,#fff3e0,#ffcc80)', cmp: gr(totalPts, prevPts) },
+      { icon: '🎁', label: 'CC达标人数', val: ccCount, color: '#6a3de8', bg: 'linear-gradient(135deg,#ede7f6,#b39ddb)' },
+      { icon: '⏳', label: '待审核数', val: pendingLinks, color: '#f57f17', bg: 'linear-gradient(135deg,#fff8e1,#ffe082)' }
+    ];
+    kpiCards.forEach(function(k) {
+      var cmpHtml = k.cmp ? '<div style="font-size:10px;color:#999;margin-top:2px;">' + k.cmp + '</div>' : '';
+      kpiHtml += '<div class="kpi-card" style="background:' + k.bg + ';padding:12px 16px;display:flex;flex-direction:row;align-items:center;gap:14px;flex:1;min-width:150px;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.04);">' +
+        '<div style="text-align:left;">' +
+          '<div style="font-size:22px;font-weight:800;color:' + k.color + ';">' + k.val + '</div>' +
+          '<div style="font-size:10px;color:' + k.color + ';opacity:0.8;font-weight:500;">' + k.icon + ' ' + k.label + '</div>' +
+          cmpHtml +
+        '</div>' +
+        '<div style="font-size:30px;">' + k.icon + '</div>' +
+      '</div>';
+    });
+    kpiHtml += '</div>';
+    document.getElementById('dash-kpi').innerHTML = kpiHtml;
+    try { localStorage.setItem('dash_cache_' + currentPeriod, document.getElementById('dash-kpi').outerHTML); } catch(e){}
+    // ========== 用户链接统计（前置定义，供 renderCharts 使用） ==========
+    var userLinks = {}; monthSubs.forEach(function(s) { userLinks[s.uid] = (userLinks[s.uid]||0) + (s.links_engagement||"").split("\n").filter(Boolean).length + (s.links_views||"").split("\n").filter(Boolean).length; });
+    // ========== ECharts 快速渲染 ==========
+    var renderCharts = function() {
+      // ---- 1. 等级分布(饼图) ----
+      var tierChart = echarts.init(document.getElementById('chart-tier'));
+      tierChart.setOption({
+        tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
+        series: [{
+          type: 'pie', radius: ['35%','65%'], center: ['50%','55%'],
+          data: [
+            { value: plat, name: '💎 铂金创作官', itemStyle: { color: '#7e57c2' } },
+            { value: gold, name: '🟡 金级创作官', itemStyle: { color: '#ff8f00' } },
+            { value: cert, name: '✅ 认证创作官', itemStyle: { color: '#43a047' } }
+          ].filter(function(d) { return d.value > 0; }),
+          label: { show: true, formatter: '{b}\n{c}人', fontSize: 11 },
+          emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.2)' } }
+        }]
+      });
+      var ti = '⭐ ';
+      if (plat > 0) ti += '铂金' + plat + '人 · ';
+      if (gold > 0) ti += '金级' + gold + '人 · ';
+      ti += '认证' + cert + '人';
+      if (newC > 0) ti += '（新创作者' + newC + '人）';
+      ti += '。';
+      if (plat > 0 && gold > 0) ti += '高等级创作者占比' + Math.round((plat+gold)/(plat+gold+cert)*100) + '%，创作生态成熟。';
+      else if (gold > 0 && cert > gold) ti += '中级创作者占主体，具备晋升潜力。';
+      else ti += '新人比例较高，成长空间充足。';
+      document.getElementById('insight-tier').innerHTML = '<div style="background:#fef6f9;border-radius:10px;padding:8px 10px;margin-top:6px;font-size:12px;color:#555;line-height:1.6;border-left:3px solid #f2a6c4;">' + ti + '</div>'
+
+      // ---- 2. 各平台分布(饼图) ----
+      var pfData = Object.keys(pfs).filter(function(p) { return pfs[p] > 0; }).map(function(p) { return { name: p, value: pfs[p] }; });
+      var pfColors = {'TikTok':'#ff0050','YouTube':'#ff0000','Facebook':'#1877f2','Instagram':'#e4405f','X(Twitter)':'#000','Reddit':'#ff4500','Pinterest':'#e60023','其他':'#999'};
+      var platChart = echarts.init(document.getElementById('chart-platform'));
+      platChart.setOption({
+        tooltip: { trigger: 'item', formatter: '{b}: {c}条 ({d}%)' },
+        series: [{
+          type: 'pie', radius: ['35%','65%'], center: ['50%','55%'],
+          data: pfData.map(function(d) { return { value: d.value, name: d.name, itemStyle: { color: pfColors[d.name]||'#999' } }; }),
+          label: { show: true, formatter: '{b}\n{c}条', fontSize: 11 },
+          emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.2)' } }
+        }]
+      });
+      var maxPf = pfData.reduce(function(a,b) { return a.value > b.value ? a : b; }, {name:'暂无',value:0});
+      var pi = '📱 主要投稿平台：<strong>' + maxPf.name + '</strong>（' + maxPf.value + '条），';
+      if (pfData.length >= 3) pi += '平台分布多元，覆盖面广。';
+      else pi += '可鼓励创作者尝试更多平台。';
+      document.getElementById('insight-platform').innerHTML = '<div style="background:#fef6f9;border-radius:10px;padding:8px 10px;margin-top:6px;font-size:12px;color:#555;line-height:1.6;border-left:3px solid #f2a6c4;">' + pi + '</div>'
+
+      // ---- 3. 积分分布(柱状图) ----
+      var bKeys = Object.keys(buckets).sort(function(a,b) { return (parseInt(a)||0) - (parseInt(b)||0); });
+      var ptsChart = echarts.init(document.getElementById('chart-points'));
+      ptsChart.setOption({
+        tooltip: { trigger: 'axis', formatter: function(p) { return p[0].name + '分：' + p[0].value + '人'; } },
+        xAxis: { type: 'category', data: bKeys, axisLabel: { fontSize: 10 } },
+        yAxis: { type: 'value', minInterval: 1 },
+        series: [{
+          type: 'bar', data: bKeys.map(function(k) { return buckets[k]; }),
+          itemStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1, [{offset:0,color:'#f2a6c4'},{offset:1,color:'#d4749a'}]) },
+          barWidth: '50%'
+        }],
+        grid: { left: 36, right: 16, top: 20, bottom: 28 }
+      });
+      var totalPpl = Object.keys(userPts).length;
+      var zeroPpl = buckets['0']||0;
+      var pti = '📊 ';
+      if (zeroPpl > 0 && zeroPpl === totalPpl) pti += '本月投稿创作者暂无积分，审核完成后将自动计算。';
+      else if (maxPts > 30) pti += '最高积分' + maxPts + '分，头部创作者表现突出。';
+      else if (maxPts > 15) pti += '积分集中在' + (parseInt(bKeys[0])||0) + '-' + maxPts + '分区间，整体水平均衡。';
+      else pti += '积分分布较分散，可重点关注低分段创作者的提升。';
+      document.getElementById('insight-points').innerHTML = '<div style="background:#fef6f9;border-radius:10px;padding:8px 10px;margin-top:6px;font-size:12px;color:#555;line-height:1.6;border-left:3px solid #f2a6c4;">' + pti + '</div>'
+
+      // ---- 4. 月度趋势(折线图) ----
+      var trendMonths = [];
+      for (var i = 5; i >= 0; i--) {
+        var ty = parseInt(ym[0]), tm = parseInt(ym[1]) - i;
+        while (tm < 1) { tm += 12; ty--; }
+        while (tm > 12) { tm -= 12; ty++; }
+        trendMonths.push(ty + '-' + String(tm).padStart(2,'0'));
+      }
+      var trendData = {
+        creators: [], links: [], points: []
+      };
+      var mockTrend = { creators: [0,1,2,2,3,activeCount], links: [0,2,8,10,14,totalLinks], points: [0,5,20,28,38,totalPts] };
+      trendMonths.forEach(function(m, idx) {
+        var mSubs = subs.filter(function(s) { return (s.created_at||'').substring(0,7) === m; });
+        var mActive = {}; mSubs.forEach(function(s) { mActive[s.uid] = true; });
+        var mLinks = 0; mSubs.forEach(function(s) { mLinks += (s.links_engagement||'').split('\n').filter(Boolean).length + (s.links_views||'').split('\n').filter(Boolean).length; });
+        var mPts = mSubs.reduce(function(su, s) { return su + (s.points_earned||0); }, 0);
+        if (Object.keys(mActive).length > 0) {
+          trendData.creators.push(Object.keys(mActive).length);
+          trendData.links.push(mLinks);
+          trendData.points.push(mPts);
+        } else {
+          trendData.creators.push(mockTrend.creators[idx]);
+          trendData.links.push(mockTrend.links[idx]);
+          trendData.points.push(mockTrend.points[idx]);
+        }
+      });
+      var tMonths = trendMonths.map(function(m) { return m.replace('-','.'); });
+      var trendChart = echarts.init(document.getElementById('chart-trend'));
+      trendChart.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['投稿创作者','链接数','积分'], bottom: 0, textStyle: { fontSize: 10 } },
+        xAxis: { type: 'category', data: tMonths, axisLabel: { fontSize: 10 } },
+        yAxis: { type: 'value', minInterval: 1 },
+        series: [
+          { name: '投稿创作者', type: 'line', data: trendData.creators, smooth: true, symbol: 'circle', lineStyle: { color: '#ad1457', width: 2 }, itemStyle: { color: '#ad1457' } },
+          { name: '链接数', type: 'line', data: trendData.links, smooth: true, symbol: 'diamond', lineStyle: { color: '#2e7d32', width: 2 }, itemStyle: { color: '#2e7d32' } },
+          { name: '积分', type: 'line', data: trendData.points, smooth: true, symbol: 'triangle', lineStyle: { color: '#e65100', width: 2 }, itemStyle: { color: '#e65100' } }
+        ],
+        grid: { left: 36, right: 16, top: 24, bottom: 40 }
+      });
+      // ---- 5. 投稿榜 Top 10 (横向条形图) ----
+      var top10Ids = Object.keys(userPts).sort(function(a,b) { return (userPts[b]||0) - (userPts[a]||0); }).slice(0,10);
+      var top10Names = [], top10Pts = [], top10Links = [], top10Colors = [];
+      var barColors = ['#ff6b9d','#ff8a65','#ffab00','#ffd54f','#aed581','#81c784','#4db6ac','#4dd0e1','#7986cb','#ba68c8'];
+      top10Ids.forEach(function(uid, i) {
+        var k = kocMap[uid]||{};
+        top10Names.push(esc(k.discord_name || k.name || uid));
+        top10Pts.push(userPts[uid]||0);
+        top10Links.push(userLinks[uid]||0);
+        top10Colors.push(barColors[i]||'#999');
+      });
+      if (top10Ids.length > 0) {
+        var topChart = echarts.init(document.getElementById('chart-top10'));
+        topChart.setOption({
+          tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: function(p) { return p[0].name + '<br/>📎 ' + p[0].value + '分 · ' + (top10Links[p[0].dataIndex]||0) + '条'; } },
+          grid: { left: 8, right: 50, top: 8, bottom: 8 },
+          xAxis: { type: 'value', minInterval: 1, axisLabel: { fontSize: 9 } },
+          yAxis: { type: 'category', data: top10Names.slice().reverse(), axisLabel: { fontSize: 10, fontWeight: 'bold' } },
+          series: [{
+            type: 'bar', data: top10Pts.slice().reverse().map(function(v, i) {
+              return { value: v, itemStyle: { color: top10Colors.slice().reverse()[i] || '#f2a6c4', borderRadius: [0,4,4,0] } };
+            }),
+            barWidth: '60%', label: { show: true, position: 'right', formatter: function(p) { return p.value + '分'; }, fontSize: 10, fontWeight: 'bold', color: '#555' }
+          }]
+        });
+        var ti10 = '🏆 ';
+        var topK = kocMap[top10Ids[0]]||{};
+        ti10 += '本月冠军：<strong>' + esc(topK.discord_name||topK.name||top10Ids[0]) + '</strong>（' + (userLinks[top10Ids[0]]||0) + '条 · ' + (userPts[top10Ids[0]]||0) + '分）';
+        if (top10Ids.length > 1) ti10 += ' 亚军：' + esc((kocMap[top10Ids[1]]||{}).discord_name||'') + '（' + (userPts[top10Ids[1]]||0) + '分）';
+        document.getElementById('insight-top10').innerHTML = '<div style="background:#fef6f9;border-radius:10px;padding:8px 10px;margin-top:6px;font-size:12px;color:#555;line-height:1.6;border-left:3px solid #f2a6c4;">' + ti10 + '</div>';
+      }
+      
+      var last3 = trendData.creators.slice(-3).filter(function(v) { return v > 0; });
+      var tri = '📈 ';
+      if (trendData.creators[trendData.creators.length-1] > (trendData.creators[trendData.creators.length-2]||0)) tri += '本月投稿创作者增长，社群活跃度持续提升。';
+      else if (last3.length >= 2 && last3[last3.length-1] >= last3[last3.length-2]) tri += '近三月投稿创作者稳定，社群生态健康。';
+      else tri += '月度数据趋势平稳，新创作者陆续加入中。';
+      document.getElementById('insight-trend').innerHTML = '<div style="background:#fef6f9;border-radius:10px;padding:8px 10px;margin-top:6px;font-size:12px;color:#555;line-height:1.6;border-left:3px solid #f2a6c4;">' + tri + '</div>'
+    }
+
+        // ========== 触发渲染 ==========
+    if (typeof echarts === 'undefined') {
+      var checkE = setInterval(function() {
+        if (typeof echarts !== 'undefined') { clearInterval(checkE); renderCharts(); }
+      }, 200);
+      setTimeout(function() { clearInterval(checkE); console.warn('[Dashboard] ECharts timeout, retrying renderCharts'); try { renderCharts(); } catch(er) { console.error(er); } }, 10000);
+    } else { try { renderCharts(); } catch(er) { console.error('[Dashboard] renderCharts error:', er); } }
+    console.log('[Dashboard] loaded in', Date.now() - startTime, 'ms');
+
+// ========== 月度核心指标对比 ==========
+    var html = '<div class="card" style="padding:16px;margin-bottom:12px;background:linear-gradient(135deg,#fff5f9,#fce4ec);border:1px solid #f8bbd0;">';
+    html += '<div style="font-size:14px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;color:#ad1457;"><span>📅</span> 月度核心指标对比</div>';
+    html += '<table style="width:100%;font-size:12px;border-collapse:collapse;">';
+    html += '<tr style="background:#fce4ec;"><th style="padding:7px 8px;text-align:left;color:#880e4f;font-weight:600;font-size:11px;border-bottom:1px solid #f8bbd0;">指标</th><th style="padding:7px 8px;text-align:right;color:#880e4f;font-weight:600;font-size:11px;border-bottom:1px solid #f8bbd0;">' + prevP + '</th><th style="padding:7px 8px;text-align:right;color:#880e4f;font-weight:600;font-size:11px;border-bottom:1px solid #f8bbd0;">' + currentPeriod + '</th><th style="padding:7px 8px;text-align:right;color:#880e4f;font-weight:600;font-size:11px;border-bottom:1px solid #f8bbd0;">环比涨幅</th></tr>';
+    html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">👥 投稿创作者</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + prevActiveCount + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + activeCount + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (activeCount>=prevActiveCount?'#43a047':'#e74c3c') + ';">' + gr(activeCount, prevActiveCount) + '</td></tr>';
+    html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">📎 投稿链接数</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + prevLinks + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + totalLinks + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (totalLinks>=prevLinks?'#43a047':'#e74c3c') + ';">' + gr(totalLinks, prevLinks) + '</td></tr>';
+    html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">🏆 总积分</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + prevPts + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + totalPts + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (totalPts>=prevPts?'#43a047':'#e74c3c') + ';">' + gr(totalPts, prevPts) + '</td></tr>';
+    html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">✅ 认证创作官</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + prevCert + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + cert + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (cert>=prevCert?'#43a047':'#e74c3c') + ';">' + gr(cert, prevCert) + '</td></tr>';
+    html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">🟡 金级创作官</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + prevGold + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + gold + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (gold>=prevGold?'#43a047':'#e74c3c') + ';">' + gr(gold, prevGold) + '</td></tr>';
+    html += '<tr><td style="padding:6px 8px;">💎 铂金创作官</td><td style="padding:6px 8px;text-align:right;font-weight:500;">' + prevPlat + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;">' + plat + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;color:' + (plat>=prevPlat?'#43a047':'#e74c3c') + ';">' + gr(plat, prevPlat) + '</td></tr>';
+    html += '</table></div>';
+    // ========== 莎莎的关键洞察（分段策略版） ==========
+    var ins = '<div style="display:flex;flex-direction:column;gap:8px;">';
+    if (activeCount > 0) {
+      // Block 1: 核心数据
+      ins += '<div style="background:white;border-radius:10px;padding:10px 12px;">';
+      ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">📊 本月核心数据</div>';
+      ins += '<div style="font-size:12px;color:#555;line-height:1.7;">';
+      ins += '本月共有 <strong>' + activeCount + '</strong> 位创作者投稿，共计 ' + totalLinks + ' 条链接、' + totalPts + ' 分。';
+      if (Object.keys(pActive).length > 0 || useMock) ins += '<br>投稿创作者环比 ' + gr(activeCount, prevActiveCount) + '，链接数 ' + gr(totalLinks, prevLinks) + '。';
+      ins += '</div></div>';
+      
+      // Block 2: 平台与内容分析
+      var maxPfName = Object.keys(pfs).reduce(function(a,b) { return pfs[a] > pfs[b] ? a : b; });
+      ins += '<div style="background:white;border-radius:10px;padding:10px 12px;">';
+      ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">📱 平台与内容</div>';
+      ins += '<div style="font-size:12px;color:#555;line-height:1.7;">';
+      ins += '主要投稿平台：<strong>' + maxPfName + '</strong>（' + pfs[maxPfName] + '条）。';
+      var pfCount = Object.keys(pfs).filter(function(p) { return pfs[p] > 0; }).length;
+      if (pfCount >= 3) ins += ' 平台分布多元，覆盖面广。';
+      else ins += ' 创作者集中在少数平台，可引导拓展。';
+      if (ccCount > 0) ins += '<br>🎁 ' + ccCount + ' 位创作者达标 CC 奖励（≥15条），持续创作意愿强。';
+      ins += '</div></div>';
+      
+      // Block 3: 等级与创作者结构
+      ins += '<div style="background:white;border-radius:10px;padding:10px 12px;">';
+      ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">⭐ 创作者结构</div>';
+      ins += '<div style="font-size:12px;color:#555;line-height:1.7;">';
+      ins += '等级分布：';
+      if (plat > 0) ins += '💎铂金' + plat + '人 ';
+      if (gold > 0) ins += '🟡金级' + gold + '人 ';
+      if (cert > 0) ins += '✅认证' + cert + '人。';
+      if (newC > 0) ins += '<br>🆕 新创作者 ' + newC + ' 位，后续可重点辅导完成新人任务。';
+      if (plat > 0 && gold > 0) ins += '<br>高等级创作者占比 ' + Math.round((plat+gold)/(plat+gold+cert)*100) + '%，创作生态趋于成熟。';
+      else ins += '<br>新人比例较高，成长空间充足。';
+      ins += '</div></div>';
+      
+      // Block 4: 积分与兑换策略
+      if (totalPts > 0) {
+        var rate = Math.round(redeemedPts/totalPts*100);
+        ins += '<div style="background:white;border-radius:10px;padding:10px 12px;">';
+        ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">🎯 积分与兑换策略</div>';
+        ins += '<div style="font-size:12px;color:#555;line-height:1.7;">';
+        ins += '当前积分总量 ' + totalPts + ' 分，已兑换 ' + redeemedPts + ' 分（' + rate + '%）。';
+        if (rate < 30) ins += '<br>剩余积分较多，建议下月推出限时兑换活动催化消费。';
+        else ins += '<br>兑换积极，可维持当前激励节奏。';
+        ins += '</div></div>';
+      }
+      
+      // Block 5: 行动建议
+      ins += '<div style="background:linear-gradient(135deg,#fce4ec,#fff5f9);border-radius:10px;padding:10px 12px;border:1px solid #f8bbd0;">';
+      ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">📋 下月行动建议</div>';
+      ins += '<div style="font-size:12px;color:#555;line-height:1.7;">';
+      var suggestions = [];
+      if (newC > 0) suggestions.push('🆕 跟进 ' + newC + ' 位新创作者，辅导完成新人任务（满5分+2分）');
+      if (ccCount > 0) suggestions.push('🎁 确认 ' + ccCount + ' 位 CC 达标创作者的奖励发放');
+      if (totalPts > 0 && rate < 30) suggestions.push('💎 推动积分兑换，减少积分沉淀');
+      if (pfCount < 3) suggestions.push('📱 引导创作者拓展投稿平台，降低单平台依赖');
+      if (cert > gold + plat) suggestions.push('⭐ 关注认证创作官的晋升路径，鼓励冲刺金级');
+      ins += suggestions.length > 0 ? suggestions.join('<br>') : '保持当前运营节奏，持续关注创作者活跃度。';
+      ins += '</div></div>';
+      
+    } else {
+      ins += '<div style="background:white;border-radius:10px;padding:10px 12px;font-size:12px;color:#555;">💡 本月尚无投稿数据，请等待创作者提交作品。</div>';
+    }
+    ins += '</div>';
+    document.getElementById('dash-summary').innerHTML = ins;
+
+  
+  } catch(e) { console.error("[Dashboard Error]", e); document.getElementById("dash-summary").textContent = "加载失败: " + e.message; }
+}
+
+// ===== 手动刷新 Dashboard =====
+function refreshDashboard() {
+  var p = currentPeriod || '202607';
+  localStorage.removeItem('dash_cache_' + p);
+  localStorage.removeItem('dash_detail_' + p);
+  localStorage.removeItem('dash_summary_' + p);
+  loadDashboard();
+}
+
+async function loadCommunityReport() {
+  showToast('社群周报已移至外部链接，请在仪表盘顶部点击查看', 'info');
+  return;
+  if (!MOCHI_TOKEN) {
+    var inp = document.getElementById('mochi-token-input');
+    if (inp && inp.value.trim()) MOCHI_TOKEN = inp.value.trim();
+  }
+  if (!MOCHI_TOKEN) { showToast('请先在 Mochi 设置中填写 Bot Token', 'error'); return; }
+
+  var now = new Date();
+  var y = now.getFullYear();
+  var m = String(now.getMonth() + 1).padStart(2, '0');
+  var d = String(now.getDate()).padStart(2, '0');
+  var periodLabel = y + '-' + m + '-' + d;
+
+  var label = document.getElementById('community-period-label');
+  if (label) label.textContent = periodLabel;
+
+  document.getElementById('community-kpi').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-light);">⏳ 正在拉取 Discord 社群数据...</div>';
+
+  try {
+    // Step 1: Fetch Discord members
+    var memberRes = await discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN);
+    if (!memberRes.ok) {
+      console.log('获取成员失败: ' + JSON.stringify(memberRes.error||memberRes));
+      return;
+    }
+    var members = memberRes.data || [];
+    members = members.filter(function(m) { return m && m.username && !m.username.toLowerCase().includes('bot'); });
+
+    // Step 2: Fetch all Supabase data
+    var kocData = [], subs = [], orders = [];
+    try {
+      var kr = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=*');
+      if (kr.ok) kocData = await kr.json() || [];
+    } catch(e) {}
+    try {
+      var sr = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?order=created_at.desc&select=*');
+      if (sr.ok) subs = await sr.json() || [];
+    } catch(e) {}
+    try {
+      var or = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?order=created_at.desc&limit=500&select=*');
+      if (or.ok) orders = await or.json() || [];
+    } catch(e) {}
+
+    // Build lookup maps
+    var kocMap = {}, kocByUid = {};
+    (kocData||[]).forEach(function(k) {
+      if (k && k.discord_name) kocMap[(k.discord_name||'').toLowerCase().trim()] = k;
+      if (k && k.uid) kocByUid[k.uid] = k;
+    });
+
+    // ========== Basic metrics ==========
+    var totalMembers = members.length;
+    var kocInDiscord = 0;
+    members.forEach(function(m) {
+      if (kocMap[(m.username||'').toLowerCase().trim()] || kocMap[(m.nick||'').toLowerCase().trim()]) kocInDiscord++;
+    });
+    var registeredKocs = kocData.filter(function(k) { return k && k.discord_name; }).length;
+
+    // Tier distribution
+    var tCounts = { 'platinum': 0, 'gold': 0, 'certified': 0 };
+    (kocData||[]).forEach(function(k) { if (k && k.tier) tCounts[k.tier] = (tCounts[k.tier]||0) + 1; });
+    var plat = tCounts['platinum']||0, gold = tCounts['gold']||0, cert = tCounts['certified']||0;
+
+    // Recent joins (this month)
+    var monthStart = y + '-' + m + '-01';
+    var recentJoins = 0;
+    members.forEach(function(m) {
+      if (m.joined_at && m.joined_at.substring(0,7) === y+'-'+m) recentJoins++;
+    });
+
+    // This week's new members
+    var weekAgo = new Date(now.getTime() - 7*24*60*60*1000).toISOString();
+    var weekJoins = members.filter(function(m) { return m.joined_at && m.joined_at >= weekAgo; }).length;
+
+    // Submission data for current period
+    var currentPeriodYm = y + '-' + m;
+    var monthSubs = (subs||[]).filter(function(s) { return (s.created_at||'').substring(0,7) === currentPeriodYm; });
+
+    var activeCreators = {};
+    monthSubs.forEach(function(s) { activeCreators[s.uid||s.discord_name] = true; });
+    var activeCreatorCount = Object.keys(activeCreators).length;
+
+    var totalLinks = 0, totalPts = 0, pendingCount = 0;
+    monthSubs.forEach(function(s) {
+      var eng = (s.links_engagement||'').split('\n').filter(Boolean).length;
+      var vws = (s.links_views||'').split('\n').filter(Boolean).length;
+      totalLinks += eng + vws;
+      totalPts += (s.points_earned||0);
+      if (s.status === 'pending') pendingCount++;
+    });
+
+    // Redemption data
+    var monthOrders = (orders||[]).filter(function(o) { return (o.period||'') === currentPeriodYm; });
+    var shippedOrders = monthOrders.filter(function(o) { return o.status === 'shipped'; });
+    var redeemedPts = shippedOrders.reduce(function(acc, o) { return acc + (o.points_spent||0); }, 0);
+
+    // ========== Build KPI cards (6 cards in 2 rows, matching user's format) ==========
+    var kpiHtml = '';
+    kpiHtml += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">';
+    kpiHtml += '<div class="kpi-card"><div style="font-size:11px;color:var(--text-light);">👥 社群总人数</div><div style="font-size:24px;font-weight:700;color:#e91e63;">' + totalMembers + '</div></div>';
+    kpiHtml += '<div class="kpi-card"><div style="font-size:11px;color:var(--text-light);">💬 发言创作者</div><div style="font-size:24px;font-weight:700;color:#e91e63;">' + activeCreatorCount + '</div></div>';
+    kpiHtml += '<div class="kpi-card"><div style="font-size:11px;color:var(--text-light);">📝 已注册 KOC</div><div style="font-size:24px;font-weight:700;color:#e91e63;">' + registeredKocs + '</div></div>';
+    kpiHtml += '</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">';
+    kpiHtml += '<div class="kpi-card"><div style="font-size:11px;color:var(--text-light);">📎 总投稿链接</div><div style="font-size:24px;font-weight:700;color:#e91e63;">' + totalLinks + '</div></div>';
+    kpiHtml += '<div class="kpi-card"><div style="font-size:11px;color:var(--text-light);">🏆 总积分</div><div style="font-size:24px;font-weight:700;color:#e91e63;">' + totalPts + '</div></div>';
+    kpiHtml += '<div class="kpi-card"><div style="font-size:11px;color:var(--text-light);">🎁 已兑换积分</div><div style="font-size:24px;font-weight:700;color:#e91e63;">' + redeemedPts + '</div></div>';
+    kpiHtml += '</div>';
+    document.getElementById('community-kpi').innerHTML = kpiHtml;
+
+    // ========== Rich detail content ==========
+    var detailHtml = '';
+
+    // Module 1: Tier distribution
+    detailHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">';
+    detailHtml += '<div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">⭐ 等级分布</div><div style="display:flex;gap:8px;flex-wrap:wrap;">';
+    [['💎 铂金', plat, '#7b1fa2'], ['🟡 金级', gold, '#f57f17'], ['✅ 认证', cert, '#43a047']].forEach(function(t) {
+      var pct = registeredKocs > 0 ? Math.round(t[1]/registeredKocs*100) : 0;
+      detailHtml += '<div style="flex:1;min-width:60px;background:' + t[2] + '22;border:1px solid ' + t[2] + '44;border-radius:8px;padding:8px;text-align:center;"><div style="color:' + t[2] + ';font-size:20px;font-weight:700;">' + t[1] + '</div><div style="font-size:11px;color:#666;">' + t[0] + '</div><div style="font-size:11px;color:#999;">' + pct + '%</div></div>';
+    });
+    detailHtml += '</div></div>';
+
+    // Module 2: Registration rate
+    detailHtml += '<div class="card" style="padding:12px;"><div style="font-size:13px;font-weight:600;margin-bottom:6px;">📊 KOC 覆盖率</div>';
+    var regRate = totalMembers > 0 ? Math.round(kocInDiscord/totalMembers*100) : 0;
+    detailHtml += '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;"><div style="font-size:32px;font-weight:700;color:#e91e63;">' + regRate + '%</div><div style="font-size:12px;color:#666;">社群内已注册 KOC <strong>' + kocInDiscord + '</strong> / ' + totalMembers + '</div></div>';
+    detailHtml += '<div style="height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden;"><div style="width:' + regRate + '%;height:100%;background:linear-gradient(90deg,#e91e63,#f06292);border-radius:4px;"></div></div>';
+    detailHtml += '<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:11px;color:#999;"><span>未注册: ' + (totalMembers - kocInDiscord) + ' 人</span><span>已注册: ' + kocInDiscord + ' 人</span></div>';
+    detailHtml += '</div></div>';
+
+    // Module 3: Monthly comparison table
+    detailHtml += '<div class="card" style="padding:14px;margin-bottom:12px;">';
+    detailHtml += '<div style="font-size:14px;font-weight:600;margin-bottom:6px;">📅 月度核心指标</div>';
+    detailHtml += '<table style="width:100%;font-size:12px;border-collapse:collapse;">';
+    detailHtml += '<tr style="background:#fce4ec;"><th style="padding:6px;text-align:left;">指标</th><th style="padding:6px;text-align:right;">本月</th><th style="padding:6px;text-align:right;">说明</th></tr>';
+    detailHtml += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">👥 社群总人数</td><td style="padding:5px 6px;text-align:right;font-weight:700;">' + totalMembers + '</td><td style="padding:5px 6px;text-align:right;color:#999;">本月新增 ' + recentJoins + ' 人</td></tr>';
+    detailHtml += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">📝 活跃创作者</td><td style="padding:5px 6px;text-align:right;font-weight:700;">' + activeCreatorCount + '</td><td style="padding:5px 6px;text-align:right;color:#999;">本月投稿人数</td></tr>';
+    detailHtml += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">📎 总投稿链接</td><td style="padding:5px 6px;text-align:right;font-weight:700;">' + totalLinks + '</td><td style="padding:5px 6px;text-align:right;color:#999;">本月共 ' + monthSubs.length + ' 次提交</td></tr>';
+    detailHtml += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">🏆 作品总积分</td><td style="padding:5px 6px;text-align:right;font-weight:700;">' + totalPts + '</td><td style="padding:5px 6px;text-align:right;color:#999;">已评分积分</td></tr>';
+    detailHtml += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">💎 铂金创作官</td><td style="padding:5px 6px;text-align:right;font-weight:700;">' + plat + '</td><td style="padding:5px 6px;text-align:right;color:#999;">高阶创作者</td></tr>';
+    detailHtml += '<tr><td style="padding:5px 6px;border-bottom:1px solid #f0f0f0;">🟡 金级创作官</td><td style="padding:5px 6px;text-align:right;font-weight:700;">' + gold + '</td><td style="padding:5px 6px;text-align:right;color:#999;">中级创作者</td></tr>';
+    detailHtml += '<tr><td style="padding:5px 6px;">🎁 已兑换积分</td><td style="padding:5px 6px;text-align:right;font-weight:700;">' + redeemedPts + '</td><td style="padding:5px 6px;text-align:right;color:#999;">兑换率 ' + (totalPts > 0 ? Math.round(redeemedPts/totalPts*100) : 0) + '%</td></tr>';
+    detailHtml += '</table></div>';
+
+    // Module 4: Top 10 active KOC in community
+    var memberWithKoc = [];
+    members.forEach(function(m) {
+      var name = (m.username||'').toLowerCase().trim();
+      var nick = (m.nick||'').toLowerCase().trim();
+      var display = m.nick || m.global_name || m.username;
+      var koc = kocMap[name] || kocMap[nick];
+      memberWithKoc.push({ display: display, username: m.username, koc: !!koc, tier: koc ? (koc.tier||'certified') : '', uid: koc ? koc.uid : '' });
+    });
+
+    var tierOrder = { 'platinum': 0, 'gold': 1, 'certified': 2 };
+    memberWithKoc.sort(function(a, b) {
+      var ta = a.koc ? (tierOrder[a.tier]||9) : 9;
+      var tb = b.koc ? (tierOrder[b.tier]||9) : 9;
+      return ta - tb;
+    });
+
+    detailHtml += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">';
+    // Left: KOC info
+    detailHtml += '<div class="card" style="padding:12px;">';
+    detailHtml += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">📋 KOC 对接概览</div>';
+    detailHtml += '<div style="font-size:12px;">';
+    detailHtml += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;"><span>👥 社群总成员</span><span><strong>' + totalMembers + '</strong></span></div>';
+    detailHtml += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;"><span>🆕 本周新增</span><span><strong>' + weekJoins + '</strong> 人</span></div>';
+    detailHtml += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;"><span>📝 社群内 KOC</span><span><strong>' + kocInDiscord + '</strong> 人</span></div>';
+    detailHtml += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;"><span>✅ 认证创作官</span><span><strong>' + cert + '</strong></span></div>';
+    detailHtml += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;"><span>🟡 金级创作官</span><span><strong>' + gold + '</strong></span></div>';
+    detailHtml += '<div style="display:flex;justify-content:space-between;padding:4px 0;"><span>💎 铂金创作官</span><span><strong>' + plat + '</strong></span></div>';
+    detailHtml += '</div></div>';
+
+    // Right: Top 10
+    detailHtml += '<div class="card" style="padding:12px;">';
+    detailHtml += '<div style="font-size:13px;font-weight:600;margin-bottom:6px;">👑 社群 KOC Top 10</div>';
+    detailHtml += '<div style="font-size:12px;">';
+    var top10 = memberWithKoc.slice(0, 10);
+    top10.forEach(function(m, i) {
+      var badge = m.tier === 'platinum' ? '💎' : m.tier === 'gold' ? '🟡' : m.tier === 'certified' ? '✅' : '👤';
+      detailHtml += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0f0f0;">';
+      detailHtml += '<span><span style="font-weight:700;color:' + (i===0?'#ad1457':i<3?'#e65100':'#666') + ';margin-right:4px;">#' + (i+1) + '</span>' + badge + ' ' + esc(m.display||m.username) + '</span>';
+      detailHtml += '<span style="color:#999;">' + (m.koc ? (m.tier==='platinum'?'铂金':m.tier==='gold'?'金级':'认证') : '未注册') + '</span>';
+      detailHtml += '</div>';
+    });
+    detailHtml += '</div></div></div>';
+
+    // Module 5: Platform distribution from submissions
+    var pfs = {'TikTok':0,'YouTube':0,'Facebook':0,'Instagram':0,'X(Twitter)':0,'Reddit':0,'Pinterest':0,'其他':0};
+    var pfKeys = Object.keys(pfs);
+    monthSubs.forEach(function(s) {
+      ((s.links_engagement||'')+'\n'+(s.links_views||'')).split('\n').filter(Boolean).forEach(function(l) {
+        var found = false;
+        pfKeys.forEach(function(p) { if (l.toLowerCase().indexOf(p.toLowerCase().replace('(twitter)','')) >= 0) { pfs[p]++; found = true; } });
+        if (!found) pfs['其他']++;
+      });
+    });
+
+    var maxPf = Math.max.apply(null, pfKeys.map(function(k) { return pfs[k]; }), 1);
+    var pfTotal = pfKeys.reduce(function(acc, k) { return acc + pfs[k]; }, 0);
+
+    detailHtml += '<div class="card" style="padding:14px;margin-bottom:12px;">';
+    detailHtml += '<div style="font-size:14px;font-weight:600;margin-bottom:6px;">📱 各平台投稿分布</div>';
+    pfKeys.forEach(function(p) {
+      var pct = pfTotal > 0 ? Math.round(pfs[p]/pfTotal*100) : 0;
+      var barW = Math.round(pfs[p]/maxPf*100);
+      detailHtml += '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;">';
+      detailHtml += '<span style="width:80px;flex-shrink:0;text-align:right;color:#666;">' + p + '</span>';
+      detailHtml += '<div style="flex:1;height:16px;background:#f0f0f0;border-radius:8px;overflow:hidden;"><div style="width:' + barW + '%;height:100%;background:linear-gradient(90deg,#e91e63,#f06292);border-radius:8px;"></div></div>';
+      detailHtml += '<span style="width:36px;text-align:right;font-weight:600;">' + pfs[p] + '</span>';
+      detailHtml += '<span style="width:32px;text-align:right;color:#999;font-size:11px;">' + pct + '%</span>';
+      detailHtml += '</div>';
+    });
+    detailHtml += '</div>';
+
+    // ========== Write all content ==========
+    var container = document.getElementById('community-charts-area');
+    if (container) container.innerHTML = detailHtml;
+
+    // ========== 莎莎的关键洞察 ==========
+    var ins = '';
+    ins += '💡 本月社群共 <strong>' + totalMembers + '</strong> 人，KOC 注册 <strong>' + registeredKocs + '</strong> 人（社群内 ' + kocInDiscord + ' 人，覆盖率 ' + regRate + '%）。';
+    if (recentJoins > 0) ins += ' 本月新增 <strong>' + recentJoins + '</strong> 人，社群持续增长。';
+    if (activeCreatorCount > 0) ins += ' ' + activeCreatorCount + ' 位创作者投稿 ' + totalLinks + ' 条链接，共 ' + totalPts + ' 分。';
+    if (plat > 0) ins += ' 铂金创作官 ' + plat + ' 人、金级 ' + gold + ' 人，高阶创作者占比 ' + (registeredKocs > 0 ? Math.round((plat+gold)/registeredKocs*100) : 0) + '%。';
+    if (redeemedPts > 0 && totalPts > 0) ins += ' 积分兑换率 ' + Math.round(redeemedPts/totalPts*100) + '%，' + (redeemedPts/totalPts < 0.3 ? '剩余积分较多，建议推出限时兑换活动。' : '兑换积极。');
+    else ins += ' 本月暂无积分兑换。';
+    console.log(ins);
+
+  } catch(e) {
+    document.getElementById('community-summary').innerHTML = '加载失败: ' + e.message;
+    console.error('loadCommunityReport error:', e);
+  }
+}
+
+function getActiveStatusBadge(uid, counts) {
+  var n = counts[uid]||0;
+  if (n === 0) {
+    return '<td style="text-align:center;"><span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:#f3e5f5;color:#7b1fa2;border:1px solid #ce93d8;">\uD83D\uDCF5 沉默</span></td>';
+  }
+  return '<td style="text-align:center;"><span style="display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:600;background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7;">\uD83D\uDC4D 活跃</span></td>';
+}
+
+function renderKocTable() {
+  var q = document.getElementById('search-input').value.toLowerCase();
+  var filtered = allKocs.filter(function(k) {
+    return (k.discord_name || '').toLowerCase().includes(q) || (k.uid || '').toLowerCase().includes(q);
+  });
+  document.getElementById('koc-count').textContent = filtered.length + ' creators';
+  var curP = currentPeriod;
+  var curY = parseInt(curP.split('-')[0]), curM = parseInt(curP.split('-')[1]);
+  var prevM = curM === 1 ? 12 : curM - 1;
+  var prevY = curM === 1 ? curY - 1 : curY;
+  var prevPeriod = prevY + '-' + String(prevM).padStart(2, '0');
+  var activeCounts = {};
+  (typeof allSubs !== 'undefined' ? allSubs : []).forEach(function(s) {
+    var sm = (s.created_at||'').substring(0,7);
+    if (sm === curP || sm === prevPeriod) {
+      activeCounts[s.uid] = (activeCounts[s.uid]||0) + 1;
+    }
+  });
+
+  var tbody = document.getElementById('koc-table');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(function(k) {
+    var notes = k.notes || '';
+    var isOldCreator = notes.indexOf('old_creator') >= 0;
+    var createdYm = '';
+    try {
+      var d = new Date(k.created_at);
+      createdYm = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    } catch(e) {}
+    if (!isOldCreator && createdYm) {
+      // Newbie period: registration month + next full month
+      var regParts = createdYm.split('-');
+      var regMonthNum = parseInt(regParts[0]) * 12 + parseInt(regParts[1]);
+      var curParts = currentPeriod.split('-');
+      var curMonthNum = parseInt(curParts[0]) * 12 + parseInt(curParts[1]);
+      // If current month is beyond registration month + 1, mark as old
+      if (curMonthNum > regMonthNum + 1) {
+        isOldCreator = true;
+      }
+    }
+    return '<tr>' +
+      '<td style="text-align:center;"><input type="checkbox" class="koc-select" value="' + k.uid + '"></td>' +
+      '<td><strong ondblclick="inlineEdit(this,\'discord_name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.discord_name) + '</strong></td>' +
+      '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();inlineEdit(this,\'uid\',\'' + k.uid + '\')">' + esc(k.uid) + '</td>' +
+      '<td>' + getTierBadge(k.tier || 'certified') + '<br><select id="koc-tier-select-' + k.uid + '" style="width:100px;font-size:11px;margin-top:2px;" onchange="updateKocTierInline(\'' + k.uid + '\')" class="tier-select">' +
+        '<option value="certified"' + ((k.tier||'certified')==='certified'?' selected':'') + '>\u2705 \u8BA4\u8BC1\u521B\u4F5C\u5B98</option>' +
+        '<option value="gold"' + (k.tier==='gold'?' selected':'') + '>\uD83D\uDFE1 \u91D1\u7EA7\u521B\u4F5C\u5B98</option>' +
+        '<option value="platinum"' + (k.tier==='platinum'?' selected':'') + '>\uD83D\uDC8E \u94C2\u91D1\u521B\u4F5C\u5B98</option>' +
+      '</select></td>' +
+      '<td style="text-align:center;font-size:12px;white-space:nowrap;">' +
+        (isOldCreator ? 
+    '<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;background:linear-gradient(135deg,#e8eaf6,#c5cae9);color:#283593;border:1.5px solid #7986cb;box-shadow:0 2px 6px rgba(121,134,203,0.15);">\uD83D\uDC4D \u8001\u521B\u4F5C\u8005</span>' 
+    : 
+    '<span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;background:linear-gradient(135deg,#e8f5e9,#c8e6c9);color:#2e7d32;border:1.5px solid #66bb6a;box-shadow:0 2px 6px rgba(102,187,106,0.15);">\uD83C\uDF1F \u65B0\u521B\u4F5C\u8005</span>') +
+      '</td>' +
+      '<td><span id="bal-' + k.uid + '" class="pts" style="cursor:pointer;" onclick="editBalanceInline(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">\u22EF</span></td>' +
+      '<td ondblclick="inlineEdit(this,\'name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.name || '-') + '</td>' +
+      '<td ondblclick="inlineEdit(this,\'region\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.region || '-') + '</td>' +
+      '<td ondblclick="inlineEdit(this,\'account_id\',\'' + k.uid + '\')" title="Double-click to edit" style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.account_id || '-') + '</td>' +
+      '<td ondblclick="inlineEdit(this,\'server\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.server || '-') + '</td>' +
+      '<td ondblclick="inlineEdit(this,\'address\',\'' + k.uid + '\')" title="Double-click to edit" style="font-size:12px;white-space:pre-wrap;max-width:200px;">' + esc(k.address || '-') + '</td>' +
+    '</tr>';
+  }).join('');
+  allKocs.forEach(function(k) {
+    getBalance(k.uid).then(function(p) {
+      var el = document.getElementById('bal-' + k.uid);
+      if (el) el.textContent = p;
+    });
+  });
+}function toggleAllKoc() {
+  var checked = document.getElementById('koc-select-all').checked;
+  document.querySelectorAll('.koc-select').forEach(function(cb) { cb.checked = checked; });
+}
+
+function getSelectedKocUids() {
+  var uids = [];
+  document.querySelectorAll('.koc-select:checked').forEach(function(cb) { uids.push(cb.value); });
+  return uids;
+}
+
+async function batchMarkSelected(type) {
+  var uids = getSelectedKocUids();
+  if (!uids.length) { showToast('请先勾选创作者', 'error'); return; }
+  var tag = type === 'old_creator' ? 'old_creator:true' : '';
+  var label = type === 'old_creator' ? '老创作者' : '新创作者';
+  if (type === 'new_creator') tag = '';
+  if (!confirm('确定将 ' + uids.length + ' 位标记为' + label + '？')) return;
+  var ok = 0;
+  for (var i = 0; i < uids.length; i++) {
+    try {
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uids[i]), {
+        method: 'PATCH',
+        body: JSON.stringify({ notes: type === 'old_creator' ? 'old_creator:true' : '' })
+      });
+      if (r.ok) ok++;
+    } catch(e) {}
+  }
+  showToast('✅ ' + ok + '/' + uids.length + ' 已标记为' + label, 'success');
+  await loadData();
+}
+
+async function batchDeleteSelected() {
+  var uids = getSelectedKocUids();
+  if (!uids.length) { showToast('请先勾选创作者', 'error'); return; }
+  if (!confirm('确定删除 ' + uids.length + ' 位创作者？此操作不可撤销！')) return;
+  var ok = 0;
+  for (var i = 0; i < uids.length; i++) {
+    try {
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uids[i]), {
+        method: 'DELETE'
+      });
+      if (r.ok) ok++;
+    } catch(e) {}
+  }
+  showToast('✅ ' + ok + '/' + uids.length + ' 已删除', 'success');
+  await loadData();
+}
+function renderScoringTable() {
+  // Load redemption state
+  (async function() {
+    try {
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+      if (r.ok) {
+        var d = await r.json();
+        if (d && d.length > 0 && d[0].notes) {
+          try { var cfg = JSON.parse(d[0].notes); 
+            var btn = document.getElementById('btn-toggle-redeem');
+    var updateBtn = document.getElementById('btn-sync-balance');
+    if (updateBtn) updateBtn.textContent = '🔄 更新剩余积分';
+            if (btn) {
+              var open = cfg.redemption_open === true;
+              btn.textContent = open ? '🔒 关闭兑换' : '🔓 开放兑换';
+              btn.style.background = open ? '#e74c3c' : '#43b581';
+            }
+          } catch(e) {}
+        }
+      }
+    } catch(e) {}
+  })();
+  var tbody = document.getElementById('scoring-table');
+  if (!tbody) return;
+  if (!allKocs.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
+    return;
+  }
+  document.getElementById('stat-total').textContent = '\uD83D\uDC65 Total: ' + allKocs.length;
+  var shipped = allOrders.filter(function(o) { return o.status === 'shipped'; }).length;
+  var pending = allOrders.filter(function(o) { return o.status === 'pending'; }).length;
+  document.getElementById('stat-shipped').textContent = '\u2705 Shipped: ' + shipped;
+  document.getElementById('stat-pending').textContent = '\u23F3 Pending: ' + pending;
+  var ccCount = allKocs.filter(function(k) { return k.status === 'active' && (k.notes || '').includes('CC:' + currentPeriod); }).length;
+  var ccEl = document.getElementById('stat-cc');
+  if (ccEl) ccEl.textContent = '🎁 CC: ' + ccCount + ' creators';
+  
+  tbody.innerHTML = allKocs.map(function(k) {
+    var orders = allOrders.filter(function(o) { 
+      return o.uid === k.uid && ((o.period||'') === currentPeriod || (o.created_at||'').substring(0,7) === currentPeriod);
+    });
+    var pendingOrders = orders.filter(function(o) { return o.status === 'pending'; });
+    var cc = hasCC(k.notes);
+    return '<tr>' +
+      '<td><strong ondblclick="inlineEdit(this,\'discord_name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.discord_name) + '</strong></td>' +
+      '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();inlineEdit(this,\'uid\',\'' + k.uid + '\')">' + esc(k.uid) + '</td>' +
+      '<td><span class="pts" id="mspts-' + k.uid + '">\u22EF</span></td>' +
+      '<td style="text-align:center;">' +
+        '<div class="toggle-wrap">' +
+          '<input type="checkbox" class="toggle-cb" id="cc-' + k.uid + '" ' + (cc ? 'checked' : '') + ' onchange="toggleCC(\'' + k.uid + '\',\'' + escAttr(k.notes||'') + '\')">' +
+          '<label class="toggle-label" for="cc-' + k.uid + '"></label>' +
+        '</div>' +
+      '</td>' +
+      '<td style="max-width:260px;">' +
+        (orders.length + ' orders (' + pendingOrders.length + ' pending)') +
+        '<div id="orders-' + k.uid + '" style="margin-top:4px;max-width:240px;">' +
+          orders.slice(0,10).map(function(o) {
+            var optName = esc(o.option_name||o.item||'');
+            return '<div class="order-row" style="display:flex;align-items:center;gap:4px;margin:2px 0;font-size:12px;">' +
+              '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + optName + '</span>' +
+              ' <span class="badge badge-' + o.status + '">' + (o.status === 'shipped' ? '\u2705 ' : '\u23F3 ') + o.status + '</span> ' +
+              (o.status === 'pending' ? '<span class="btn btn-success btn-sm" onclick="shipOrder(event,' + o.id + ')" style="padding:1px 6px;font-size:11px;cursor:pointer;">\u2713</span>' : '') +
+            '</div>';
+          }).join('') +
+          (orders.length > 10 ? '<div style="font-size:11px;color:var(--text-light);">+' + (orders.length-10) + ' more</div>' : '') +
+        '</div>' +
+      '</td>' +
+      '<td>' +
+        '<button class="btn btn-sm" style="background:#e8e0ff;color:#6a3de8;" onclick="openPointsModal(\'' + k.uid + '\',\'' + escAttr(k.discord_name||'') + '\')">💳 积分</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+  // Load monthly points (from this month's submissions)
+  allKocs.forEach(function(k) {
+    var monthSubs = allSubmissions.filter(function(s) {
+      return s.uid === k.uid && (s.created_at||'').substring(0,7) === currentPeriod;
+    });
+    var monthPts = monthSubs.reduce(function(s, x) { return s + (x.points_earned || 0); }, 0);
+    var el = document.getElementById('mspts-' + k.uid);
+    if (el) el.textContent = monthPts;
+  });
+}
+
+async function syncAllBalances() {
+  if (!confirm('更新所有KOC的剩余积分？\n规则：剩余 = 原积分 + 当月积分 - 当月已兑换')) return;
+  showToast('正在更新积分...', 'info');
+  var updated = 0;
+  for (var i = 0; i < allKocs.length; i++) {
+    var k = allKocs[i];
+    if (!k.uid) continue;
+    try {
+      var curBal = await getBalance(k.uid);
+      var monthSubs = allSubmissions.filter(function(s) {
+        return s.uid === k.uid && (s.created_at||'').substring(0,7) === currentPeriod;
+      });
+      var monthPts = monthSubs.reduce(function(s, x) { return s + (x.points_earned || 0); }, 0);
+      var monthOrders = allOrders.filter(function(o) {
+        return o.uid === k.uid && ((o.period||'') === currentPeriod || (o.created_at||'').substring(0,7) === currentPeriod) && o.status === 'shipped';
+      });
+      var spent = monthOrders.reduce(function(s, o) { return s + (o.points_spent || 0); }, 0);
+      var newBal = curBal + monthPts - spent;
+      if (newBal !== curBal) {
+        await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+          method: 'POST',
+          body: JSON.stringify({
+            uid: k.uid,
+            change: monthPts - spent,
+            balance_after: newBal,
+            source: 'monthly_sync',
+            reason: currentPeriod + ' sync (earned:' + monthPts + ', spent:' + spent + ')',
+            period: currentPeriod,
+            created_by: 'admin'
+          })
+        });
+        updated++;
+      }
+    } catch(e) { console.error('sync error for ' + k.uid, e); }
+  }
+  showToast('✅ 已更新 ' + updated + ' 位创作者的剩余积分', 'success');
+  loadData();
+}
+function updateKocTierInline(uid) {
+  var select = document.getElementById('koc-tier-select-' + uid);
+  if (!select) return;
+  var tier = select.value;
+  supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
+    method: 'PATCH',
+    body: JSON.stringify({ tier: tier, tier_updated_at: new Date().toISOString() })
+  }).then(function(r) {
+    if (r.ok) {
+      showToast('✅ Tier updated to ' + tier, 'success');
+      // Reload all data to refresh the table with correct tier badge + dropdown
+      loadData();
+    } else {
+      showToast('Failed to update tier', 'error');
+    }
+  }).catch(function(e) { showToast('Error: ' + e.message, 'error'); });
+}
+
+function esc(s) { return s == null ? '' : String(s).replace(/[&<>]/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]; }); }
+function escAttr(s) { return String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, '\\n'); }
+
+function toggleOrders(uid) {
+  var el = document.getElementById('orders-' + uid);
+  if (el) el.classList.toggle('hidden');
+}
+
+// ===== ADD KOC =====
+async function batchMarkOldCreator() {
+  var names = prompt('\u8f93\u5165\u8981\u6807\u8bb0\u4e3a\u8001\u521b\u4f5c\u8005\u7684 Discord \u540d\u79f0\uff08\u6bcf\u884c\u4e00\u4e2a\uff09:', 'Rowdy-Bones\nAchiru\nadalia\nClarySage8611\nDatuzu\ndiana\nEma\u2661\nJanie\nkanansai\nlaarakln\n\ud835\udd76\ud835\udd90\ud835\udd8d\nLondon\nMaia\nmaished\nPrimroseku\nSusanne (user: susannepandawhale)\ntaylor\nMia');
+  if (!names) return;
+  var lines = names.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+  var updated = 0;
+  var errors = [];
+  for (var i = 0; i < lines.length; i++) {
+    var name = lines[i];
+    try {
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?discord_name=eq.' + encodeURIComponent(name) + '&select=uid,notes');
+      if (!r.ok) { errors.push(name + ': HTTP ' + r.status); continue; }
+      var d = await r.json();
+      if (!d || d.length === 0) { errors.push(name + ': not found'); continue; }
+      var k = d[0];
+      var notes = k.notes || '';
+      if (notes.indexOf('old_creator') === -1) {
+        notes = notes ? notes + ', old_creator:true' : 'old_creator:true';
+        await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(k.uid), {
+          method: 'PATCH', body: JSON.stringify({ notes: notes })
+        });
+      }
+      updated++;
+    } catch(e) { errors.push(name + ': ' + e.message); }
+  }
+  var msg = '\u2705 ' + updated + ' \u4f4d\u5df2\u6807\u8bb0\u4e3a\u8001\u521b\u4f5c\u8005';
+  if (errors.length > 0) msg += '\n\u26a0\ufe0f ' + errors.length + ' \u5931\u8d25: ' + errors.join(', ');
+  showToast(msg, errors.length > 0 ? 'warning' : 'success');
+  loadData();
+}
+
+async function addKOC() {
+  var discord = document.getElementById('new-discord').value.trim();
+  var uid = document.getElementById('new-uid').value.trim();
+  if (!discord || !uid) { showToast('Discord name and UID required', 'error'); return; }
+  try {
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs', {
+      method: 'POST',
+      body: JSON.stringify({ uid: uid, discord_name: discord, name: name, status: 'active', created_at: new Date().toISOString() })
+    });
+    
+    // Auto-create welcome gift if checkbox is checked
+    var sendGift = document.getElementById('cb-welcome') && document.getElementById('cb-welcome').checked;
+    if (sendGift) {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          uid: uid, discord_name: discord, koc_name: discord,
+          option_type: 'merch', option_name: '\uD83C\uDF81 \u65B0\u4EBA\u5165\u804C\u5468\u8FB9',
+          points_spent: 0, reward_amount: '\u968F\u673A\u5468\u8FB9 \u00D7 1',
+          contact_info: '', status: 'pending',
+          admin_notes: 'Welcome gift - auto created',
+          created_at: new Date().toISOString()
+        })
+      });
+      showToast('\u2705 Added ' + discord + ' + welcome gift', 'success');
+    } else {
+      showToast('\u2705 Added ' + discord, 'success');
+    }
+    document.getElementById('new-discord').value = '';
+    document.getElementById('new-uid').value = '';
+    loadData();
+  } catch (e) { showToast('Error: maybe UID exists', 'error'); }
+}
+
+// ===== SHIP ORDER =====
+async function shipOrder(ev, id) { try { if (ev && ev.target) { ev.target.disabled = true; ev.target.textContent = "⏳"; } } catch(e) {}
+  try {
+    var oRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + id + '&select=*');
+    var oData = await oRes.json();
+    var order = oData[0];
+    if (!order) throw new Error('Order not found');
+
+    // Skip if already shipped
+    if (order.status === 'shipped') { showToast('Already shipped', 'info'); return; }
+
+    // Ship the order
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + id, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'shipped', processed_at: new Date().toISOString(), processed_by: 'admin' })
+    });
+
+    // Deduct points ONLY if points_spent > 0 AND not already deducted
+    if (order.points_spent > 0) {
+      // Check if already deducted via point_logs
+      var lRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + order.uid + '&source=eq.redemption&order=created_at.desc&limit=5&select=change,reason,created_at');
+      var logs = await lRes.json();
+      var alreadyDeducted = false;
+      if (logs && logs.length > 0) {
+        for (var l = 0; l < logs.length; l++) {
+          if (logs[l].change === -order.points_spent && logs[l].reason && logs[l].reason.indexOf('#' + id) >= 0) {
+            alreadyDeducted = true;
+            break;
+          }
+        }
+      }
+      if (!alreadyDeducted) {
+        var curBal = await getBalance(order.uid);
+        var newBal = Math.max(0, curBal - order.points_spent); // Never go below 0
+        await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+          method: 'POST',
+          body: JSON.stringify({
+            uid: order.uid, change: -order.points_spent,
+            balance_after: newBal,
+            source: 'redemption', reason: 'Shipped order #' + id,
+            created_at: new Date().toISOString()
+          })
+        });
+      }
+    }
+
+    showToast('\u2705 Shipped' + (order.points_spent > 0 ? ' + pts deducted' : ''), 'success');
+    loadData();
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ===== POINT MODAL =====
+function adjustPoint(delta) {
+  var inp = document.getElementById('modal-points');
+  var v = parseInt(inp.value) || 1;
+  v = Math.max(1, v + delta);
+  inp.value = v;
+}
+function setQuickPoint(n) {
+  document.getElementById('modal-points').value = n;
+}
+function openPointsModal(uid, discord) {
+  editingUid = uid;
+  document.getElementById('modal-title').textContent = '\u270F\uFE0F ' + discord;
+  document.getElementById('modal-points').value = '1';
+  document.getElementById('modal-reason').value = '';
+  document.getElementById('point-modal').classList.remove('hidden');
+  // Show current balance
+  getBalance(uid).then(function(b) {
+    var el = document.getElementById('modal-current-balance');
+    if (el) el.textContent = '\uD83D\uDCB0 \u5F53\u524D\u79EF\u5206: ' + b + ' pts';
+  });
+  // Show recent history
+  loadPointHistory(uid);
+}
+
+function setPointAmount(n) {
+  document.getElementById('modal-points').value = n;
+}
+
+function quickPoints(dir) {
+  var inp = document.getElementById('modal-points');
+  var v = parseInt(inp.value) || 1;
+  if (dir > 0) inp.value = v + 1;
+  else inp.value = Math.max(1, v - 1);
+}
+
+function loadPointHistory(uid) {
+  supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(uid) + '&order=created_at.desc&limit=5&select=change,balance_after,reason,created_at').then(function(r) {
+    if (!r.ok) return; return r.json();
+  }).then(function(logs) {
+    var el = document.getElementById('modal-point-history');
+    if (!el) return;
+    if (!logs || logs.length === 0) {
+      el.innerHTML = '<div style="color:var(--text-light);font-size:12px;">\u6682\u65E0\u64CD\u4F5C\u8BB0\u5F55</div>';
+      return;
+    }
+    var h = '<div style="font-weight:600;margin-bottom:4px;font-size:12px;">\uD83D\uDCDC \u6700\u8FD1\u64CD\u4F5C</div>';
+    logs.forEach(function(l) {
+      var sign = l.change > 0 ? '+\uD83D\uDFE2' : '\uD83D\uDD34';
+      var dt = new Date(l.created_at).toLocaleDateString('zh-CN');
+      h += '<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f0f0f0;font-size:12px;">';
+      h += '<span>' + sign + ' ' + (l.change > 0 ? '+' : '') + l.change + ' \u2192 ' + l.balance_after + '</span>';
+      h += '<span style="color:var(--text-light);font-size:11px;">' + esc(l.reason||'') + ' \u00B7 ' + dt + '</span>';
+      h += '</div>';
+    });
+    el.innerHTML = h;
+  }).catch(function() {});
+}
+
+function toggleOrderExpand(uid) {
+  var el = document.getElementById('orders-' + uid);
+  if (!el) return;
+  if (el.style.display === 'none' || !el.style.display) {
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function closePointModal() {
+  document.getElementById('point-modal').classList.add('hidden');
+  editingUid = null;
+}
+
+async function submitPoints() {
+  var pts = parseInt(document.getElementById('modal-points').value);
+  var reason = document.getElementById('modal-reason').value.trim();
+  var mode = document.getElementById('modal-mode').value; // 'add' or 'deduct'
+  if (!pts || pts < 1) { showToast('\u8F93\u5165\u6709\u6548\u79EF\u5206', 'error'); return; }
+  if (!reason) { showToast('\u8BF7\u586B\u5199\u5907\u6CE8\u539F\u56E0', 'error'); return; }
+
+  try {
+    var bal = await getBalance(editingUid);
+    var change = mode === 'add' ? pts : -pts;
+    var newBal = Math.max(0, bal + change);
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+      method: 'POST',
+      body: JSON.stringify({ uid: editingUid, change: change, balance_after: newBal, source: 'manual', reason: reason, created_by: 'admin', created_at: new Date().toISOString() })
+    });
+    showToast('\u2705 ' + (change > 0 ? '+' : '') + change + ' pts (' + reason + ')', 'success');
+    closePointModal();
+    renderKocTable();
+    renderScoringTable();
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+function openEditModal(uid) {
+  var koc = allKocs.find(function(k) { return k.uid === uid; });
+  if (!koc) return;
+  editingUid = uid;
+  
+  // Parse address to extract phone if present
+  var addr = koc.address || '';
+  var parsed = parseAddress(addr);
+
+  document.getElementById('edit-discord').value = koc.discord_name || '';
+  document.getElementById('edit-uid').value = koc.uid || '';
+  document.getElementById('edit-name').value = koc.name || '';
+  document.getElementById('edit-channel').value = koc.channel_tag || '';
+  document.getElementById('edit-region').value = koc.region || '';
+  document.getElementById('edit-address').value = parsed.address;
+  document.getElementById('edit-phone').value = parsed.phone;
+  document.getElementById('edit-account').value = koc.account_id || '';
+  document.getElementById('edit-server').value = koc.server || '';
+  document.getElementById('edit-notes').value = koc.notes || '';
+  document.getElementById('edit-modal').classList.remove('hidden');
+}
+
+function parseAddress(addr) {
+  if (!addr) return { address: '', phone: '' };
+  // Check if phone is separated by \n\n at end
+  var parts = addr.split('\n\n');
+  if (parts.length >= 2 && /[\d\-\(\)\+\s]{7,}/.test(parts[parts.length-1])) {
+    return { address: parts.slice(0,-1).join('\n\n'), phone: parts[parts.length-1].trim() };
+  }
+  // Try last line
+  var lines = addr.split('\n');
+  var last = lines[lines.length-1];
+  if (/[\d\-\(\)\+\s]{7,}/.test(last) && lines.length > 1) {
+    return { address: lines.slice(0,-1).join('\n'), phone: last.trim() };
+  }
+  return { address: addr, phone: '' };
+}
+
+function closeEditModal() {
+  document.getElementById('edit-modal').classList.add('hidden');
+  editingUid = null;
+}
+
+async function saveEditKOC() {
+  if (!editingUid) return;
+  var addr = document.getElementById('edit-address').value.trim();
+  var phone = document.getElementById('edit-phone').value.trim();
+  var fullAddr = phone ? addr + '\n\n' + phone : addr;
+
+  var updates = {
+    name: document.getElementById('edit-name').value.trim(),
+    channel_tag: document.getElementById('edit-channel').value.trim(),
+    region: document.getElementById('edit-region').value.trim(),
+    address: fullAddr,
+    account_id: document.getElementById('edit-account').value.trim(),
+    server: document.getElementById('edit-server').value.trim(),
+    notes: document.getElementById('edit-notes').value.trim()
+  };
+
+  try {
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(editingUid), {
+      method: 'PATCH',
+      body: JSON.stringify(updates)
+    });
+    showToast('\u2705 Saved', 'success');
+    closeEditModal();
+    loadData();
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ===== DOUBLE-CLICK INLINE EDIT for order rows =====
+function editOrderRow(orderId, field) {
+  // Find the order in allOrders
+  var order = null;
+  for (var i = 0; i < allOrders.length; i++) {
+    if (allOrders[i].id === orderId) { order = allOrders[i]; break; }
+  }
+  if (!order) { showToast('Order not found', 'error'); return; }
+  
+  if (field) {
+    // Single field edit - prompt
+    var currentVal = '';
+    if (field === 'discord_name') {
+      var koc = getKocMap()[order.uid];
+      currentVal = koc ? koc.discord_name : order.discord_name;
+    } else if (field === 'address') {
+      var koc = getKocMap()[order.uid];
+      currentVal = koc ? koc.address : '';
+    } else if (field === 'option_name') {
+      currentVal = order.option_name;
+    } else if (field === 'account_id') {
+      var koc = getKocMap()[order.uid];
+      currentVal = koc ? koc.account_id : '';
+    } else if (field === 'server') {
+      var koc = getKocMap()[order.uid];
+      currentVal = koc ? koc.server : '';
+    } else if (field === 'region') {
+      var koc = getKocMap()[order.uid];
+      currentVal = koc ? koc.region : '';
+    } else if (field === 'uid') {
+      currentVal = order.uid;
+    }
+    var newVal = prompt('Edit ' + field + ':', currentVal);
+    if (newVal === null) return;
+    newVal = newVal.trim();
+    
+    if (field === 'discord_name' || field === 'option_name') {
+      // Update redemption_orders
+      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + orderId, {
+        method: 'PATCH',
+        body: JSON.stringify((function(){ var o = {}; o[field] = newVal; return o; })())
+      }).then(async function(r) {
+        if (r.ok) { showToast('✅ ' + field + ' updated', 'success'); await loadData(); }
+        else { var et=await r.text().catch(function(){return '';}); showToast('Failed: '+et.substring(0,60), 'error'); }
+      }).catch(function(e) { showToast('Error: '+e.message, 'error'); });
+    } else if (field === 'uid') {
+      // Update both redemption_orders and kocs
+      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + orderId, {
+        method: 'PATCH',
+        body: JSON.stringify({ uid: newVal })
+      }).then(function(r) { return r; }).catch(function(e){});
+      supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(order.uid), {
+        method: 'PATCH',
+        body: JSON.stringify((function(){ var o = {}; o[field] = newVal; return o; })())
+      }).then(async function(r) {
+        if (r.ok) { showToast('✅ ' + field + ' updated', 'success'); await loadData(); }
+        else { var et=await r.text().catch(function(){return '';}); showToast('Failed: '+et.substring(0,60), 'error'); }
+      }).catch(function(e) { showToast('Error: '+e.message, 'error'); });
+    } else {
+      // Update kocs table
+      supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(order.uid), {
+        method: 'PATCH',
+        body: JSON.stringify((function(){ var o = {}; o[field] = newVal; return o; })())
+      }).then(async function(r) {
+        if (r.ok) { showToast('✅ ' + field + ' updated', 'success'); await loadData(); }
+        else { var et=await r.text().catch(function(){return '';}); showToast('Failed: '+et.substring(0,60), 'error'); }
+      }).catch(function(e) { showToast('Error: '+e.message, 'error'); });
+    }
+  } else {
+    // Full row edit - show all fields
+    var koc = getKocMap()[order.uid];
+    var info = '';
+    if (koc) {
+      info += 'Discord: ' + koc.discord_name + '\n';
+      info += 'UID: ' + koc.uid + '\n';
+      info += 'Address: ' + (koc.address || '-') + '\n';
+      info += 'Account ID: ' + (koc.account_id || '-') + '\n';
+      info += 'Server: ' + (koc.server || '-') + '\n';
+    }
+    info += 'Reward: ' + order.option_name + '\n';
+    info += 'Status: ' + order.status;
+    alert(info + '\n\nDouble-click any cell to edit it individually.');
+  }
+}
+
+// ===== RENDER SHIPPING TABS =====
+
+// ===== INLINE EDIT for Points (积分计算板块) =====
+function inlineEditPts(uid, discord) {
+  getBalance(uid).then(function(curPts) {
+    var newVal = prompt('Edit points for ' + discord + ':', curPts);
+    if (newVal === null) return;
+    newVal = parseInt(newVal);
+    if (isNaN(newVal)) { showToast('Invalid number', 'error'); return; }
+    var diff = newVal - curPts;
+    if (diff === 0) { showToast('No change', 'info'); return; }
+    supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+      method: 'POST',
+      body: JSON.stringify({
+        uid: uid, change: diff,
+        balance_after: newVal,
+        source: 'admin_fix', reason: 'Manual adjustment by admin',
+        created_at: new Date().toISOString()
+      })
+    }).then(function(r) {
+      if (r.ok) { showToast('✅ Points updated to ' + newVal, 'success'); loadData(); }
+      else showToast('Failed to update points', 'error');
+    });
+  });
+}
+
+// ===== INLINE EDIT for KOC信息库 (double-click cells) =====
+// Replaces the cell with an input field, saves on Enter/blur, cancels on Escape
+function inlineEdit(cell, field, uid) {
+  if (cell.querySelector('input')) return; // already editing
+  var currentVal = cell.textContent.trim();
+  if (currentVal === '-' || currentVal === '') currentVal = '';
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.value = currentVal;
+  input.style.cssText = 'width:100%;border:2px solid var(--pink);border-radius:6px;padding:4px 6px;font-size:12px;outline:none;background:white;';
+  cell.textContent = '';
+  cell.appendChild(input);
+  input.focus();
+  input.select();
+  
+  function save() {
+    var newVal = input.value.trim();
+    if (newVal === currentVal) {
+      cell.textContent = currentVal || '-';
+      return;
+    }
+    var update = {};
+    update[field] = newVal;
+    supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
+      method: 'PATCH',
+      body: JSON.stringify(update)
+    }).then(async function(r) {
+      if (r.ok) { 
+        showToast('\u2705 ' + field + ' updated', 'success'); 
+        await loadData();
+        // Refresh all tabs
+        renderKocTable();
+        renderScoringTable();
+        try { renderMerchTab(); } catch(e) {}
+        try { renderDiamondTab(); } catch(e) {}
+        try { renderGplayTab(); } catch(e) {}
+      } else {
+        cell.textContent = currentVal || '-';
+        var errText = await r.text().catch(function(){return '';});
+        showToast('Failed: ' + errText.substring(0,60), 'error');
+        console.error('PATCH failed', r.status, errText);
+      }
+    }).catch(function(e) {
+      cell.textContent = currentVal || '-';
+      showToast('Error: ' + e.message, 'error');
+    });
+  }
+  
+  function cancel() {
+    cell.textContent = currentVal || '-';
+  }
+  
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { cancel(); }
+  });
+}
+
+// ===== INLINE EDIT for order tables (redemption_orders) =====
+function editOrderInline(cell, field, orderId, uid) {
+  if (cell.querySelector('input')) return;
+  var currentVal = cell.textContent.trim();
+  if (currentVal === '-' || currentVal === '') currentVal = '';
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.value = currentVal;
+  input.style.cssText = 'width:100%;border:2px solid var(--pink);border-radius:6px;padding:4px 6px;font-size:12px;outline:none;background:white;';
+  cell.textContent = '';
+  cell.appendChild(input);
+  input.focus();
+  input.select();
+  
+  function save() {
+    var newVal = input.value.trim();
+    if (newVal === currentVal) {
+      cell.textContent = currentVal || '-';
+      return;
+    }
+    
+    if (['discord_name','option_name','status'].indexOf(field) >= 0) {
+      // Update redemption_orders
+      var update = {};
+      update[field] = newVal;
+      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + orderId, {
+        method: 'PATCH',
+        body: JSON.stringify(update)
+      }).then(async function(r) {
+        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); await loadData(); renderKocTable(); renderScoringTable(); try{renderMerchTab()}catch(e){} try{renderDiamondTab()}catch(e){} try{renderGplayTab()}catch(e){} }
+        else { cell.textContent = currentVal || '-'; var et=await r.text().catch(function(){return '';}); showToast('Failed: '+et.substring(0,60), 'error'); }
+      }).catch(function(e) { cell.textContent = currentVal || '-'; showToast('Error: '+e.message, 'error'); });
+    } else if (field === 'uid') {
+      // Update both
+      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + orderId, {
+        method: 'PATCH', body: JSON.stringify({ uid: newVal })
+      }).then(function(r){}).catch(function(e){});
+      supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
+        method: 'PATCH', body: JSON.stringify({ uid: newVal })
+      }).then(async function(r) {
+        if (r.ok) { showToast('\u2705 uid updated', 'success'); await loadData(); }
+        else { cell.textContent = currentVal || '-'; showToast('Failed', 'error'); }
+      }).catch(function(e) { cell.textContent = currentVal || '-'; });
+    } else {
+      // Update kocs table (address, account_id, server, region)
+      var update = {};
+      update[field] = newVal;
+      supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
+        method: 'PATCH', body: JSON.stringify(update)
+      }).then(async function(r) {
+        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); await loadData(); renderKocTable(); renderScoringTable(); try{renderMerchTab()}catch(e){} try{renderDiamondTab()}catch(e){} try{renderGplayTab()}catch(e){} }
+        else { cell.textContent = currentVal || '-'; showToast('Failed', 'error'); }
+      }).catch(function(e) { cell.textContent = currentVal || '-'; });
+    }
+  }
+  
+  function cancel() { cell.textContent = currentVal || '-'; }
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { cancel(); }
+  });
+}
+
+function getKocMap() {
+  var m = {};
+  allKocs.forEach(function(k) { m[k.uid] = k; });
+  return m;
+}
+
+function fmtDate(d) {
+  if (!d) return '-';
+  try { return new Date(d).toLocaleDateString('en-CA'); } catch(e) { return '-'; }
+}
+
+function getMonthGroup(o) {
+  if (o.period) {
+    var parts = o.period.split('-');
+    if (parts.length === 2) return parts[0] + '年' + parseInt(parts[1]) + '月';
+  }
+  var d = new Date(o.created_at);
+  var y = d.getFullYear();
+  var m = d.getMonth() + 1;
+  return y + '年' + m + '月';
+}
+
+function groupByMonth(arr) {
+  var groups = {};
+  arr.forEach(function(o) {
+    var label = getMonthGroup(o);
+    if (!groups[label]) groups[label] = [];
+    groups[label].push(o);
+  });
+  // Sort month labels descending (most recent first)
+  var sorted = Object.keys(groups).sort();
+  sorted.sort(function(a, b) {
+    var pa = a.match(/(\d+)年(\d+)月/);
+    var pb = b.match(/(\d+)年(\d+)月/);
+    if (!pa || !pb) return 0;
+    var ka = parseInt(pa[1]) * 12 + parseInt(pa[2]);
+    var kb = parseInt(pb[1]) * 12 + parseInt(pb[2]);
+    return kb - ka;
+  });
+  var result = [];
+  sorted.forEach(function(label) {
+    result.push({ label: label, items: groups[label] });
+  });
+  return result;
+}
+
+function renderMerchTab() {
+  var kmap = getKocMap();
+  var merchOrders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }));
+  var label = currentPeriod.replace('-', '年') + '月';
+  document.getElementById('merch-count').textContent = '📅 ' + label + ' (' + merchOrders.length + ' orders)';
+  var container = document.getElementById('merch-table');
+  if (!merchOrders.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无 ' + label + ' 的已发货周边</div>';
+    return;
+  }
+  container.innerHTML = '<div class="month-section">' +
+    '<div class="month-header">' +
+    '<span class="month-icon">📅</span><span>' + label + '</span>' +
+    '<span class="count">(' + merchOrders.length + ' orders)</span>' +
+    '<div style="margin-left:auto;display:flex;gap:6px;">' +
+    '<button class="btn btn-primary btn-sm export-btn" data-type="merch" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
+    '</div></div>' +
+    '<table class="month-table"><thead><tr>' +
+    '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Address</th><th>Reward</th>' +
+    '</tr></thead><tbody>' +
+    merchOrders.map(function(o) {
+      var koc = kmap[o.uid];
+      var addr = koc ? (koc.address || '') : '';
+      return '<tr data-order-id="' + o.id + '" style="cursor:pointer;" ondblclick="editOrderInline(event.target,' + o.id + ')">' +
+        '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
+        '<td><strong ondblclick="event.stopPropagation();editOrderInline(this,\'discord_name\',' + o.id + ')">' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+        '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();editOrderInline(this,\'uid\',' + o.id + ')">' + esc(o.uid) + '</td>' +
+        '<td style="font-size:12px;white-space:pre-wrap;min-width:300px;" ondblclick="event.stopPropagation();editOrderInline(this,\'address\',' + o.id + ')">' + (esc(addr) || '-') + '</td>' +
+        '<td ondblclick="event.stopPropagation();editOrderInline(this,\'option_name\',' + o.id + ')">' + 
+            (function() {
+              var q = o.points_spent || 1;
+              return '450 \u2715 ' + q + ' = <strong>' + (450*q) + ' \uD83D\uDC8E</strong>';
+            })() + '</td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody></table></div>';
+  setTimeout(function() { initSortable('merch'); }, 100);
+}
+function renderDiamondTab() {
+  var kmap = getKocMap();
+  var orders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'diamonds' && o.status === 'shipped'; }));
+  var label = currentPeriod.replace('-', '年') + '月';
+  // Include CC creators for this month in end内奖励
+  var ccCreators = (allKocs || []).filter(function(k) {
+    return k.status === 'active' && (k.notes || '').includes('CC:' + currentPeriod);
+  });
+  document.getElementById('diamond-count').textContent = '📅 ' + label + ' (' + orders.length + ' 常规 + ' + ccCreators.length + ' CC)';
+  var container = document.getElementById('diamond-table');
+  if (!orders.length && !ccCreators.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无 ' + label + ' 的端内奖励数据</div>';
+    return;
+  }
+  var html = '';
+  // CC section
+  if (ccCreators.length) {
+    html += '<div class="month-section">' +
+      '<div class="month-header" style="background:#e8f5e9;">' +
+      '<span class="month-icon">🎁</span><span>' + label + ' · 连续创作奖励 (CC)</span>' +
+      '<span class="count">(' + ccCreators.length + ' creators)</span>' +
+      '<div style="margin-left:auto;display:flex;gap:6px;">' +
+      '<button class="btn btn-primary btn-sm export-btn" data-type="diamonds-cc" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
+      '</div></div>' +
+      '<table class="month-table"><thead><tr>' +
+      '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Account ID</th><th>Server</th><th>Reward</th>' +
+      '</tr></thead><tbody>' +
+      ccCreators.map(function(k) {
+        return '<tr>' +
+          '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
+          '<td><strong ondblclick="event.stopPropagation();inlineEdit(this,\'discord_name\',\'' + k.uid + '\')">' + esc(k.discord_name) + '</strong></td>' +
+          '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();inlineEdit(this,\'uid\',\'' + k.uid + '\')">' + esc(k.uid) + '</td>' +
+          '<td style="font-family:monospace;font-size:12px;" ondblclick="event.stopPropagation();inlineEdit(this,\'account_id\',\'' + k.uid + '\')">' + esc(k.account_id || '-') + '</td>' +
+          '<td style="font-size:12px;" ondblclick="event.stopPropagation();inlineEdit(this,\'server\',\'' + k.uid + '\')">' + esc(k.server || '-') + '</td>' +
+          '<td>🎁 月卡×1 + 🪙 蜗壳币×500 + 💰 金币×1000</td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>';
+  }
+  // Regular diamond orders
+  if (orders.length) {
+    html += '<div class="month-section">' +
+      '<div class="month-header">' +
+      '<span class="month-icon">💎</span><span>' + label + ' · 钻石兑换</span>' +
+      '<span class="count">(' + orders.length + ' orders)</span>' +
+      '<div style="margin-left:auto;display:flex;gap:6px;">' +
+      '<button class="btn btn-primary btn-sm export-btn" data-type="diamonds" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
+      '</div></div>' +
+      '<table class="month-table"><thead><tr>' +
+      '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Account ID</th><th>Server</th><th>Reward</th>' +
+      '</tr></thead><tbody>' +
+      orders.map(function(o) {
+        var koc = kmap[o.uid];
+        return '<tr data-order-id="' + o.id + '" ondblclick="editOrderInline(event.target,' + o.id + ')">' +
+          '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
+          '<td><strong ondblclick="event.stopPropagation();editOrderInline(this,\'discord_name\',' + o.id + ')">' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+          '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();editOrderInline(this,\'uid\',' + o.id + ')">' + esc(o.uid) + '</td>' +
+          '<td style="font-family:monospace;font-size:12px;" ondblclick="event.stopPropagation();editOrderInline(this,\'account_id\',' + o.id + ')">' + (esc(koc ? koc.account_id : '-') || '-') + '</td>' +
+          '<td style="font-size:12px;" ondblclick="event.stopPropagation();editOrderInline(this,\'server\',' + o.id + ')">' + (esc(koc ? koc.server : '-') || '-') + '</td>' +
+          '<td ondblclick="event.stopPropagation();editOrderInline(this,\'option_name\',' + o.id + ')">' + esc(o.option_name) + '</td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>';
+  }
+  container.innerHTML = html;
+  setTimeout(function() { initSortable('diamond'); }, 100);
+}
+function renderGplayTab() {
+  var kmap = getKocMap();
+  var orders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'gplay' && o.status === 'shipped'; }));
+  var label = currentPeriod.replace('-', '年') + '月';
+  document.getElementById('gplay-count').textContent = '📅 ' + label + ' (' + orders.length + ' orders)';
+  var container = document.getElementById('gplay-table');
+  if (!orders.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无 ' + label + ' 的谷歌卡数据</div>';
+    return;
+  }
+  container.innerHTML = '<div class="month-section">' +
+    '<div class="month-header">' +
+    '<span class="month-icon">📅</span><span>' + label + '</span>' +
+    '<span class="count">(' + orders.length + ' orders)</span>' +
+    '<div style="margin-left:auto;display:flex;gap:6px;">' +
+    '<button class="btn btn-primary btn-sm export-btn" data-type="gplay" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
+    '</div></div>' +
+    '<table class="month-table"><thead><tr>' +
+    '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Region</th><th>Reward</th>' +
+    '</tr></thead><tbody>' +
+    orders.map(function(o) {
+      var koc = kmap[o.uid];
+      return '<tr data-order-id="' + o.id + '" ondblclick="editOrderInline(event.target,' + o.id + ')">' +
+        '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
+        '<td><strong ondblclick="event.stopPropagation();editOrderInline(this,\'discord_name\',' + o.id + ')">' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+        '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();editOrderInline(this,\'uid\',' + o.id + ')">' + esc(o.uid) + '</td>' +
+        '<td style="font-size:12px;" ondblclick="event.stopPropagation();editOrderInline(this,\'region\',' + o.id + ')">' + (esc(koc ? koc.region : '-') || '-') + '</td>' +
+        '<td ondblclick="event.stopPropagation();editOrderInline(this,\'option_name\',' + o.id + ')">' + esc(o.option_name) + '</td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody></table></div>';
+  setTimeout(function() { initSortable('gplay'); }, 100);
+}
+
+// ===== EXPORT FUNCTIONS =====
+function exportToClipboard(text, count) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() {
+      showToast('\uD83D\uDCCB Exported ' + count + ' orders', 'success');
+    }).catch(function() { fallbackCopy(text, count); });
+  } else { fallbackCopy(text, count); }
+}
+function fallbackCopy(text, count) {
+  var ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+  document.body.appendChild(ta); ta.select();
+  document.execCommand('copy'); document.body.removeChild(ta);
+  showToast('\uD83D\uDCCB Exported ' + count + ' orders', 'success');
+}
+
+function exportMonth(type, label) {
+  if (typeof type === 'object' && type !== null) {
+    label = type.getAttribute('data-label');
+    type = type.getAttribute('data-type');
+  }
+  var kmap = getKocMap();
+  var orders = allOrders.filter(function(o) {
+    return o.option_type === type && o.status === 'shipped' && getMonthGroup(o) === label;
+  });
+  if (!orders.length) { showToast('No orders to export', 'error'); return; }
+  
+  var header, rows;
+  if (type === 'merch') {
+    header = 'Discord\tUID\tReward\tAddress';
+    rows = orders.map(function(o) {
+      var koc = kmap[o.uid];
+      var addr = koc ? (koc.address || '') : '';
+      return clean(esc(o.discord_name)) + '\t' + o.uid + '\t' + clean(esc(o.option_name)) + '\t' + clean(esc(addr));
+    }).join('\n');
+  } else if (type === 'diamonds') {
+    header = 'Discord\tUID\tReward\tAccount ID\tServer';
+    rows = orders.map(function(o) {
+      var koc = kmap[o.uid];
+      return clean(esc(o.discord_name)) + '\t' + o.uid + '\t' + clean(esc(o.option_name)) + '\t' + (koc ? koc.account_id : '-') + '\t' + (koc ? koc.server : '-');
+    }).join('\n');
+  } else if (type === 'gplay') {
+    header = 'Discord\tUID\tReward\tRegion';
+    rows = orders.map(function(o) {
+      var koc = kmap[o.uid];
+      return clean(esc(o.discord_name)) + '\t' + o.uid + '\t' + clean(esc(o.option_name)) + '\t' + (koc ? koc.region : '-');
+    }).join('\n');
+  }
+  var text = header + '\n' + rows;
+  exportToClipboard(text, orders.length);
+}
+
+function clean(s) { return s || '-'; }
+
+// -- Drag Reorder --
+function initSortable(type) {
+  loadSortableJS().then(function() {
+    document.querySelectorAll('#tab-' + type + ' .month-table tbody').forEach(function(tb) {
+      var ml = null;
+      var sec = tb.closest('.month-section');
+      if (sec) { var h = sec.querySelector('.month-header span:nth-child(2)'); if (h) ml = h.textContent.trim(); }
+      new Sortable(tb, {
+        handle: '.drag-handle', animation: 150, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag',
+        onEnd: function() {
+          var ids = []; tb.querySelectorAll('tr').forEach(function(tr) { var id = tr.getAttribute('data-order-id'); if (id) ids.push(parseInt(id)); });
+          saveOrder(type, ml, ids);
+        }
+      });
+    });
+  }).catch(function() { console.warn('SortableJS failed'); });
+}
+function saveOrder(type, month, ids) {
+  var key = 'koc_order_' + type + '_' + (month||'unknown');
+  try { localStorage.setItem(key, JSON.stringify(ids)); } catch(e) {}
+  supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes')
+  .then(function(r){return r.json()}).then(function(d) {
+    var notes = (d&&d.length&&d[0].notes)||'{}'; var cfg; try{cfg=JSON.parse(notes)}catch(e){cfg={}};
+    if(!cfg.display_orders)cfg.display_orders={};
+    var ck='display_order_'+type;
+    if(!cfg.display_orders[ck])cfg.display_orders[ck]={};
+    cfg.display_orders[ck][month||'unknown']=ids;
+    var method=d&&d.length?'PATCH':'POST';
+    var url=SUPABASE_URL+'/rest/v1/kocs?uid=eq.__config__';
+    if(method==='POST'){
+      supabaseFetch(url,{method:'POST',body:JSON.stringify({uid:'__config__',discord_name:'__config__',name:'System Config',status:'active',notes:JSON.stringify(cfg)})}).catch(function(){})
+    } else {
+      supabaseFetch(url,{method:'PATCH',body:JSON.stringify({notes:JSON.stringify(cfg)})}).catch(function(){})
+    }
+  }).catch(function(){});
+}
+function loadOrder(type, month) {
+  try{var d=JSON.parse(localStorage.getItem('koc_order_'+type+'_'+(month||'unknown')));if(d&&d.length)return d}catch(e){}
+  return null;
+}
+function applyOrder(type, month, items) {
+  var o=loadOrder(type,month);if(!o||!o.length||!items||items.length<2)return items;
+  var m={};items.forEach(function(i){m[i.id]=i});
+  var r=[];o.forEach(function(id){if(m[id]){r.push(m[id]);delete m[id]}});
+  Object.keys(m).forEach(function(id){r.push(m[id])});
+  return r;
+}
+function resetOrder(type, month) {
+  if(!confirm('Reset \"' + month + '\" order?'))return;
+  try{localStorage.removeItem('koc_order_'+type+'_'+month)}catch(e){}
+  supabaseFetch(SUPABASE_URL+'/rest/v1/kocs?uid=eq.__config__&select=notes')
+  .then(function(r){return r.json()}).then(function(d){
+    if(d&&d.length&&d[0].notes){try{var cfg=JSON.parse(d[0].notes);var ck='display_order_'+type;if(cfg.display_orders&&cfg.display_orders[ck]){delete cfg.display_orders[ck][month];supabaseFetch(SUPABASE_URL+'/rest/v1/kocs?uid=eq.__config__',{method:'PATCH',body:JSON.stringify({notes:JSON.stringify(cfg)})}).catch(function(){})}}catch(e){}}
+  }).catch(function(){});
+  if(type==='merch')renderMerchTab();else if(type==='diamonds')renderDiamondTab();else if(type==='gplay')renderGplayTab();
+}
+// Global click handler for export buttons
+document.addEventListener('click', function(e) {
+  var btn = e.target.closest('.export-btn');
+  if (btn) {
+    exportMonth(btn.getAttribute('data-type'), btn.getAttribute('data-label'));
+  }
+});
+// ===== DEADLINE =====
+async function loadDeadline() {
+  try {
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+    var data = await res.json();
+    if (data && data.length > 0 && data[0].notes) {
+      try {
+        var cfg = JSON.parse(data[0].notes);
+        if (cfg.submission_deadline_date) {
+          document.getElementById('deadline-date').value = cfg.submission_deadline_date || '';
+          document.getElementById('deadline-time').value = cfg.submission_deadline_time || '23:59';
+          updateDeadlineDisplay(cfg.submission_deadline_date, cfg.submission_deadline_time);
+        }
+      } catch(e) {}
+    }
+  } catch(e) {}
+}
+
+async function saveDeadline() {
+  var date = document.getElementById('deadline-date').value;
+  var time = document.getElementById('deadline-time').value || '23:59';
+  if (!date) { showToast('Select a date', 'error'); return; }
+  
+  try {
+    // Read existing config first, then merge (don't overwrite redemption_open etc.)
+    var readRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+    var existingData = readRes.ok ? await readRes.json() : [];
+    var currentConfig = {};
+    if (existingData && existingData.length > 0 && existingData[0].notes) {
+      try { currentConfig = JSON.parse(existingData[0].notes); } catch(e) { currentConfig = {}; }
+    }
+    currentConfig.submission_deadline_date = date;
+    currentConfig.submission_deadline_time = time;
+    var config = JSON.stringify(currentConfig);
+    
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=uid');
+    var existing = await res.json();
+    if (existing && existing.length > 0) {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__', {
+        method: 'PATCH',
+        body: JSON.stringify({ notes: config })
+      });
+    } else {
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs', {
+        method: 'POST',
+        body: JSON.stringify({ uid: '__config__', discord_name: '__config__', name: 'System Config', status: 'active', notes: config })
+      });
+    }
+    updateDeadlineDisplay(date, time);
+    showToast('\u2705 Deadline saved', 'success');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+function updateDeadlineDisplay(date, time) {
+  document.getElementById('deadline-status').textContent = date ? '\u23F0 ' + date + ' ' + time : '';
+  document.getElementById('deadline-show').textContent = date ? '\u23F0 Closes: ' + date : '';
+}
+
+// Auto-login + restore tab on page load — 用 DOMContentLoaded 确保 DOM 渲染完成再执行
+document.addEventListener('DOMContentLoaded', function() {
+  try {
+    if (localStorage.getItem('admin_session') === 'logged_in') {
+      var loginScreen = document.getElementById('login-screen');
+      var adminPanel = document.getElementById('admin-panel');
+      if (loginScreen && adminPanel && !loginScreen.classList.contains('hidden')) {
+        loginScreen.classList.add('hidden');
+        adminPanel.classList.remove('hidden');
+        setTimeout(function() {
+          loadData().then(function() {
+            var savedTab = localStorage.getItem('admin_active_tab');
+            if (savedTab && ['dashboard','koc-ledger','scoring','submissions','merch','diamond','gplay','rules','audit'].indexOf(savedTab) >= 0) {
+              switchTab(savedTab);
+            } else {
+              loadDashboard();
+            }
+          }).catch(function(e) { console.error('loadData error:', e); });
+        }, 200);
+      }
+    }
+  } catch(e) { console.error('Auto-login error:', e); }
+});
+// 监听页面重新可见时保持登录状态
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden && localStorage.getItem('admin_session') === 'logged_in') {
+    var loginScreen = document.getElementById('login-screen');
+    var adminPanel = document.getElementById('admin-panel');
+    if (loginScreen && adminPanel && loginScreen.classList.contains('hidden') === false) {
+      loginScreen.classList.add('hidden');
+      adminPanel.classList.remove('hidden');
+    }
+  }
+});
