@@ -179,7 +179,7 @@
 <script>
 // ===== 缓存熔断 =====
 (function() {
-  var VERSION = 'v2.1.4'; // ECharts disabled for page load reliability
+  var VERSION = 'v2.1.5'; // ECharts disabled for page load reliability
   var cached = localStorage.getItem('admin_version');
   if (cached && cached !== VERSION) {
     // 发现旧缓存，强制清除并刷新
@@ -242,38 +242,6 @@
 
   <!-- ===== ADMIN PANEL ===== -->
   <div id="admin-panel" class="hidden">
-<div id="debug-bar" style="position:fixed;top:0;left:0;right:0;background:#1a1a2e;color:#0f0;padding:8px 12px;font-family:monospace;font-size:11px;z-index:99999;max-height:120px;overflow-y:auto;display:none;"></div>
-<script>
-window._dlog = function(msg) {
-  var el = document.getElementById('debug-bar');
-  if (!el) return;
-  el.style.display = 'block';
-  el.innerHTML += '<span style="color:#888;">[' + new Date().toISOString().substr(11,8) + ']</span> ' + msg + '<br>';
-  el.scrollTop = el.scrollHeight;
-  console.log('[DEBUG]', msg);
-};
-// Override switchTab to log
-var _origSwitchTab = window.switchTab;
-window.switchTab = function(name) {
-  window._dlog('switchTab CALLED: ' + name);
-  try {
-    _origSwitchTab(name);
-    window._dlog('switchTab DONE: ' + name);
-  } catch(e) {
-    window._dlog('switchTab ERROR: ' + e.message + ' (stack: ' + (e.stack||'').substring(0,150) + ')');
-  }
-};
-// Also log tab clicks
-document.addEventListener('click', function(e) {
-  var tab = e.target.closest('.tab');
-  if (tab) {
-    var onclick = tab.getAttribute('onclick') || '';
-    window._dlog('Tab CLICK: ' + onclick);
-  }
-});
-window._dlog('=== Debug bar initialized ===');
-</script>
-
     <div class="header">
       <h1>🌟🎀 Admin · KOC Redemption</h1>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
@@ -952,6 +920,7 @@ function getTierBadge(tier) {
 }
 
 async function renderTiersTable() {
+  console.log('[RENDER] renderTiersTable called, allKocs:', (typeof allKocs !== 'undefined' ? allKocs.length : 'undefined')); {
   var container = document.getElementById('tiers-table');
   if (!container) return;
   var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=*&order=discord_name.asc');
@@ -2427,6 +2396,8 @@ async function writeAuditLog(actionType, detail) {
   } catch(e) { /* silent */ }
 }
 function switchTab(name) {
+  console.log('[SWITCH] Switching to tab:', name);
+  try {
   localStorage.setItem('admin_active_tab', name);
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(function(c) { 
@@ -2451,6 +2422,10 @@ function switchTab(name) {
   if (name === 'tiers') renderTiersTable();
   if (name === 'rules') loadCampaignConfig();
   if (name === 'audit') loadAuditLog();
+  console.log('[SWITCH] Tab switch complete:', name);
+  } catch(e) {
+    console.error('[SWITCH] Tab switch FAILED:', name, e.message, e.stack);
+  }
 }
 
 // Init submissions on page load
@@ -3933,6 +3908,7 @@ async function batchDeleteSelected() {
   await loadData();
 }
 function renderScoringTable() {
+  console.log('[RENDER] renderScoringTable called, allKocs:', (typeof allKocs !== 'undefined' ? allKocs.length : 'undefined')); {
   // Load redemption state
   (async function() {
     try {
@@ -4642,6 +4618,7 @@ function groupByMonth(arr) {
 }
 
 function renderMerchTab() {
+  console.log('[RENDER] renderMerchTab called, allKocs:', (typeof allKocs !== 'undefined' ? allKocs.length : 'undefined')); {
   var kmap = getKocMap();
   var merchOrders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }));
   var label = currentPeriod.replace('-', '年') + '月';
@@ -4680,6 +4657,7 @@ function renderMerchTab() {
   setTimeout(function() { initSortable('merch'); }, 100);
 }
 function renderDiamondTab() {
+  console.log('[RENDER] renderDiamondTab called, allKocs:', (typeof allKocs !== 'undefined' ? allKocs.length : 'undefined')); {
   var kmap = getKocMap();
   var orders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'diamonds' && o.status === 'shipped'; }));
   var label = currentPeriod.replace('-', '年') + '月';
@@ -4747,6 +4725,7 @@ function renderDiamondTab() {
   setTimeout(function() { initSortable('diamond'); }, 100);
 }
 function renderGplayTab() {
+  console.log('[RENDER] renderGplayTab called, allKocs:', (typeof allKocs !== 'undefined' ? allKocs.length : 'undefined')); {
   var kmap = getKocMap();
   var orders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'gplay' && o.status === 'shipped'; }));
   var label = currentPeriod.replace('-', '年') + '月';
