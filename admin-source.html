@@ -2168,8 +2168,8 @@ async function sendMochiBroadcastFromModal() {
 
 // Patch loadData to also load submissions
 var _origLoadData = loadData;
-loadData = function() {
-  _origLoadData();
+loadData = async function() {
+  await _origLoadData();
   loadSubmissions();
 };
 
@@ -2182,8 +2182,6 @@ async function loadData() {
     ]);
     allKocs = await kocRes.json();
     allOrders = await ordRes.json();
-    // return promise for chaining
-    return true;
     // Re-render current active tab
     var activeTab = document.querySelector('.tab-content:not([style*="display: none"]), .tab-content.active');
     if (activeTab) {
