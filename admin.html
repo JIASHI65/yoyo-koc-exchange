@@ -2149,7 +2149,8 @@ function switchTab(name) {
     c.classList.remove('active'); 
     c.style.display = 'none'; 
   });
-  document.querySelector('.tab[onclick*="' + name + '"]').classList.add('active');
+  var tabBtn = document.querySelector('.tab[onclick*="' + name + '"]');
+  if (tabBtn) tabBtn.classList.add('active');
   var activeTab = document.getElementById('tab-' + name);
   if (activeTab) {
     activeTab.classList.add('active');

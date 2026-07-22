@@ -1583,8 +1583,10 @@ function switchTab(name) {
   localStorage.setItem('admin_active_tab', name);
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-  document.querySelector('.tab[onclick*="' + name + '"]').classList.add('active');
-  document.getElementById('tab-' + name).classList.add('active');
+  var tabBtn = document.querySelector('.tab[onclick*="' + name + '"]');
+  if (tabBtn) tabBtn.classList.add('active');
+  var tabContent = document.getElementById('tab-' + name);
+  if (tabContent) tabContent.classList.add('active');
   // Refresh tab content
   if (name === 'koc-ledger') renderKocTable();
   if (name === 'scoring') renderScoringTable();
