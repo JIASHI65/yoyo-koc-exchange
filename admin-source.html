@@ -587,8 +587,14 @@ function supabaseFetch(url, opts = {}) {
 
 function showToast(m, t = '') {
   const x = document.getElementById('toast');
+  if (!x) return;
   x.textContent = m; x.className = 'toast ' + t + ' show';
   setTimeout(() => x.classList.remove('show'), 2500);
+}
+
+function confirmDanger(title, lines) {
+  var body = (lines || []).filter(function(line) { return line !== null && line !== undefined && String(line).trim() !== ''; }).join('\n');
+  return confirm('⚠️ ' + title + (body ? '\n\n' + body : '') + '\n\nPlease confirm you want to continue.');
 }
 
 // ===== LOGIN =====
@@ -1361,7 +1367,19 @@ function cancelScoreImport() {
 
 async function confirmScoreImport() {
   if (!pendingScoreResult) { showToast('没有可导入的结果', 'error'); return; }
+  var previewResult = pendingScoreResult;
+  var importTotalPts = (previewResult.submissions || []).reduce(function(sum, sub) { return sum + (Number(sub.points_earned) || 0); }, 0);
+  var importUids = {};
+  (previewResult.submissions || []).forEach(function(sub) { if (sub.uid) importUids[sub.uid] = true; });
+  if (!confirmDanger('Apply score import and write points?', [
+    'Period: ' + (previewResult.batch || currentPeriod),
+    'Scored submissions: ' + ((previewResult._raw_submissions || previewResult.submissions || []).length),
+    'Affected creators: ' + Object.keys(importUids).length,
+    'Total points to add: ' + importTotalPts,
+    'This will mark submissions as scored and insert point_logs rows.'
+  ])) return;
   var btn = document.getElementById('btn-confirm-import');
+  if (!btn) { showToast('确认按钮未找到', 'error'); return; }
   btn.disabled = true;
   btn.textContent = '\u23f3 标记中...';
   var status = document.getElementById('paste-status');
@@ -1637,10 +1655,19 @@ function sendDMPreset(type) {
 
 async function sendMochiDMPreset() {
   if (!mochiPresetMessage) { showToast('Please select a preset first', 'error'); return; }
-  if (!MOCHI_TOKEN && !document.getElementById('mochi-token-input').value) { showToast('Please enter bot token first', 'error'); return; }
-  if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
+  var tokenInput = document.getElementById('mochi-token-input');
+  if (!MOCHI_TOKEN && (!tokenInput || !tokenInput.value)) { showToast('Please enter bot token first', 'error'); return; }
+  if (!MOCHI_TOKEN && tokenInput) MOCHI_TOKEN = tokenInput.value;
+  var dmRecipients = (allKocs || []).filter(function(k) { return k.discord_name && k.discord_name !== '__config__'; });
+  if (!confirmDanger('Send Mochi DMs now?', [
+    'Preset: ' + (mochiPresetType || 'custom'),
+    'Recipients: ' + dmRecipients.length + ' creators',
+    'This will send real Discord private messages from MochiBot.',
+    'Do not proceed if this is only a test.'
+  ])) return;
   
   var status = document.getElementById('mochi-status');
+  if (!status) return;
   status.textContent = 'Sending DMs...';
   status.style.color = 'var(--text-light)';
   
@@ -1679,6 +1706,7 @@ var lastCheckedJoinId = null;
 
 async function toggleAutoWelcome() {
   var btn = document.getElementById('btn-auto-welcome');
+  if (!btn) return;
   if (autoWelcomeInterval) {
     clearInterval(autoWelcomeInterval);
     autoWelcomeInterval = null;
@@ -1686,11 +1714,17 @@ async function toggleAutoWelcome() {
     btn.style.background = '#43b581';
     showToast('Auto welcome stopped', 'info');
   } else {
-    if (!MOCHI_TOKEN && !document.getElementById('mochi-token-input').value) {
+    var tokenInput = document.getElementById('mochi-token-input');
+    if (!MOCHI_TOKEN && (!tokenInput || !tokenInput.value)) {
       showToast('Please set bot token first in Mochi settings', 'error');
       return;
     }
-    if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
+    if (!confirmDanger('Enable automatic welcome DMs?', [
+      'MochiBot will check new members every 5 minutes.',
+      'New unregistered members may receive an automatic Discord DM.',
+      'Enable only when you are ready for live outreach.'
+    ])) return;
+    if (!MOCHI_TOKEN && tokenInput) MOCHI_TOKEN = tokenInput.value;
     
     // Initialize lastCheckedJoinId
     try {
@@ -1813,12 +1847,18 @@ function closeMochiModal() {
 
 
 function confirmMochiBroadcast() {
-  var channelId = document.getElementById('mochi-channel').value;
-  var msg = document.getElementById('mochi-message').value;
+  var channelEl = document.getElementById('mochi-channel');
+  var messageEl = document.getElementById('mochi-message');
+  var channelId = channelEl ? channelEl.value : '';
+  var msg = messageEl ? messageEl.value : '';
   if (!msg || !msg.trim()) { showToast('请输入消息内容', 'error'); return; }
   var channelNames = {'1458347958389965035':'📢 yoyo-bulletin-board','1458349180748828757':'🎨 creators-exchange','1458348802397442149':'💡 official-inspirations'};
   var channelName = channelNames[channelId] || channelId;
-  if (confirm('确认向 ' + channelName + ' 频道发送以下消息？\n\n' + msg.substring(0, 200) + (msg.length > 200 ? '...' : '') + '\n\n点击确定发送。')) {
+  if (confirmDanger('Send Mochi channel broadcast?', [
+    'Channel: ' + channelName,
+    'Message preview: ' + msg.substring(0, 200) + (msg.length > 200 ? '...' : ''),
+    'This will post a real Discord channel message.'
+  ])) {
     sendMochiBroadcastFromModal();
   }
 }
@@ -1928,6 +1968,12 @@ async function toggleRedemption() {
     }
     var currentlyOpen = notes.redemption_open === true;
     var newState = !currentlyOpen;
+    if (!confirmDanger(newState ? 'Open reward redemption?' : 'Close reward redemption?', [
+      'Period: ' + currentPeriod,
+      'Current state: ' + (currentlyOpen ? 'open' : 'closed'),
+      'New state: ' + (newState ? 'open' : 'closed'),
+      newState ? 'Creators will be able to submit redemption orders.' : 'Creators will no longer be able to submit new redemptions.'
+    ])) return;
     notes.redemption_open = newState;
     await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__', {
       method: 'PATCH',
@@ -2240,6 +2286,13 @@ async function shipOrder(id) {
     var oData = await oRes.json();
     var order = oData[0];
     if (!order) throw new Error('Order not found');
+    if (!confirmDanger('Mark redemption order as shipped?', [
+      'Order ID: #' + id,
+      'UID: ' + order.uid,
+      'Reward: ' + (order.option_name || order.option_type || ''),
+      'Points spent: ' + (order.points_spent || 0),
+      'This may insert a redemption deduction if one was not already recorded.'
+    ])) return;
 
     // Check if points already deducted (old system compatibility)
     var lRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + order.uid + '&change=eq.' + (-order.points_spent) + '&source=eq.redemption&order=created_at.desc&limit=1');
@@ -2288,12 +2341,22 @@ function closePointModal() {
 }
 
 async function submitPoints() {
-  var action = document.getElementById('modal-action').value;
-  var pts = parseInt(document.getElementById('modal-points').value);
-  var reason = document.getElementById('modal-reason').value.trim();
-  if (!action || !pts || pts < 1 || !reason) { showToast('Fill in all fields', 'error'); return; }
+  var actionEl = document.getElementById('modal-action');
+  var pointsEl = document.getElementById('modal-points');
+  var reasonEl = document.getElementById('modal-reason');
+  var action = actionEl ? actionEl.value : '';
+  var pts = parseInt(pointsEl ? pointsEl.value : '', 10);
+  var reason = reasonEl ? reasonEl.value.trim() : '';
+  if (!action || !pts || pts < 1 || !reason || !editingUid) { showToast('Fill in all fields', 'error'); return; }
 
   var change = action === 'add' ? pts : -pts;
+  if (!confirmDanger('Apply manual point adjustment?', [
+    'UID: ' + editingUid,
+    'Change: ' + (change > 0 ? '+' : '') + change + ' pts',
+    'Period: ' + currentPeriod,
+    'Reason: ' + reason,
+    'This inserts a manual point_logs row.'
+  ])) return;
   try {
     var bal = await getBalance(editingUid);
     var newBal = Math.max(0, bal + change);
@@ -2573,6 +2636,14 @@ function editOrderInline(cell, field, orderId, uid) {
       return;
     }
     
+    if (field === 'status' && ['pending','shipped','cancelled'].indexOf(newVal) >= 0 && currentVal !== newVal) {
+      if (!confirmDanger('Change redemption order status?', [
+        'Order ID: #' + orderId,
+        'UID: ' + (uid || '(unknown)'),
+        'Status: ' + currentVal + ' → ' + newVal,
+        'This changes what creators/admins see for this order.'
+      ])) { cell.textContent = currentVal || '-'; return; }
+    }
     if (['discord_name','option_name','status'].indexOf(field) >= 0) {
       // Update redemption_orders
       var update = {};

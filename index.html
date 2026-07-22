@@ -110,6 +110,14 @@
       <div style="margin-top:5px;"><strong>We will never ask you to pay, enter a password, connect a wallet, or share bank / PayPal / credit card login info.</strong></div>
       <div style="margin-top:5px;color:#8a6d3b;word-break:break-all;">Official link: https://jiashi65.github.io/yoyo-koc-exchange/index.html</div>
     </div>
+    <div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:16px;padding:14px;margin:0 0 18px;font-size:12px;line-height:1.6;color:#5e2d79;text-align:left;box-shadow:0 4px 18px rgba(156,39,176,0.10);">
+      <div style="font-weight:800;color:#7b1fa2;margin-bottom:6px;text-align:center;">✨ How it works</div>
+      <div>1️⃣ Register / Log In with your Discord name and UID</div>
+      <div>2️⃣ Submit Works with public links only</div>
+      <div>3️⃣ Wait for scoring after admin review</div>
+      <div>4️⃣ Redeem rewards when redemption opens</div>
+      <div>5️⃣ Check FAQ or #town-service-station if you need help</div>
+    </div>
     <div id="entry-buttons">
       <button class="btn btn-primary" onclick="showNewCreatorForm()" style="width:100%;padding:16px;font-size:16px;font-weight:700;border-radius:18px;margin-bottom:10px;background:linear-gradient(135deg,#f2a6c4,#d4749a,#e88dae);color:white;border:none;box-shadow:0 6px 24px rgba(212,116,154,0.35);cursor:pointer;">🆕 I'm a New Creator</button>
       <button class="btn btn-outline" onclick="showExistingLogin()" style="width:100%;padding:14px;font-size:15px;font-weight:600;border-radius:18px;border:2px solid #f8bbd0;background:rgba(255,255,255,0.85);color:#ad1457;cursor:pointer;">✅ I'm Already Registered</button>
@@ -211,7 +219,7 @@
         <div class="card-title">🎁 Select Your Reward</div>
         <div id="options-container"></div>
         <div style="background:#e3f2fd;border:1px solid #90caf9;border-radius:12px;padding:11px;margin-bottom:10px;font-size:12px;line-height:1.55;color:#0d47a1;">
-          💡 Pending rewards reserve your points until admin processes them. Mochi will broadcast important redemption updates. Please do not reply to MochiBot; check FAQ or post in #town-service-station if you need help.
+          💡 Pending rewards reserve your available balance until admin processes them. Redemption windows are opened by admins after scoring and announced by Mochi/admin. Please do not reply to MochiBot; check FAQ or post in #town-service-station if you need help.
         </div>
         <div id="reward-fields" class="hidden" style="margin-top:8px;">
           <label>Shipping Info (name, address, phone)</label>
@@ -244,8 +252,12 @@
         <div id="submit-form-area">
         <label>Discord Username</label>
         <input type="text" id="submit-discord" placeholder="Your Discord name" disabled>
-        <div style="background:#fff3e0;border:1.5px solid #ffe082;border-radius:10px;padding:10px;font-size:12px;margin-bottom:12px;color:#6d4c00;">
-          📌 Enter one link per line. Make sure posts are publicly visible and include #myleisuretime
+        <div style="background:#fff3e0;border:1.5px solid #ffe082;border-radius:10px;padding:10px;font-size:12px;margin-bottom:12px;color:#6d4c00;line-height:1.55;">
+          <div style="font-weight:700;margin-bottom:4px;">📌 Before you submit</div>
+          <div>• Each link on a new line — public posts only.</div>
+          <div>• Supported platforms: TikTok, YouTube, Instagram, Facebook, Reddit, Pinterest, X/Twitter.</div>
+          <div>• Include #myleisuretime when required by the campaign.</div>
+          <div>• You can submit up to 2 times per settlement period, so check links before sending.</div>
         </div>
         <label>🔗 Content Links</label>
         <textarea id="submit-links" placeholder="Paste all your content links here (one per line):&#10;https://tiktok.com/@user/video/...&#10;https://youtube.com/watch?v=...&#10;https://instagram.com/p/...&#10;https://facebook.com/share/...&#10;https://x.com/user/status/...&#10;https://reddit.com/r/...&#10;https://pinterest.com/pin/..."></textarea>
@@ -270,6 +282,12 @@
       <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">📋 My Submissions</span></div>
       <div class="card">
         <div class="card-title">📋 My Submissions · 📅 <span id="sub-period-label"></span></div><div id="submission-count" style="font-size:11px;color:var(--text-light);"></div>
+        <div style="background:#faf5f7;border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0 12px;font-size:12px;line-height:1.55;color:var(--text-light);">
+          <div style="font-weight:700;color:var(--text);margin-bottom:4px;">Status guide</div>
+          <div><strong>pending</strong> = submitted, waiting for scoring.</div>
+          <div><strong>scored</strong> = reviewed/imported, points can be checked in Redeem Rewards.</div>
+          <div><strong>rejected</strong> = not eligible or needs admin review.</div>
+        </div>
         <div id="submissions-list"><div style="color:var(--text-light);font-size:13px;">Loading...</div></div>
       </div>
     </div>

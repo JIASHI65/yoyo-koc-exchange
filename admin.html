@@ -889,6 +889,11 @@ function showToast(m, t = '') {
   x.textContent = m; x.className = 'toast ' + t + ' show';
 }
 
+function confirmDanger(title, lines) {
+  var body = (lines || []).filter(function(line) { return line !== null && line !== undefined && String(line).trim() !== ''; }).join('\n');
+  return confirm('⚠️ ' + title + (body ? '\n\n' + body : '') + '\n\nPlease confirm you want to continue.');
+}
+
 // ===== LOGIN =====
 window.adminLogin = function adminLogin() {
   var pw = document.getElementById('admin-pw').value;
@@ -1813,6 +1818,17 @@ function cancelScoreImport() {
 
 async function confirmScoreImport() {
   if (!pendingScoreResult) { showToast('没有可导入的结果', 'error'); return; }
+  var previewResult = pendingScoreResult;
+  var importTotalPts = (previewResult.submissions || []).reduce(function(sum, sub) { return sum + (Number(sub.points_earned) || 0); }, 0);
+  var importUids = {};
+  (previewResult.submissions || []).forEach(function(sub) { if (sub.uid) importUids[sub.uid] = true; });
+  if (!confirmDanger('Apply score import and write points?', [
+    'Period: ' + (previewResult.batch || currentPeriod),
+    'Scored submissions: ' + ((previewResult._raw_submissions || previewResult.submissions || []).length),
+    'Affected creators: ' + Object.keys(importUids).length,
+    'Total points to add: ' + importTotalPts,
+    'This will mark submissions as scored and insert point_logs rows.'
+  ])) return;
   // Prevent double-click race
   if (window._confirmingImport) { showToast('已经在处理中...', 'error'); return; }
   window._confirmingImport = true;
@@ -2452,7 +2468,12 @@ async function confirmBroadcast() {
   });
 
   if (targets.length === 0) { showToast('没有勾选收件人', 'error'); return; }
-  if (!confirm('确认给 ' + targets.length + ' 人发送私信？')) return;
+  if (!confirmDanger('Send Mochi DMs now?', [
+    'Broadcast type: ' + (mochiBroadcastType || 'custom'),
+    'Recipients: ' + targets.length + ' creators',
+    'This will send real Discord private messages from MochiBot.',
+    'Do not proceed if this is only a test.'
+  ])) return;
 
   var statusEl = document.getElementById('mochi-status');
   statusEl.textContent = '⏳ 正在发送... (' + targets.length + ' 人)';
@@ -2488,6 +2509,7 @@ var lastCheckedJoinId = null;
 
 async function toggleAutoWelcome() {
   var btn = document.getElementById('btn-auto-welcome');
+  if (!btn) return;
   if (autoWelcomeInterval) {
     clearInterval(autoWelcomeInterval);
     autoWelcomeInterval = null;
@@ -2495,11 +2517,17 @@ async function toggleAutoWelcome() {
     btn.style.background = '#43b581';
     showToast('Auto welcome stopped', 'info');
   } else {
-    if (!MOCHI_TOKEN && !document.getElementById('mochi-token-input').value) {
+    var tokenInput = document.getElementById('mochi-token-input');
+    if (!MOCHI_TOKEN && (!tokenInput || !tokenInput.value)) {
       showToast('Please set bot token first in Mochi settings', 'error');
       return;
     }
-    if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
+    if (!confirmDanger('Enable automatic welcome DMs?', [
+      'MochiBot will check new members every 5 minutes.',
+      'New unregistered members may receive an automatic Discord DM.',
+      'Enable only when you are ready for live outreach.'
+    ])) return;
+    if (!MOCHI_TOKEN && tokenInput) MOCHI_TOKEN = tokenInput.value;
     
     // Initialize lastCheckedJoinId
     try {
@@ -2707,6 +2735,12 @@ async function toggleRedemption() {
     }
     var currentlyOpen = notes.redemption_open === true;
     var newState = !currentlyOpen;
+    if (!confirmDanger(newState ? 'Open reward redemption?' : 'Close reward redemption?', [
+      'Period: ' + currentPeriod,
+      'Current state: ' + (currentlyOpen ? 'open' : 'closed'),
+      'New state: ' + (newState ? 'open' : 'closed'),
+      newState ? 'Creators will be able to submit redemption orders.' : 'Creators will no longer be able to submit new redemptions.'
+    ])) return;
     notes.redemption_open = newState;
     await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__', {
       method: 'PATCH',
@@ -3846,12 +3880,22 @@ async function addKOC() {
 }
 
 // ===== SHIP ORDER =====
-async function shipOrder(ev, id) { try { if (ev && ev.target) { ev.target.disabled = true; ev.target.textContent = "⏳"; } } catch(e) {}
+async function shipOrder(ev, id) {
+  var shipBtn = ev && ev.target ? ev.target : null;
+  var originalText = shipBtn ? shipBtn.textContent : '';
   try {
     var oRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + id + '&select=*');
     var oData = await oRes.json();
     var order = oData[0];
     if (!order) throw new Error('Order not found');
+    if (!confirmDanger('Mark redemption order as shipped?', [
+      'Order ID: #' + id,
+      'UID: ' + order.uid,
+      'Reward: ' + (order.option_name || order.option_type || ''),
+      'Points spent: ' + (order.points_spent || 0),
+      'This may insert a redemption deduction if one was not already recorded.'
+    ])) return;
+    if (shipBtn) { shipBtn.disabled = true; shipBtn.textContent = '⏳'; }
 
     // Skip if already shipped
     if (order.status === 'shipped') { showToast('Already shipped', 'info'); return; }
@@ -3894,6 +3938,9 @@ async function shipOrder(ev, id) { try { if (ev && ev.target) { ev.target.disabl
     showToast('\u2705 Shipped' + (order.points_spent > 0 ? ' + pts deducted' : ''), 'success');
     loadData();
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
+  finally {
+    if (shipBtn) { shipBtn.disabled = false; shipBtn.textContent = originalText || '✓'; }
+  }
 }
 
 // ===== POINT MODAL =====
@@ -3971,15 +4018,27 @@ function closePointModal() {
 }
 
 async function submitPoints() {
-  var pts = parseInt(document.getElementById('modal-points').value);
-  var reason = document.getElementById('modal-reason').value.trim();
-  var mode = document.getElementById('modal-mode').value; // 'add' or 'deduct'
+  var pointsEl = document.getElementById('modal-points');
+  var reasonEl = document.getElementById('modal-reason');
+  var modeEl = document.getElementById('modal-mode');
+  var pts = parseInt(pointsEl ? pointsEl.value : '', 10);
+  var reason = reasonEl ? reasonEl.value.trim() : '';
+  var mode = modeEl ? modeEl.value : 'add'; // 'add' or 'deduct'
   if (!pts || pts < 1) { showToast('\u8F93\u5165\u6709\u6548\u79EF\u5206', 'error'); return; }
-  if (!reason) { showToast('\u8BF7\u586B\u5199\u5907\u6CE8\u539F\u56E0', 'error'); return; }
+  if (!reason || !editingUid) { showToast('\u8BF7\u586B\u5199\u5907\u6CE8\u539F\u56E0', 'error'); return; }
 
   try {
     var bal = await getBalance(editingUid);
     var change = mode === 'add' ? pts : -pts;
+    if (!confirmDanger('Apply manual point adjustment?', [
+      'UID: ' + editingUid,
+      'Change: ' + (change > 0 ? '+' : '') + change + ' pts',
+      'Current balance: ' + bal,
+      'New balance: ' + Math.max(0, bal + change),
+      'Period: ' + currentPeriod,
+      'Reason: ' + reason,
+      'This inserts a manual point_logs row.'
+    ])) return;
     var newBal = Math.max(0, bal + change);
     await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
       method: 'POST',
@@ -4253,6 +4312,14 @@ function editOrderInline(cell, field, orderId, uid) {
       return;
     }
     
+    if (field === 'status' && ['pending','shipped','cancelled'].indexOf(newVal) >= 0 && currentVal !== newVal) {
+      if (!confirmDanger('Change redemption order status?', [
+        'Order ID: #' + orderId,
+        'UID: ' + (uid || '(unknown)'),
+        'Status: ' + currentVal + ' → ' + newVal,
+        'This changes what creators/admins see for this order.'
+      ])) { cell.textContent = currentVal || '-'; return; }
+    }
     if (['discord_name','option_name','status'].indexOf(field) >= 0) {
       // Update redemption_orders
       var update = {};
