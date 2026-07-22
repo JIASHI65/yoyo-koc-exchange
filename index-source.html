@@ -190,6 +190,9 @@
       <div class="card">
         <div class="card-title">🎁 Select Your Reward</div>
         <div id="options-container"></div>
+        <div style="background:#e3f2fd;border:1px solid #90caf9;border-radius:10px;padding:10px;margin-bottom:10px;font-size:12px;line-height:1.5;color:#0d47a1;">
+          💡 Pending rewards reserve your points until admin processes them. Mochi will broadcast important redemption updates. Please do not reply to MochiBot; check FAQ or post in #town-service-station if you need help.
+        </div>
         <div id="reward-fields" class="hidden" style="margin-top:8px;">
           <label>Shipping Info (name, address, phone)</label>
           <input type="text" id="input-contact" placeholder="Required for merch delivery">
@@ -260,6 +263,14 @@
         <div style="font-weight:700;color:#e65100;margin-bottom:4px;">🛡️ Safety reminder</div>
         <div>This official creator page never asks for payment, passwords, crypto wallets, bank info, credit card info, or PayPal login. If anything looks suspicious, stop and ask in Discord first.</div>
       </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;font-size:12px;line-height:1.55;color:var(--text);">
+        <div style="font-weight:700;color:var(--pink-dark);margin-bottom:8px;">⚡ Quick answers before asking</div>
+        <div style="margin-bottom:6px;"><strong>Is this link safe?</strong><br>Use only the official link posted by admins. This page never asks for money, passwords, wallets, bank info, credit card info, or PayPal login.</div>
+        <div style="margin-bottom:6px;"><strong>Should I reply to MochiBot?</strong><br>No. MochiBot only sends reminders. Please do not reply to the bot.</div>
+        <div style="margin-bottom:6px;"><strong>Where should I ask questions?</strong><br>Check FAQ first. If you still need help, post in 🎫｜town-service-station.</div>
+        <div style="margin-bottom:6px;"><strong>Why are my points not updated?</strong><br>Submissions stay pending until monthly scoring is finished. Mochi will broadcast important updates.</div>
+        <div><strong>Why can't I redeem yet?</strong><br>Redemption opens after scoring. Pending rewards reserve points until admin processes them.</div>
+      </div>
       <div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:12px;padding:12px;margin-bottom:10px;font-size:13px;color:#6a1b9a;text-align:center;">
         🤔 没找到答案？去 <strong>🎫｜town-service-station</strong> 发帖提问，客服会尽快回复你～
       </div>
@@ -307,6 +318,55 @@ function getNextMonthPeriod(date) {
 }
 function splitLinks(text) {
   return (text || '').split(/\n+/).map(function(x) { return x.trim(); }).filter(Boolean);
+}
+function normalizeLinkKey(url) {
+  return String(url || '').trim().toLowerCase().replace(/[#?].*$/, '').replace(/\/+$/, '');
+}
+function normalizeSubmittedLinks(text) {
+  var seen = {};
+  var duplicates = [];
+  var links = [];
+  splitLinks(text).forEach(function(raw) {
+    var link = raw.trim();
+    var key = normalizeLinkKey(link);
+    if (!key) return;
+    if (seen[key]) { duplicates.push(link); return; }
+    seen[key] = true;
+    links.push(link);
+  });
+  return { links: links, duplicates: duplicates };
+}
+function isProbablyUrl(link) {
+  try {
+    var u = new URL(link);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch(e) { return false; }
+}
+function getSupportedPlatform(link) {
+  try {
+    var host = new URL(link).hostname.toLowerCase().replace(/^www\./, '');
+    if (host.indexOf('tiktok.com') >= 0) return 'TikTok';
+    if (host.indexOf('youtube.com') >= 0 || host.indexOf('youtu.be') >= 0) return 'YouTube';
+    if (host.indexOf('instagram.com') >= 0) return 'Instagram';
+    if (host.indexOf('facebook.com') >= 0 || host.indexOf('fb.watch') >= 0) return 'Facebook';
+    if (host.indexOf('reddit.com') >= 0) return 'Reddit';
+    if (host.indexOf('pinterest.com') >= 0 || host.indexOf('pin.it') >= 0) return 'Pinterest';
+    if (host === 'x.com' || host.endsWith('.x.com') || host.indexOf('twitter.com') >= 0) return 'X';
+  } catch(e) {}
+  return '';
+}
+function validateSubmissionLinks(rawText) {
+  var normalized = normalizeSubmittedLinks(rawText);
+  var invalid = [];
+  var unsupported = [];
+  var valid = [];
+  normalized.links.forEach(function(link) {
+    if (!isProbablyUrl(link)) { invalid.push(link); return; }
+    var platform = getSupportedPlatform(link);
+    if (!platform) { unsupported.push(link); return; }
+    valid.push(link);
+  });
+  return { links: valid, duplicates: normalized.duplicates, invalid: invalid, unsupported: unsupported };
 }
 function countUniqueLinks(items) {
   var seen = {};
@@ -673,6 +733,13 @@ async function redeem() {
       };
     });
 
+    var summary = chosen.map(function(opt) { return '• ' + opt.name + ' ×' + selections[opt.id] + ' = ' + (opt.cost * selections[opt.id]) + ' pts'; }).join('\n');
+    if (!confirm('Confirm redemption?\n\n' + summary + '\n\nTotal: ' + totalCost + ' pts\nAvailable after pending rewards: ' + available + ' pts\n\nPending rewards reserve your points until admin processes them.')) {
+      btn.disabled = false;
+      btn.textContent = 'Confirm Redemption';
+      return;
+    }
+
     var rpcResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/rpc/redeem_points', {
       method: 'POST',
       body: JSON.stringify({
@@ -903,14 +970,25 @@ async function registerCreator() {
 
 async function submitWorks() {
   var discord = document.getElementById('submit-discord').value.trim();
-  var links = document.getElementById('submit-links').value.trim().split('\n').filter(Boolean);
-  var server = document.getElementById('submit-server').value;
+  var rawLinks = document.getElementById('submit-links').value;
+  var validation = validateSubmissionLinks(rawLinks);
+  var links = validation.links;
+  var serverEl = document.getElementById('submit-server');
+  var server = serverEl ? serverEl.value : (currentUser && currentUser.server ? currentUser.server : '');
   var status = document.getElementById('submit-status');
   var btn = document.getElementById('btn-submit');
 
   if (!discord) { status.textContent = '❌ Discord username required'; status.style.color = '#e74c3c'; return; }
-  if (!server) { status.textContent = '❌ Please select server'; status.style.color = '#e74c3c'; return; }
-  if (links.length === 0) { status.textContent = '❌ Paste at least one link'; status.style.color = '#e74c3c'; return; }
+  if (serverEl && !server) { status.textContent = '❌ Please select server'; status.style.color = '#e74c3c'; return; }
+  if (validation.invalid.length > 0) { status.innerHTML = '❌ Invalid link format:<br>' + validation.invalid.slice(0, 3).map(esc).join('<br>'); status.style.color = '#e74c3c'; return; }
+  if (validation.unsupported.length > 0) { status.innerHTML = '❌ Unsupported platform. Please use TikTok, YouTube, Instagram, Facebook, Reddit, Pinterest, or X/Twitter:<br>' + validation.unsupported.slice(0, 3).map(esc).join('<br>'); status.style.color = '#e74c3c'; return; }
+  if (links.length === 0) { status.textContent = '❌ Paste at least one supported public link'; status.style.color = '#e74c3c'; return; }
+  if (validation.duplicates.length > 0) {
+    document.getElementById('submit-links').value = links.join('\n');
+    status.innerHTML = 'ℹ️ Removed ' + validation.duplicates.length + ' duplicate link(s). Please review and submit again.';
+    status.style.color = '#e65100';
+    return;
+  }
 
   btn.disabled = true;
   btn.textContent = '⏳ Submitting...';

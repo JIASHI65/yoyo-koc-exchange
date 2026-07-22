@@ -2180,6 +2180,11 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
+
+function mochiSupportFooter(message) {
+  var footer = ['', '---', 'Please do not reply to MochiBot directly. Check the FAQ first, then post in #town-service-station if you still need help.'].join('\n');
+  return (message || '') + footer;
+}
 // ===== MOCHI BROADCAST MODAL =====
 // ===== MOCHI DM PRESETS =====
 var mochiPresetType = '';
@@ -2434,7 +2439,7 @@ async function confirmBroadcast() {
   }
   if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
 
-  var msg = document.getElementById('broadcast-msg-editor').value.trim();
+  var msg = mochiSupportFooter(document.getElementById('broadcast-msg-editor').value.trim());
   if (!msg) { showToast('消息不能为空', 'error'); return; }
 
   var cbs = document.querySelectorAll('.bc-target-cb');
@@ -2606,20 +2611,31 @@ async function checkNewMembers() {
 }
 
 function openMochiBroadcast() {
-  document.getElementById('mochi-modal').classList.remove('hidden');
+  var modal = document.getElementById('mochi-modal');
+  if (modal) modal.classList.remove('hidden');
   // 回显已保存的 Token
   var savedToken = localStorage.getItem('mochi_token') || '';
-  if (savedToken) document.getElementById('mochi-token-input').value = savedToken;
-  document.getElementById('mochi-status').textContent = '';
+  var tokenInput = document.getElementById('mochi-token-input');
+  if (savedToken && tokenInput) tokenInput.value = savedToken;
+  var statusEl = document.getElementById('mochi-status');
+  if (statusEl) statusEl.textContent = '';
 }
 
 function closeMochiModal() {
-  document.getElementById('mochi-modal').classList.add('hidden');
+  var modal = document.getElementById('mochi-modal');
+  if (modal) modal.classList.add('hidden');
 }
 
 function confirmMochiBroadcast() { /* deprecated - use previewBroadcast/confirmBroadcast */ }
 
 async function sendMochiBroadcastFromModal() { /* deprecated */ }
+
+window.addEventListener('error', function(e) {
+  try { showToast('⚠️ 页面出错，请刷新后重试', 'error'); } catch(err) {}
+});
+window.addEventListener('unhandledrejection', function() {
+  try { showToast('⚠️ 请求失败或数据异常，请重试', 'error'); } catch(err) {}
+});
 // Patch loadData to also load submissions
 // Patch loadData to also load submissions
 var _origLoadData = loadData;

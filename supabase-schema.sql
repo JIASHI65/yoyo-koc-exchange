@@ -77,15 +77,11 @@ CREATE INDEX idx_redemption_orders_status ON redemption_orders(status);
 CREATE INDEX idx_redemption_orders_created ON redemption_orders(created_at DESC);
 
 -- 当前积分视图
+DROP VIEW IF EXISTS koc_balances;
 CREATE VIEW koc_balances AS
-SELECT 
+SELECT
   k.uid, k.discord_name, k.name, k.channel_tag, k.status,
-  COALESCE((
-    SELECT balance_after FROM point_logs 
-    WHERE uid = k.uid 
-    ORDER BY created_at DESC, id DESC 
-    LIMIT 1
-  ), 0) AS current_points
+  COALESCE((SELECT SUM(pl.change) FROM point_logs pl WHERE pl.uid = k.uid), 0)::INTEGER AS current_points
 FROM kocs k
 WHERE k.status = 'active';
 
@@ -95,7 +91,7 @@ RETURNS INTEGER AS $$
   SELECT COALESCE(SUM(change), 0)::INTEGER
   FROM point_logs
   WHERE uid = p_uid;
-$$ LANGUAGE SQL;
+$$ LANGUAGE SQL STABLE;
 
 -- 原子兑换：一次性校验余额并写入多条兑换订单
 CREATE OR REPLACE FUNCTION redeem_points(
@@ -113,7 +109,18 @@ DECLARE
   v_total_cost INTEGER := 0;
   v_item JSONB;
   v_order_count INTEGER := 0;
+  v_count INTEGER;
 BEGIN
+  IF p_uid IS NULL OR btrim(p_uid) = '' THEN
+    RAISE EXCEPTION 'p_uid is required';
+  END IF;
+  IF p_period IS NULL OR btrim(p_period) = '' THEN
+    RAISE EXCEPTION 'p_period is required';
+  END IF;
+  IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
+    RAISE EXCEPTION 'p_items must be a non-empty array';
+  END IF;
+
   PERFORM pg_advisory_xact_lock(hashtext(p_uid));
 
   SELECT COALESCE(SUM(change), 0)::INTEGER INTO v_available
@@ -128,12 +135,17 @@ BEGIN
 
   FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
   LOOP
+    IF COALESCE(NULLIF(v_item->>'option_type', ''), '') = '' THEN
+      RAISE EXCEPTION 'option_type is required';
+    END IF;
+    IF COALESCE(NULLIF(v_item->>'option_name', ''), '') = '' THEN
+      RAISE EXCEPTION 'option_name is required';
+    END IF;
+    IF COALESCE((v_item->>'points_spent')::INTEGER, 0) <= 0 THEN
+      RAISE EXCEPTION 'points_spent must be positive';
+    END IF;
     v_total_cost := v_total_cost + COALESCE((v_item->>'points_spent')::INTEGER, 0);
   END LOOP;
-
-  IF v_total_cost <= 0 THEN
-    RAISE EXCEPTION 'total_cost must be positive';
-  END IF;
 
   IF v_total_cost > v_available THEN
     RAISE EXCEPTION 'insufficient points: available %, required %', v_available, v_total_cost;
@@ -171,6 +183,22 @@ BEGIN
 END;
 $$;
 
+
+-- 约定式 UID helper：生成下一个可用 KOC UID
+CREATE OR REPLACE FUNCTION next_koc_uid()
+RETURNS TEXT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_next INTEGER;
+BEGIN
+  PERFORM pg_advisory_xact_lock(424242);
+  SELECT COALESCE(MAX(CASE WHEN uid ~ '^YOYO-[0-9]+$' THEN substring(uid FROM 6)::INTEGER END), 0) + 1
+    INTO v_next
+  FROM kocs;
+  RETURN 'YOYO-' || LPAD(v_next::TEXT, 3, '0');
+END;
+$$;
 -- ============================================================
 -- 新增：作品提交表（创作者端投稿 / 管理员审核）
 -- 2026-07 月结活动

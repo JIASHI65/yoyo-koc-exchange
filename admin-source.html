@@ -1603,6 +1603,11 @@ document.addEventListener('DOMContentLoaded', function() {
   // We'll load submissions after admin logs in, via loadData
 });
 
+
+function mochiSupportFooter(message) {
+  var footer = ['', '---', 'Please do not reply to MochiBot directly. Check the FAQ first, then post in #town-service-station if you still need help.'].join('\n');
+  return (message || '') + footer;
+}
 // ===== MOCHI BROADCAST MODAL =====
 // ===== MOCHI DM PRESETS =====
 var mochiPresetType = '';
@@ -1850,6 +1855,13 @@ async function sendMochiBroadcastFromModal() {
   btn.textContent = '💬 Send';
 }
 
+
+window.addEventListener('error', function(e) {
+  try { showToast('⚠️ 页面出错，请刷新后重试', 'error'); } catch(err) {}
+});
+window.addEventListener('unhandledrejection', function() {
+  try { showToast('⚠️ 请求失败或数据异常，请重试', 'error'); } catch(err) {}
+});
 // Patch loadData to also load submissions
 var _origLoadData = loadData;
 loadData = async function() {
