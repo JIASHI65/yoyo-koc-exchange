@@ -1362,13 +1362,8 @@ function renderSubmissions() {
       '</td>' +
       '</tr>';
   }).join('');
-  // Load balances
-  allKocs.forEach(function(k) {
-    getBalance(k.uid).then(function(p) {
-      var el = document.getElementById('bal-' + k.uid);
-      if (el) el.textContent = p;
-    });
-  });
+  // Load balances (single aggregated query instead of one per KOC)
+  updateBalanceCells((allKocs || []).map(function(k) { return k.uid; }));
 }
 function viewSubmission(id) {
   var s = allSubmissions.find(function(x) { return x.id === id; });
@@ -2841,6 +2836,40 @@ async function getBalance(uid) {
   } catch { return 0; }
 }
 
+// 一次性拉全量 point_logs,按 uid 聚合成余额 map(替代逐个 getBalance 的 N+1 请求)。
+// 口径与 getBalance / koc_balances 视图一致:current = SUM(change)。
+async function fetchAllBalances() {
+  try {
+    var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?select=uid,change');
+    if (!r.ok) return null;
+    var rows = await r.json();
+    var map = {};
+    (rows || []).forEach(function(row) {
+      map[row.uid] = (map[row.uid] || 0) + (Number(row.change) || 0);
+    });
+    return map;
+  } catch(e) { return null; }
+}
+
+// 用余额 map 更新表格里的 bal-<uid> 单元格;若一次性取失败则回退到逐个 getBalance。
+async function updateBalanceCells(uids) {
+  var map = await fetchAllBalances();
+  if (map) {
+    uids.forEach(function(uid) {
+      var el = document.getElementById('bal-' + uid);
+      if (el) el.textContent = map[uid] || 0;
+    });
+  } else {
+    // 回退:保持原有逐个查询,保证功能不退化
+    uids.forEach(function(uid) {
+      getBalance(uid).then(function(p) {
+        var el = document.getElementById('bal-' + uid);
+        if (el) el.textContent = p;
+      });
+    });
+  }
+}
+
 // ===== SETTLEMENT PERIOD =====
 
 // ===== CALENDAR MODE =====
@@ -3778,12 +3807,8 @@ function renderKocTable() {
       '<td ondblclick="inlineEdit(this,\'address\',\'' + k.uid + '\')" title="Double-click to edit" style="font-size:12px;white-space:pre-wrap;max-width:200px;">' + esc(k.address || '-') + '</td>' +
     '</tr>';
   }).join('');
-  allKocs.forEach(function(k) {
-    getBalance(k.uid).then(function(p) {
-      var el = document.getElementById('bal-' + k.uid);
-      if (el) el.textContent = p;
-    });
-  });
+  // Load balances (single aggregated query instead of one per KOC)
+  updateBalanceCells((allKocs || []).map(function(k) { return k.uid; }));
 }function toggleAllKoc() {
   var checked = document.getElementById('koc-select-all').checked;
   document.querySelectorAll('.koc-select').forEach(function(cb) { cb.checked = checked; });
@@ -4153,10 +4178,14 @@ async function shipOrder(ev, id) {
     if (order.status === 'shipped') { showToast('Already shipped', 'info'); return; }
 
     // Ship the order
-    await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + id, {
+    var shipResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + id, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'shipped', processed_at: new Date().toISOString(), processed_by: 'admin' })
     });
+    if (!shipResp.ok) {
+      var shipErr = await shipResp.text().catch(function() { return ''; });
+      throw new Error('标记发货失败: ' + (shipErr ? shipErr.substring(0, 80) : ('HTTP ' + shipResp.status)));
+    }
 
     // Deduct points ONLY if points_spent > 0 AND not already deducted
     if (order.points_spent > 0) {
@@ -4175,7 +4204,7 @@ async function shipOrder(ev, id) {
       if (!alreadyDeducted) {
         var curBal = await getBalance(order.uid);
         var newBal = Math.max(0, curBal - order.points_spent); // Never go below 0
-        await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+        var dedResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
           method: 'POST',
           body: JSON.stringify({
             uid: order.uid, change: -order.points_spent,
@@ -4184,6 +4213,12 @@ async function shipOrder(ev, id) {
             created_at: new Date().toISOString()
           })
         });
+        // \u53d1\u8d27\u5df2\u6210\u529f\u4f46\u6263\u5206\u5931\u8d25:\u5982\u5b9e\u544a\u8b66,\u4e0d\u8c0e\u62a5"\u5df2\u6263\u5206"
+        if (!dedResp.ok) {
+          showToast('\u26a0\ufe0f \u5df2\u6807\u8bb0\u53d1\u8d27\uff0c\u4f46\u6263\u5206\u5931\u8d25\uff0c\u8bf7\u624b\u52a8\u6838\u5bf9 ' + order.uid + ' \u7684\u79ef\u5206', 'error');
+          loadData();
+          return;
+        }
       }
     }
 
@@ -4292,15 +4327,20 @@ async function submitPoints() {
       'This inserts a manual point_logs row.'
     ])) return;
     var newBal = Math.max(0, bal + change);
-    await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+    var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
       method: 'POST',
       body: JSON.stringify({ uid: editingUid, change: change, balance_after: newBal, source: 'manual', reason: reason, created_by: 'admin', created_at: new Date().toISOString() })
     });
+    // \u5173\u952e:\u5fc5\u987b\u786e\u8ba4\u5199\u5165\u6210\u529f\u518d\u62a5\u6210\u529f,\u5426\u5219\u79ef\u5206\u4f1a\u5bf9\u4e0d\u4e0a\u8d26
+    if (!resp.ok) {
+      var errTxt = await resp.text().catch(function() { return ''; });
+      throw new Error(errTxt ? errTxt.substring(0, 100) : ('HTTP ' + resp.status));
+    }
     showToast('\u2705 ' + (change > 0 ? '+' : '') + change + ' pts (' + reason + ')', 'success');
     closePointModal();
     renderKocTable();
     renderScoringTable();
-  } catch (e) { showToast('Error: ' + e.message, 'error'); }
+  } catch (e) { showToast('\u79ef\u5206\u5199\u5165\u5931\u8d25: ' + e.message, 'error'); }
 }
 
 function openEditModal(uid) {
