@@ -138,6 +138,10 @@
     .tab { font-size: 12px; padding: 8px 6px; min-width: 60px; }
     th, td { font-size: 12px; padding: 6px 4px; }
     .truncate { max-width: 100px; }
+    .row { gap: 6px; }
+    .btn-sm { padding: 6px 8px; font-size: 12px; }
+    .modal { width: calc(100vw - 24px); max-width: calc(100vw - 24px) !important; }
+    .submission-table, .koc-table-wrap table { min-width: 760px; }
   }
 
   .tier-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 16px; border-radius: 30px; font-size: 13px; font-weight: 800; letter-spacing: 0.5px; white-space: nowrap; }
@@ -629,6 +633,7 @@ Elite: 连续 6 个月达到 5 分</textarea>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
             <button class="btn btn-primary btn-sm" onclick="exportSubmissionsFile()">📥 导出待审核文件</button>
             <button class="btn btn-outline btn-sm" onclick="copyAgentPrompt()">📋 复制提示词</button>
+            <button class="btn btn-outline btn-sm" onclick="runMonthlyReconcileCheck()">🔎 月结对账检查</button>
             <button class="btn btn-sm" style="background:#5865F2;color:white;" onclick="openMochiBroadcast()">💬 Mochi 广播</button>
           </div>
                 </div>
@@ -660,6 +665,8 @@ Elite: 连续 6 个月达到 5 分</textarea>
             <button class="btn btn-outline" id="btn-cancel-import" onclick="cancelScoreImport()" style="padding:10px 28px;font-size:14px;margin-left:12px;border:2px solid #ccc;border-radius:10px;background:white;cursor:pointer;">✖ 取消</button>
           </div>
         </div>
+        <div id="reconcile-result" style="display:none;margin-bottom:12px;border:1.5px solid #ffcc80;background:#fff8e1;border-radius:12px;padding:12px;font-size:12px;line-height:1.6;"></div>
+
         <!-- 官方周边 Showcase 审核 (+1 分) -->
         <div style="background:#e8f5e9;border:2px solid #66bb6a;border-radius:14px;padding:14px;margin-bottom:12px;">
           <div style="font-size:15px;font-weight:700;margin-bottom:4px;color:#2e7d32;">📸 官方周边 Showcase 审核 <span style="font-size:12px;font-weight:normal;color:#558b2f;">通过 = +1 分</span> <span id="showcase-sub-count" style="font-size:12px;color:var(--text-light);"></span></div>
@@ -1288,14 +1295,17 @@ function renderSubmissions() {
   });
   // Render the showcase review panel alongside the main table
   try { renderShowcaseSubmissions(); } catch(e) {}
-  // Merge by discord_name (same person = merge)
+  // Merge by UID first (stable identity); fallback to Discord only for legacy rows without uid.
   var merged = {};
   list.forEach(function(s) {
-    var key = (s.discord_name||'').toLowerCase().trim();
+    var key = s.uid ? ('uid:' + String(s.uid).toLowerCase().trim()) : ('discord:' + String(s.discord_name || ('row-' + s.id)).toLowerCase().trim());
     if (!merged[key]) {
       merged[key] = { discord_name: s.discord_name, uid: s.uid, links_engagement: '', links_views: '', points_earned: 0, status: 'pending', created_at: s.created_at, id: s.id, _count: 0, _pending: 0, _scored: 0 };
     }
     var m = merged[key];
+    // Keep non-empty latest identity fields in case Discord name was changed between submissions.
+    if (s.discord_name) m.discord_name = s.discord_name;
+    if (s.uid) m.uid = s.uid;
     m._count++;
     if (s.status === 'pending') m._pending++;
     if (s.status === 'scored') m._scored++;
@@ -1436,9 +1446,17 @@ function renderShowcaseSubmissions() {
 async function approveShowcase(id, uid) {
   if (!confirmDanger('通过该 showcase 并给 +1 分？', [
     'UID: ' + uid,
+    '每人每期最多 1 次 showcase +1',
     '将写入 point_logs (+1)，并把该提交标记为 scored'
   ])) return;
   try {
+    // 管理端再防一次重复加分:同 UID 同 period 已有 scored showcase 就不再写 point_logs。
+    var dupRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(uid) + '&period=eq.' + encodeURIComponent(currentPeriod) + '&submission_type=eq.showcase&status=eq.scored&select=id&limit=1');
+    var dup = dupRes.ok ? await dupRes.json() : [];
+    if (dup && dup.length > 0) {
+      showToast('⚠️ 该创作者本期 showcase 已经 +1，不能重复加分', 'error');
+      return;
+    }
     var bal = await getBalance(uid);
     var newBal = bal + 1;
     var logResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
@@ -1446,10 +1464,11 @@ async function approveShowcase(id, uid) {
       body: JSON.stringify({ uid: uid, change: 1, balance_after: newBal, source: 'manual', reason: '官方周边showcase', period: currentPeriod, created_by: 'admin', created_at: new Date().toISOString() })
     });
     if (!logResp.ok) { showToast('加分失败，请重试', 'error'); return; }
-    await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + id, {
+    var patchResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + id, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'scored', points_earned: 1, scored_at: new Date().toISOString() })
     });
+    if (!patchResp.ok) { showToast('⚠️ 已加 +1 分，但提交状态更新失败，请手动核对', 'error'); return; }
     showToast('✅ 已通过 showcase，+1 分', 'success');
     await loadSubmissions();
     if (typeof renderKocTable === 'function') renderKocTable();
@@ -1465,6 +1484,91 @@ async function rejectShowcase(id) {
     });
     if (resp.ok) { showToast('✅ 已拒绝', 'success'); loadSubmissions(); }
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ===== 月结对账检查(只读) =====
+async function runMonthlyReconcileCheck() {
+  var box = document.getElementById('reconcile-result');
+  if (!box) return;
+  box.style.display = 'block';
+  box.innerHTML = '<strong>🔎 正在检查 ' + esc(currentPeriod) + '...</strong>';
+  try {
+    var ordersRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?period=eq.' + encodeURIComponent(currentPeriod) + '&select=id,uid,discord_name,option_type,option_name,points_spent,status,created_at');
+    var logsRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?period=eq.' + encodeURIComponent(currentPeriod) + '&select=uid,change,source,reason,created_at');
+    var subsRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?period=eq.' + encodeURIComponent(currentPeriod) + '&select=id,uid,discord_name,submission_type,status,points_earned,links_engagement,created_at');
+    if (!ordersRes.ok || !logsRes.ok || !subsRes.ok) throw new Error('读取对账数据失败');
+    var orders = await ordersRes.json() || [];
+    var logs = await logsRes.json() || [];
+    var subs = await subsRes.json() || [];
+    var issues = [];
+
+    // 1) 同一 UID 本期同类同名奖励重复订单
+    var orderMap = {};
+    orders.forEach(function(o) {
+      var key = [o.uid, o.option_type, o.option_name].join('|');
+      if (!orderMap[key]) orderMap[key] = [];
+      orderMap[key].push(o);
+    });
+    Object.keys(orderMap).forEach(function(key) {
+      var arr = orderMap[key];
+      if (arr.length > 1) {
+        issues.push('🎁 重复奖励订单: UID ' + esc(arr[0].uid) + ' / ' + esc(arr[0].option_type || '') + ' / ' + esc(arr[0].option_name || '') + ' × ' + arr.length + ' 单 (#' + arr.map(function(o){return o.id;}).join(', #') + ')');
+      }
+    });
+
+    // 2) shipped 且需扣分的订单,但本期没有任何 redemption 负分记录(弱检查,避免误报细节太多)
+    var negRedemptionByUid = {};
+    logs.forEach(function(l) {
+      if (l.source === 'redemption' && Number(l.change) < 0) negRedemptionByUid[l.uid] = (negRedemptionByUid[l.uid] || 0) + Math.abs(Number(l.change) || 0);
+    });
+    orders.forEach(function(o) {
+      if (o.status === 'shipped' && Number(o.points_spent || 0) > 0 && !negRedemptionByUid[o.uid]) {
+        issues.push('💸 疑似未扣分: shipped 订单 #' + o.id + ' UID ' + esc(o.uid) + ' 应扣 ' + o.points_spent + ' 分,本期无 redemption 负分流水');
+      }
+    });
+
+    // 3) showcase 每人每期 scored > 1
+    var showMap = {};
+    subs.forEach(function(s) {
+      if (s.submission_type === 'showcase' && s.status === 'scored') {
+        var key = s.uid || s.discord_name || ('row-' + s.id);
+        if (!showMap[key]) showMap[key] = [];
+        showMap[key].push(s);
+      }
+    });
+    Object.keys(showMap).forEach(function(key) {
+      var arr = showMap[key];
+      if (arr.length > 1) issues.push('📸 showcase 重复 +1: ' + esc(key) + ' × ' + arr.length + ' 条 (#' + arr.map(function(s){return s.id;}).join(', #') + ')');
+    });
+
+    // 4) 待审核 showcase 数量
+    var pendingShow = subs.filter(function(s) { return s.submission_type === 'showcase' && s.status === 'pending'; });
+    if (pendingShow.length) issues.push('⏳ showcase 待审核: ' + pendingShow.length + ' 条');
+
+    // 5) 本期有负分但无对应订单的 redemption 流水(可能是手动修账,给提示)
+    logs.forEach(function(l) {
+      if (l.source === 'redemption' && Number(l.change) < 0) {
+        var hasOrder = orders.some(function(o) { return o.uid === l.uid && Number(o.points_spent || 0) === Math.abs(Number(l.change) || 0); });
+        if (!hasOrder) issues.push('🧾 redemption 负分无同额订单: UID ' + esc(l.uid) + ' ' + l.change + ' 分 / ' + esc(l.reason || ''));
+      }
+    });
+
+    var summary = '订单 ' + orders.length + ' / 积分流水 ' + logs.length + ' / 投稿 ' + subs.length;
+    if (!issues.length) {
+      box.style.borderColor = '#81c784';
+      box.style.background = '#e8f5e9';
+      box.innerHTML = '<strong style="color:#2e7d32;">✅ ' + esc(currentPeriod) + ' 对账检查通过</strong><div style="color:#558b2f;margin-top:4px;">' + summary + '</div>';
+      showToast('✅ 月结对账检查通过', 'success');
+    } else {
+      box.style.borderColor = '#ffb74d';
+      box.style.background = '#fff8e1';
+      box.innerHTML = '<strong style="color:#e65100;">⚠️ ' + esc(currentPeriod) + ' 发现 ' + issues.length + ' 个待核对项</strong><div style="color:#8d6e63;margin:4px 0;">' + summary + '</div><ul style="margin:6px 0 0 18px;padding:0;">' + issues.map(function(i){ return '<li>' + i + '</li>'; }).join('') + '</ul>';
+      showToast('⚠️ 发现 ' + issues.length + ' 个待核对项', 'error');
+    }
+  } catch(e) {
+    box.innerHTML = '<strong style="color:#c62828;">❌ 对账检查失败:</strong> ' + esc(e.message);
+    showToast('对账检查失败: ' + e.message, 'error');
+  }
 }
 
 // ===== AGENT INPUT TEMPLATE =====
@@ -1675,7 +1779,7 @@ function exportCurrentTable() {
 }
 
 function exportSubmissionsFile() {
-  var pending = allSubmissions.filter(function(s) { return s.status === 'pending'; });
+  var pending = allSubmissions.filter(function(s) { return s.status === 'pending' && s.submission_type !== 'showcase'; });
   if (pending.length === 0) {
     showToast('No pending submissions to export', 'error');
     return;
@@ -1710,7 +1814,7 @@ function exportSubmissionsFile() {
 }
 
 async function copyAgentPrompt() {
-  var pending = allSubmissions.filter(function(s) { return s.status === 'pending'; });
+  var pending = allSubmissions.filter(function(s) { return s.status === 'pending' && s.submission_type !== 'showcase'; });
   if (pending.length === 0) {
     showToast('No pending submissions', 'error');
     return;
@@ -3900,12 +4004,24 @@ async function submitBatchReward() {
     '发放对象: ' + selected.length + ' 位创作者',
     '奖励: ' + name + (amount ? ' (' + amount + ')' : ''),
     points > 0 ? '将各扣除 ' + points + ' 积分' : '不扣积分（管理员发放）',
+    '同 UID + 本期 + 同类同名奖励已存在时会自动跳过，避免重复发放',
     '将写入 redemption_orders（状态 shipped）'
   ])) return;
 
-  var ok = 0;
+  // 防手滑重复发放:同 UID + period + option_type + option_name 已存在则跳过。
+  var existingByUid = {};
+  try {
+    var exRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?period=eq.' + encodeURIComponent(currentPeriod) + '&option_type=eq.' + encodeURIComponent(type) + '&option_name=eq.' + encodeURIComponent(name) + '&select=uid');
+    if (exRes.ok) {
+      var existing = await exRes.json() || [];
+      existing.forEach(function(o) { existingByUid[o.uid] = true; });
+    }
+  } catch(e) {}
+
+  var ok = 0, skipped = 0, failed = 0, deductFailed = 0;
   for (var i = 0; i < selected.length; i++) {
     var s = selected[i];
+    if (existingByUid[s.uid]) { skipped++; continue; }
     try {
       var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
         method: 'POST',
@@ -3922,21 +4038,29 @@ async function submitBatchReward() {
       });
       if (r.ok) {
         ok++;
+        existingByUid[s.uid] = true;
         // 若扣积分，写一条 point_logs（balance_after 用 sum(change) 汇总口径算出）
         if (points > 0) {
           try {
             var bal = await getBalance(s.uid);
             var newBal = bal - points;
-            await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+            var pResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
               method: 'POST',
               body: JSON.stringify({ uid: s.uid, change: -points, balance_after: newBal, source: 'redemption', reason: '批量发放: ' + name, period: currentPeriod, created_by: 'admin', created_at: new Date().toISOString() })
             });
-          } catch(e) {}
+            if (!pResp.ok) deductFailed++;
+          } catch(e) { deductFailed++; }
         }
+      } else {
+        failed++;
       }
-    } catch(e) {}
+    } catch(e) { failed++; }
   }
-  showToast('✅ ' + ok + '/' + selected.length + ' 已发放', ok === selected.length ? 'success' : 'error');
+  var msg = '✅ 已发放 ' + ok + '/' + selected.length;
+  if (skipped) msg += '，跳过重复 ' + skipped;
+  if (failed) msg += '，失败 ' + failed;
+  if (deductFailed) msg += '，扣分失败 ' + deductFailed + '（请手动核对积分）';
+  showToast(msg, (failed || deductFailed) ? 'error' : 'success');
   closeBatchRewardModal();
   await loadData();
 }
@@ -4210,6 +4334,7 @@ async function shipOrder(ev, id) {
             uid: order.uid, change: -order.points_spent,
             balance_after: newBal,
             source: 'redemption', reason: 'Shipped order #' + id,
+            period: currentPeriod,
             created_at: new Date().toISOString()
           })
         });
@@ -4329,7 +4454,7 @@ async function submitPoints() {
     var newBal = Math.max(0, bal + change);
     var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
       method: 'POST',
-      body: JSON.stringify({ uid: editingUid, change: change, balance_after: newBal, source: 'manual', reason: reason, created_by: 'admin', created_at: new Date().toISOString() })
+      body: JSON.stringify({ uid: editingUid, change: change, balance_after: newBal, source: 'manual', reason: reason, period: currentPeriod, created_by: 'admin', created_at: new Date().toISOString() })
     });
     // \u5173\u952e:\u5fc5\u987b\u786e\u8ba4\u5199\u5165\u6210\u529f\u518d\u62a5\u6210\u529f,\u5426\u5219\u79ef\u5206\u4f1a\u5bf9\u4e0d\u4e0a\u8d26
     if (!resp.ok) {

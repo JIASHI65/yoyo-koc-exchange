@@ -1404,6 +1404,22 @@ async function submitShowcase() {
   btn.textContent = '⏳ Submitting...';
   status.textContent = '';
   try {
+    // 每人每期最多提交 1 次 showcase；不占常规 2 次投稿名额。
+    var dupRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&period=eq.' + encodeURIComponent(currentPeriod) + '&submission_type=eq.showcase&select=id,status&limit=1');
+    if (!dupRes.ok) {
+      var dupErr = (await dupRes.text()).toLowerCase();
+      if (dupErr.indexOf('submission_type') >= 0 || dupErr.indexOf('column') >= 0) {
+        throw new Error('Showcase not enabled yet, please contact admin');
+      }
+      throw new Error(dupErr.substring(0, 80));
+    }
+    var existingShowcase = await dupRes.json() || [];
+    if (existingShowcase.length > 0) {
+      status.innerHTML = '⚠️ You already submitted a showcase for <strong>' + currentPeriod.replace('-', '/') + '</strong>.';
+      status.style.color = '#e65100';
+      return;
+    }
+
     var payload = [{
       discord_name: currentUser.discord_name || '',
       uid: currentUser.uid,
@@ -1456,7 +1472,7 @@ async function loadMySubmissions() {
     var months = ['2026-07','2026-08','2026-09'];
 
     // Fetch submissions for this user
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,created_at,period,status,points_earned,links_engagement,links_views');
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,created_at,period,status,points_earned,links_engagement,links_views,submission_type');
     if (!res.ok) throw new Error('Failed');
     var allSubs = await res.json() || [];
 
@@ -1500,7 +1516,9 @@ function getPrevMonth(ym) {
 function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, periodLabel) {
   window._subViewMonth = ym;
   var subs = byMonth[ym] || [];
-  var totalLinks = subs.reduce(function(su, s) { return su + (s.links_engagement || '').split('\n').filter(Boolean).length; }, 0);
+  var workSubs = subs.filter(function(s) { return s.submission_type !== 'showcase'; });
+  var showcaseSubs = subs.filter(function(s) { return s.submission_type === 'showcase'; });
+  var totalLinks = workSubs.reduce(function(su, s) { return su + (s.links_engagement || '').split('\n').filter(Boolean).length; }, 0);
   var pendingCount = subs.filter(function(s) { return s.status === 'pending'; }).length;
   var scoredCount = subs.filter(function(s) { return s.status === 'scored'; }).length;
   var ccRemaining = Math.max(0, 15 - totalLinks);
@@ -1724,8 +1742,10 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
       var vc = (s.links_views || '').split('\n').filter(Boolean).length;
       var dt = new Date(s.created_at).toLocaleDateString('zh-CN');
       var pts = s.points_earned || 0;
+      var isShowcase = s.submission_type === 'showcase';
+      var typeLabel = isShowcase ? '📸 Showcase +1' : ('🎨 Work · ' + lc + ' interactions' + (vc ? ' · ' + vc + ' views' : ''));
       html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">';
-      html += '<div><div style="font-size:13px;color:var(--text);">📅 ' + dt + ' · ' + lc + ' interactions' + (vc ? ' · ' + vc + ' views' : '') + '</div>';
+      html += '<div><div style="font-size:13px;color:var(--text);">📅 ' + dt + ' · ' + typeLabel + '</div>';
       if (pts > 0) html += '<div style="font-size:11px;color:#ad1457;">🏆 +' + pts + ' pts</div>';
       html += '</div><div style="font-size:12px;">' + st + '</div></div>';
     });
@@ -1734,7 +1754,7 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
 
 
   container.innerHTML = html;
-  if (countEl) countEl.textContent = '📅 ' + ym.replace('-', '') + ' · ' + totalLinks + ' ';
+  if (countEl) countEl.textContent = '📅 ' + ym.replace('-', '') + ' · Work links ' + totalLinks + (showcaseSubs.length ? ' · Showcase ' + showcaseSubs.length : '');
   if (periodLabel) periodLabel.textContent = ym.replace('-', '') + '';
 }
 
