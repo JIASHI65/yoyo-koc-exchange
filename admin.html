@@ -452,7 +452,10 @@
     <!-- ======== TAB: 周边发货 ======== -->
     <div id="tab-merch" class="tab-content">
       <div class="card">
-        <div class="card-title">📦 周边发货清单 <span id="merch-count" style="font-size:12px;color:var(--text-light);"></span></div>
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>📦 周边发货清单 <span id="merch-count" style="font-size:12px;color:var(--text-light);"></span></span>
+          <button class="btn btn-primary btn-sm" style="border-radius:20px;padding:6px 16px;" onclick="openBatchRewardModal('merch')">➕ 批量发奖</button>
+        </div>
        <div style="overflow-x:auto;">
          <div id="merch-table"></div>
        </div>
@@ -462,7 +465,10 @@
     <!-- ======== TAB: 端内奖励 ======== -->
     <div id="tab-diamond" class="tab-content">
       <div class="card">
-        <div class="card-title">💎 端内奖励清单 <span id="diamond-count" style="font-size:12px;color:var(--text-light);"></span></div>
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>💎 端内奖励清单 <span id="diamond-count" style="font-size:12px;color:var(--text-light);"></span></span>
+          <button class="btn btn-primary btn-sm" style="border-radius:20px;padding:6px 16px;" onclick="openBatchRewardModal('diamonds')">➕ 批量发奖</button>
+        </div>
        <div style="overflow-x:auto;">
          <div id="diamond-table"></div>
        </div>
@@ -473,7 +479,10 @@
     <!-- ======== TAB: 作品审核 ======== -->
     <div id="tab-gplay" class="tab-content">
       <div class="card">
-        <div class="card-title">🎮 Google Play 礼品卡清单 <span id="gplay-count" style="font-size:12px;color:var(--text-light);"></span></div>
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>🎮 Google Play 礼品卡清单 <span id="gplay-count" style="font-size:12px;color:var(--text-light);"></span></span>
+          <button class="btn btn-primary btn-sm" style="border-radius:20px;padding:6px 16px;" onclick="openBatchRewardModal('gplay')">➕ 批量发奖</button>
+        </div>
        <div style="overflow-x:auto;">
          <div id="gplay-table"></div>
        </div>
@@ -651,6 +660,12 @@ Elite: 连续 6 个月达到 5 分</textarea>
             <button class="btn btn-outline" id="btn-cancel-import" onclick="cancelScoreImport()" style="padding:10px 28px;font-size:14px;margin-left:12px;border:2px solid #ccc;border-radius:10px;background:white;cursor:pointer;">✖ 取消</button>
           </div>
         </div>
+        <!-- 官方周边 Showcase 审核 (+1 分) -->
+        <div style="background:#e8f5e9;border:2px solid #66bb6a;border-radius:14px;padding:14px;margin-bottom:12px;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:4px;color:#2e7d32;">📸 官方周边 Showcase 审核 <span style="font-size:12px;font-weight:normal;color:#558b2f;">通过 = +1 分</span> <span id="showcase-sub-count" style="font-size:12px;color:var(--text-light);"></span></div>
+          <div style="font-size:12px;color:#558b2f;margin-bottom:8px;">创作者晒官方周边的作品，审核通过后自动给 +1 积分（不占常规 2 次投稿名额）。</div>
+          <div id="showcase-sub-list" style="font-size:13px;"></div>
+        </div>
         <div class="row" style="margin-bottom:8px;gap:8px;flex-wrap:wrap;">
           <input type="text" id="submission-search" placeholder="🔍 搜索 Discord 名字..." style="width:200px;" oninput="renderSubmissions()">
           <select id="submission-filter" onchange="renderSubmissions()" style="width:110px;">
@@ -761,6 +776,38 @@ Phone Number"></textarea>
       <button class="btn btn-outline" onclick="closePointModal()" style="flex:1;">取消</button>
     </div>
     <div id="modal-point-history" style="margin-top:8px;font-size:12px;max-height:150px;overflow-y:auto;"></div>
+  </div>
+</div>
+<!-- ===== MODAL: 批量发奖 ===== -->
+<div id="batch-reward-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeBatchRewardModal()">
+  <div class="modal" style="max-width:520px;">
+    <h3 id="batch-reward-title" style="font-size:16px;">➕ 批量发奖</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px;">
+      <div>
+        <label style="font-size:12px;color:var(--text-light);">奖励名称</label>
+        <input type="text" id="batch-reward-name" style="width:100%;" placeholder="奖励名称">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text-light);">奖励数量/说明</label>
+        <input type="text" id="batch-reward-amount" style="width:100%;" placeholder="如 450 钻石">
+      </div>
+    </div>
+    <div style="margin-bottom:6px;">
+      <label style="font-size:12px;color:var(--text-light);">扣除积分（管理员发放通常填 0）</label>
+      <input type="number" id="batch-reward-points" value="0" min="0" style="width:100%;">
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">
+      <input type="text" id="batch-reward-search" style="flex:1;font-size:12px;padding:5px 8px;" placeholder="🔍 按 Discord / UID 筛选..." oninput="renderBatchRewardList()">
+      <label style="font-size:12px;display:flex;align-items:center;gap:3px;white-space:nowrap;cursor:pointer;">
+        <input type="checkbox" id="batch-reward-select-all" onchange="toggleAllBatchReward()"> 全选
+      </label>
+    </div>
+    <div style="font-size:12px;color:var(--text-light);margin-bottom:4px;">已选 <strong id="batch-reward-count">0</strong> 人</div>
+    <div id="batch-reward-list" style="max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:4px;margin-bottom:8px;"></div>
+    <div class="row" style="gap:6px;">
+      <button class="btn btn-primary" onclick="submitBatchReward()" style="flex:1;font-size:14px;padding:10px;">✔ 确认发放</button>
+      <button class="btn btn-outline" onclick="closeBatchRewardModal()" style="flex:1;">取消</button>
+    </div>
   </div>
 </div>
 <!-- ===== MODAL: Mochi Broadcast ===== -->
@@ -1235,10 +1282,12 @@ function renderSubmissions() {
   var filter = document.getElementById('submission-filter').value;
   var container = document.getElementById('submissions-table');
   if (!container) return;
-  // Filter by currentPeriod
+  // Filter by currentPeriod, exclude showcase submissions (separate panel below)
   var list = (allSubmissions || []).filter(function(s) {
-    return (s.created_at || '').substring(0, 7) === currentPeriod;
+    return (s.created_at || '').substring(0, 7) === currentPeriod && s.submission_type !== 'showcase';
   });
+  // Render the showcase review panel alongside the main table
+  try { renderShowcaseSubmissions(); } catch(e) {}
   // Merge by discord_name (same person = merge)
   var merged = {};
   list.forEach(function(s) {
@@ -1356,6 +1405,73 @@ async function rejectSubmission(id) {
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
+// ===== 官方周边 SHOWCASE 审核 (+1 分) =====
+function renderShowcaseSubmissions() {
+  var listEl = document.getElementById('showcase-sub-list');
+  var cntEl = document.getElementById('showcase-sub-count');
+  if (!listEl) return;
+  var list = (allSubmissions || []).filter(function(s) {
+    return s.submission_type === 'showcase' && (s.created_at || '').substring(0, 7) === currentPeriod;
+  });
+  var pending = list.filter(function(s) { return s.status === 'pending'; }).length;
+  if (cntEl) cntEl.textContent = list.length ? '(' + pending + ' 待审 / ' + list.length + ' 总)' : '';
+  if (!list.length) {
+    listEl.innerHTML = '<div style="color:var(--text-light);font-size:12px;padding:6px 0;">暂无 showcase 提交</div>';
+    return;
+  }
+  listEl.innerHTML = list.map(function(s) {
+    var link = (s.links_engagement || '').split('\n').filter(Boolean)[0] || '';
+    var statusBadge = s.status === 'scored' ? '<span class="badge badge-shipped">✅ 已+1</span>'
+                    : s.status === 'rejected' ? '<span class="badge badge-cancelled">❌ 已拒绝</span>'
+                    : '<span class="badge badge-pending">⏳ 待审核</span>';
+    var actions = s.status === 'pending'
+      ? '<button class="btn btn-success btn-sm" onclick="approveShowcase(' + s.id + ',\'' + escAttr(s.uid) + '\')" style="font-size:11px;padding:3px 10px;">✔ 通过 +1</button> ' +
+        '<button class="btn btn-danger btn-sm" onclick="rejectShowcase(' + s.id + ')" style="font-size:11px;padding:3px 10px;">✖ 拒绝</button>'
+      : '';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid #d7ecd9;flex-wrap:wrap;">' +
+      '<strong style="min-width:100px;">' + esc(s.discord_name || '') + '</strong>' +
+      '<span style="font-family:monospace;font-size:11px;color:var(--text-light);">' + esc(s.uid) + '</span>' +
+      (link ? '<a href="' + escAttr(link) + '" target="_blank" rel="noopener" style="font-size:12px;color:#1976d2;word-break:break-all;flex:1;min-width:120px;">' + esc(link) + '</a>' : '<span style="flex:1;"></span>') +
+      statusBadge +
+      '<span style="display:flex;gap:4px;">' + actions + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+async function approveShowcase(id, uid) {
+  if (!confirmDanger('通过该 showcase 并给 +1 分？', [
+    'UID: ' + uid,
+    '将写入 point_logs (+1)，并把该提交标记为 scored'
+  ])) return;
+  try {
+    var bal = await getBalance(uid);
+    var newBal = bal + 1;
+    var logResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+      method: 'POST',
+      body: JSON.stringify({ uid: uid, change: 1, balance_after: newBal, source: 'manual', reason: '官方周边showcase', period: currentPeriod, created_by: 'admin', created_at: new Date().toISOString() })
+    });
+    if (!logResp.ok) { showToast('加分失败，请重试', 'error'); return; }
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + id, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'scored', points_earned: 1, scored_at: new Date().toISOString() })
+    });
+    showToast('✅ 已通过 showcase，+1 分', 'success');
+    await loadSubmissions();
+    if (typeof renderKocTable === 'function') renderKocTable();
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function rejectShowcase(id) {
+  if (!confirm('拒绝该 showcase 提交？')) return;
+  try {
+    var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + id, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'rejected' })
+    });
+    if (resp.ok) { showToast('✅ 已拒绝', 'success'); loadSubmissions(); }
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
 // ===== AGENT INPUT TEMPLATE =====
 var SCORING_RULES_TEXT = `# Yoyo Creator Studio · Official Incentive Rules (Updated Periodically)
 
@@ -1376,6 +1492,11 @@ Points by total engagement (likes + comments + shares + saves / upvotes):
 - Instagram: likes + comments + shares + saves
 - X (Twitter): likes + comments + reposts + bookmarks
 - Reddit: upvotes (the number on the left, NOT percentage) + comments
+
+### 3. Official Merch Showcase Bonus
+- Posting a photo/video showing off official Yoyo merch = +1 Point (manual review).
+- Reviewed and approved by admin in the 作品审核 tab; does NOT count toward the 2 work submissions.
+- This bonus is applied manually — do NOT include showcase posts in agent scoring.
 
 ### Points Cap
 - Monthly cap is 20 points. If total exceeds 20 but is below 40, it still counts as 20.
@@ -1408,7 +1529,8 @@ Return results for ALL submissions in this JSON format:
 \`\`\``;
 
 function generateAgentTemplate() {
-  var pending = allSubmissions.filter(function(s) { return s.status === 'pending'; });
+  // 排除 showcase(它是人工审核 +1，不走 agent 算分)
+  var pending = allSubmissions.filter(function(s) { return s.status === 'pending' && s.submission_type !== 'showcase'; });
   if (pending.length === 0) {
     showToast('No pending submissions to score', 'error');
     return null;
@@ -1479,9 +1601,9 @@ function generateAgentTemplate() {
 async function batchMarkScored() {
   if (!confirm('批量标记所有待审核 submission 为已评分？')) return;
   try {
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?status=eq.pending&select=id,discord_name,uid,links_engagement,links_views');
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?status=eq.pending&select=*');
     if (!res.ok) { showToast('查询失败', 'error'); return; }
-    var pending = await res.json() || [];
+    var pending = (await res.json() || []).filter(function(s) { return s.submission_type !== 'showcase'; });
     if (pending.length === 0) { showToast('没有待审核的 submission', 'error'); return; }
     
     var count = 0;
@@ -2732,33 +2854,38 @@ function filterByPeriod(orders) {
   });
 }
 async function toggleRedemption() {
+  // Single source of truth = campaign_config.redemption_open (same as 活动配置 page toggle).
+  // (Legacy code wrote kocs.__config__.notes, which the creator portal never reads.)
   try {
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
-    var data = await res.json();
-    var notes = {};
-    if (data && data.length > 0 && data[0].notes) {
-      try { notes = JSON.parse(data[0].notes); } catch(e) {}
+    var period = currentPeriod;
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + encodeURIComponent(period) + '&select=redemption_open');
+    var data = res.ok ? await res.json() : [];
+    if (!data || data.length === 0) {
+      showToast('⚠️ ' + period + ' 活动配置不存在，请先在「活动配置」页保存一次', 'error');
+      return;
     }
-    var currentlyOpen = notes.redemption_open === true;
+    var currentlyOpen = data[0].redemption_open === true;
     var newState = !currentlyOpen;
     if (!confirmDanger(newState ? 'Open reward redemption?' : 'Close reward redemption?', [
-      'Period: ' + currentPeriod,
+      'Period: ' + period,
       'Current state: ' + (currentlyOpen ? 'open' : 'closed'),
       'New state: ' + (newState ? 'open' : 'closed'),
       newState ? 'Creators will be able to submit redemption orders.' : 'Creators will no longer be able to submit new redemptions.'
     ])) return;
-    notes.redemption_open = newState;
-    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__', {
+    var patch = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + encodeURIComponent(period), {
       method: 'PATCH',
-      body: JSON.stringify({ notes: JSON.stringify(notes) })
+      body: JSON.stringify({ redemption_open: newState })
     });
+    if (!patch.ok) { showToast('操作失败，请重试', 'error'); return; }
+    // Keep in-memory switch cache + both toggle buttons in sync
+    if (!window._cfgSwitches) window._cfgSwitches = {};
+    window._cfgSwitches.redemption_open = newState;
     var btn = document.getElementById('btn-toggle-redeem');
-    var updateBtn = document.getElementById('btn-sync-balance');
-    if (updateBtn) updateBtn.textContent = '🔄 更新剩余积分';
     if (btn) {
       btn.textContent = newState ? '🔒 关闭兑换' : '🔓 开放兑换';
       btn.style.background = newState ? '#e74c3c' : '#43b581';
     }
+    if (typeof updateToggleButton === 'function') updateToggleButton('btn-toggle-redemption', newState);
     showToast(newState ? '✅ 兑换已开放，创作者现在可以兑换' : '🔒 兑换已关闭', 'success');
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
@@ -3668,6 +3795,127 @@ function getSelectedKocUids() {
   return uids;
 }
 
+// ===== 批量发奖 (merch / diamonds / gplay) =====
+var BATCH_REWARD_DEFAULTS = {
+  merch:    { title: '📦 批量发放周边', name: '📦 周边福袋',        amount: '随机周边 × 1' },
+  diamonds: { title: '💎 批量发放端内奖励', name: '💎 钻石',        amount: '450 钻石' },
+  gplay:    { title: '🎮 批量发放 Google Play 卡', name: '🎮 Google Play', amount: '$10 礼品卡' }
+};
+var _batchRewardType = null;
+
+function openBatchRewardModal(type) {
+  _batchRewardType = type;
+  var d = BATCH_REWARD_DEFAULTS[type] || { title: '批量发奖', name: '', amount: '' };
+  document.getElementById('batch-reward-title').textContent = d.title;
+  document.getElementById('batch-reward-name').value = d.name;
+  document.getElementById('batch-reward-amount').value = d.amount;
+  document.getElementById('batch-reward-points').value = '0';
+  document.getElementById('batch-reward-search').value = '';
+  var sa = document.getElementById('batch-reward-select-all'); if (sa) sa.checked = false;
+  renderBatchRewardList();
+  document.getElementById('batch-reward-modal').classList.remove('hidden');
+}
+
+function closeBatchRewardModal() {
+  document.getElementById('batch-reward-modal').classList.add('hidden');
+  _batchRewardType = null;
+}
+
+function renderBatchRewardList() {
+  var listEl = document.getElementById('batch-reward-list');
+  if (!listEl) return;
+  var q = (document.getElementById('batch-reward-search').value || '').trim().toLowerCase();
+  var actives = (allKocs || []).filter(function(k) { return k.status === 'active' && k.uid !== '__config__'; });
+  if (q) {
+    actives = actives.filter(function(k) {
+      return (String(k.discord_name || '').toLowerCase().indexOf(q) >= 0) ||
+             (String(k.uid || '').toLowerCase().indexOf(q) >= 0);
+    });
+  }
+  if (!actives.length) {
+    listEl.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-light);font-size:13px;">无匹配创作者</div>';
+    return;
+  }
+  listEl.innerHTML = actives.map(function(k) {
+    return '<label style="display:flex;align-items:center;gap:8px;padding:5px 6px;border-bottom:1px solid #f2f2f2;cursor:pointer;font-size:13px;">' +
+      '<input type="checkbox" class="batch-reward-cb" value="' + escAttr(k.uid) + '" data-discord="' + escAttr(k.discord_name || '') + '" onchange="updateBatchRewardCount()">' +
+      '<strong>' + esc(k.discord_name || '(no name)') + '</strong>' +
+      '<span style="font-family:monospace;font-size:11px;color:var(--text-light);margin-left:auto;">' + esc(k.uid) + '</span>' +
+    '</label>';
+  }).join('');
+  updateBatchRewardCount();
+}
+
+function toggleAllBatchReward() {
+  var checked = document.getElementById('batch-reward-select-all').checked;
+  document.querySelectorAll('#batch-reward-list .batch-reward-cb').forEach(function(cb) { cb.checked = checked; });
+  updateBatchRewardCount();
+}
+
+function updateBatchRewardCount() {
+  var n = document.querySelectorAll('#batch-reward-list .batch-reward-cb:checked').length;
+  var el = document.getElementById('batch-reward-count');
+  if (el) el.textContent = n;
+}
+
+async function submitBatchReward() {
+  var type = _batchRewardType;
+  if (!type) return;
+  var name = document.getElementById('batch-reward-name').value.trim();
+  var amount = document.getElementById('batch-reward-amount').value.trim();
+  var points = parseInt(document.getElementById('batch-reward-points').value) || 0;
+  if (points < 0) points = 0;
+  var selected = [];
+  document.querySelectorAll('#batch-reward-list .batch-reward-cb:checked').forEach(function(cb) {
+    selected.push({ uid: cb.value, discord: cb.getAttribute('data-discord') || '' });
+  });
+  if (!selected.length) { showToast('请先勾选创作者', 'error'); return; }
+  if (!name) { showToast('请填写奖励名称', 'error'); return; }
+  if (!confirmDanger('批量发放【' + name + '】？', [
+    '发放对象: ' + selected.length + ' 位创作者',
+    '奖励: ' + name + (amount ? ' (' + amount + ')' : ''),
+    points > 0 ? '将各扣除 ' + points + ' 积分' : '不扣积分（管理员发放）',
+    '将写入 redemption_orders（状态 shipped）'
+  ])) return;
+
+  var ok = 0;
+  for (var i = 0; i < selected.length; i++) {
+    var s = selected[i];
+    try {
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          uid: s.uid, discord_name: s.discord, koc_name: s.discord,
+          option_type: type, option_name: name,
+          points_spent: points, reward_amount: amount,
+          contact_info: '', status: 'shipped',
+          admin_notes: '批量发放 by admin',
+          period: currentPeriod,
+          created_at: new Date().toISOString(),
+          processed_at: new Date().toISOString(), processed_by: 'admin'
+        })
+      });
+      if (r.ok) {
+        ok++;
+        // 若扣积分，写一条 point_logs（balance_after 用 sum(change) 汇总口径算出）
+        if (points > 0) {
+          try {
+            var bal = await getBalance(s.uid);
+            var newBal = bal - points;
+            await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+              method: 'POST',
+              body: JSON.stringify({ uid: s.uid, change: -points, balance_after: newBal, source: 'redemption', reason: '批量发放: ' + name, period: currentPeriod, created_by: 'admin', created_at: new Date().toISOString() })
+            });
+          } catch(e) {}
+        }
+      }
+    } catch(e) {}
+  }
+  showToast('✅ ' + ok + '/' + selected.length + ' 已发放', ok === selected.length ? 'success' : 'error');
+  closeBatchRewardModal();
+  await loadData();
+}
+
 async function batchMarkSelected(type) {
   var uids = getSelectedKocUids();
   if (!uids.length) { showToast('请先勾选创作者', 'error'); return; }
@@ -3706,23 +3954,21 @@ async function batchDeleteSelected() {
   await loadData();
 }
 function renderScoringTable() {
-  // Load redemption state
+  // Load redemption state from campaign_config (single source of truth)
   (async function() {
     try {
-      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + encodeURIComponent(currentPeriod) + '&select=redemption_open');
       if (r.ok) {
         var d = await r.json();
-        if (d && d.length > 0 && d[0].notes) {
-          try { var cfg = JSON.parse(d[0].notes); 
-            var btn = document.getElementById('btn-toggle-redeem');
-    var updateBtn = document.getElementById('btn-sync-balance');
-    if (updateBtn) updateBtn.textContent = '🔄 更新剩余积分';
-            if (btn) {
-              var open = cfg.redemption_open === true;
-              btn.textContent = open ? '🔒 关闭兑换' : '🔓 开放兑换';
-              btn.style.background = open ? '#e74c3c' : '#43b581';
-            }
-          } catch(e) {}
+        if (d && d.length > 0) {
+          var open = d[0].redemption_open === true;
+          if (!window._cfgSwitches) window._cfgSwitches = {};
+          window._cfgSwitches.redemption_open = open;
+          var btn = document.getElementById('btn-toggle-redeem');
+          if (btn) {
+            btn.textContent = open ? '🔒 关闭兑换' : '🔓 开放兑换';
+            btn.style.background = open ? '#e74c3c' : '#43b581';
+          }
         }
       }
     } catch(e) {}

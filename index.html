@@ -276,6 +276,19 @@
         <div id="submit-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
         </div>
       </div>
+
+      <!-- Official Merch Showcase (+1 pt) -->
+      <div class="card" id="showcase-card">
+        <div class="card-title">📸 Official Merch Showcase <span style="background:#43b581;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px;">+1 pt</span></div>
+        <div style="background:#e8f5e9;border:1.5px solid #a5d6a7;border-radius:10px;padding:10px;font-size:12px;margin-bottom:12px;color:#2e7d32;line-height:1.7;">
+          🎁 Got your official Yoyo merch? Post a photo or video showing it off and earn <strong>+1 bonus point</strong>!<br>
+          <span style="font-size:11px;color:#558b2f;">Make sure the post is public, then paste the link below. Reviewed by admin. Does not count toward your 2 work submissions.</span>
+        </div>
+        <label>🔗 Showcase Link</label>
+        <input type="text" id="showcase-link" placeholder="https://... (your merch showcase post)">
+        <button class="btn btn-primary" id="btn-showcase-submit" onclick="submitShowcase()" style="margin-top:8px;">📸 Submit Showcase</button>
+        <div id="showcase-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
+      </div>
     </div>
 
     <!-- History Tab -->
@@ -804,10 +817,10 @@ function initSubmitTab() {
   // Check if already at max submissions (2) and lock form
   (async function() {
     try {
-      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id,created_at,period');
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id,created_at,period,submission_type');
       if (!r.ok) throw new Error('fetch failed');
       var d = await r.json();
-      var cnt = (d || []).filter(function(s) { return getSubmissionPeriod(s) === currentPeriod; }).length;
+      var cnt = countWorkSubmissionsThisPeriod(d);
       var formArea = document.getElementById('submit-form-area');
       var btn = document.getElementById('btn-submit');
       var cd = document.getElementById('submit-countdown');
@@ -1304,10 +1317,10 @@ async function submitWorks() {
   status.textContent = '';
 
   try {
-    // Check existing submissions
-    var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id,created_at,period');
+    // Check existing WORK submissions (showcase 不占 2 次名额)
+    var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id,created_at,period,submission_type');
     var existingSubs = checkRes.ok ? await checkRes.json() : [];
-    var existingCount = (existingSubs || []).filter(function(s) { return getSubmissionPeriod(s) === currentPeriod; }).length;
+    var existingCount = countWorkSubmissionsThisPeriod(existingSubs);
     
     if (existingCount >= 2) {
       status.innerHTML = '⚠️ Reached <strong>2 submission</strong> limit<br><span style="font-size:11px;">Contact admin for help</span>';
@@ -1366,6 +1379,64 @@ async function submitWorks() {
   }
   btn.disabled = false;
   btn.textContent = '📤 Submit Works';
+}
+
+// 只统计常规 'work' 投稿(排除 showcase)用于 2 次限制。
+// 若 submission_type 列尚未添加,undefined !== 'showcase' 为真 → 全部计入(保持原行为,零回退风险)。
+function countWorkSubmissionsThisPeriod(rows) {
+  return (rows || []).filter(function(s) {
+    return getSubmissionPeriod(s) === currentPeriod && s.submission_type !== 'showcase';
+  }).length;
+}
+
+// ===== OFFICIAL MERCH SHOWCASE (+1 pt) =====
+async function submitShowcase() {
+  var linkEl = document.getElementById('showcase-link');
+  var status = document.getElementById('showcase-status');
+  var btn = document.getElementById('btn-showcase-submit');
+  if (!linkEl || !status || !btn) return;
+  var link = linkEl.value.trim();
+  if (!link) { status.textContent = '❌ Paste your showcase link'; status.style.color = '#e74c3c'; return; }
+  if (!/^https?:\/\//i.test(link)) { status.textContent = '❌ Enter a valid link (http/https)'; status.style.color = '#e74c3c'; return; }
+  if (!currentUser || !currentUser.uid) { status.textContent = '❌ Please log in first'; status.style.color = '#e74c3c'; return; }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Submitting...';
+  status.textContent = '';
+  try {
+    var payload = [{
+      discord_name: currentUser.discord_name || '',
+      uid: currentUser.uid,
+      server: (currentUser && currentUser.server) || '',
+      links_engagement: link,
+      submission_type: 'showcase',
+      status: 'pending',
+      period: currentPeriod,
+      created_at: new Date().toISOString()
+    }];
+    var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) {
+      var errTxt = (await resp.text()).toLowerCase();
+      // 列还没加时,明确提示,而不是污染常规投稿计数
+      if (errTxt.indexOf('submission_type') >= 0 || errTxt.indexOf('column') >= 0) {
+        throw new Error('Showcase not enabled yet, please contact admin');
+      }
+      throw new Error(errTxt.substring(0, 80));
+    }
+    status.innerHTML = '✅ Showcase submitted! Admin will review and add <strong>+1 pt</strong>.';
+    status.style.color = '#4caf50';
+    linkEl.value = '';
+    showToast('✅ Showcase submitted!', 'success');
+    loadMySubmissions();
+  } catch(e) {
+    status.textContent = '❌ ' + e.message;
+    status.style.color = '#e74c3c';
+  }
+  btn.disabled = false;
+  btn.textContent = '📸 Submit Showcase';
 }
 
 
