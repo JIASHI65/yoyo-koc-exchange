@@ -89,14 +89,87 @@ SELECT
 FROM kocs k
 WHERE k.status = 'active';
 
--- 获取当前积分
+-- 获取当前积分（按流水汇总，避免依赖最后一条 balance_after）
 CREATE OR REPLACE FUNCTION get_balance(p_uid TEXT)
 RETURNS INTEGER AS $$
-  SELECT COALESCE(balance_after, 0) FROM point_logs
-  WHERE uid = p_uid
-  ORDER BY created_at DESC, id DESC
-  LIMIT 1;
+  SELECT COALESCE(SUM(change), 0)::INTEGER
+  FROM point_logs
+  WHERE uid = p_uid;
 $$ LANGUAGE SQL;
+
+-- 原子兑换：一次性校验余额并写入多条兑换订单
+CREATE OR REPLACE FUNCTION redeem_points(
+  p_uid TEXT,
+  p_period TEXT,
+  p_items JSONB,
+  p_contact_info TEXT DEFAULT ''
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_available INTEGER;
+  v_pending INTEGER;
+  v_total_cost INTEGER := 0;
+  v_item JSONB;
+  v_order_count INTEGER := 0;
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtext(p_uid));
+
+  SELECT COALESCE(SUM(change), 0)::INTEGER INTO v_available
+  FROM point_logs
+  WHERE uid = p_uid;
+
+  SELECT COALESCE(SUM(points_spent), 0)::INTEGER INTO v_pending
+  FROM redemption_orders
+  WHERE uid = p_uid AND status = 'pending';
+
+  v_available := v_available - v_pending;
+
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+  LOOP
+    v_total_cost := v_total_cost + COALESCE((v_item->>'points_spent')::INTEGER, 0);
+  END LOOP;
+
+  IF v_total_cost <= 0 THEN
+    RAISE EXCEPTION 'total_cost must be positive';
+  END IF;
+
+  IF v_total_cost > v_available THEN
+    RAISE EXCEPTION 'insufficient points: available %, required %', v_available, v_total_cost;
+  END IF;
+
+  FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
+  LOOP
+    INSERT INTO redemption_orders (
+      uid, discord_name, koc_name,
+      option_type, option_name, points_spent, reward_amount,
+      contact_info, status, period, created_at
+    ) VALUES (
+      p_uid,
+      COALESCE(v_item->>'discord_name', ''),
+      COALESCE(v_item->>'koc_name', ''),
+      COALESCE(v_item->>'option_type', ''),
+      COALESCE(v_item->>'option_name', ''),
+      COALESCE((v_item->>'points_spent')::INTEGER, 0),
+      COALESCE(v_item->>'reward_amount', ''),
+      COALESCE(NULLIF(v_item->>'contact_info', ''), p_contact_info),
+      'pending',
+      p_period,
+      NOW()
+    );
+    v_order_count := v_order_count + 1;
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'ok', true,
+    'order_count', v_order_count,
+    'available_before', v_available,
+    'total_cost', v_total_cost,
+    'available_after', v_available - v_total_cost
+  );
+END;
+$$;
 
 -- ============================================================
 -- 新增：作品提交表（创作者端投稿 / 管理员审核）
