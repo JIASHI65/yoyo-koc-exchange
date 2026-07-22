@@ -137,8 +137,9 @@
       </select>
       
       <label style="margin-top:8px;">📦 Shipping Address</label>
+      <div style="font-size:11px;color:var(--text-light);line-height:1.45;margin:-2px 0 8px;">Format: Full Legal Name / Address / City / State / Postal Code / Country / Phone Number</div>
       
-      <input type="text" id="reg-street" placeholder="Street address *" style="margin-bottom:6px;">
+      <input type="text" id="reg-street" placeholder="Address *" style="margin-bottom:6px;">
       <div style="display:flex;gap:6px;margin-bottom:6px;">
         <input type="text" id="reg-city" placeholder="City *" style="flex:1;">
         <input type="text" id="reg-state" placeholder="State / Province *" style="flex:1;">
@@ -147,7 +148,7 @@
         <input type="text" id="reg-zip" placeholder="Postal code *" style="flex:1;">
         <input type="text" id="reg-country" placeholder="Country *" style="flex:1;">
       </div>
-      <input type="text" id="reg-phone" placeholder="Contact phone number *" style="margin-bottom:12px;">
+      <input type="text" id="reg-phone" placeholder="Phone Number *" style="margin-bottom:12px;">
       
       <button class="btn btn-primary" onclick="registerCreator()">📝 Register</button>
       <div id="reg-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
@@ -202,8 +203,8 @@
           💡 Pending rewards reserve your available balance until admin processes them. Redemption windows are opened by admins after scoring and announced by Mochi/admin. Please do not reply to MochiBot; check FAQ or post in #town-service-station if you need help.
         </div>
         <div id="reward-fields" class="hidden" style="margin-top:8px;">
-          <label>Shipping Info (name, address, phone)</label>
-          <input type="text" id="input-contact" placeholder="Required for merch delivery">
+          <label>Shipping Info (Full Legal Name / Address / City / State / Postal Code / Country / Phone Number)</label>
+          <input type="text" id="input-contact" placeholder="Full Legal Name / Address / City / State / Postal Code / Country / Phone Number">
         </div>
         <div id="redeem-locked-msg" style="display:none;background:#fff3e0;border:1px solid #ffe082;border-radius:10px;padding:12px;text-align:center;font-size:13px;color:#e65100;margin-bottom:8px;">
           🔒 暂不开放兑换<br><span style="font-size:11px;">请静静等待积分计算结束，结束后会通知你兑换奖励</span>
@@ -934,7 +935,7 @@ async function registerCreator() {
       return;
     }
 
-    var fullAddress = street + ', ' + city + ', ' + state + ' ' + zip + ', ' + country + ' | Tel: ' + phone;
+    var fullAddress = fullname + '\n' + street + '\n' + city + '\n' + state + '\n' + zip + '\n' + country + '\n' + phone;
     var notesObj = {
       registered_at: new Date().toISOString(),
       account_id: accountId,

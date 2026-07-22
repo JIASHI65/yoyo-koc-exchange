@@ -8,7 +8,7 @@
 CREATE TABLE kocs (
   uid TEXT PRIMARY KEY,              -- "YOYO-001" 格式
   discord_name TEXT NOT NULL,         -- Discord 昵称，KOC 登录时验证
-  name TEXT DEFAULT '',               -- 真实姓名/游戏名
+  name TEXT DEFAULT '',               -- Full Legal Name / 真实姓名
   channel_tag TEXT DEFAULT '',        -- TT/Ins/FB/Reddit
   status TEXT DEFAULT 'active' CHECK(status IN ('active','inactive')),
   region TEXT DEFAULT '',             -- 地区
@@ -80,7 +80,7 @@ CREATE INDEX idx_redemption_orders_created ON redemption_orders(created_at DESC)
 DROP VIEW IF EXISTS koc_balances;
 CREATE VIEW koc_balances AS
 SELECT
-  k.uid, k.discord_name, k.name, k.channel_tag, k.status,
+  k.uid, k.discord_name, k.name AS full_legal_name, k.channel_tag, k.status,
   COALESCE((SELECT SUM(pl.change) FROM point_logs pl WHERE pl.uid = k.uid), 0)::INTEGER AS current_points
 FROM kocs k
 WHERE k.status = 'active';
@@ -250,7 +250,7 @@ CREATE INDEX idx_score_imports_batch ON score_imports(batch_id);
 -- DROP VIEW IF EXISTS koc_balances;
 -- CREATE VIEW koc_balances AS
 -- SELECT 
---   k.uid, k.discord_name, k.name, k.channel_tag, k.status,
+--   k.uid, k.discord_name, k.name AS full_legal_name, k.channel_tag, k.status,
 --   COALESCE((
 --     SELECT balance_after FROM point_logs 
 --     WHERE uid = k.uid 

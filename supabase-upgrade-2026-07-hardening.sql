@@ -25,7 +25,7 @@ CREATE VIEW koc_balances AS
 SELECT
   k.uid,
   k.discord_name,
-  k.name,
+  k.name AS full_legal_name,
   k.channel_tag,
   k.status,
   COALESCE((SELECT SUM(pl.change) FROM point_logs pl WHERE pl.uid = k.uid), 0)::INTEGER AS current_points
