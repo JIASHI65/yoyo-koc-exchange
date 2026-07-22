@@ -1418,12 +1418,7 @@ async function confirmScoreImport() {
         var pts = sub.points_earned || 0;
         try {
           // Get current balance
-          var balRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&order=created_at.desc&limit=1');
-          var currentBalance = 0;
-          if (balRes.ok) {
-            var balData = await balRes.json();
-            if (balData && balData.length > 0) currentBalance = balData[0].balance_after || 0;
-          }
+          var currentBalance = await getBalance(sub.uid);
           var newBalance = currentBalance + pts;
           await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
             method: 'POST',
@@ -1891,9 +1886,9 @@ async function loadData() {
 
 async function getBalance(uid) {
   try {
-    const r = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(uid) + '&order=created_at.desc&limit=1');
+    const r = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(uid) + '&select=change');
     const d = await r.json();
-    return d.length ? d[0].balance_after : 0;
+    return (d || []).reduce(function(sum, row) { return sum + (Number(row.change) || 0); }, 0);
   } catch { return 0; }
 }
 

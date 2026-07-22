@@ -1895,12 +1895,7 @@ async function confirmScoreImport() {
             continue; // Already written
           }
           // Get current balance
-          var balRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&order=created_at.desc&limit=1');
-          var currentBalance = 0;
-          if (balRes.ok) {
-            var balData = await balRes.json();
-            if (balData && balData.length > 0) currentBalance = balData[0].balance_after || 0;
-          }
+          var currentBalance = await getBalance(sub.uid);
           var newBalance = currentBalance + pts;
           await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
             method: 'POST',
@@ -2667,9 +2662,9 @@ async function loadData() {
 
 async function getBalance(uid) {
   try {
-    const r = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(uid) + '&order=created_at.desc&limit=1');
+    const r = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(uid) + '&select=change');
     const d = await r.json();
-    return d.length ? d[0].balance_after : 0;
+    return (d || []).reduce(function(sum, row) { return sum + (Number(row.change) || 0); }, 0);
   } catch { return 0; }
 }
 
@@ -3737,42 +3732,10 @@ function renderScoringTable() {
 }
 
 async function syncAllBalances() {
-  if (!confirm('更新所有KOC的剩余积分？\n规则：剩余 = 原积分 + 当月积分 - 当月已兑换')) return;
-  showToast('正在更新积分...', 'info');
-  var updated = 0;
-  for (var i = 0; i < allKocs.length; i++) {
-    var k = allKocs[i];
-    if (!k.uid) continue;
-    try {
-      var curBal = await getBalance(k.uid);
-      var monthSubs = allSubmissions.filter(function(s) {
-        return s.uid === k.uid && (s.created_at||'').substring(0,7) === currentPeriod;
-      });
-      var monthPts = monthSubs.reduce(function(s, x) { return s + (x.points_earned || 0); }, 0);
-      var monthOrders = allOrders.filter(function(o) {
-        return o.uid === k.uid && ((o.period||'') === currentPeriod || (o.created_at||'').substring(0,7) === currentPeriod) && o.status === 'shipped';
-      });
-      var spent = monthOrders.reduce(function(s, o) { return s + (o.points_spent || 0); }, 0);
-      var newBal = curBal + monthPts - spent;
-      if (newBal !== curBal) {
-        await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
-          method: 'POST',
-          body: JSON.stringify({
-            uid: k.uid,
-            change: monthPts - spent,
-            balance_after: newBal,
-            source: 'monthly_sync',
-            reason: currentPeriod + ' sync (earned:' + monthPts + ', spent:' + spent + ')',
-            period: currentPeriod,
-            created_by: 'admin'
-          })
-        });
-        updated++;
-      }
-    } catch(e) { console.error('sync error for ' + k.uid, e); }
-  }
-  showToast('✅ 已更新 ' + updated + ' 位创作者的剩余积分', 'success');
-  loadData();
+  // point_logs is the source of truth; balance is computed as sum(change).
+  // Keep this legacy button safe so it cannot double-apply monthly points or redemptions.
+  showToast('✅ 剩余积分按 point_logs 自动汇总，无需手动更新', 'success');
+  try { await loadData(); } catch(e) {}
 }
 function updateKocTierInline(uid) {
   var select = document.getElementById('koc-tier-select-' + uid);

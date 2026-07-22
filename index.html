@@ -533,6 +533,16 @@ function getSubmissionPeriod(item) {
   if (item && item.created_at) return String(item.created_at).slice(0, 7);
   return currentPeriod;
 }
+async function getNextKocUid() {
+  var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=uid');
+  var rows = res.ok ? await res.json() : [];
+  var maxNum = 0;
+  (rows || []).forEach(function(row) {
+    var match = String(row.uid || '').match(/YOYO-(\d+)/);
+    if (match) maxNum = Math.max(maxNum, parseInt(match[1], 10) || 0);
+  });
+  return 'YOYO-' + String(maxNum + 1).padStart(3, '0');
+}
 var currentPeriod = getSettlementPeriod();
 let currentUser = null;
 let redemptionOpen = false;
@@ -1090,16 +1100,6 @@ async function registerCreator() {
       return;
     }
 
-    // Generate new UID
-    var countRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=uid&order=uid.desc&limit=1');
-    var countData = await countRes.json();
-    var nextNum = 1;
-    if (countData && countData.length > 0) {
-      var match = countData[0].uid.match(/YOYO-(\d+)/);
-      if (match) nextNum = parseInt(match[1]) + 1;
-    }
-    var newUid = 'YOYO-' + String(nextNum).padStart(3, '0');
-
     var fullAddress = street + ', ' + city + ', ' + state + ' ' + zip + ', ' + country + ' | Tel: ' + phone;
     var notesObj = {
       registered_at: new Date().toISOString(),
@@ -1116,7 +1116,7 @@ async function registerCreator() {
     };
 
     var payload = {
-      uid: newUid,
+      uid: '',
       discord_name: discord,
       name: fullname,
       account_id: accountId,
@@ -1126,11 +1126,20 @@ async function registerCreator() {
       status: 'active'
     };
 
-    var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-    if (!resp.ok) throw new Error('Registration failed');
+    var newUid = '';
+    var resp = null;
+    for (var attempt = 0; attempt < 5; attempt++) {
+      newUid = await getNextKocUid();
+      payload.uid = newUid;
+      resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      if (resp.ok) break;
+      var errText = await resp.text().catch(function() { return ''; });
+      var duplicate = resp.status === 409 || errText.indexOf('duplicate key') >= 0 || errText.indexOf('23505') >= 0;
+      if (!duplicate || attempt === 4) throw new Error('Registration failed: ' + (errText || resp.status));
+    }
 
     status.innerHTML = '✅ Registration complete! Your UID: <strong>' + newUid + '</strong>. Save this UID to log in.';
     status.style.color = '#4caf50';
