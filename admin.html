@@ -1051,14 +1051,14 @@ async function autoUpgradeTiers() {
   var kocs = await res.json();
   var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?order=created_at.desc&select=*');
   var subs = subRes.ok ? await subRes.json() : [];
-  var upgraded = 0;
+  var upgraded = 0, failed = 0;
   for (var k of kocs) {
     if (k.uid === '__config__') continue;
-    var monthlyPoints = subs.filter(function(s) { return s.uid === k.uid && s.status === 'scored'; })
+    var monthlyPoints = subs.filter(function(s) { return s.uid === k.uid && s.status === 'scored' && ((s.period || (s.created_at || '').substring(0, 7)) === currentPeriod); })
       .reduce(function(sum, s) { return sum + (s.points_earned || 0); }, 0);
     var history = [];
     try { history = JSON.parse(k.tier_history || '[]'); } catch(e) {}
-    history.push({month: '2026-07', tier: k.tier || 'certified', monthly_points: monthlyPoints});
+    history.push({month: currentPeriod, tier: k.tier || 'certified', monthly_points: monthlyPoints});
     if (history.length > 12) history = history.slice(-12);
     var consecutive = 0;
     for (var i = history.length - 1; i >= 0; i--) {
@@ -1069,19 +1069,20 @@ async function autoUpgradeTiers() {
     else if (consecutive >= 3) newTier = 'platinum';
     else if (consecutive >= 2) newTier = 'gold';
     if (newTier !== k.tier) {
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + k.uid, {
+      var tierResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + k.uid, {
         method: 'PATCH',
         body: JSON.stringify({ tier: newTier, tier_history: JSON.stringify(history), tier_updated_at: new Date().toISOString() })
       });
-      upgraded++;
+      if (tierResp.ok) upgraded++; else failed++;
     } else {
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + k.uid, {
+      var histResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + k.uid, {
         method: 'PATCH',
         body: JSON.stringify({ tier_history: JSON.stringify(history) })
       });
+      if (!histResp.ok) failed++;
     }
   }
-  showToast('✅ Auto upgrade done! ' + upgraded + ' changed.', 'success');
+  showToast('✅ Auto upgrade done! ' + upgraded + ' changed' + (failed ? '，失败 ' + failed : '') + '.', failed ? 'error' : 'success');
   renderTiersTable();
 }
 
@@ -1091,7 +1092,7 @@ async function syncTiersFromDiscord() {
   var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=*');
   if (!res.ok) return;
   var kocs = await res.json();
-  var updated = 0;
+  var updated = 0, failed = 0;
   for (var k of kocs) {
     if (k.uid === '__config__') continue;
     var name = (k.discord_name || '').toLowerCase();
@@ -1099,14 +1100,14 @@ async function syncTiersFromDiscord() {
     if (discordTiers.platinum.some(function(n) { return name.indexOf(n.toLowerCase()) >= 0; })) tier = 'platinum';
     else if (discordTiers.gold.some(function(n) { return name.indexOf(n.toLowerCase()) >= 0; })) tier = 'gold';
     if (tier !== 'certified') {
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + k.uid, {
+      var tierResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + k.uid, {
         method: 'PATCH',
         body: JSON.stringify({ tier: tier, tier_updated_at: new Date().toISOString() })
       });
-      updated++;
+      if (tierResp.ok) updated++; else failed++;
     }
   }
-  showToast('✅ Sync complete. Updated ' + updated + ' KOCs.', 'success');
+  showToast('✅ Sync complete. Updated ' + updated + ' KOCs' + (failed ? '，失败 ' + failed : '') + '.', failed ? 'error' : 'success');
   setTimeout(renderTiersTable, 1000);
 }
 
@@ -2238,14 +2239,15 @@ async function confirmScoreImport() {
                   var notes2 = koc2.notes || '';
                   if (notes2.indexOf('CC:' + currentPeriod) === -1) {
                     notes2 = notes2 ? notes2 + ', CC:' + currentPeriod : 'CC:' + currentPeriod;
-                    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
+                    var noteResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid), {
                       method: 'PATCH', body: JSON.stringify({ notes: notes2 })
                     });
-                    var checkCC = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(sub.uid) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod) + '&select=id');
+                    if (!noteResp.ok) throw new Error('CC note update failed: ' + noteResp.status);
+                    var checkCC = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(sub.uid) + '&period=eq.' + encodeURIComponent(currentPeriod) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod) + '&select=id');
                     if (checkCC.ok) {
                       var existingCC = await checkCC.json();
                       if (!existingCC || existingCC.length === 0) {
-                        await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
+                        var ccAutoResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
                           method: 'POST',
                           body: JSON.stringify({
                             uid: sub.uid,
@@ -2261,14 +2263,20 @@ async function confirmScoreImport() {
                             created_at: new Date().toISOString()
                           })
                         });
+                        if (!ccAutoResp.ok) throw new Error('CC reward order create failed: ' + ccAutoResp.status);
                       }
+                    } else {
+                      throw new Error('CC order duplicate check failed: ' + checkCC.status);
                     }
                   }
                 }
               }
             }
           }
-        } catch(e2) { console.error('CC auto error:', e2); }
+        } catch(e2) {
+          console.error('CC auto error:', e2);
+          errors.push((sub.uid || sub.discord_name || '?') + ': CC 自动奖励失败 - ' + e2.message);
+        }
       }
     }
     
@@ -3166,37 +3174,42 @@ function toggleCC(uid, notes) {
       renderKocTable();
       
       try {
-        if (!wasChecked) {
+          if (!wasChecked) {
           // CC checked: create CC reward order for this period
-          var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod) + '&select=id');
+          var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&period=eq.' + encodeURIComponent(currentPeriod) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod) + '&select=id');
+          if (!checkRes.ok) throw new Error('CC order duplicate check failed: ' + checkRes.status);
           var existing = await checkRes.json();
           if (!existing || existing.length === 0) {
-            await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
+            var ccResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
               method: 'POST',
               body: JSON.stringify({
                 uid: uid,
                 discord_name: discordName,
                 koc_name: discordName,
-                option_type: 'diamond',
+                option_type: 'diamonds',
                 option_name: 'CC:' + currentPeriod,
                 points_spent: 0,
                 reward_amount: 'Premium Monthly Card x1 + Shelly Coins x500 + Gold x1000',
                 contact_info: currentPeriod,
                 status: 'pending',
+                period: currentPeriod,
                 admin_notes: 'CC:' + currentPeriod + ' - Consistent Creation Reward - ' + currentPeriod,
                 created_at: new Date().toISOString()
               })
             });
+            if (!ccResp.ok) throw new Error('CC reward order create failed: ' + ccResp.status);
           }
           showToast('✅ CC enabled for ' + currentPeriod, 'success');
         } else {
-          await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod), {
+          var delResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid) + '&period=eq.' + encodeURIComponent(currentPeriod) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod), {
             method: 'DELETE'
           });
+          if (!delResp.ok) throw new Error('CC reward order delete failed: ' + delResp.status);
           showToast('CC removed for ' + currentPeriod, 'info');
         }
       } catch(e) {
         console.error('CC order error:', e);
+        showToast('CC order update failed: ' + e.message, 'error');
       }
     } else {
       showToast('Failed to update CC', 'error');
@@ -4253,9 +4266,10 @@ async function batchMarkOldCreator() {
       var notes = k.notes || '';
       if (notes.indexOf('old_creator') === -1) {
         notes = notes ? notes + ', old_creator:true' : 'old_creator:true';
-        await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(k.uid), {
+        var markResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(k.uid), {
           method: 'PATCH', body: JSON.stringify({ notes: notes })
         });
+        if (!markResp.ok) { errors.push(name + ': update failed HTTP ' + markResp.status); continue; }
       }
       updated++;
     } catch(e) { errors.push(name + ': ' + e.message); }
@@ -5136,7 +5150,8 @@ async function saveDeadline() {
   try {
     // Read existing config first, then merge (don't overwrite redemption_open etc.)
     var readRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
-    var existingData = readRes.ok ? await readRes.json() : [];
+    if (!readRes.ok) throw new Error('读取现有配置失败: HTTP ' + readRes.status);
+    var existingData = await readRes.json();
     var currentConfig = {};
     if (existingData && existingData.length > 0 && existingData[0].notes) {
       try { currentConfig = JSON.parse(existingData[0].notes); } catch(e) { currentConfig = {}; }
@@ -5146,18 +5161,21 @@ async function saveDeadline() {
     var config = JSON.stringify(currentConfig);
     
     var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=uid');
+    if (!res.ok) throw new Error('读取配置失败: HTTP ' + res.status);
     var existing = await res.json();
+    var saveResp;
     if (existing && existing.length > 0) {
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__', {
+      saveResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__', {
         method: 'PATCH',
         body: JSON.stringify({ notes: config })
       });
     } else {
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs', {
+      saveResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs', {
         method: 'POST',
         body: JSON.stringify({ uid: '__config__', discord_name: '__config__', name: 'System Config', status: 'active', notes: config })
       });
     }
+    if (!saveResp.ok) throw new Error('保存截止时间失败: HTTP ' + saveResp.status);
     updateDeadlineDisplay(date, time);
     showToast('\u2705 Deadline saved', 'success');
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
