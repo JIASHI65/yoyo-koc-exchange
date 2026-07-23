@@ -1148,6 +1148,12 @@ function updateToggleButton(btnId, isOpen) {
 async function toggleCampaignSwitch(field) {
   var period = document.getElementById('cfg-period').value;
   var isOpen = window._cfgSwitches && window._cfgSwitches[field] ? false : true;
+  if (!confirmDanger('Change campaign switch?', [
+    'Period: ' + period,
+    'Switch: ' + field,
+    'New state: ' + (isOpen ? 'OPEN' : 'CLOSED'),
+    field === 'redemption_open' ? 'Creators may start/stop redeeming rewards.' : 'Creators may start/stop submitting works.'
+  ])) return;
   var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + period, {
     method: 'PATCH',
     body: JSON.stringify({ [field]: isOpen })
@@ -3164,7 +3170,13 @@ function toggleCC(uid, notes) {
   
   var koc = allKocs.find(function(k) { return k.uid === uid; });
   var discordName = koc ? koc.discord_name || koc.name || 'Unknown' : 'Unknown';
-  
+  if (!confirmDanger(wasChecked ? 'Remove CC reward tag?' : 'Add CC reward tag?', [
+    'UID: ' + uid,
+    'Creator: ' + discordName,
+    'Period: ' + currentPeriod,
+    wasChecked ? 'This removes the CC tag from notes.' : 'This adds a CC tag and may create a 0-point reward order.'
+  ])) return;
+
   supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
     method: 'PATCH',
     body: JSON.stringify({ notes: updated })
@@ -4103,7 +4115,11 @@ async function batchMarkSelected(type) {
   var tag = type === 'old_creator' ? 'old_creator:true' : '';
   var label = type === 'old_creator' ? '老创作者' : '新创作者';
   if (type === 'new_creator') tag = '';
-  if (!confirm('确定将 ' + uids.length + ' 位标记为' + label + '？')) return;
+  if (!confirmDanger('Batch change creator category?', [
+    'Creators: ' + uids.length,
+    'Target: ' + label,
+    'This updates creator notes and may affect newbie/old creator handling.'
+  ])) return;
   var ok = 0;
   for (var i = 0; i < uids.length; i++) {
     try {
@@ -4121,7 +4137,11 @@ async function batchMarkSelected(type) {
 async function batchDeleteSelected() {
   var uids = getSelectedKocUids();
   if (!uids.length) { showToast('请先勾选创作者', 'error'); return; }
-  if (!confirm('确定删除 ' + uids.length + ' 位创作者？此操作不可撤销！')) return;
+  if (!confirmDanger('Delete selected creators?', [
+    'Creators: ' + uids.length,
+    'This deletes rows from kocs and cannot be undone from the admin page.',
+    'Please export/backup first if you are not 100% sure.'
+  ])) return;
   var ok = 0;
   for (var i = 0; i < uids.length; i++) {
     try {
@@ -4253,6 +4273,12 @@ async function batchMarkOldCreator() {
   var names = prompt('\u8f93\u5165\u8981\u6807\u8bb0\u4e3a\u8001\u521b\u4f5c\u8005\u7684 Discord \u540d\u79f0\uff08\u6bcf\u884c\u4e00\u4e2a\uff09:', 'Rowdy-Bones\nAchiru\nadalia\nClarySage8611\nDatuzu\ndiana\nEma\u2661\nJanie\nkanansai\nlaarakln\n\ud835\udd76\ud835\udd90\ud835\udd8d\nLondon\nMaia\nmaished\nPrimroseku\nSusanne (user: susannepandawhale)\ntaylor\nMia');
   if (!names) return;
   var lines = names.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+  if (!lines.length) return;
+  if (!confirmDanger('Batch mark creators as old creators?', [
+    'Creators: ' + lines.length,
+    'This updates kocs.notes for matched Discord names.',
+    'This may affect newbie bonus/creator categorization.'
+  ])) return;
   var updated = 0;
   var errors = [];
   for (var i = 0; i < lines.length; i++) {
@@ -4284,6 +4310,13 @@ async function addKOC() {
   var discord = document.getElementById('new-discord').value.trim();
   var uid = document.getElementById('new-uid').value.trim();
   if (!discord || !uid) { showToast('Discord name and UID required', 'error'); return; }
+  var sendGift = document.getElementById('cb-welcome') && document.getElementById('cb-welcome').checked;
+  if (!confirmDanger('Add new KOC manually?', [
+    'Discord: ' + discord,
+    'UID: ' + uid,
+    sendGift ? 'Also creates a pending welcome gift order.' : 'No welcome gift order will be created.',
+    'Please confirm the UID is correct before continuing.'
+  ])) return;
   try {
     var addResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs', {
       method: 'POST',
@@ -4292,7 +4325,6 @@ async function addKOC() {
     if (!addResp.ok) throw new Error((await addResp.text()).substring(0, 80));
 
     // Auto-create welcome gift if checkbox is checked
-    var sendGift = document.getElementById('cb-welcome') && document.getElementById('cb-welcome').checked;
     if (sendGift) {
       var giftResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
         method: 'POST',
@@ -4568,6 +4600,14 @@ async function saveEditKOC() {
     notes: document.getElementById('edit-notes').value.trim()
   };
 
+  if (!confirmDanger('Save KOC profile changes?', [
+    'UID: ' + editingUid,
+    'Name: ' + (updates.name || '-'),
+    'Game Account ID: ' + (updates.account_id || '(empty)'),
+    'Server: ' + (updates.server || '(empty)'),
+    'Address/phone and notes may be used for shipping and login support.'
+  ])) return;
+
   try {
     var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(editingUid), {
       method: 'PATCH',
@@ -4615,7 +4655,17 @@ function editOrderRow(orderId, field) {
     var newVal = prompt('Edit ' + field + ':', currentVal);
     if (newVal === null) return;
     newVal = newVal.trim();
-    
+    if (newVal === currentVal) return;
+    if (['discord_name','option_name','uid','account_id','server','region','address'].indexOf(field) >= 0) {
+      if (!confirmDanger('Save order/KOC field change?', [
+        'Order ID: #' + orderId,
+        'Field: ' + field,
+        'Old value: ' + (currentVal || '(empty)'),
+        'New value: ' + (newVal || '(empty)'),
+        field === 'uid' ? 'UID changes can affect order ownership and KOC matching.' : 'Please confirm this field is correct before saving.'
+      ])) return;
+    }
+
     if (field === 'discord_name' || field === 'option_name') {
       // Update redemption_orders
       supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + orderId, {
@@ -4676,6 +4726,14 @@ function inlineEditPts(uid, discord) {
     if (isNaN(newVal)) { showToast('Invalid number', 'error'); return; }
     var diff = newVal - curPts;
     if (diff === 0) { showToast('No change', 'info'); return; }
+    if (!confirmDanger('Apply inline point balance adjustment?', [
+      'UID: ' + uid,
+      'Creator: ' + (discord || '-'),
+      'Current balance: ' + curPts,
+      'New balance: ' + newVal,
+      'Change: ' + (diff > 0 ? '+' : '') + diff + ' pts',
+      'This writes a point_logs admin_fix entry.'
+    ])) return;
     supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
       method: 'POST',
       body: JSON.stringify({
@@ -4777,6 +4835,15 @@ function editOrderInline(cell, field, orderId, uid) {
         'UID: ' + (uid || '(unknown)'),
         'Status: ' + currentVal + ' → ' + newVal,
         'This changes what creators/admins see for this order.'
+      ])) { cell.textContent = currentVal || '-'; return; }
+    } else if (['discord_name','option_name','uid','account_id','address','server','region'].indexOf(field) >= 0) {
+      if (!confirmDanger('Save inline order/KOC change?', [
+        'Order ID: #' + orderId,
+        'UID: ' + (uid || '(unknown)'),
+        'Field: ' + field,
+        'Old value: ' + (currentVal || '(empty)'),
+        'New value: ' + (newVal || '(empty)'),
+        field === 'uid' ? 'UID changes can affect KOC, submissions, point logs, and order matching.' : 'Please confirm this field is correct before saving.'
       ])) { cell.textContent = currentVal || '-'; return; }
     }
     if (['discord_name','option_name','status'].indexOf(field) >= 0) {
