@@ -1164,6 +1164,7 @@ async function toggleCampaignSwitch(field) {
     var btnId = field === 'submissions_open' ? 'btn-toggle-submissions' : 'btn-toggle-redemption';
     updateToggleButton(btnId, isOpen);
     showToast((isOpen ? '已开启' : '已关闭') + (field === 'submissions_open' ? '投稿' : '兑换'), 'success');
+    writeAuditLog('config', 'campaign switch ' + period + ' ' + field + ' -> ' + isOpen);
   } else {
     showToast('操作失败，请重试', 'error');
   }
@@ -1204,6 +1205,7 @@ async function saveCampaignConfig() {
     document.getElementById('cfg-status').textContent = '✅ Saved!';
     document.getElementById('cfg-status').style.color = '#4caf50';
     showToast('✅ Campaign config saved!', 'success');
+    writeAuditLog('config', 'campaign config saved for ' + period + ' (points_cap=' + pointsCap + ')');
   } catch(e) {
     document.getElementById('cfg-status').textContent = 'Error: ' + e.message;
     document.getElementById('cfg-status').style.color = '#e74c3c';
@@ -1286,6 +1288,11 @@ if (new Date().getDate() <= 5) {
   currentPeriod = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 var allSubmissions = [];
+function getRowPeriod(row) {
+  if (row && row.period) return row.period;
+  if (row && row.created_at) return String(row.created_at).substring(0, 7);
+  return currentPeriod;
+}
 async function loadSubmissions() {
   try {
     var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?order=created_at.desc&select=*');
@@ -1302,7 +1309,7 @@ function renderSubmissions() {
   if (!container) return;
   // Filter by currentPeriod, exclude showcase submissions (separate panel below)
   var list = (allSubmissions || []).filter(function(s) {
-    return (s.created_at || '').substring(0, 7) === currentPeriod && s.submission_type !== 'showcase';
+    return getRowPeriod(s) === currentPeriod && s.submission_type !== 'showcase';
   });
   // Render the showcase review panel alongside the main table
   try { renderShowcaseSubmissions(); } catch(e) {}
@@ -1416,6 +1423,7 @@ async function rejectSubmission(id) {
     });
     if (resp.ok) {
       showToast('✅ Submission rejected', 'success');
+      writeAuditLog('score', 'reject submission #' + id);
       loadSubmissions();
     }
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
@@ -1427,7 +1435,7 @@ function renderShowcaseSubmissions() {
   var cntEl = document.getElementById('showcase-sub-count');
   if (!listEl) return;
   var list = (allSubmissions || []).filter(function(s) {
-    return s.submission_type === 'showcase' && (s.created_at || '').substring(0, 7) === currentPeriod;
+    return s.submission_type === 'showcase' && getRowPeriod(s) === currentPeriod;
   });
   var pending = list.filter(function(s) { return s.status === 'pending'; }).length;
   if (cntEl) cntEl.textContent = list.length ? '(' + pending + ' 待审 / ' + list.length + ' 总)' : '';
@@ -1481,6 +1489,7 @@ async function approveShowcase(id, uid) {
     });
     if (!patchResp.ok) { showToast('⚠️ 已加 +1 分，但提交状态更新失败，请手动核对', 'error'); return; }
     showToast('✅ 已通过 showcase，+1 分', 'success');
+    writeAuditLog('score', 'approve showcase #' + id + ' uid ' + uid + ' +1');
     await loadSubmissions();
     if (typeof renderKocTable === 'function') renderKocTable();
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
@@ -1493,7 +1502,7 @@ async function rejectShowcase(id) {
       method: 'PATCH',
       body: JSON.stringify({ status: 'rejected' })
     });
-    if (resp.ok) { showToast('✅ 已拒绝', 'success'); loadSubmissions(); }
+    if (resp.ok) { showToast('✅ 已拒绝', 'success'); writeAuditLog('score', 'reject showcase #' + id); loadSubmissions(); }
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
@@ -1504,13 +1513,13 @@ async function runMonthlyReconcileCheck() {
   box.style.display = 'block';
   box.innerHTML = '<strong>🔎 正在检查 ' + esc(currentPeriod) + '...</strong>';
   try {
-    var ordersRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?period=eq.' + encodeURIComponent(currentPeriod) + '&select=id,uid,discord_name,option_type,option_name,points_spent,status,created_at');
-    var logsRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?period=eq.' + encodeURIComponent(currentPeriod) + '&select=uid,change,source,reason,created_at');
-    var subsRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?period=eq.' + encodeURIComponent(currentPeriod) + '&select=id,uid,discord_name,submission_type,status,points_earned,links_engagement,created_at');
+    var ordersRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?select=id,uid,discord_name,option_type,option_name,points_spent,status,period,created_at');
+    var logsRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?select=uid,change,source,reason,period,created_at');
+    var subsRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=id,uid,discord_name,submission_type,status,points_earned,links_engagement,period,created_at');
     if (!ordersRes.ok || !logsRes.ok || !subsRes.ok) throw new Error('读取对账数据失败');
-    var orders = await ordersRes.json() || [];
-    var logs = await logsRes.json() || [];
-    var subs = await subsRes.json() || [];
+    var orders = (await ordersRes.json() || []).filter(function(o) { return getRowPeriod(o) === currentPeriod; });
+    var logs = (await logsRes.json() || []).filter(function(l) { return getRowPeriod(l) === currentPeriod; });
+    var subs = (await subsRes.json() || []).filter(function(s) { return getRowPeriod(s) === currentPeriod; });
     var issues = [];
 
     // 1) 同一 UID 本期同类同名奖励重复订单
@@ -1713,7 +1722,7 @@ async function batchMarkScored() {
   try {
     var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?status=eq.pending&select=*');
     if (!res.ok) { showToast('查询失败', 'error'); return; }
-    var pending = (await res.json() || []).filter(function(s) { return s.submission_type !== 'showcase'; });
+    var pending = (await res.json() || []).filter(function(s) { return s.submission_type !== 'showcase' && getRowPeriod(s) === currentPeriod; });
     if (pending.length === 0) { showToast('没有待审核的 submission', 'error'); return; }
     
     var count = 0, failed = 0;
@@ -1740,7 +1749,7 @@ async function exportCSV() {
     var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?order=created_at.desc&select=id,discord_name,uid,status,points_earned,links_engagement,links_views,submission_type,period,created_at');
     if (!res.ok) { showToast('获取数据失败', 'error'); return; }
     var subs = (await res.json() || []).filter(function(s) {
-      return s.submission_type !== 'showcase' && ((s.period || (s.created_at || '').substring(0, 7)) === currentPeriod);
+      return s.submission_type !== 'showcase' && getRowPeriod(s) === currentPeriod;
     });
     function csvCell(v) {
       v = String(v == null ? '' : v).replace(/"/g, '""');
@@ -3053,6 +3062,7 @@ async function toggleRedemption() {
     }
     if (typeof updateToggleButton === 'function') updateToggleButton('btn-toggle-redemption', newState);
     showToast(newState ? '✅ 兑换已开放，创作者现在可以兑换' : '🔒 兑换已关闭', 'success');
+    writeAuditLog('config', 'scoring tab redemption toggle ' + period + ' -> ' + newState);
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
@@ -4105,6 +4115,7 @@ async function submitBatchReward() {
   if (failed) msg += '，失败 ' + failed;
   if (deductFailed) msg += '，扣分失败 ' + deductFailed + '（请手动核对积分）';
   showToast(msg, (failed || deductFailed) ? 'error' : 'success');
+  writeAuditLog(type === 'merch' ? 'merch' : (type === 'gplay' ? 'gplay' : 'diamond'), 'batch reward ' + name + ' ok ' + ok + '/' + selected.length + ', skipped ' + skipped + ', failed ' + failed + ', deductFailed ' + deductFailed);
   closeBatchRewardModal();
   await loadData();
 }
@@ -4131,6 +4142,7 @@ async function batchMarkSelected(type) {
     } catch(e) {}
   }
   showToast('✅ ' + ok + '/' + uids.length + ' 已标记为' + label, 'success');
+  writeAuditLog('koc', 'batch mark ' + label + ': ' + ok + '/' + uids.length);
   await loadData();
 }
 
@@ -4152,6 +4164,7 @@ async function batchDeleteSelected() {
     } catch(e) {}
   }
   showToast('✅ ' + ok + '/' + uids.length + ' 已删除', 'success');
+  writeAuditLog('koc', 'batch delete creators: ' + ok + '/' + uids.length);
   await loadData();
 }
 function renderScoringTable() {
@@ -4228,7 +4241,7 @@ function renderScoringTable() {
   // Load monthly points (from this month's submissions)
   allKocs.forEach(function(k) {
     var monthSubs = allSubmissions.filter(function(s) {
-      return s.uid === k.uid && (s.created_at||'').substring(0,7) === currentPeriod;
+      return s.uid === k.uid && getRowPeriod(s) === currentPeriod;
     });
     var monthPts = monthSubs.reduce(function(s, x) { return s + (x.points_earned || 0); }, 0);
     var el = document.getElementById('mspts-' + k.uid);
@@ -4303,6 +4316,7 @@ async function batchMarkOldCreator() {
   var msg = '\u2705 ' + updated + ' \u4f4d\u5df2\u6807\u8bb0\u4e3a\u8001\u521b\u4f5c\u8005';
   if (errors.length > 0) msg += '\n\u26a0\ufe0f ' + errors.length + ' \u5931\u8d25: ' + errors.join(', ');
   showToast(msg, errors.length > 0 ? 'warning' : 'success');
+  writeAuditLog('koc', 'batch mark old_creator: ' + updated + '/' + lines.length + (errors.length ? ' failed ' + errors.length : ''));
   loadData();
 }
 
@@ -4334,13 +4348,16 @@ async function addKOC() {
           points_spent: 0, reward_amount: '\u968F\u673A\u5468\u8FB9 \u00D7 1',
           contact_info: '', status: 'pending',
           admin_notes: 'Welcome gift - auto created',
+          period: currentPeriod,
           created_at: new Date().toISOString()
         })
       });
       if (!giftResp.ok) throw new Error('\u6b22\u8fce\u793c\u521b\u5efa\u5931\u8d25: ' + (await giftResp.text()).substring(0, 60));
       showToast('\u2705 Added ' + discord + ' + welcome gift', 'success');
+      writeAuditLog('koc', 'add KOC ' + uid + ' (' + discord + ') + welcome gift');
     } else {
       showToast('\u2705 Added ' + discord, 'success');
+      writeAuditLog('koc', 'add KOC ' + uid + ' (' + discord + ')');
     }
     document.getElementById('new-discord').value = '';
     document.getElementById('new-uid').value = '';
@@ -4402,7 +4419,7 @@ async function shipOrder(ev, id) {
             uid: order.uid, change: -order.points_spent,
             balance_after: newBal,
             source: 'redemption', reason: 'Shipped order #' + id,
-            period: currentPeriod,
+            period: order.period || currentPeriod,
             created_at: new Date().toISOString()
           })
         });
@@ -4416,6 +4433,7 @@ async function shipOrder(ev, id) {
     }
 
     showToast('\u2705 Shipped' + (order.points_spent > 0 ? ' + pts deducted' : ''), 'success');
+    writeAuditLog('diamond', 'ship order #' + id + ' uid ' + order.uid + ' points ' + (order.points_spent || 0));
     loadData();
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
   finally {
@@ -4535,6 +4553,7 @@ async function submitPoints() {
       throw new Error(errTxt ? errTxt.substring(0, 100) : ('HTTP ' + resp.status));
     }
     showToast('\u2705 ' + (change > 0 ? '+' : '') + change + ' pts (' + reason + ')', 'success');
+    writeAuditLog('score', 'manual point change ' + editingUid + ' ' + (change > 0 ? '+' : '') + change + ' (' + reason + ')');
     closePointModal();
     renderKocTable();
     renderScoringTable();
@@ -4615,6 +4634,7 @@ async function saveEditKOC() {
     });
     if (!resp.ok) throw new Error((await resp.text()).substring(0, 80));
     showToast('\u2705 Saved', 'success');
+    writeAuditLog('koc', 'save KOC ' + editingUid + ' profile/account/server/notes');
     closeEditModal();
     loadData();
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
@@ -4732,18 +4752,19 @@ function inlineEditPts(uid, discord) {
       'Current balance: ' + curPts,
       'New balance: ' + newVal,
       'Change: ' + (diff > 0 ? '+' : '') + diff + ' pts',
-      'This writes a point_logs admin_fix entry.'
+      'This writes a point_logs manual adjustment entry.'
     ])) return;
     supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
       method: 'POST',
       body: JSON.stringify({
         uid: uid, change: diff,
         balance_after: newVal,
-        source: 'admin_fix', reason: 'Manual adjustment by admin',
+        source: 'manual', reason: 'Manual adjustment by admin (inline)',
+        period: currentPeriod, created_by: 'admin',
         created_at: new Date().toISOString()
       })
     }).then(function(r) {
-      if (r.ok) { showToast('✅ Points updated to ' + newVal, 'success'); loadData(); }
+      if (r.ok) { showToast('✅ Points updated to ' + newVal, 'success'); writeAuditLog('score', 'inline point balance set ' + uid + ' to ' + newVal + ' (' + (diff > 0 ? '+' : '') + diff + ')'); loadData(); }
       else showToast('Failed to update points', 'error');
     });
   });
@@ -5245,6 +5266,7 @@ async function saveDeadline() {
     if (!saveResp.ok) throw new Error('保存截止时间失败: HTTP ' + saveResp.status);
     updateDeadlineDisplay(date, time);
     showToast('\u2705 Deadline saved', 'success');
+    writeAuditLog('config', 'deadline saved ' + date + ' ' + time);
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
