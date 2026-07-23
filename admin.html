@@ -1034,10 +1034,11 @@ async function renderTiersTable() {
 async function updateKocTier(uid) {
   var tier = document.getElementById('tier-select-' + uid).value;
   try {
-    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + uid, {
+    var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + uid, {
       method: 'PATCH',
       body: JSON.stringify({ tier: tier, tier_updated_at: new Date().toISOString() })
     });
+    if (!resp.ok) throw new Error((await resp.text()).substring(0, 80));
     showToast('✅ ' + uid + ' tier updated to ' + tier, 'success');
     renderTiersTable();
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
@@ -1178,18 +1179,21 @@ async function saveCampaignConfig() {
   };
   try {
     var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + period + '&select=id');
+    if (!checkRes.ok) throw new Error('读取配置失败: HTTP ' + checkRes.status);
     var existing = await checkRes.json();
+    var saveResp;
     if (existing && existing.length > 0) {
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?id=eq.' + existing[0].id, {
+      saveResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?id=eq.' + existing[0].id, {
         method: 'PATCH',
         body: JSON.stringify({ rules_json: JSON.stringify(rules), points_cap: pointsCap, updated_at: new Date().toISOString() })
       });
     } else {
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config', {
+      saveResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config', {
         method: 'POST',
         body: JSON.stringify({ period: period, name: period + ' Settlement', rules_json: JSON.stringify(rules), points_cap: pointsCap, is_active: true })
       });
     }
+    if (!saveResp.ok) throw new Error('保存配置失败: HTTP ' + saveResp.status);
     document.getElementById('cfg-status').textContent = '✅ Saved!';
     document.getElementById('cfg-status').style.color = '#4caf50';
     showToast('✅ Campaign config saved!', 'success');
@@ -1705,19 +1709,19 @@ async function batchMarkScored() {
     var pending = (await res.json() || []).filter(function(s) { return s.submission_type !== 'showcase'; });
     if (pending.length === 0) { showToast('没有待审核的 submission', 'error'); return; }
     
-    var count = 0;
+    var count = 0, failed = 0;
     for (var i = 0; i < pending.length; i++) {
       var s = pending[i];
       var linkCount = (s.links_engagement||'').split('\n').filter(Boolean).length;
       var viewCount = (s.links_views||'').split('\n').filter(Boolean).length;
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + s.id, {
+      var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + s.id, {
         method: 'PATCH',
         body: JSON.stringify({ status: 'scored', points_earned: linkCount + viewCount })
       });
-      count++;
+      if (resp.ok) count++; else failed++;
     }
-    showToast('✅ 已标记 ' + count + ' 条为已评分', 'success');
-    writeAuditLog('score', '批量标记 ' + count + ' 条 submission 为已评分');
+    showToast('✅ 已标记 ' + count + ' 条为已评分' + (failed ? '，失败 ' + failed + ' 条' : ''), failed ? 'error' : 'success');
+    writeAuditLog('score', '批量标记 ' + count + ' 条 submission 为已评分' + (failed ? '，失败 ' + failed + ' 条' : ''));
     renderSubmissions();
   } catch(e) {
     showToast('批量标记失败: ' + e.message, 'error');
@@ -1726,25 +1730,31 @@ async function batchMarkScored() {
 
 async function exportCSV() {
   try {
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?order=created_at.desc&select=id,discord_name,uid,status,points_earned,links_engagement,links_views,created_at');
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?order=created_at.desc&select=id,discord_name,uid,status,points_earned,links_engagement,links_views,submission_type,period,created_at');
     if (!res.ok) { showToast('获取数据失败', 'error'); return; }
-    var subs = await res.json() || [];
-    
-    var csv = '\uFEFF'; // BOM for Excel
-    csv += 'Discord,UID,Status,Points,E Links,V Links,Created At\n';
+    var subs = (await res.json() || []).filter(function(s) {
+      return s.submission_type !== 'showcase' && ((s.period || (s.created_at || '').substring(0, 7)) === currentPeriod);
+    });
+    function csvCell(v) {
+      v = String(v == null ? '' : v).replace(/"/g, '""');
+      return '"' + v + '"';
+    }
+
+    var csv = '﻿'; // BOM for Excel
+    csv += 'Discord,UID,Type,Status,Points,E Links,V Links,Created At\n';
     subs.forEach(function(s) {
       var el = (s.links_engagement||'').split('\n').filter(Boolean).length;
       var vl = (s.links_views||'').split('\n').filter(Boolean).length;
-      csv += (s.discord_name||'') + ',' + (s.uid||'') + ',' + (s.status||'') + ',' + (s.points_earned||0) + ',' + el + ',' + vl + ',' + (s.created_at||'') + '\n';
+      csv += [s.discord_name||'', s.uid||'', s.submission_type || 'work', s.status||'', s.points_earned||0, el, vl, s.created_at||''].map(csvCell).join(',') + '\n';
     });
-    
+
     var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'koc-submissions-' + currentPeriod + '.csv';
     a.click();
-    showToast('✅ 已导出 ' + subs.length + ' 条数据', 'success');
-    writeAuditLog('score', '导出 CSV，共 ' + subs.length + ' 条');
+    showToast('✅ 已导出 ' + subs.length + ' 条本期作品数据', 'success');
+    writeAuditLog('score', '导出 CSV，共 ' + subs.length + ' 条本期作品数据');
   } catch(e) {
     showToast('导出失败: ' + e.message, 'error');
   }
@@ -2132,6 +2142,7 @@ async function confirmScoreImport() {
         try {
           // Check if already written for this period (prevent duplicate)
           var dupRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&period=eq.' + currentPeriod + '&source=eq.auto_settlement&select=id&limit=1');
+          if (!dupRes.ok) throw new Error('duplicate check failed: ' + dupRes.status);
           var dupData = await dupRes.json();
           if (dupData && dupData.length > 0) {
             console.log('Skipping duplicate points write for ' + sub.uid + ' in ' + currentPeriod);
@@ -2140,7 +2151,7 @@ async function confirmScoreImport() {
           // Get current balance
           var currentBalance = await getBalance(sub.uid);
           var newBalance = currentBalance + pts;
-          await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+          var pointResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
             method: 'POST',
             body: JSON.stringify({
               uid: sub.uid,
@@ -2152,7 +2163,11 @@ async function confirmScoreImport() {
               created_by: 'admin_confirm'
             })
           });
-        } catch(e) { console.error('point_logs error for ' + sub.uid, e); }
+          if (!pointResp.ok) throw new Error('point_logs insert failed: ' + pointResp.status);
+        } catch(e) {
+          console.error('point_logs error for ' + sub.uid, e);
+          errors.push((sub.uid || sub.discord_name || '?') + ': 积分流水写入失败 - ' + e.message);
+        }
         // === NEW CREATOR BONUS (新人任务) ===
         try {
           var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=notes');
@@ -2175,7 +2190,7 @@ async function confirmScoreImport() {
                   var bd = await bonusBal.json();
                   bonusCur = (bd || []).reduce(function(sum, row) { return sum + (Number(row.change) || 0); }, 0);
                 }
-                await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
+                var bonusResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
                   method: 'POST',
                   body: JSON.stringify({
                     uid: sub.uid,
@@ -2187,6 +2202,7 @@ async function confirmScoreImport() {
                     created_by: 'admin_confirm'
                   })
                 });
+                if (!bonusResp.ok) throw new Error('newbie bonus point_logs insert failed: ' + bonusResp.status);
                 var updatedNotes = notes;
                 try {
                   var updatedObj = JSON.parse(notes || '{}');
@@ -2201,7 +2217,10 @@ async function confirmScoreImport() {
               }
             }
           }
-        } catch(e) { console.error('newbie bonus error:', e); }
+        } catch(e) {
+          console.error('newbie bonus error:', e);
+          errors.push((sub.uid || sub.discord_name || '?') + ': 新人奖励写入失败 - ' + e.message);
+        }
       }
       
       // Auto-detect CC (unchanged)
@@ -3231,8 +3250,8 @@ async function loadDashboard() {
     var startTime = Date.now();
     var [kocRes, subRes, ordRes] = await Promise.all([
       supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=uid,discord_name,tier,name,created_at,notes'),
-      supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=uid,discord_name,status,points_earned,links_engagement,links_views,created_at&order=created_at.desc'),
-      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?select=uid,points_spent,status,created_at&order=created_at.desc&limit=500')
+      supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=uid,discord_name,status,points_earned,links_engagement,links_views,submission_type,period,created_at&order=created_at.desc'),
+      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?select=uid,points_spent,status,period,created_at&order=created_at.desc&limit=500')
     ]);
     var [kocs, subs, orders] = await Promise.all([
       kocRes.ok ? kocRes.json() : Promise.resolve([]),
@@ -3250,8 +3269,8 @@ async function loadDashboard() {
       if (el) el.innerHTML = '';
     });
     document.getElementById('dash-summary').innerHTML = '';
-    var monthSubs = subs.filter(function(s) { return (s.created_at||'').substring(0,7) === currentPeriod; });
-    var monthOrders = orders.filter(function(o) { return (o.period||'') === currentPeriod; });
+    var monthSubs = subs.filter(function(s) { return s.submission_type !== 'showcase' && ((s.period || (s.created_at||'').substring(0,7)) === currentPeriod); });
+    var monthOrders = orders.filter(function(o) { return (o.period || (o.created_at||'').substring(0,7)) === currentPeriod; });
     var kocMap = {}; kocs.forEach(function(k) { kocMap[k.uid] = k; });
     // ========== 指标 ==========
     var activeKocs = {}; monthSubs.forEach(function(s) { activeKocs[s.uid] = true; });
@@ -4129,8 +4148,9 @@ function renderScoringTable() {
     return;
   }
   document.getElementById('stat-total').textContent = '\uD83D\uDC65 Total: ' + allKocs.length;
-  var shipped = allOrders.filter(function(o) { return o.status === 'shipped'; }).length;
-  var pending = allOrders.filter(function(o) { return o.status === 'pending'; }).length;
+  var periodOrders = allOrders.filter(function(o) { return (o.period || '') === currentPeriod; });
+  var shipped = periodOrders.filter(function(o) { return o.status === 'shipped'; }).length;
+  var pending = periodOrders.filter(function(o) { return o.status === 'pending'; }).length;
   document.getElementById('stat-shipped').textContent = '\u2705 Shipped: ' + shipped;
   document.getElementById('stat-pending').textContent = '\u23F3 Pending: ' + pending;
   var ccCount = allKocs.filter(function(k) { return k.status === 'active' && (k.notes || '').includes('CC:' + currentPeriod); }).length;
@@ -4251,15 +4271,16 @@ async function addKOC() {
   var uid = document.getElementById('new-uid').value.trim();
   if (!discord || !uid) { showToast('Discord name and UID required', 'error'); return; }
   try {
-    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs', {
+    var addResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs', {
       method: 'POST',
-      body: JSON.stringify({ uid: uid, discord_name: discord, name: name, status: 'active', created_at: new Date().toISOString() })
+      body: JSON.stringify({ uid: uid, discord_name: discord, name: discord, status: 'active', created_at: new Date().toISOString() })
     });
-    
+    if (!addResp.ok) throw new Error((await addResp.text()).substring(0, 80));
+
     // Auto-create welcome gift if checkbox is checked
     var sendGift = document.getElementById('cb-welcome') && document.getElementById('cb-welcome').checked;
     if (sendGift) {
-      await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
+      var giftResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
         method: 'POST',
         body: JSON.stringify({
           uid: uid, discord_name: discord, koc_name: discord,
@@ -4270,6 +4291,7 @@ async function addKOC() {
           created_at: new Date().toISOString()
         })
       });
+      if (!giftResp.ok) throw new Error('\u6b22\u8fce\u793c\u521b\u5efa\u5931\u8d25: ' + (await giftResp.text()).substring(0, 60));
       showToast('\u2705 Added ' + discord + ' + welcome gift', 'success');
     } else {
       showToast('\u2705 Added ' + discord, 'success');
@@ -4277,7 +4299,7 @@ async function addKOC() {
     document.getElementById('new-discord').value = '';
     document.getElementById('new-uid').value = '';
     loadData();
-  } catch (e) { showToast('Error: maybe UID exists', 'error'); }
+  } catch (e) { showToast('Error: ' + e.message, 'error'); }
 }
 
 // ===== SHIP ORDER =====
@@ -4378,6 +4400,11 @@ function openPointsModal(uid, discord) {
   });
   // Show recent history
   loadPointHistory(uid);
+}
+
+// KOC \u8868\u79EF\u5206\u5217\u7684\u65E7\u5165\u53E3\uFF1B\u4FDD\u6301 onclick \u517C\u5BB9\uFF0C\u7EDF\u4E00\u6253\u5F00\u624B\u52A8\u52A0/\u51CF\u5206\u5F39\u7A97\u3002
+function editBalanceInline(uid, discord) {
+  openPointsModal(uid, discord || uid);
 }
 
 function setPointAmount(n) {
@@ -4528,10 +4555,11 @@ async function saveEditKOC() {
   };
 
   try {
-    await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(editingUid), {
+    var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(editingUid), {
       method: 'PATCH',
       body: JSON.stringify(updates)
     });
+    if (!resp.ok) throw new Error((await resp.text()).substring(0, 80));
     showToast('\u2705 Saved', 'success');
     closeEditModal();
     loadData();

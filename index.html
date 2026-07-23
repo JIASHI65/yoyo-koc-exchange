@@ -1369,6 +1369,9 @@ async function submitWorks() {
       btn.textContent = '🔒 Used Up';
       var cd = document.getElementById('submit-countdown');
       if (cd) { cd.innerHTML = '⚠️ Used up (max 2 submissions)'; cd.style.background = '#fbe9e7'; }
+    } else {
+      btn.disabled = false;
+      btn.textContent = '📤 Submit Works';
     }
 
     showToast('✅ ' + links.length + ' links submitted!', 'success');
@@ -1376,9 +1379,9 @@ async function submitWorks() {
   } catch(e) {
     status.textContent = '❌ ' + e.message;
     status.style.color = '#e74c3c';
+    btn.disabled = false;
+    btn.textContent = '📤 Submit Works';
   }
-  btn.disabled = false;
-  btn.textContent = '📤 Submit Works';
 }
 
 // 只统计常规 'work' 投稿(排除 showcase)用于 2 次限制。
@@ -1468,8 +1471,9 @@ async function loadMySubmissions() {
   if (!window._subViewMonth) window._subViewMonth = currentPeriod;
 
   try {
-    // Build 3-month range for navigation (July, Aug, Sep 2026)
-    var months = ['2026-07','2026-08','2026-09'];
+    // 最近 6 个月 + 实际有数据月份，避免月份写死导致后续活动看不到。
+    var monthSet = {};
+    getLast6Months(currentPeriod).forEach(function(m) { monthSet[m] = true; });
 
     // Fetch submissions for this user
     var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,created_at,period,status,points_earned,links_engagement,links_views,submission_type');
@@ -1480,13 +1484,18 @@ async function loadMySubmissions() {
     var ptRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&limit=100&select=period,change,balance_after,reason,created_at');
     var ptLogs = ptRes.ok ? await ptRes.json() || [] : [];
 
-    // Group submissions by month
+    // Group submissions by period first; fallback to created_at for legacy rows.
     var byMonth = {};
     allSubs.forEach(function(s) {
-      var ym = (s.created_at || '').substring(0, 7);
+      var ym = s.period || (s.created_at || '').substring(0, 7);
+      if (!ym) return;
+      monthSet[ym] = true;
       if (!byMonth[ym]) byMonth[ym] = [];
       byMonth[ym].push(s);
     });
+    ptLogs.forEach(function(p) { if (p.period) monthSet[p.period] = true; });
+    var months = Object.keys(monthSet).sort();
+    window._mySubMonths = months;
     window._mySubsByMonth = byMonth;
     window._myPtLogs = ptLogs;
 
@@ -1760,7 +1769,7 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
 
 function switchSubMonth(ym) {
   window._subViewMonth = ym;
-  var months = ['2026-07','2026-08','2026-09'];
+  var months = window._mySubMonths || getLast6Months(currentPeriod);
   renderMonthView(ym, months, window._mySubsByMonth || {}, window._myPtLogs || [],
     document.getElementById('submissions-list'),
     document.getElementById('submission-count'),
