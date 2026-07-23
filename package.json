@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "check:syntax": "node scripts/check-html-js.js admin.html index.html"
+  },
   "dependencies": {
     "acorn": "^8.17.0"
   }
