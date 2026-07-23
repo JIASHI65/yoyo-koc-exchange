@@ -112,7 +112,7 @@
     </div>
     <div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:16px;padding:14px;margin:0 0 18px;font-size:12px;line-height:1.6;color:#5e2d79;text-align:left;box-shadow:0 4px 18px rgba(156,39,176,0.10);">
       <div style="font-weight:800;color:#7b1fa2;margin-bottom:6px;text-align:center;">✨ How it works</div>
-      <div>1️⃣ Register / Log In with your Discord name and UID</div>
+      <div>1️⃣ Register / Log In with your UID and Account ID</div>
       <div>2️⃣ Submit Works with public links only</div>
       <div>3️⃣ Wait for scoring after admin review</div>
       <div>4️⃣ Redeem rewards when redemption opens</div>
@@ -176,7 +176,7 @@
       </div>
       <div style="position:relative;margin-bottom:12px;">
         <div style="position:absolute;top:-3px;left:-3px;right:-3px;bottom:-3px;border-radius:14px;background:linear-gradient(135deg,#f2a6c4,#d4749a,#f2a6c4);opacity:0.1;pointer-events:none;"></div>
-        <input type="text" id="input-discord" placeholder="Your Discord username" autocomplete="off" style="width:100%;padding:14px 18px;border:2px solid #f8bbd0;border-radius:14px;font-size:15px;text-align:center;background:rgba(255,255,255,0.95);box-sizing:border-box;outline:none;color:#3d2b36;position:relative;z-index:1;">
+        <input type="text" id="input-account-id" placeholder="Your Account ID (starts with 6)" autocomplete="off" inputmode="numeric" style="width:100%;padding:14px 18px;border:2px solid #f8bbd0;border-radius:14px;font-size:15px;text-align:center;background:rgba(255,255,255,0.95);box-sizing:border-box;outline:none;color:#3d2b36;position:relative;z-index:1;">
       </div>
       <div style="position:relative;margin-bottom:16px;">
         <div style="position:absolute;top:-3px;left:-3px;right:-3px;bottom:-3px;border-radius:14px;background:linear-gradient(135deg,#f2a6c4,#d4749a,#f2a6c4);opacity:0.1;pointer-events:none;"></div>
@@ -650,20 +650,17 @@ let currentUser = null;
 let redemptionOpen = false;
 let selections = {};
 
-// Auto-login from localStorage (defined here, called after DOM+functions ready)
+// Pre-fill UID from localStorage only. Do not auto-login: Account ID must be entered each time.
 function tryAutoLogin() {
   var saved = localStorage.getItem('koc_session');
   if (!saved) return;
   var session;
   try { session = JSON.parse(saved); } catch(e) { return; }
-  if (!session || !session.uid || !session.discord_name) return;
-  // Pre-fill form
-  var discordInput = document.getElementById('input-discord');
+  if (!session || !session.uid) return;
   var uidInput = document.getElementById('input-uid');
-  if (discordInput) discordInput.value = session.discord_name;
   if (uidInput) uidInput.value = session.uid;
-  // Auto-login enabled
-  setTimeout(function() { login(); }, 500);
+  var statusEl = document.getElementById('login-status');
+  if (statusEl) statusEl.textContent = 'For security, please enter your Account ID to log in.';
 }
 
 function initSelections() { selections = {}; REWARDS.forEach(r => selections[r.id] = 0); }
@@ -704,41 +701,51 @@ async function getPendingRedemptionTotal(uid) {
   } catch(e) { return 0; }
 }
 async function login() {
-  const discord = document.getElementById('input-discord').value.trim();
+  const accountId = document.getElementById('input-account-id').value.trim();
   const uid = document.getElementById('input-uid').value.trim();
-  if (!discord || !uid) { showToast('Please enter both Discord name and UID', 'error'); return; }
+  if (!accountId || !uid) { showToast('Please enter both UID and Account ID', 'error'); return; }
+  if (!/^6\d{5,}$/.test(accountId)) { showToast('Account ID should be numbers starting with 6', 'error'); return; }
 
   const btn = document.getElementById('btn-login');
   btn.disabled = true; btn.textContent = 'Checking...';
   const statusEl = document.getElementById('login-status');
-  if (statusEl) statusEl.textContent = 'Looking up your info...';
+  if (statusEl) statusEl.textContent = 'Verifying your UID and Account ID...';
 
   try {
     let res = await fetchWithTimeout(
       SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid) +
-      '&discord_name=eq.' + encodeURIComponent(discord) +
-      '&select=uid,discord_name,name,status,tier,notes,created_at',
+      '&account_id=eq.' + encodeURIComponent(accountId) +
+      '&select=uid,discord_name,name,status,tier,notes,created_at,account_id,server',
       {}, 15000
     );
     if (!res.ok) throw new Error('Server error: ' + res.status);
     let data = await res.json();
 
     if (!data || data.length === 0) {
-      showToast('No match found. Check your UID or contact admin.', 'error');
-      btn.disabled = false; btn.textContent = 'Check My Points';
+      var missingIdRes = await fetchWithTimeout(
+        SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid) + '&select=uid,account_id',
+        {}, 15000
+      ).catch(function() { return null; });
+      if (missingIdRes && missingIdRes.ok) {
+        var missingIdData = await missingIdRes.json();
+        if (missingIdData && missingIdData.length > 0 && !missingIdData[0].account_id) {
+          throw new Error('Account ID is not set for this UID. Please contact admin to add your fixed ID.');
+        }
+      }
+      showToast('No match found. Check your UID and Account ID.', 'error');
+      btn.disabled = false; btn.textContent = 'Login';
       if (statusEl) statusEl.textContent = '';
       return;
     }
 
-    if (statusEl) statusEl.textContent = 'Loading your points...';
-    const koc = data[0];
-    const points = await getBalance(uid);
-    const pendingTotal = await getPendingRedemptionTotal(uid);
-    currentUser = { ...koc, points: Math.max(0, points - pendingTotal), created_at: koc.created_at };
-    localStorage.setItem('koc_session', JSON.stringify({ uid: currentUser.uid, discord_name: currentUser.discord_name, created_at: currentUser.created_at }));
-    if (statusEl) statusEl.textContent = '';
+    var koc = data[0];
+    var pts = await getBalance(koc.uid);
+    var pendingSpent = await getPendingRedemptionTotal(koc.uid);
+    currentUser = { ...koc, points: Math.max(0, pts - pendingSpent) };
+    localStorage.setItem('koc_session', JSON.stringify({ uid: currentUser.uid, account_id_verified: true, created_at: currentUser.created_at }));
+    if (statusEl) statusEl.textContent = 'Verified! Loading dashboard...';
     showDashboard();
-    checkDeadline();
+    checkSubmissionDeadline();
     // Fill submit discord field
     var submitDiscord = document.getElementById('submit-discord');
     if (submitDiscord && koc.discord_name) {
@@ -750,7 +757,7 @@ async function login() {
     initSubmitTab();
   } catch (e) {
     console.error('login error:', e);
-    var errMsg = 'Login failed. Check your Discord name and UID.';
+    var errMsg = 'Login failed. Check your UID and Account ID.';
     if (e.name === 'AbortError') errMsg = 'Connection timed out. Try again.';
     else if (e.message) errMsg = e.message;
     showToast(errMsg, 'error');
@@ -760,7 +767,6 @@ async function login() {
     if (loginStatus) loginStatus.textContent = '';
   }
 }
-
 
 function initSubmitTab() {
   if (!currentUser) return;
@@ -1222,6 +1228,7 @@ async function registerCreator() {
 
   if (!discord) { status.textContent = '❌ Please enter your Discord username'; status.style.color = '#e74c3c'; return; }
   if (!accountId) { status.textContent = '❌ Please enter your Account ID'; status.style.color = '#e74c3c'; return; }
+  if (!/^6\d{5,}$/.test(accountId)) { status.textContent = '❌ Account ID should be numbers starting with 6'; status.style.color = '#e74c3c'; return; }
   if (!gameUid) { status.textContent = '❌ Please enter your Game UID'; status.style.color = '#e74c3c'; return; }
   if (!fullname) { status.textContent = '❌ Please enter your full legal name'; status.style.color = '#e74c3c'; return; }
   if (!server) { status.textContent = '❌ Please select your server'; status.style.color = '#e74c3c'; return; }
@@ -1229,11 +1236,22 @@ async function registerCreator() {
   if (!phone) { status.textContent = '❌ Please enter your contact phone number'; status.style.color = '#e74c3c'; return; }
 
   try {
-    // Check if this discord name already exists
+    // Check if this fixed Account ID already exists. This is now the login verifier.
+    var accountCheckRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?account_id=eq.' + encodeURIComponent(accountId) + '&select=uid');
+    if (!accountCheckRes.ok) throw new Error('Registration check failed: ' + accountCheckRes.status);
+    var accountExisting = await accountCheckRes.json();
+    if (accountExisting && accountExisting.length > 0) {
+      status.innerHTML = '✅ You\'re already registered! Log in with your UID: <strong>' + accountExisting[0].uid + '</strong> and your Account ID.';
+      status.style.color = '#4caf50';
+      return;
+    }
+
+    // Keep Discord duplicate check as a friendly hint, but Account ID is the security key.
     var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?discord_name=eq.' + encodeURIComponent(discord) + '&select=uid');
+    if (!checkRes.ok) throw new Error('Registration check failed: ' + checkRes.status);
     var existing = await checkRes.json();
     if (existing && existing.length > 0) {
-      status.innerHTML = '✅ You\'re already registered! Log in with your UID: <strong>' + existing[0].uid + '</strong>';
+      status.innerHTML = '✅ This Discord name is already registered. Log in with your UID: <strong>' + existing[0].uid + '</strong> and your Account ID.';
       status.style.color = '#4caf50';
       return;
     }
@@ -1279,11 +1297,11 @@ async function registerCreator() {
       if (!duplicate || attempt === 4) throw new Error('Registration failed: ' + (errText || resp.status));
     }
 
-    status.innerHTML = '✅ Registration complete! Your UID: <strong>' + newUid + '</strong>. Save this UID to log in.';
+    status.innerHTML = '✅ Registration complete! Your UID: <strong>' + newUid + '</strong>. Save this UID and your Account ID to log in.';
     status.style.color = '#4caf50';
-    document.getElementById('input-discord').value = discord;
+    document.getElementById('input-account-id').value = accountId;
     document.getElementById('input-uid').value = newUid;
-    showToast('✅ Registered! UID: ' + newUid + ' — save this to login', 'success');
+    showToast('✅ Registered! Save your UID + Account ID to login', 'success');
   } catch(e) {
     status.textContent = '❌ Error: ' + e.message;
     status.style.color = '#e74c3c';
@@ -1780,7 +1798,7 @@ function logout() {
   localStorage.removeItem('koc_session');
   document.getElementById('step-login').classList.remove('hidden');
   document.getElementById('step-dashboard').classList.add('hidden');
-  document.getElementById('input-discord').value = '';
+  document.getElementById('input-account-id').value = '';
   document.getElementById('input-uid').value = '';
   document.getElementById('btn-login').disabled = false;
   document.getElementById('new-creator-form').style.display = 'none';
