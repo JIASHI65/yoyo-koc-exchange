@@ -164,7 +164,7 @@
       </div>
       <input type="text" id="reg-phone" placeholder="Phone Number *" style="margin-bottom:12px;">
       
-      <button class="btn btn-primary" onclick="registerCreator()">📝 Register</button>
+      <button class="btn btn-primary" id="btn-register" onclick="registerCreator()">📝 Register</button>
       <div id="reg-status" style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center;min-height:18px;"></div>
     </div>
 
@@ -1212,10 +1212,36 @@ function showEntryScreen() {
   document.querySelector('.header').style.display = 'block';
 }
 function showNewCreatorForm() {
-  document.getElementById('new-creator-form').style.display = 'block';
+  // Always open a fresh, unlocked, empty form (in case returning after a completed registration).
+  var form = document.getElementById('new-creator-form');
+  if (form) {
+    form.querySelectorAll('input, select, textarea').forEach(function(el) {
+      el.disabled = false;
+      el.style.opacity = '';
+      if (el.tagName !== 'SELECT') el.value = '';
+    });
+  }
+  var regBtn = document.getElementById('btn-register');
+  if (regBtn) { regBtn.disabled = false; regBtn.style.opacity = ''; regBtn.style.cursor = ''; }
+  var st = document.getElementById('reg-status');
+  if (st) { st.innerHTML = ''; st.textContent = ''; st.style.color = ''; }
+  form.style.display = 'block';
   document.getElementById('existing-login-form').style.display = 'none';
   document.getElementById('entry-buttons').style.display = 'none';
   document.querySelector('.header').style.display = 'none';
+}
+
+// Lock the registration form after a successful registration so it can't be edited / re-submitted.
+function lockRegistrationForm() {
+  var form = document.getElementById('new-creator-form');
+  if (form) {
+    form.querySelectorAll('input, select, textarea').forEach(function(el) {
+      el.disabled = true;
+      el.style.opacity = '0.5';
+    });
+  }
+  var regBtn = document.getElementById('btn-register');
+  if (regBtn) { regBtn.disabled = true; regBtn.style.opacity = '0.5'; regBtn.style.cursor = 'not-allowed'; }
 }
 function showExistingLogin() {
   document.getElementById('new-creator-form').style.display = 'none';
@@ -1313,10 +1339,13 @@ async function registerCreator() {
       '<div><strong>Your Game UID:</strong> <span style="font-family:monospace;">' + esc(gameUid) + '</span></div>' +
       '<div><strong>Your System ID:</strong> <span style="font-family:monospace;">' + esc(accountId) + '</span></div>' +
       '<div style="font-size:11px;margin-top:6px;color:#4c8c4a;">📸 Please screenshot and save this. You will use Game UID + System ID to log in next time.</div>' +
+      '<button class="btn btn-primary" onclick="showExistingLogin()" style="margin-top:12px;width:100%;">🔑 Return to Login</button>' +
       '</div>';
     status.style.color = '#4caf50';
     document.getElementById('input-uid').value = gameUid;
     document.getElementById('input-account-id').value = accountId;
+    // Lock the registration form so it can't be re-submitted / edited.
+    lockRegistrationForm();
     showToast('✅ Registered! Screenshot your Game UID + System ID', 'success');
   } catch(e) {
     status.textContent = '❌ Error: ' + e.message;
