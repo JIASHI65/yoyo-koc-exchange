@@ -281,6 +281,7 @@
       <button class="tab" onclick="switchTab('koc-ledger')">📋 KOC信息库</button>
       <button class="tab" onclick="switchTab('scoring')">🧮 积分计算</button>
       <button class="tab" onclick="switchTab('submissions')">📋 作品审核</button>
+      <button class="tab" onclick="switchTab('feedback')">💬 反馈收集</button>
       <button class="tab" onclick="switchTab('merch')">📦 周边发货</button>
       <button class="tab" onclick="switchTab('diamond')">💎 端内奖励</button>
       <button class="tab" onclick="switchTab('gplay')">🎮 谷歌卡</button>
@@ -717,6 +718,18 @@ Elite: 连续 6 个月达到 5 分</textarea>
     </div>
   </div>
 </div>
+
+    <!-- ======== TAB: 反馈收集 ======== -->
+    <div id="tab-feedback" class="tab-content">
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>💬 创作者反馈 <span id="feedback-count" style="font-size:12px;color:var(--text-light);"></span></span>
+          <button class="btn btn-primary btn-sm" onclick="loadFeedback()">🔄 刷新</button>
+        </div>
+        <div style="font-size:12px;color:var(--text-light);margin-bottom:10px;">汇总所有投稿里创作者填写的反馈，每条一行，最新在上。</div>
+        <div id="feedback-list" style="font-size:13px;">加载中…</div>
+      </div>
+    </div>
 
 <!-- ===== MODAL: Edit KOC ===== -->
 <div id="edit-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeEditModal()">
@@ -2450,9 +2463,40 @@ function switchTab(name) {
   if (name === 'diamond') renderDiamondTab();
   if (name === 'gplay') renderGplayTab();
   if (name === 'submissions') loadSubmissions();
+  if (name === 'feedback') loadFeedback();
   if (name === 'tiers') renderTiersTable();
   if (name === 'rules') loadCampaignConfig();
   if (name === 'audit') loadAuditLog();
+}
+
+// ===== 反馈收集 =====
+async function loadFeedback() {
+  var listEl = document.getElementById('feedback-list');
+  var cntEl = document.getElementById('feedback-count');
+  if (!listEl) return;
+  listEl.innerHTML = '加载中…';
+  try {
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=id,discord_name,uid,feedback,period,created_at&order=created_at.desc');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var rows = await res.json() || [];
+    var withFb = rows.filter(function(s) { return s.feedback && String(s.feedback).trim() !== ''; });
+    if (cntEl) cntEl.textContent = '(' + withFb.length + ' 条)';
+    if (!withFb.length) {
+      listEl.innerHTML = '<div style="color:var(--text-light);padding:10px 0;">暂无反馈</div>';
+      return;
+    }
+    listEl.innerHTML = withFb.map(function(s) {
+      var dt = (s.created_at || '').substring(0, 10);
+      var who = esc(s.discord_name || s.uid || '匿名');
+      return '<div style="padding:8px 10px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:flex-start;">' +
+        '<span style="font-size:11px;color:var(--text-light);white-space:nowrap;min-width:74px;">' + esc(dt) + '</span>' +
+        '<span style="font-size:11px;color:var(--pink-dark,#d63384);white-space:nowrap;min-width:90px;font-weight:600;">' + who + '</span>' +
+        '<span style="flex:1;white-space:pre-wrap;word-break:break-word;">' + esc(s.feedback) + '</span>' +
+      '</div>';
+    }).join('');
+  } catch(e) {
+    listEl.innerHTML = '<div style="color:#c62828;padding:10px 0;">加载失败: ' + esc(e.message) + '</div>';
+  }
 }
 
 // Init submissions on page load
