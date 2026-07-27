@@ -645,17 +645,9 @@ let currentUser = null;
 let redemptionOpen = false;
 let selections = {};
 
-// Pre-fill UID from localStorage only. Do not auto-login: Account ID must be entered each time.
+// Do NOT auto-fill or auto-login. Users must type their Game UID + System ID every time.
 function tryAutoLogin() {
-  var saved = localStorage.getItem('koc_session');
-  if (!saved) return;
-  var session;
-  try { session = JSON.parse(saved); } catch(e) { return; }
-  if (!session || !session.uid) return;
-  var uidInput = document.getElementById('input-uid');
-  if (uidInput) uidInput.value = session.uid;
-  var statusEl = document.getElementById('login-status');
-  if (statusEl) statusEl.textContent = 'For security, please enter your System ID to log in.';
+  // intentionally no-op: no prefill from any stored session
 }
 
 function initSelections() { selections = {}; REWARDS.forEach(r => selections[r.id] = 0); }
@@ -1248,6 +1240,13 @@ function showExistingLogin() {
   document.getElementById('existing-login-form').style.display = 'block';
   document.getElementById('entry-buttons').style.display = 'none';
   document.querySelector('.header').style.display = 'none';
+  // Always start with empty login fields — users type their own Game UID + System ID.
+  var u = document.getElementById('input-uid');
+  var a = document.getElementById('input-account-id');
+  if (u) u.value = '';
+  if (a) a.value = '';
+  var st = document.getElementById('login-status');
+  if (st) st.textContent = '';
 }
 async function registerCreator() {
   var discord = document.getElementById('reg-discord').value.trim();
@@ -1342,8 +1341,7 @@ async function registerCreator() {
       '<button class="btn btn-primary" onclick="showExistingLogin()" style="margin-top:12px;width:100%;">🔑 Return to Login</button>' +
       '</div>';
     status.style.color = '#4caf50';
-    document.getElementById('input-uid').value = gameUid;
-    document.getElementById('input-account-id').value = accountId;
+    // Do NOT prefill login fields — user must type Game UID + System ID themselves.
     // Lock the registration form so it can't be re-submitted / edited.
     lockRegistrationForm();
     showToast('✅ Registered! Screenshot your Game UID + System ID', 'success');
