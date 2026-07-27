@@ -485,7 +485,7 @@ function renderFAQ(data) {
     let short = q.slice(0, 24);
     if (!seen.has(short)) { seen.add(short); chips.push(q); }
   });
-  sug.innerHTML = chips.slice(0, 8).map(q => '<span class="chip" onclick="searchChip(this)">' + esc(q.slice(0, 24)) + (q.length > 24 ? '…' : '') + '</span>').join('');
+  sug.innerHTML = chips.slice(0, 8).map(q => '<span class="chip" data-full="' + esc(q) + '" onclick="searchChip(this)">' + esc(q.slice(0, 24)) + (q.length > 24 ? '…' : '') + '</span>').join('');
 }
 
 function toggleBody(h) {
@@ -533,8 +533,9 @@ function filterFAQ(q) {
 }
 
 function searchChip(el) {
-  document.getElementById('search').value = el.textContent;
-  filterFAQ(el.textContent);
+  var q = el.getAttribute('data-full') || el.textContent;
+  document.getElementById('search').value = q;
+  filterFAQ(q);
 }
 
 renderFAQ(EN_DATA);
