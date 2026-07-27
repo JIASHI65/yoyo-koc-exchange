@@ -956,10 +956,13 @@ function discordProxyFetch(action, data, token) {
   });
 }
 
+var _toastTimer = null;
 function showToast(m, t = '') {
   const x = document.getElementById('toast');
   if (!x) return;
   x.textContent = m; x.className = 'toast ' + t + ' show';
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function() { x.className = 'toast ' + t; }, 2500);
 }
 
 function confirmDanger(title, lines) {
