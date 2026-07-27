@@ -1358,6 +1358,8 @@ async function submitWorks() {
   var links = validation.links;
   var serverEl = document.getElementById('submit-server');
   var server = serverEl ? serverEl.value : (currentUser && currentUser.server ? currentUser.server : '');
+  var feedbackEl = document.getElementById('submit-feedback');
+  var feedback = feedbackEl ? feedbackEl.value.trim() : '';
   var status = document.getElementById('submit-status');
   var btn = document.getElementById('btn-submit');
 
@@ -1398,6 +1400,7 @@ async function submitWorks() {
       uid: currentUser ? currentUser.uid : null,
       server: server,
       links_engagement: links.join('\n'),
+      feedback: feedback,
       status: 'pending',
       period: currentPeriod,
       created_at: new Date().toISOString()
