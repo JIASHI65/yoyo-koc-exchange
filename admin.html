@@ -2479,7 +2479,7 @@ async function loadFeedback() {
   if (!listEl) return;
   listEl.innerHTML = '加载中…';
   try {
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=id,discord_name,uid,feedback,period,created_at&order=created_at.desc');
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=*&order=created_at.desc');
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var rows = await res.json() || [];
     var withFb = rows.filter(function(s) { return s.feedback && String(s.feedback).trim() !== ''; });
