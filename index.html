@@ -740,6 +740,11 @@ async function login() {
     if (submitDiscord && koc.discord_name) {
       submitDiscord.value = typeof koc.discord_name === 'string' ? koc.discord_name : '';
     }
+    // Clear any leftover input from a previously logged-in account
+    var lk = document.getElementById('submit-links'); if (lk) lk.value = '';
+    var fb = document.getElementById('submit-feedback'); if (fb) fb.value = '';
+    var sc = document.getElementById('showcase-link'); if (sc) sc.value = '';
+    var ss = document.getElementById('submit-status'); if (ss) { ss.innerHTML = ''; ss.textContent = ''; }
     // Force the submit tab to render - handle edge case where switchCreatorTab runs before DOM is ready
     var subContent = document.getElementById('creator-tab-submit');
     if (subContent) { subContent.classList.add('active'); subContent.style.display = 'block'; }
