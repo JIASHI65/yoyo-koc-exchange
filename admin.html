@@ -207,7 +207,7 @@
 <script>
 // ===== 缓存熔断 =====
 (function() {
-  var VERSION = 'v2.1.2';
+  var VERSION = 'v2.2.0';
   var cached = localStorage.getItem('admin_version');
   if (cached && cached !== VERSION) {
     // 发现旧缓存，强制清除并刷新
@@ -3381,15 +3381,17 @@ async function loadDashboard() {
   try {
     // ========== 并行拉取数据 (Promise.all) ==========
     var startTime = Date.now();
-    var [kocRes, subRes, ordRes] = await Promise.all([
+    var [kocRes, subRes, ordRes, plRes] = await Promise.all([
       supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=uid,discord_name,tier,name,created_at,notes'),
       supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=uid,discord_name,status,points_earned,links_engagement,links_views,score_details,submission_type,created_at&order=created_at.desc'),
-      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?select=uid,points_spent,status,created_at&order=created_at.desc&limit=500')
+      supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?select=uid,points_spent,status,created_at&order=created_at.desc&limit=500'),
+      supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?select=change')
     ]);
-    var [kocs, subs, orders] = await Promise.all([
+    var [kocs, subs, orders, plogs] = await Promise.all([
       kocRes.ok ? kocRes.json() : Promise.resolve([]),
       subRes.ok ? subRes.json() : Promise.resolve([]),
-      ordRes.ok ? ordRes.json() : Promise.resolve([])
+      ordRes.ok ? ordRes.json() : Promise.resolve([]),
+      plRes.ok ? plRes.json() : Promise.resolve([])
     ]);
     // ========== 自动跳转到最近有数据的月份 ==========
     if (subs.length > 0) {
@@ -3440,6 +3442,10 @@ async function loadDashboard() {
     var totalPts = monthSubs.reduce(function(su, s) { return su + (s.points_earned||0); }, 0);
     var shippedOrders = monthOrders.filter(function(o) { return o.status === 'shipped'; });
     var redeemedPts = shippedOrders.reduce(function(acc, o) { return acc + (o.points_spent||0); }, 0);
+    // 余额与兑换：以 point_logs 流水为准（余额 = 流水求和）；v5「最后分数」合计 717 为兑换前累计
+    var currentBalance = plogs.reduce(function(acc, p) { return acc + (p.change||0); }, 0);
+    var v5PreRedemptionTotal = 717;
+    var redeemedTotal = Math.max(0, v5PreRedemptionTotal - currentBalance);
     var tierStats = {}; kocs.forEach(function(k) { var t = k.tier||'certified'; tierStats[t] = (tierStats[t]||0) + 1; });
     var plat = tierStats['platinum']||0, gold = tierStats['gold']||0, cert = tierStats['certified']||0;
     var ccCount = kocs.filter(function(k) { return (k.notes||'').indexOf('CC:' + currentPeriod) >= 0; }).length;
@@ -3691,17 +3697,20 @@ async function loadDashboard() {
     console.log('[Dashboard] loaded in', Date.now() - startTime, 'ms');
 
 // ========== 月度核心指标对比 ==========
+    var pv = function(v) { return v === 0 ? '<span style="color:#bbb;">—</span>' : v; };
     var html = '<div class="card" style="padding:16px;margin-bottom:12px;background:linear-gradient(135deg,#fff5f9,#fce4ec);border:1px solid #f8bbd0;">';
     html += '<div style="font-size:14px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;color:#ad1457;"><span>📅</span> 月度核心指标对比</div>';
     html += '<table style="width:100%;font-size:12px;border-collapse:collapse;">';
     html += '<tr style="background:#fce4ec;"><th style="padding:7px 8px;text-align:left;color:#880e4f;font-weight:600;font-size:11px;border-bottom:1px solid #f8bbd0;">指标</th><th style="padding:7px 8px;text-align:right;color:#880e4f;font-weight:600;font-size:11px;border-bottom:1px solid #f8bbd0;">' + prevP + '</th><th style="padding:7px 8px;text-align:right;color:#880e4f;font-weight:600;font-size:11px;border-bottom:1px solid #f8bbd0;">' + currentPeriod + '</th><th style="padding:7px 8px;text-align:right;color:#880e4f;font-weight:600;font-size:11px;border-bottom:1px solid #f8bbd0;">环比涨幅</th></tr>';
-    html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">👥 投稿创作者</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + prevActiveCount + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + activeCount + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (activeCount>=prevActiveCount?'#43a047':'#e74c3c') + ';">' + gr(activeCount, prevActiveCount) + '</td></tr>';
-    html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">📎 投稿链接数</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + prevLinks + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + totalLinks + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (totalLinks>=prevLinks?'#43a047':'#e74c3c') + ';">' + gr(totalLinks, prevLinks) + '</td></tr>';
-    html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">🏆 总积分</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + prevPts + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + totalPts + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (totalPts>=prevPts?'#43a047':'#e74c3c') + ';">' + gr(totalPts, prevPts) + '</td></tr>';
-    html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">✅ 认证创作官</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + prevCert + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + cert + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (cert>=prevCert?'#43a047':'#e74c3c') + ';">' + gr(cert, prevCert) + '</td></tr>';
-    html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">🟡 金级创作官</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + prevGold + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + gold + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (gold>=prevGold?'#43a047':'#e74c3c') + ';">' + gr(gold, prevGold) + '</td></tr>';
-    html += '<tr><td style="padding:6px 8px;">💎 铂金创作官</td><td style="padding:6px 8px;text-align:right;font-weight:500;">' + prevPlat + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;">' + plat + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;color:' + (plat>=prevPlat?'#43a047':'#e74c3c') + ';">' + gr(plat, prevPlat) + '</td></tr>';
+    html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">👥 投稿创作者</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + pv(prevActiveCount) + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + activeCount + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (activeCount>=prevActiveCount?'#43a047':'#e74c3c') + ';">' + gr(activeCount, prevActiveCount) + '</td></tr>';
+    html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">📎 投稿链接数</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + pv(prevLinks) + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + totalLinks + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (totalLinks>=prevLinks?'#43a047':'#e74c3c') + ';">' + gr(totalLinks, prevLinks) + '</td></tr>';
+    html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">🏆 总积分</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + pv(prevPts) + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + totalPts + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (totalPts>=prevPts?'#43a047':'#e74c3c') + ';">' + gr(totalPts, prevPts) + '</td></tr>';
+    html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">✅ 认证创作官</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + pv(prevCert) + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + cert + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (cert>=prevCert?'#43a047':'#e74c3c') + ';">' + gr(cert, prevCert) + '</td></tr>';
+    html += '<tr><td style="padding:6px 8px;border-bottom:1px solid #fce4ec;">🟡 金级创作官</td><td style="padding:6px 8px;text-align:right;font-weight:500;border-bottom:1px solid #fce4ec;">' + pv(prevGold) + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;border-bottom:1px solid #fce4ec;">' + gold + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;border-bottom:1px solid #fce4ec;color:' + (gold>=prevGold?'#43a047':'#e74c3c') + ';">' + gr(gold, prevGold) + '</td></tr>';
+    html += '<tr><td style="padding:6px 8px;">💎 铂金创作官</td><td style="padding:6px 8px;text-align:right;font-weight:500;">' + pv(prevPlat) + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;">' + plat + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;color:' + (plat>=prevPlat?'#43a047':'#e74c3c') + ';">' + gr(plat, prevPlat) + '</td></tr>';
     html += '</table></div>';
+    document.getElementById('dash-detail').innerHTML = html;
+    try { localStorage.setItem('dash_detail_' + currentPeriod, html); } catch(e){}
     // ========== 莎莎的关键洞察（分段策略版） ==========
     var _ph = 0, _cap20 = 0, _cap40 = 0;
     monthSubs.forEach(function(s) {
@@ -3752,14 +3761,14 @@ async function loadDashboard() {
       ins += '</div></div>';
 
       // Block 4: 积分与兑换策略
-      var rate = totalPts > 0 ? Math.round(redeemedPts/totalPts*100) : 0;
+      var redemptionRate = v5PreRedemptionTotal > 0 ? Math.round(redeemedTotal / v5PreRedemptionTotal * 100) : 0;
       if (totalPts > 0) {
         ins += '<div style="background:white;border-radius:10px;padding:10px 12px;">';
         ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">🎯 积分与兑换策略</div>';
         ins += '<div style="font-size:12px;color:#555;line-height:1.7;">';
-        ins += '本月新增积分 ' + totalPts + ' 分，已兑换 ' + redeemedPts + ' 分（' + rate + '%）。';
-        if (rate < 30) ins += '<br>剩余积分较多，建议下月推出限时兑换活动催化消费。';
-        else ins += '<br>兑换积极，可维持当前激励节奏。';
+        ins += '本月新增积分 ' + totalPts + ' 分；累计产生 ' + v5PreRedemptionTotal + ' 分，已兑换 ' + redeemedTotal + ' 分（' + redemptionRate + '%），当前余额 ' + currentBalance + ' 分。';
+        if (redeemedTotal > 0) ins += '<br>兑换机制已跑通，下月可推出限时兑换活动继续催化消费。';
+        else ins += '<br>积分尚未开始兑换，可策划首期兑换活动验证链路。';
         ins += '</div></div>';
       }
 
@@ -3770,7 +3779,7 @@ async function loadDashboard() {
       var suggestions = [];
       if (newC > 0) suggestions.push('🆕 跟进新人首投与老带新，扩大达标覆盖面');
       if (ccCount > 0) suggestions.push('🎁 确认 ' + ccCount + ' 位 CC 达标创作者的奖励发放');
-      if (totalPts > 0 && rate < 30) suggestions.push('💎 推动积分兑换，减少积分沉淀');
+      if (redeemedTotal > 0) suggestions.push('💎 推出限时兑换活动，继续催化积分消费');
       if (ttYt > 0 && ttYt < (pfs['Facebook']||0)) suggestions.push('📱 继续引导 TikTok/YouTube 视频化，降低单平台依赖');
       if (cert > gold + plat) suggestions.push('⭐ 关注认证创作官晋升路径，鼓励冲刺金级');
       ins += suggestions.length > 0 ? suggestions.join('<br>') : '保持当前运营节奏，持续关注创作者活跃度。';

@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Yoyo KOC · 月度报告</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -132,6 +135,8 @@ var SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_oyewqnQ8AnitAOD94Qg0nA_v6Zqkr7r';
 
 var kocs = [], subs = [], points = [], orders = [], rewards = [];
+// 余额与兑换（累计口径）：余额 = 流水求和；v5「最后分数」合计 717 为兑换前累计
+var currentBalance = 0, redeemedTotal = 0, v5PreRedemptionTotal = 717;
 
 function sf(path, opts) {
   return fetch(SUPABASE_URL + path, Object.assign({
@@ -160,10 +165,11 @@ async function loadReport() {
   document.getElementById('header-subtitle').textContent = period.replace('-','年') + ' · 数据报告中...';
   document.getElementById('report-content').innerHTML = '<div class="loading"><div class="spinner"></div><p>正在加载 ' + period.replace('-','年') + ' 数据...</p></div>';
   try {
-    var [kocRes, subRes, ordRes] = await Promise.all([
+    var [kocRes, subRes, ordRes, plRes] = await Promise.all([
       sf('/rest/v1/kocs?select=*'),
       sf('/rest/v1/submissions?order=created_at.desc&select=*'),
-      sf('/rest/v1/redemption_orders?order=created_at.desc&select=*')
+      sf('/rest/v1/redemption_orders?order=created_at.desc&select=*'),
+      sf('/rest/v1/point_logs?select=change')
     ]);
     kocs = kocRes.ok ? (await kocRes.json()).filter(function(k){return k.uid!=='__config__'}) : [];
     var allSubs = subRes.ok ? await subRes.json() : [];
@@ -179,6 +185,9 @@ async function loadReport() {
     subs = allSubs.filter(function(s){ return (s.created_at||'').substring(0,7) === period; });
     points = [];
     orders = ordRes.ok ? await ordRes.json() : [];
+    var plogs = plRes.ok ? await plRes.json() : [];
+    currentBalance = plogs.reduce(function(s,p){ return s + (p.change||0); }, 0);
+    redeemedTotal = Math.max(0, v5PreRedemptionTotal - currentBalance);
     renderReport(period);
   } catch(e) {
     document.getElementById('report-content').innerHTML = '<div class="error"><div class="icon">😵</div><p>数据加载失败: ' + e.message + '</p><button class="btn-retry" onclick="loadReport()">重新加载</button></div>';
@@ -264,7 +273,7 @@ function renderReport(period) {
   html += '<div class="kpi-grid">';
   html += kpi('👥','活跃KOC',activeKocs,'/ '+totalKocs+' 总','blue');
   html += kpi('📝','投稿创作者',subbed,'产出 '+totalLinks+' 篇 · 已评分 '+scored,'green');
-  html += kpi('📊','产生总积分',totalPoints,'已兑换 '+totalSpent,'orange');
+  html += kpi('📊','产生总积分',totalPoints,'已兑换 '+redeemedTotal+' · 余额 '+currentBalance,'orange');
   html += kpi('🎁','兑换订单',redeemed,'已发货 '+shipped,'purple');
   html += kpi('📋','待审核',pending,'条作品','pink');
   html += kpi('⭐','等级分布',tierDist['platinum']||0+' 铂金','金级 '+(tierDist['gold']||0),'blue');
@@ -382,7 +391,7 @@ function renderReport(period) {
   // === INSIGHTS ===
   var insights = [];
   if (subbed > 0) insights.push({icon:'📈',title:subbed+' 条投稿',cls:'up',desc:'本月共收到 '+subbed+' 条作品投稿，其中 '+scored+' 条已完成评分。'});
-  if (totalPoints > 0) insights.push({icon:'💰',title:totalPoints+' 总积分',cls:'up',desc:'本月累计产生 '+totalPoints+' 积分，KOC 已兑换 '+totalSpent+' 分。'});
+  if (totalPoints > 0) insights.push({icon:'💰',title:totalPoints+' 总积分',cls:'up',desc:'本月累计产生 '+totalPoints+' 积分；全量累计已兑换 '+redeemedTotal+' 分，当前余额 '+currentBalance+' 分。'});
   if (pending > 0) insights.push({icon:'⏳',title:pending+' 条待审核',cls:'flat',desc:'还有 '+pending+' 条作品等待审核评分，请及时处理。'});
   if (redeemed > 0) insights.push({icon:'🎁',title:redeemed+' 单已兑换',cls:'up',desc:'本月 '+redeemed+' 位 KOC 发起兑换，已发货 '+shipped+' 单。'});
   var tierInfo = (tierDist['platinum']||0)+' 铂金 · '+(tierDist['gold']||0)+' 金级 · '+((tierDist['certified']||0)+(tierDist['new']||0))+' 认证';
