@@ -3524,8 +3524,16 @@ async function loadDashboard() {
     var userLinks = {}; monthSubs.forEach(function(s) { userLinks[s.uid] = (userLinks[s.uid]||0) + (s.links_engagement||"").split("\n").filter(Boolean).length + (s.links_views||"").split("\n").filter(Boolean).length; });
     // ========== ECharts 快速渲染 ==========
     var renderCharts = function() {
+      // 关键：innerHTML 清空会残留旧的 ECharts 实例，必须先 dispose 再 init，否则图表画布不生成
+      var _safeInit = function(id) {
+        var dom = document.getElementById(id);
+        if (!dom) return null;
+        var inst = echarts.getInstanceByDom(dom);
+        if (inst) inst.dispose();
+        return echarts.init(dom);
+      };
       // ---- 1. 等级分布(饼图) ----
-      var tierChart = echarts.init(document.getElementById('chart-tier'));
+      var tierChart = _safeInit('chart-tier');
       tierChart.setOption({
         tooltip: { trigger: 'item', formatter: '{b}: {c}人 ({d}%)' },
         series: [{
@@ -3553,7 +3561,7 @@ async function loadDashboard() {
       // ---- 2. 各平台分布(饼图) ----
       var pfData = Object.keys(pfs).filter(function(p) { return pfs[p] > 0; }).map(function(p) { return { name: p, value: pfs[p] }; });
       var pfColors = {'TikTok':'#ff0050','YouTube':'#ff0000','Facebook':'#1877f2','Instagram':'#e4405f','X(Twitter)':'#000','Reddit':'#ff4500','Pinterest':'#e60023','其他':'#999'};
-      var platChart = echarts.init(document.getElementById('chart-platform'));
+      var platChart = _safeInit('chart-platform');
       platChart.setOption({
         tooltip: { trigger: 'item', formatter: '{b}: {c}条 ({d}%)' },
         series: [{
@@ -3571,7 +3579,7 @@ async function loadDashboard() {
 
       // ---- 3. 积分分布(柱状图) ----
       var bKeys = Object.keys(buckets).sort(function(a,b) { return (parseInt(a)||0) - (parseInt(b)||0); });
-      var ptsChart = echarts.init(document.getElementById('chart-points'));
+      var ptsChart = _safeInit('chart-points');
       ptsChart.setOption({
         tooltip: { trigger: 'axis', formatter: function(p) { return p[0].name + '分：' + p[0].value + '人'; } },
         xAxis: { type: 'category', data: bKeys, axisLabel: { fontSize: 10 } },
@@ -3620,7 +3628,7 @@ async function loadDashboard() {
         }
       });
       var tMonths = trendMonths.map(function(m) { return m.replace('-','.'); });
-      var trendChart = echarts.init(document.getElementById('chart-trend'));
+      var trendChart = _safeInit('chart-trend');
       trendChart.setOption({
         tooltip: { trigger: 'axis' },
         legend: { data: ['投稿创作者','链接数','积分'], bottom: 0, textStyle: { fontSize: 10 } },
@@ -3645,7 +3653,7 @@ async function loadDashboard() {
         top10Colors.push(barColors[i]||'#999');
       });
       if (top10Ids.length > 0) {
-        var topChart = echarts.init(document.getElementById('chart-top10'));
+        var topChart = _safeInit('chart-top10');
         topChart.setOption({
           tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: function(p) { return p[0].name + '<br/>📎 ' + p[0].value + '分 · ' + (top10Links[p[0].dataIndex]||0) + '条'; } },
           grid: { left: 8, right: 50, top: 8, bottom: 8 },
