@@ -1299,7 +1299,6 @@ async function registerCreator() {
       return;
     }
 
-    var fullAddress = fullname + '\n' + street + '\n' + city + '\n' + state + '\n' + zip + '\n' + country + '\n' + phone;
     var notesObj = {
       registered_at: new Date().toISOString(),
       account_id: accountId,
@@ -1320,7 +1319,12 @@ async function registerCreator() {
       name: fullname,
       account_id: accountId,
       server: server,
-      address: fullAddress,
+      address: street,
+      city: city,
+      state: state,
+      postal_code: zip,
+      country: country,
+      phone: phone,
       notes: JSON.stringify(notesObj),
       status: 'active'
     };

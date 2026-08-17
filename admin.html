@@ -372,13 +372,14 @@
             <th>Discord</th>
             <th>UID</th>
             <th>⭐ 等级</th>
-            <th>👤 状态</th><th>📵 活跃度</th>
+            <th>👤 状态</th>
             <th>💳 最新剩余积分</th>
             <th>Full Legal Name</th>
             <th>Region</th>
             <th>Account ID</th>
             <th>Server</th>
             <th>Address</th>
+            <th>城市</th><th>州/省</th><th>邮编</th><th>国家</th><th>电话</th>
           </tr></thead>
           <tbody id="koc-table"></tbody>
         </table>
@@ -745,14 +746,16 @@ Elite: 连续 6 个月达到 5 分</textarea>
     <input type="text" id="edit-channel" placeholder="TT / Ins / FB / Reddit">
     <label>Region / Country</label>
     <input type="text" id="edit-region" placeholder="e.g. USA, Canada">
-    <label>Shipping Address</label>
-    <textarea id="edit-address" rows="4" placeholder="Full Legal Name
-Address
-City
-State
-Postal Code
-Country
-Phone Number"></textarea>
+    <label>Shipping Address (Street)</label>
+    <textarea id="edit-address" rows="3" placeholder="Street address"></textarea>
+    <label>City / 城市</label>
+    <input type="text" id="edit-city" placeholder="City">
+    <label>State / Province / 州</label>
+    <input type="text" id="edit-state" placeholder="State / Province">
+    <label>Postal Code / 邮编</label>
+    <input type="text" id="edit-postal" placeholder="Postal code">
+    <label>Country / 国家</label>
+    <input type="text" id="edit-country" placeholder="Country">
     <label>Phone</label>
     <input type="text" id="edit-phone" placeholder="Phone number">
     <label>Account ID (game)</label>
@@ -3951,6 +3954,13 @@ function renderKocTable() {
   var filtered = allKocs.filter(function(k) {
     return (k.discord_name || '').toLowerCase().includes(q) || (k.uid || '').toLowerCase().includes(q);
   });
+  // 没有 UID 的人（PENDING- 占位）排在列表最后
+  filtered.sort(function(a, b) {
+    var ap = (a.uid || '').indexOf('PENDING-') === 0 ? 1 : 0;
+    var bp = (b.uid || '').indexOf('PENDING-') === 0 ? 1 : 0;
+    if (ap !== bp) return ap - bp;
+    return (a.discord_name || '').toLowerCase().localeCompare((b.discord_name || '').toLowerCase());
+  });
   document.getElementById('koc-count').textContent = filtered.length + ' creators';
   var curP = currentPeriod;
   var curY = parseInt(curP.split('-')[0]), curM = parseInt(curP.split('-')[1]);
@@ -3967,7 +3977,7 @@ function renderKocTable() {
 
   var tbody = document.getElementById('koc-table');
   if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="16" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
     return;
   }
   tbody.innerHTML = filtered.map(function(k) {
@@ -4010,6 +4020,11 @@ function renderKocTable() {
       '<td ondblclick="inlineEdit(this,\'account_id\',\'' + k.uid + '\')" title="Double-click to edit" style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(k.account_id || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'server\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.server || '-') + '</td>' +
       '<td ondblclick="inlineEdit(this,\'address\',\'' + k.uid + '\')" title="Double-click to edit" style="font-size:12px;white-space:pre-wrap;max-width:200px;">' + esc(k.address || '-') + '</td>' +
+      '<td ondblclick="inlineEdit(this,\'city\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.city || '-') + '</td>' +
+      '<td ondblclick="inlineEdit(this,\'state\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.state || '-') + '</td>' +
+      '<td ondblclick="inlineEdit(this,\'postal_code\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.postal_code || '-') + '</td>' +
+      '<td ondblclick="inlineEdit(this,\'country\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.country || '-') + '</td>' +
+      '<td ondblclick="inlineEdit(this,\'phone\',\'' + k.uid + '\')" title="Double-click to edit" style="white-space:nowrap;">' + esc(k.phone || '-') + '</td>' +
     '</tr>';
   }).join('');
   // Load balances (single aggregated query instead of one per KOC)
@@ -4612,17 +4627,17 @@ function openEditModal(uid) {
   if (!koc) return;
   editingUid = uid;
   
-  // Parse address to extract phone if present
-  var addr = koc.address || '';
-  var parsed = parseAddress(addr);
-
   document.getElementById('edit-discord').value = koc.discord_name || '';
   document.getElementById('edit-uid').value = koc.uid || '';
   document.getElementById('edit-name').value = koc.name || '';
   document.getElementById('edit-channel').value = koc.channel_tag || '';
   document.getElementById('edit-region').value = koc.region || '';
-  document.getElementById('edit-address').value = parsed.address;
-  document.getElementById('edit-phone').value = parsed.phone;
+  document.getElementById('edit-address').value = koc.address || '';
+  document.getElementById('edit-city').value = koc.city || '';
+  document.getElementById('edit-state').value = koc.state || '';
+  document.getElementById('edit-postal').value = koc.postal_code || '';
+  document.getElementById('edit-country').value = koc.country || '';
+  document.getElementById('edit-phone').value = koc.phone || parseAddress(koc.address || '').phone;
   document.getElementById('edit-account').value = koc.account_id || '';
   document.getElementById('edit-server').value = koc.server || '';
   document.getElementById('edit-notes').value = koc.notes || '';
@@ -4654,13 +4669,17 @@ async function saveEditKOC() {
   if (!editingUid) return;
   var addr = document.getElementById('edit-address').value.trim();
   var phone = document.getElementById('edit-phone').value.trim();
-  var fullAddr = phone ? addr + '\n\n' + phone : addr;
 
   var updates = {
     name: document.getElementById('edit-name').value.trim(),
     channel_tag: document.getElementById('edit-channel').value.trim(),
     region: document.getElementById('edit-region').value.trim(),
-    address: fullAddr,
+    address: addr,
+    city: document.getElementById('edit-city').value.trim(),
+    state: document.getElementById('edit-state').value.trim(),
+    postal_code: document.getElementById('edit-postal').value.trim(),
+    country: document.getElementById('edit-country').value.trim(),
+    phone: phone,
     account_id: document.getElementById('edit-account').value.trim(),
     server: document.getElementById('edit-server').value.trim(),
     notes: document.getElementById('edit-notes').value.trim()
