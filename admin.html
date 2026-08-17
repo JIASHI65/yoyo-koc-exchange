@@ -2,8 +2,30 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<!-- ECharts removed -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>
+// ECharts 加载（多 CDN 回退，确保仪表盘图表可用）
+(function loadECharts() {
+  if (window.echarts) return;
+  var urls = [
+    'https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js',
+    'https://unpkg.com/echarts@5.5.0/dist/echarts.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js',
+    'https://cdn.bootcdn.net/ajax/libs/echarts/5.5.0/echarts.min.js'
+  ];
+  var i = 0;
+  function tryNext() {
+    if (i >= urls.length) { console.error('[ECharts] all CDNs failed'); return; }
+    var s = document.createElement('script');
+    s.src = urls[i++];
+    s.async = true;
+    s.onload = function() { console.log('[ECharts] loaded from ' + s.src); };
+    s.onerror = tryNext;
+    document.head.appendChild(s);
+  }
+  tryNext();
+})();
+</script>
 <title>🌟 Yoyo Town · Admin</title>
 
 <style>
