@@ -3056,7 +3056,7 @@ async function loadData() {
     var activeId = null;
     tabIds.forEach(function(id) {
       var el = document.getElementById('tab-'+id);
-      if (el && el.style.display !== 'none') activeId = id;
+      if (el && getComputedStyle(el).display !== 'none') activeId = id;
     });
     if (activeId) {
       if (activeId === 'dashboard') loadDashboard();
@@ -3218,7 +3218,7 @@ function shiftSettleMonth(delta) {
   var tabIds = ['dashboard','community','koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules','audit'];
   tabIds.forEach(function(id) {
     var el = document.getElementById('tab-'+id);
-    if (el && el.style.display !== 'none') activeId = id;
+    if (el && getComputedStyle(el).display !== 'none') activeId = id;
   });
   if (activeId === 'dashboard') loadDashboard();
   else if (activeId === 'koc-ledger') renderKocTable();
@@ -3246,7 +3246,7 @@ function changeSettlePeriod() {
   var tabIds = ['dashboard','community','koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules','audit'];
   tabIds.forEach(function(id) {
     var el = document.getElementById('tab-'+id);
-    if (el && el.style.display !== 'none') activeId = id;
+    if (el && getComputedStyle(el).display !== 'none') activeId = id;
   });
   if (activeId === 'dashboard') loadDashboard();
   else if (activeId === 'koc-ledger') renderKocTable();
@@ -3395,6 +3395,27 @@ async function loadDashboard() {
       subRes.ok ? subRes.json() : Promise.resolve([]),
       ordRes.ok ? ordRes.json() : Promise.resolve([])
     ]);
+    // ========== 自动跳转到最近有数据的月份 ==========
+    if (subs.length > 0) {
+      var _nowReal = new Date();
+      var _realPeriod = _nowReal.getFullYear() + '-' + String(_nowReal.getMonth() + 1).padStart(2, '0');
+      var _mset = {};
+      subs.forEach(function(s) { var m = (s.created_at || '').substring(0, 7); if (m) _mset[m] = true; });
+      var _mkeys = Object.keys(_mset).sort();
+      var _latest = _mkeys.length ? _mkeys[_mkeys.length - 1] : null;
+      var _hasCurrent = subs.some(function(s) { return (s.created_at || '').substring(0, 7) === currentPeriod; });
+      if (_latest && currentPeriod === _realPeriod && !_hasCurrent && _latest !== currentPeriod) {
+        currentPeriod = _latest;
+        var _sel = document.getElementById('settle-month');
+        if (_sel) {
+          _sel.value = currentPeriod;
+          for (var _i = 0; _i < _sel.options.length; _i++) _sel.options[_i].selected = (_sel.options[_i].value === currentPeriod);
+        }
+        var _lbl = document.getElementById('settle-label');
+        if (_lbl) _lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
+        return loadDashboard();
+      }
+    }
     // ========== 清除 skeleton ==========
     document.getElementById('dash-kpi').innerHTML = '';
     ['chart-tier','chart-platform','chart-points','chart-trend','chart-top10'].forEach(function(id) {
