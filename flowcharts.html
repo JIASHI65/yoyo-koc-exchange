@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yoyo KOC 系统 · 流程图</title>
+<style>
+  :root {
+    --pink: #ff6fa5; --pink-dark: #d63384; --pink-light: #fff0f6;
+    --ink: #2b2b2b; --muted: #8a8a8a; --line: #ffc2d8; --bg: #fff8fb;
+    --admin: #7b1fa2; --admin-light: #f5eefa;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+  section { background: #fff; border: 1px solid var(--line); border-radius: 16px;
+    padding: 22px 24px; margin-bottom: 26px; box-shadow: 0 2px 10px rgba(214,51,132,.05); }
+  h2 { font-size: 19px; margin: 0 0 4px; color: var(--pink-dark); }
+  h2.admin { color: var(--admin); }
+  .desc { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; }
+  .node { background: var(--pink-light); border: 1.5px solid var(--line); border-radius: 12px;
+    padding: 10px 14px; font-size: 13px; min-width: 120px; max-width: 200px;
+    display: flex; flex-direction: column; justify-content: center; }
+  .node.admin { background: var(--admin-light); border-color: #e1bee7; }
+  .node .t { font-weight: 700; margin-bottom: 2px; }
+  .node .s { font-size: 11px; color: var(--muted); }
+  .node.start { background: var(--pink); color: #fff; border-color: var(--pink); }
+  .node.start .s { color: #ffe3ee; }
+  .node.decision { background: #fff8e1; border-color: #ffd54f; }
+  .node.end { background: #e8f5e9; border-color: #a5d6a7; }
+  .arrow { display: flex; align-items: center; padding: 0 8px; color: var(--pink);
+    font-size: 20px; font-weight: 700; }
+  .rows { display: flex; flex-direction: column; gap: 14px; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 0; }
+  .branch { font-size: 11px; color: var(--muted); padding: 2px 8px;
+    border-left: 2px dashed var(--line); margin-left: 12px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .dot { width: 12px; height: 12px; border-radius: 4px; display: inline-block; border: 1.5px solid; }
+  .dot.start { background: var(--pink); border-color: var(--pink); }
+  .dot.step { background: var(--pink-light); border-color: var(--line); }
+  .dot.dec { background: #fff8e1; border-color: #ffd54f; }
+  .dot.end { background: #e8f5e9; border-color: #a5d6a7; }
+  @media (max-width: 640px) { .arrow { transform: rotate(90deg); padding: 4px 0; } .flow, .row { flex-direction: column; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎀 Yoyo KOC 兑换系统 · 流程图</h1>
+  <div class="sub">创作者端 (index.html) + 管理端 (admin.html) · 数据层 Supabase · 更新于 2026.07</div>
+  <div class="legend">
+    <span><i class="dot start"></i>起点</span>
+    <span><i class="dot step"></i>步骤</span>
+    <span><i class="dot dec"></i>判断/分支</span>
+    <span><i class="dot end"></i>结束</span>
+  </div>
+  <section>
+    <h2>① 创作者：注册 / 登录</h2>
+    <div class="desc">登录用 UID + Account ID 双重校验，防止冒登。新用户走注册。</div>
+    <div class="rows">
+      <div class="row">
+        <div class="node start"><span class="t">打开创作者页</span><span class="s">index.html</span></div>
+        <div class="arrow">→</div>
+        <div class="node decision"><span class="t">有账号？</span></div>
+      </div>
+      <div class="row">
+        <div class="branch">否 → 新创作者</div>
+        <div class="node"><span class="t">填写注册信息</span><span class="s">Discord / Account ID / 地址</span></div>
+        <div class="arrow">→</div>
+        <div class="node"><span class="t">生成 UID</span><span class="s">写入 kocs</span></div>
+        <div class="arrow">→</div>
+        <div class="node end"><span class="t">进入主页</span></div>
+      </div>
+      <div class="row">
+        <div class="branch">是 → 登录</div>
+        <div class="node"><span class="t">输入 UID + Account ID</span></div>
+        <div class="arrow">→</div>
+        <div class="node decision"><span class="t">校验匹配？</span></div>
+        <div class="arrow">→</div>
+        <div class="node end"><span class="t">登录成功</span></div>
+      </div>
+      <div class="row">
+        <div class="branch">校验失败</div>
+        <div class="node decision"><span class="t">拒绝进入</span><span class="s">提示核对信息</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>② 创作者：投稿</h2>
+    <div class="desc">作品(work)按平台数据计分；showcase 每人每期只 +1 分。</div>
+    <div class="flow">
+      <div class="node start"><span class="t">进入投稿</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><span class="t">粘贴作品链接</span><span class="s">互动 / 播放</span></div>
+      <div class="arrow">→</div>
+      <div class="node decision"><span class="t">链接有效？</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><span class="t">提交</span><span class="s">写入 submissions</span></div>
+      <div class="arrow">→</div>
+      <div class="node end"><span class="t">待审核</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>③ 创作者：兑换</h2>
+    <div class="desc">积分来自 point_logs 汇总；兑换生成 redemption_orders，扣分后余额下降。</div>
+    <div class="flow">
+      <div class="node start"><span class="t">查看积分</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><span class="t">选择奖励</span><span class="s">钻石 / 礼品卡 / 周边</span></div>
+      <div class="arrow">→</div>
+      <div class="node decision"><span class="t">积分够 & 兑换开放？</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><span class="t">生成兑换订单</span><span class="s">redemption_orders</span></div>
+      <div class="arrow">→</div>
+      <div class="node end"><span class="t">等待发放</span></div>
+    </div>
+    <div class="branch" style="margin-top:12px;">积分不足 / 兑换关闭 → 拦截，不生成订单</div>
+  </section>
+
+  <section>
+    <h2 class="admin">④ 管理端：投稿审核 + 评分</h2>
+    <div class="desc">按当前 period 过滤；评分写入 point_logs，全程可在审计日志追溯。</div>
+    <div class="rows">
+      <div class="row">
+        <div class="node start admin"><span class="t">后台登录</span><span class="s">admin.html</span></div>
+        <div class="arrow">→</div>
+        <div class="node admin"><span class="t">查看本期投稿</span></div>
+        <div class="arrow">→</div>
+        <div class="node decision"><span class="t">通过？</span></div>
+      </div>
+      <div class="row">
+        <div class="branch">通过</div>
+        <div class="node admin"><span class="t">评分 / 批量标记</span><span class="s">写 point_logs</span></div>
+        <div class="arrow">→</div>
+        <div class="node admin"><span class="t">写审计日志</span></div>
+        <div class="arrow">→</div>
+        <div class="node end"><span class="t">积分同步创作者端</span></div>
+      </div>
+      <div class="row">
+        <div class="branch">不通过</div>
+        <div class="node admin"><span class="t">拒绝投稿</span><span class="s">状态 rejected</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="admin">⑤ 管理端：奖励发放 / 发货</h2>
+    <div class="desc">发货 = 系统内账务状态(标记+扣分)，物理物流在独立发货系统。重复发货不重复扣分。</div>
+    <div class="rows">
+      <div class="row">
+        <div class="node start admin"><span class="t">兑换订单列表</span></div>
+        <div class="arrow">→</div>
+        <div class="node decision"><span class="t">已发货过？</span></div>
+        <div class="arrow">→</div>
+        <div class="node admin"><span class="t">标记发货</span><span class="s">status=shipped</span></div>
+        <div class="arrow">→</div>
+        <div class="node admin"><span class="t">按需扣分</span><span class="s">point_logs</span></div>
+        <div class="arrow">→</div>
+        <div class="node end"><span class="t">交给发货系统</span></div>
+      </div>
+      <div class="row">
+        <div class="branch">已发货</div>
+        <div class="node decision"><span class="t">跳过 · 不重复扣分</span></div>
+      </div>
+      <div class="row">
+        <div class="branch">批量发奖</div>
+        <div class="node admin"><span class="t">同人同期同奖励去重</span><span class="s">防重复发放</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="admin">⑥ 管理端：月结对账（只读）</h2>
+    <div class="desc">只列异常、不自动改数据。人工确认后再处理。</div>
+    <div class="flow">
+      <div class="node start admin"><span class="t">运行对账检查</span></div>
+      <div class="arrow">→</div>
+      <div class="node admin"><span class="t">扫描本期数据</span><span class="s">投稿/订单/流水</span></div>
+      <div class="arrow">→</div>
+      <div class="node decision"><span class="t">发现异常？</span></div>
+      <div class="arrow">→</div>
+      <div class="node end"><span class="t">列出异常清单</span><span class="s">人工核对</span></div>
+    </div>
+    <div class="branch" style="margin-top:12px;">检查项：重复订单 / 重复 showcase / 疑似未扣分 / period 缺失 / 异常流水来源</div>
+  </section>
+
+  <section>
+    <h2>⑦ 数据流全景</h2>
+    <div class="desc">积分唯一真相源 = point_logs 汇总，不直接信任任何缓存余额。</div>
+    <div class="flow">
+      <div class="node"><span class="t">kocs</span><span class="s">创作者主数据</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><span class="t">submissions</span><span class="s">投稿</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><span class="t">point_logs</span><span class="s">积分流水(真相源)</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><span class="t">redemption_orders</span><span class="s">兑换订单</span></div>
+      <div class="arrow">→</div>
+      <div class="node"><span class="t">audit_logs</span><span class="s">操作留痕</span></div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>
