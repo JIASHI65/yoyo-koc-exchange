@@ -129,13 +129,13 @@ body{background:#0a0e17;color:#e0e6f0;font-family:-apple-system,'Inter','Segoe U
 <script>
 // ==== CONFIG ====
 var SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
-var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJyeXpvZmltcmVobWtpamtja3JtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjM4NTU2NTAsImV4cCI6MjAzOTQzMTY1MH0.ZX7cG0k5Ll5KGPH4JZ3jCJUNPD5JaRf5pOM1TjmJX9s';
+var SUPABASE_KEY = 'sb_publishable_oyewqnQ8AnitAOD94Qg0nA_v6Zqkr7r';
 
 var kocs = [], subs = [], points = [], orders = [], rewards = [];
 
 function sf(path, opts) {
   return fetch(SUPABASE_URL + path, Object.assign({
-    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    headers: { 'apikey': SUPABASE_KEY }
   }, opts || {}));
 }
 
@@ -160,15 +160,24 @@ async function loadReport() {
   document.getElementById('header-subtitle').textContent = period.replace('-','年') + ' · 数据报告中...';
   document.getElementById('report-content').innerHTML = '<div class="loading"><div class="spinner"></div><p>正在加载 ' + period.replace('-','年') + ' 数据...</p></div>';
   try {
-    var [kocRes, subRes, ptRes, ordRes] = await Promise.all([
+    var [kocRes, subRes, ordRes] = await Promise.all([
       sf('/rest/v1/kocs?select=*'),
-      sf('/rest/v1/submissions?period=eq.' + period + '&select=*'),
-      sf('/rest/v1/point_logs?period=eq.' + period + '&select=*'),
+      sf('/rest/v1/submissions?order=created_at.desc&select=*'),
       sf('/rest/v1/redemption_orders?order=created_at.desc&select=*')
     ]);
     kocs = kocRes.ok ? (await kocRes.json()).filter(function(k){return k.uid!=='__config__'}) : [];
-    subs = subRes.ok ? await subRes.json() : [];
-    points = ptRes.ok ? await ptRes.json() : [];
+    var allSubs = subRes.ok ? await subRes.json() : [];
+    var _mset = {};
+    allSubs.forEach(function(s){ var m=(s.created_at||'').substring(0,7); if(m) _mset[m]=true; });
+    var _mkeys = Object.keys(_mset).sort();
+    var _latest = _mkeys.length ? _mkeys[_mkeys.length-1] : null;
+    var _hasCur = allSubs.some(function(s){ return (s.created_at||'').substring(0,7) === period; });
+    if (_latest && !_hasCur) {
+      document.getElementById('month-select').value = _latest;
+      return loadReport();
+    }
+    subs = allSubs.filter(function(s){ return (s.created_at||'').substring(0,7) === period; });
+    points = [];
     orders = ordRes.ok ? await ordRes.json() : [];
     renderReport(period);
   } catch(e) {
@@ -189,8 +198,9 @@ function getPeriodPoints(period) {
 }
 
 function getTotalScore(uid, period) {
-  var pts = getPeriodPoints(period).filter(function(p){return p.uid === uid});
-  return pts.reduce(function(s,p){return s + (p.change||0)}, 0);
+  var t = 0;
+  subs.forEach(function(s){ if(s.uid === uid) t += (s.points_earned||0); });
+  return t;
 }
 
 // ==== RENDER ====
@@ -200,7 +210,8 @@ function renderReport(period) {
   var subbed = subs.length;
   var scored = subs.filter(function(s){return s.status==='scored'}).length;
   var pending = subs.filter(function(s){return s.status==='pending'}).length;
-  var totalPoints = points.filter(function(p){return p.period===period && p.source!=='redemption'}).reduce(function(s,p){return s+(p.change||0)},0);
+  var totalLinks = 0; subs.forEach(function(s){ totalLinks += ((s.links_engagement||'')+'\n'+(s.links_views||'')).split('\n').filter(Boolean).length; });
+  var totalPoints = subs.reduce(function(s,p){return s+(p.points_earned||0)},0);
   var totalSpent = orders.filter(function(o){
     var d = new Date(o.created_at);
     var p = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
@@ -214,27 +225,37 @@ function renderReport(period) {
   var tierDist = {};
   kocs.forEach(function(k){var t=k.tier||'certified';tierDist[t]=(tierDist[t]||0)+1});
 
-  // Platform distribution
-  var platDist = {};
-  kocs.forEach(function(k){
-    var ch = (k.channel_tag||'unknown').toUpperCase();
-    if(!ch||ch==='')ch='OTHER';
-    platDist[ch]=(platDist[ch]||0)+1
+  // Platform distribution (from submission links)
+  var platDist = {'Facebook':0,'Instagram':0,'TikTok':0,'YouTube':0,'Reddit':0,'X(Twitter)':0,'Pinterest':0,'其他':0};
+  subs.forEach(function(s){
+    ((s.links_engagement||'')+'\n'+(s.links_views||'')).split('\n').filter(Boolean).forEach(function(l){
+      var u=l.toLowerCase();
+      if(u.indexOf('facebook')>=0) platDist['Facebook']++;
+      else if(u.indexOf('instagram')>=0) platDist['Instagram']++;
+      else if(u.indexOf('tiktok')>=0) platDist['TikTok']++;
+      else if(u.indexOf('youtube')>=0||u.indexOf('youtu.be')>=0) platDist['YouTube']++;
+      else if(u.indexOf('reddit')>=0) platDist['Reddit']++;
+      else if(u.indexOf('twitter')>=0||u.indexOf('x.com')>=0) platDist['X(Twitter)']++;
+      else if(u.indexOf('pinterest')>=0) platDist['Pinterest']++;
+      else platDist['其他']++;
+    });
   });
 
-  // Creator ranking by submissions
+  // Creator ranking by total links
   var subRank = {};
-  subs.forEach(function(s){var u=s.uid;subRank[u]=(subRank[u]||0)+1});
+  subs.forEach(function(s){var u=s.uid;var c=((s.links_engagement||'')+'\n'+(s.links_views||'')).split('\n').filter(Boolean).length;subRank[u]=(subRank[u]||0)+c});
   var sortedRank = Object.keys(subRank).sort(function(a,b){return (subRank[b]||0)-(subRank[a]||0)}).slice(0,10);
 
-  // Platform scoring rank
-  var platScore = {};
+  // Platform score distribution (from score_details)
+  var platScore = {'Facebook':0,'Instagram':0,'TikTok':0,'YouTube':0,'Reddit':0};
+  var platScoreNames = {'fb':'Facebook','ig':'Instagram','tt':'TikTok','yt':'YouTube','rd':'Reddit'};
   subs.forEach(function(s){
     if(s.status!=='scored')return;
-    var u = s.uid;
-    var k = kocs.find(function(k){return k.uid===u});
-    var plat = k ? ((k.channel_tag||'unknown').toUpperCase()||'OTHER') : 'OTHER';
-    platScore[plat] = (platScore[plat]||0) + (s.points_earned||0);
+    var sd = {}; try { sd = JSON.parse(s.score_details||'{}'); } catch(e) {}
+    Object.keys(platScoreNames).forEach(function(k){
+      var v = sd[k] || {};
+      platScore[platScoreNames[k]] += (v.points||0);
+    });
   });
 
   var html = '';
@@ -242,7 +263,7 @@ function renderReport(period) {
   // === KPI ===
   html += '<div class="kpi-grid">';
   html += kpi('👥','活跃KOC',activeKocs,'/ '+totalKocs+' 总','blue');
-  html += kpi('📝','投稿作品',subbed,'已评分 '+scored,'green');
+  html += kpi('📝','投稿创作者',subbed,'产出 '+totalLinks+' 篇 · 已评分 '+scored,'green');
   html += kpi('📊','产生总积分',totalPoints,'已兑换 '+totalSpent,'orange');
   html += kpi('🎁','兑换订单',redeemed,'已发货 '+shipped,'purple');
   html += kpi('📋','待审核',pending,'条作品','pink');
@@ -260,14 +281,13 @@ function renderReport(period) {
   html += '<div class="section-title"><span class="icon">📈</span> 核心指标环比 · '+prevPeriod.replace('-','年')+'月 → '+period.replace('-','年')+'月</div>';
   (async function(){
     try{
-      var prevSubRes = await sf('/rest/v1/submissions?period=eq.'+prevPeriod+'&select=*');
-      var prevPtRes = await sf('/rest/v1/point_logs?period=eq.'+prevPeriod+'&select=*');
+      var prevSubRes = await sf('/rest/v1/submissions?order=created_at.desc&select=*');
       var prevOrdRes = await sf('/rest/v1/redemption_orders?order=created_at.desc&select=*');
-      var prevSubs = prevSubRes.ok ? await prevSubRes.json() : [];
-      var prevPts = prevPtRes.ok ? await prevPtRes.json() : [];
+      var prevSubsAll = prevSubRes.ok ? await prevSubRes.json() : [];
+      var prevSubs = prevSubsAll.filter(function(s){ return (s.created_at||'').substring(0,7) === prevPeriod; });
       var prevOrds = prevOrdRes.ok ? await prevOrdRes.json() : [];
 
-      var prevPtTotal = prevPts.filter(function(p){return p.period===prevPeriod&&p.source!=='redemption'}).reduce(function(s,p){return s+(p.change||0)},0);
+      var prevPtTotal = prevSubs.reduce(function(s,p){return s+(p.points_earned||0)},0);
       var prevSubTotal = prevSubs.length;
       var prevScored = prevSubs.filter(function(s){return s.status==='scored'}).length;
       var prevOrdsTotal = prevOrds.filter(function(o){
@@ -275,15 +295,22 @@ function renderReport(period) {
       }).length;
 
       document.getElementById('comparison-table-body').innerHTML = [
-        {label:'投稿作品', cur:subbed, prev:prevSubTotal, unit:'条'},
-        {label:'已评分作品', cur:scored, prev:prevScored, unit:'条'},
+        {label:'投稿创作者', cur:subbed, prev:prevSubTotal, unit:'人'},
+        {label:'已评分创作者', cur:scored, prev:prevScored, unit:'人'},
         {label:'产生积分', cur:totalPoints, prev:prevPtTotal, unit:'分'},
         {label:'兑换订单', cur:redeemed, prev:prevOrdsTotal, unit:'单'}
       ].map(function(r){
-        var chg = r.prev > 0 ? ((r.cur - r.prev) / r.prev * 100).toFixed(1) : (r.cur > 0 ? '+100' : '0');
-        var cls = chg > 0 ? 'up' : (chg < 0 ? 'down' : 'flat');
-        var arrow = chg > 0 ? '📈' : (chg < 0 ? '📉' : '➡️');
-        return '<tr><td>'+r.label+'</td><td class="num">'+r.cur+' '+r.unit+'</td><td class="num">'+r.prev+' '+r.unit+'</td><td class="num '+cls+'">'+arrow+' '+chg+'%</td></tr>';
+        var chgHtml, cls;
+        if (r.prev <= 0) {
+          chgHtml = '—';
+          cls = 'flat';
+        } else {
+          var chg = ((r.cur - r.prev) / r.prev * 100).toFixed(1);
+          cls = chg > 0 ? 'up' : (chg < 0 ? 'down' : 'flat');
+          var arrow = chg > 0 ? '📈' : (chg < 0 ? '📉' : '➡️');
+          chgHtml = arrow + ' ' + (chg > 0 ? '+' : '') + chg + '%';
+        }
+        return '<tr><td>'+r.label+'</td><td class="num">'+r.cur+' '+r.unit+'</td><td class="num">'+(r.prev<=0?'—':r.prev+' '+r.unit)+'</td><td class="num '+cls+'">'+chgHtml+'</td></tr>';
       }).join('');
     }catch(e){}
   })();

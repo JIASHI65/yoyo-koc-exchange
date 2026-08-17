@@ -3372,22 +3372,18 @@ async function loadDashboard() {
   
   // ============ 模拟 6 月数据 ===========
   var MOCK_JUNE = {
-    activeCount: 3, totalLinks: 14, totalPts: 38, ccCount: 0, pendingLinks: 0,
-    plat: 0, gold: 0, cert: 3, newC: 2, oldC: 1,
-    pfs: { 'TikTok': 7, 'YouTube': 3, 'Facebook': 4, 'Instagram': 0, 'X(Twitter)': 0, 'Reddit': 0, 'Pinterest': 0, '其他': 0 },
-    buckets: { '0': 1, '6-10': 1, '11-15': 1 },
-    top10: [
-      { uid: 'cqbZpqmcXcCq', name: 'Lil', links: 5, pts: 17 },
-      { uid: 'KDOBOZVcxTJV', name: 'Ema', links: 4, pts: 12 },
-      { uid: 'FCDmpRnUXupP', name: 'crystaldreams', links: 2, pts: 9 }
-    ]
+    activeCount: 46, totalLinks: 600, totalPts: 0, ccCount: 0, pendingLinks: 0,
+    plat: 0, gold: 0, cert: 0, newC: 0, oldC: 0,
+    pfs: { 'TikTok': 20, 'YouTube': 0, 'Facebook': 0, 'Instagram': 0, 'X(Twitter)': 0, 'Reddit': 0, 'Pinterest': 0, '其他': 0 },
+    buckets: {},
+    top10: []
   };
   try {
     // ========== 并行拉取数据 (Promise.all) ==========
     var startTime = Date.now();
     var [kocRes, subRes, ordRes] = await Promise.all([
       supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=uid,discord_name,tier,name,created_at,notes'),
-      supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=uid,discord_name,status,points_earned,links_engagement,links_views,submission_type,created_at&order=created_at.desc'),
+      supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=uid,discord_name,status,points_earned,links_engagement,links_views,score_details,submission_type,created_at&order=created_at.desc'),
       supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?select=uid,points_spent,status,created_at&order=created_at.desc&limit=500')
     ]);
     var [kocs, subs, orders] = await Promise.all([
@@ -3448,10 +3444,11 @@ async function loadDashboard() {
     var plat = tierStats['platinum']||0, gold = tierStats['gold']||0, cert = tierStats['certified']||0;
     var ccCount = kocs.filter(function(k) { return (k.notes||'').indexOf('CC:' + currentPeriod) >= 0; }).length;
     var newC = 0, oldC = 0;
-    kocs.forEach(function(k) {
-      if ((k.notes||'').indexOf('old_creator') >= 0) oldC++;
-      else { try { var cd = new Date(k.created_at); var cy = cd.getFullYear()+'-'+String(cd.getMonth()+1).padStart(2,'0'); if (cy < currentPeriod) oldC++; else newC++; } catch(e) { newC++; } }
+    monthSubs.forEach(function(s) {
+      var _sd = {}; try { _sd = JSON.parse(s.score_details||'{}'); } catch(e) {}
+      if (_sd.newbie && _sd.newbie !== '-') newC++;
     });
+    oldC = Math.max(0, activeCount - newC);
     // ========== 平台分布 ==========
     var pfs = {'TikTok':0,'YouTube':0,'Facebook':0,'Instagram':0,'X(Twitter)':0,'Reddit':0,'Pinterest':0,'其他':0};
     var pfKeys = Object.keys(pfs);
@@ -3486,7 +3483,7 @@ async function loadDashboard() {
     var pTier = {plat:0,gold:0,cert:0}; pSubs.forEach(function(s) { var k = kocMap[s.uid]; if(k) pTier[k.tier||'certified']++; });
     var pNew = 0, pOld = 0;
     var gr = function(c, p) {
-      if (p === 0 || useMock) return c > 0 ? '<span style="color:#43a047;">+NEW</span>' : '<span style="color:#999;">-</span>';
+      if (p === 0) return '<span style="color:#999;">—</span>';
       var r = Math.round((c-p)/p*100);
       return '<span style="color:' + (c>=p?'#43a047':'#e74c3c') + ';">' + (c>=p?'+':'') + r + '%</span>';
     };
@@ -3546,7 +3543,7 @@ async function loadDashboard() {
       if (plat > 0) ti += '铂金' + plat + '人 · ';
       if (gold > 0) ti += '金级' + gold + '人 · ';
       ti += '认证' + cert + '人';
-      if (newC > 0) ti += '（新创作者' + newC + '人）';
+      if (newC > 0) ti += '（新人首投达标 ' + newC + ' 人）';
       ti += '。';
       if (plat > 0 && gold > 0) ti += '高等级创作者占比' + Math.round((plat+gold)/(plat+gold+cert)*100) + '%，创作生态成熟。';
       else if (gold > 0 && cert > gold) ti += '中级创作者占主体，具备晋升潜力。';
@@ -3698,28 +3695,39 @@ async function loadDashboard() {
     html += '<tr><td style="padding:6px 8px;">💎 铂金创作官</td><td style="padding:6px 8px;text-align:right;font-weight:500;">' + prevPlat + '</td><td style="padding:6px 8px;text-align:right;font-weight:600;">' + plat + '</td><td style="padding:6px 8px;text-align:right;font-weight:700;color:' + (plat>=prevPlat?'#43a047':'#e74c3c') + ';">' + gr(plat, prevPlat) + '</td></tr>';
     html += '</table></div>';
     // ========== 莎莎的关键洞察（分段策略版） ==========
+    var _ph = 0, _cap20 = 0, _cap40 = 0;
+    monthSubs.forEach(function(s) {
+      var _sd = {}; try { _sd = JSON.parse(s.score_details||'{}'); } catch(e) {}
+      if (_sd.peripheral && _sd.peripheral !== '-' && _sd.peripheral !== '0' && _sd.peripheral !== '') _ph++;
+      var _f = _sd.final;
+      if (typeof _f === 'number') { if (_f >= 40) _cap40++; else if (_f >= 20) _cap20++; }
+    });
     var ins = '<div style="display:flex;flex-direction:column;gap:8px;">';
     if (activeCount > 0) {
       // Block 1: 核心数据
       ins += '<div style="background:white;border-radius:10px;padding:10px 12px;">';
       ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">📊 本月核心数据</div>';
       ins += '<div style="font-size:12px;color:#555;line-height:1.7;">';
-      ins += '本月共有 <strong>' + activeCount + '</strong> 位创作者投稿，共计 ' + totalLinks + ' 条链接、' + totalPts + ' 分。';
-      if (Object.keys(pActive).length > 0 || useMock) ins += '<br>投稿创作者环比 ' + gr(activeCount, prevActiveCount) + '，链接数 ' + gr(totalLinks, prevLinks) + '。';
+      ins += '本月共有 <strong>' + activeCount + '</strong> 位创作者投稿，产出 ' + totalLinks + ' 条内容、新增 ' + totalPts + ' 分。';
+      if (Object.keys(pActive).length > 0 || useMock) ins += '<br>投稿创作者环比 ' + gr(activeCount, prevActiveCount) + '，内容产出 ' + gr(totalLinks, prevLinks) + '。';
       ins += '</div></div>';
-      
+
       // Block 2: 平台与内容分析
       var maxPfName = Object.keys(pfs).reduce(function(a,b) { return pfs[a] > pfs[b] ? a : b; });
+      var pfCount = Object.keys(pfs).filter(function(p) { return pfs[p] > 0; }).length;
+      var ttYt = (pfs['TikTok']||0) + (pfs['YouTube']||0);
+      var rd = pfs['Reddit']||0;
       ins += '<div style="background:white;border-radius:10px;padding:10px 12px;">';
       ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">📱 平台与内容</div>';
       ins += '<div style="font-size:12px;color:#555;line-height:1.7;">';
-      ins += '主要投稿平台：<strong>' + maxPfName + '</strong>（' + pfs[maxPfName] + '条）。';
-      var pfCount = Object.keys(pfs).filter(function(p) { return pfs[p] > 0; }).length;
-      if (pfCount >= 3) ins += ' 平台分布多元，覆盖面广。';
-      else ins += ' 创作者集中在少数平台，可引导拓展。';
+      ins += '主力平台：<strong>' + maxPfName + '</strong>（' + pfs[maxPfName] + '条）。';
+      if (ttYt > 0) ins += '<br>视频平台 TikTok+YouTube 共 ' + ttYt + ' 条，视频化转型启动。';
+      if (rd > 0) ins += '<br>Reddit 新平台首月 ' + rd + ' 条，开局平稳。';
+      if (pfCount >= 3) ins += '<br>平台分布多元，覆盖面广。';
+      else ins += '<br>创作者集中在少数平台，可引导拓展。';
       if (ccCount > 0) ins += '<br>🎁 ' + ccCount + ' 位创作者达标 CC 奖励（≥15条），持续创作意愿强。';
       ins += '</div></div>';
-      
+
       // Block 3: 等级与创作者结构
       ins += '<div style="background:white;border-radius:10px;padding:10px 12px;">';
       ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">⭐ 创作者结构</div>';
@@ -3728,36 +3736,38 @@ async function loadDashboard() {
       if (plat > 0) ins += '💎铂金' + plat + '人 ';
       if (gold > 0) ins += '🟡金级' + gold + '人 ';
       if (cert > 0) ins += '✅认证' + cert + '人。';
-      if (newC > 0) ins += '<br>🆕 新创作者 ' + newC + ' 位，后续可重点辅导完成新人任务。';
+      if (newC > 0) ins += '<br>🆕 ' + newC + ' 位新人完成首投任务（+2 奖励），新人机制初见成效。';
+      if (_ph > 0) ins += '<br>📦 周边晒图 ' + _ph + ' 条，从单向奖励升级为二次传播。';
+      if (_cap40 > 0) ins += '<br>🏅 积分天花板提至 40 后，' + _cap40 + ' 人冲上 40 分、' + _cap20 + ' 人封顶 20 分。';
       if (plat > 0 && gold > 0) ins += '<br>高等级创作者占比 ' + Math.round((plat+gold)/(plat+gold+cert)*100) + '%，创作生态趋于成熟。';
-      else ins += '<br>新人比例较高，成长空间充足。';
+      else ins += '<br>认证创作者占主体，具备晋升空间。';
       ins += '</div></div>';
-      
+
       // Block 4: 积分与兑换策略
+      var rate = totalPts > 0 ? Math.round(redeemedPts/totalPts*100) : 0;
       if (totalPts > 0) {
-        var rate = Math.round(redeemedPts/totalPts*100);
         ins += '<div style="background:white;border-radius:10px;padding:10px 12px;">';
         ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">🎯 积分与兑换策略</div>';
         ins += '<div style="font-size:12px;color:#555;line-height:1.7;">';
-        ins += '当前积分总量 ' + totalPts + ' 分，已兑换 ' + redeemedPts + ' 分（' + rate + '%）。';
+        ins += '本月新增积分 ' + totalPts + ' 分，已兑换 ' + redeemedPts + ' 分（' + rate + '%）。';
         if (rate < 30) ins += '<br>剩余积分较多，建议下月推出限时兑换活动催化消费。';
         else ins += '<br>兑换积极，可维持当前激励节奏。';
         ins += '</div></div>';
       }
-      
+
       // Block 5: 行动建议
       ins += '<div style="background:linear-gradient(135deg,#fce4ec,#fff5f9);border-radius:10px;padding:10px 12px;border:1px solid #f8bbd0;">';
       ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">📋 下月行动建议</div>';
       ins += '<div style="font-size:12px;color:#555;line-height:1.7;">';
       var suggestions = [];
-      if (newC > 0) suggestions.push('🆕 跟进 ' + newC + ' 位新创作者，辅导完成新人任务（满5分+2分）');
+      if (newC > 0) suggestions.push('🆕 跟进新人首投与老带新，扩大达标覆盖面');
       if (ccCount > 0) suggestions.push('🎁 确认 ' + ccCount + ' 位 CC 达标创作者的奖励发放');
       if (totalPts > 0 && rate < 30) suggestions.push('💎 推动积分兑换，减少积分沉淀');
-      if (pfCount < 3) suggestions.push('📱 引导创作者拓展投稿平台，降低单平台依赖');
-      if (cert > gold + plat) suggestions.push('⭐ 关注认证创作官的晋升路径，鼓励冲刺金级');
+      if (ttYt > 0 && ttYt < (pfs['Facebook']||0)) suggestions.push('📱 继续引导 TikTok/YouTube 视频化，降低单平台依赖');
+      if (cert > gold + plat) suggestions.push('⭐ 关注认证创作官晋升路径，鼓励冲刺金级');
       ins += suggestions.length > 0 ? suggestions.join('<br>') : '保持当前运营节奏，持续关注创作者活跃度。';
       ins += '</div></div>';
-      
+
     } else {
       ins += '<div style="background:white;border-radius:10px;padding:10px 12px;font-size:12px;color:#555;">💡 本月尚无投稿数据，请等待创作者提交作品。</div>';
     }
