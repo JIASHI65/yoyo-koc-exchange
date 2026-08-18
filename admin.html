@@ -306,7 +306,6 @@
       <button class="tab" onclick="switchTab('scoring')">🧮 积分计算</button>
       <button class="tab" onclick="switchTab('submissions')">📋 作品审核</button>
       <button class="tab" onclick="switchTab('feedback')">💬 反馈收集</button>
-      <button class="tab" onclick="switchTab('merch')">📦 周边发货</button>
       <button class="tab" onclick="switchTab('diamond')">💎 端内奖励</button>
       <button class="tab" onclick="switchTab('gplay')">🎮 谷歌卡</button>
       <button class="tab" onclick="switchTab('rules')">📐 规则配置</button>
@@ -507,19 +506,6 @@
       </div>
     </div>
 
-    <!-- ======== TAB: 周边发货 ======== -->
-    <div id="tab-merch" class="tab-content">
-      <div class="card">
-        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-          <span>📦 周边发货清单 <span id="merch-count" style="font-size:12px;color:var(--text-light);"></span></span>
-          <button class="btn btn-primary btn-sm" style="border-radius:20px;padding:6px 16px;" onclick="openBatchRewardModal('merch')">➕ 批量发奖</button>
-        </div>
-       <div style="overflow-x:auto;">
-         <div id="merch-table"></div>
-       </div>
-      </div>
-    </div>
-
     <!-- ======== TAB: 端内奖励 ======== -->
     <div id="tab-diamond" class="tab-content">
       <div class="card">
@@ -667,7 +653,6 @@ Elite: 连续 6 个月达到 5 分</textarea>
           <option value="">全部类型</option>
           <option value="score">📊 算分</option>
           <option value="cc">🎁 CC奖励</option>
-          <option value="merch">📦 周边发货</option>
           <option value="diamond">💎 端内奖励</option>
           <option value="gplay">🎮 谷歌卡</option>
           <option value="tier">⭐ 等级变动</option>
@@ -2393,7 +2378,6 @@ async function confirmScoreImport() {
   loadSubmissions();
   renderKocTable();
   renderScoringTable();
-  try { renderMerchTab(); } catch(e) {}
   try { renderDiamondTab(); } catch(e) {}
   try { renderGplayTab(); } catch(e) {}
 }
@@ -2465,7 +2449,7 @@ async function loadAuditLog() {
     var html = '<div style="font-size:12px;">';
     logs.forEach(function(l) {
       var actionLabels = {
-        'score': '📊 算分', 'cc': '🎁 CC奖励', 'merch': '📦 周边发货',
+        'score': '📊 算分', 'cc': '🎁 CC奖励',
         'diamond': '💎 端内奖励', 'gplay': '🎮 谷歌卡', 'tier': '⭐ 等级变动',
         'koc': '👤 KOC信息', 'config': '⚙️ 系统配置'
       };
@@ -2519,7 +2503,6 @@ function switchTab(name) {
   if (name === 'community') { return; }
   if (name === 'koc-ledger') renderKocTable();
   if (name === 'scoring') renderScoringTable();
-  if (name === 'merch') renderMerchTab();
   if (name === 'diamond') renderDiamondTab();
   if (name === 'gplay') renderGplayTab();
   if (name === 'submissions') loadSubmissions();
@@ -3054,7 +3037,7 @@ async function loadData() {
     allKocs = await kocRes.json();
     allOrders = await ordRes.json();
     // Re-render current active tab
-    var tabIds = ['dashboard','koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules','audit'];
+    var tabIds = ['dashboard','koc-ledger','scoring','submissions','diamond','gplay','tiers','rules','audit'];
     var activeId = null;
     tabIds.forEach(function(id) {
       var el = document.getElementById('tab-'+id);
@@ -3064,7 +3047,6 @@ async function loadData() {
       if (activeId === 'dashboard') loadDashboard();
       else if (activeId === 'koc-ledger') renderKocTable();
       else if (activeId === 'scoring') renderScoringTable();
-      else if (activeId === 'merch') renderMerchTab();
       else if (activeId === 'diamond') renderDiamondTab();
       else if (activeId === 'gplay') renderGplayTab();
       else if (activeId === 'submissions') loadSubmissions();
@@ -3217,7 +3199,7 @@ function shiftSettleMonth(delta) {
   if (lbl) lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
   // Refresh current active tab
   var activeId = null;
-  var tabIds = ['dashboard','community','koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules','audit'];
+  var tabIds = ['dashboard','community','koc-ledger','scoring','submissions','diamond','gplay','tiers','rules','audit'];
   tabIds.forEach(function(id) {
     var el = document.getElementById('tab-'+id);
     if (el && getComputedStyle(el).display !== 'none') activeId = id;
@@ -3226,7 +3208,6 @@ function shiftSettleMonth(delta) {
   else if (activeId === 'koc-ledger') renderKocTable();
   else if (activeId === 'scoring') renderScoringTable();
   else if (activeId === 'submissions') loadSubmissions();
-  else if (activeId === 'merch') renderMerchTab();
   else if (activeId === 'diamond') renderDiamondTab();
   else if (activeId === 'gplay') renderGplayTab();
   else if (activeId === 'tiers') renderTiersTable();
@@ -3245,7 +3226,7 @@ function changeSettlePeriod() {
   if (lbl) lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
   // Refresh current active tab
   var activeId = null;
-  var tabIds = ['dashboard','community','koc-ledger','scoring','submissions','merch','diamond','gplay','tiers','rules','audit'];
+  var tabIds = ['dashboard','community','koc-ledger','scoring','submissions','diamond','gplay','tiers','rules','audit'];
   tabIds.forEach(function(id) {
     var el = document.getElementById('tab-'+id);
     if (el && getComputedStyle(el).display !== 'none') activeId = id;
@@ -3254,7 +3235,6 @@ function changeSettlePeriod() {
   else if (activeId === 'koc-ledger') renderKocTable();
   else if (activeId === 'scoring') renderScoringTable();
   else if (activeId === 'submissions') loadSubmissions();
-  else if (activeId === 'merch') renderMerchTab();
   else if (activeId === 'diamond') renderDiamondTab();
   else if (activeId === 'gplay') renderGplayTab();
   else if (activeId === 'tiers') renderTiersTable();
@@ -4141,9 +4121,8 @@ function getSelectedKocUids() {
   return uids;
 }
 
-// ===== 批量发奖 (merch / diamonds / gplay) =====
+// ===== 批量发奖 (diamonds / gplay) =====
 var BATCH_REWARD_DEFAULTS = {
-  merch:    { title: '📦 批量发放周边', name: '📦 周边福袋',        amount: '随机周边 × 3' },
   diamonds: { title: '💎 批量发放端内奖励', name: '💎 钻石',        amount: '450 钻石' },
   gplay:    { title: '🎮 批量发放 Google Play 卡', name: '🎮 Google Play', amount: '$10 礼品卡' }
 };
@@ -4278,7 +4257,7 @@ async function submitBatchReward() {
   if (failed) msg += '，失败 ' + failed;
   if (deductFailed) msg += '，扣分失败 ' + deductFailed + '（请手动核对积分）';
   showToast(msg, (failed || deductFailed) ? 'error' : 'success');
-  writeAuditLog(type === 'merch' ? 'merch' : (type === 'gplay' ? 'gplay' : 'diamond'), 'batch reward ' + name + ' ok ' + ok + '/' + selected.length + ', skipped ' + skipped + ', failed ' + failed + ', deductFailed ' + deductFailed);
+  writeAuditLog(type === 'gplay' ? 'gplay' : 'diamond', 'batch reward ' + name + ' ok ' + ok + '/' + selected.length + ', skipped ' + skipped + ', failed ' + failed + ', deductFailed ' + deductFailed);
   closeBatchRewardModal();
   await loadData();
 }
@@ -4970,8 +4949,7 @@ function inlineEdit(cell, field, uid) {
         // Refresh all tabs
         renderKocTable();
         renderScoringTable();
-        try { renderMerchTab(); } catch(e) {}
-        try { renderDiamondTab(); } catch(e) {}
+              try { renderDiamondTab(); } catch(e) {}
         try { renderGplayTab(); } catch(e) {}
       } else {
         cell.textContent = currentVal || '-';
@@ -5042,7 +5020,7 @@ function editOrderInline(cell, field, orderId, uid) {
         method: 'PATCH',
         body: JSON.stringify(update)
       }).then(async function(r) {
-        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); await loadData(); renderKocTable(); renderScoringTable(); try{renderMerchTab()}catch(e){} try{renderDiamondTab()}catch(e){} try{renderGplayTab()}catch(e){} }
+        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); await loadData(); renderKocTable(); renderScoringTable(); try{renderDiamondTab()}catch(e){} try{renderGplayTab()}catch(e){} }
         else { cell.textContent = currentVal || '-'; var et=await r.text().catch(function(){return '';}); showToast('Failed: '+et.substring(0,60), 'error'); }
       }).catch(function(e) { cell.textContent = currentVal || '-'; showToast('Error: '+e.message, 'error'); });
     } else if (field === 'uid') {
@@ -5063,7 +5041,7 @@ function editOrderInline(cell, field, orderId, uid) {
       supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
         method: 'PATCH', body: JSON.stringify(update)
       }).then(async function(r) {
-        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); await loadData(); renderKocTable(); renderScoringTable(); try{renderMerchTab()}catch(e){} try{renderDiamondTab()}catch(e){} try{renderGplayTab()}catch(e){} }
+        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); await loadData(); renderKocTable(); renderScoringTable(); try{renderDiamondTab()}catch(e){} try{renderGplayTab()}catch(e){} }
         else { cell.textContent = currentVal || '-'; showToast('Failed', 'error'); }
       }).catch(function(e) { cell.textContent = currentVal || '-'; });
     }
@@ -5254,45 +5232,6 @@ function groupByMonth(arr) {
   return result;
 }
 
-function renderMerchTab() {
-  var kmap = getKocMap();
-  var merchOrders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }));
-  var label = currentPeriod.replace('-', '年') + '月';
-  document.getElementById('merch-count').textContent = '📅 ' + label + ' (' + merchOrders.length + ' orders)';
-  var container = document.getElementById('merch-table');
-  if (!merchOrders.length) {
-    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无 ' + label + ' 的已发货周边</div>';
-    return;
-  }
-  container.innerHTML = '<div class="month-section">' +
-    '<div class="month-header">' +
-    '<span class="month-icon">📅</span><span>' + label + '</span>' +
-    '<span class="count">(' + merchOrders.length + ' orders)</span>' +
-    '<div style="margin-left:auto;display:flex;gap:6px;">' +
-    '<button class="btn btn-primary btn-sm export-btn" data-type="merch" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
-    '</div></div>' +
-    '<table class="month-table"><thead><tr>' +
-    '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Address</th><th>Reward</th>' +
-    '</tr></thead><tbody>' +
-    merchOrders.map(function(o) {
-      var koc = kmap[o.uid];
-      var addr = koc ? (koc.address || '') : '';
-      return '<tr data-order-id="' + o.id + '" style="cursor:pointer;" ondblclick="editOrderInline(event.target,' + o.id + ')">' +
-        '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
-        '<td><strong ondblclick="event.stopPropagation();editOrderInline(this,\'discord_name\',' + o.id + ')">' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
-        '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();editOrderInline(this,\'uid\',' + o.id + ')">' + esc(o.uid) + '</td>' +
-        '<td style="font-size:12px;white-space:pre-wrap;min-width:300px;" ondblclick="event.stopPropagation();editOrderInline(this,\'address\',' + o.id + ')">' + (esc(addr) || '-') + '</td>' +
-        '<td ondblclick="event.stopPropagation();editOrderInline(this,\'option_name\',' + o.id + ')">' + 
-            (function() {
-              var q = o.points_spent || 1;
-              return '450 \u2715 ' + q + ' = <strong>' + (450*q) + ' \uD83D\uDC8E</strong>';
-            })() + '</td>' +
-      '</tr>';
-    }).join('') +
-    '</tbody></table></div>';
-  setTimeout(function() { initSortable('merch'); }, 100);
-}
-
 function isCurrentLedgerPeriod(period) {
   return period === currentPeriod;
 }
@@ -5407,19 +5346,6 @@ function exportMonth(type, label) {
   }
   var kmap = getKocMap();
   var header, rows, text;
-  if (type === 'merch') {
-    var merchOrders = allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }).sort(function(a, b) { return String((b.period || (b.created_at || '').substring(0, 7)) || '').localeCompare(String((a.period || (a.created_at || '').substring(0, 7)) || '')); });
-    if (!merchOrders.length) { showToast('No orders to export', 'error'); return; }
-    header = 'Discord\tUID\tReward\tAddress';
-    rows = merchOrders.map(function(o) {
-      var koc = kmap[o.uid];
-      var addr = koc ? (koc.address || '') : '';
-      return clean(esc(getDisplayName(koc, o))) + '\t' + o.uid + '\t' + clean(esc(o.option_name)) + '\t' + clean(esc(addr));
-    }).join('\n');
-    text = header + '\n' + rows;
-    exportToClipboard(text, merchOrders.length);
-    return;
-  }
   if (type === 'diamonds-both' || type === 'diamonds-cc-only' || type === 'diamonds-only') {
     var history = buildInGameRewardRows(allOrders);
     var rewardRows = [];
@@ -5506,7 +5432,7 @@ function resetOrder(type, month) {
   .then(function(r){return r.json()}).then(function(d){
     if(d&&d.length&&d[0].notes){try{var cfg=JSON.parse(d[0].notes);var ck='display_order_'+type;if(cfg.display_orders&&cfg.display_orders[ck]){delete cfg.display_orders[ck][month];supabaseFetch(SUPABASE_URL+'/rest/v1/kocs?uid=eq.__config__',{method:'PATCH',body:JSON.stringify({notes:JSON.stringify(cfg)})}).catch(function(){})}}catch(e){}}
   }).catch(function(){});
-  if(type==='merch')renderMerchTab();else if(type==='diamonds')renderDiamondTab();else if(type==='gplay')renderGplayTab();
+  if(type==='diamonds')renderDiamondTab();else if(type==='gplay')renderGplayTab();
 }
 // Global click handler for export buttons
 document.addEventListener('click', function(e) {
@@ -5590,7 +5516,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(function() {
           loadData().then(function() {
             var savedTab = localStorage.getItem('admin_active_tab');
-            if (savedTab && ['dashboard','koc-ledger','scoring','submissions','merch','diamond','gplay','rules','audit'].indexOf(savedTab) >= 0) {
+            if (savedTab && ['dashboard','koc-ledger','scoring','submissions','diamond','gplay','rules','audit'].indexOf(savedTab) >= 0) {
               switchTab(savedTab);
             } else {
               loadDashboard();
