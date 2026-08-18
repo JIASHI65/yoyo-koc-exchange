@@ -567,7 +567,6 @@ const REWARDS = [
 
 function getSettlementPeriod(date) {
   var d = date ? new Date(date) : new Date();
-  if (d.getDate() <= 5) d.setMonth(d.getMonth() - 1);
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 function getNextMonthPeriod(date) {

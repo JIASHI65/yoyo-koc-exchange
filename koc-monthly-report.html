@@ -135,8 +135,8 @@ var SUPABASE_URL = 'https://rryzofimrehmkijkckrm.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_oyewqnQ8AnitAOD94Qg0nA_v6Zqkr7r';
 
 var kocs = [], subs = [], points = [], orders = [], rewards = [];
-// 余额与兑换（累计口径）：余额 = 流水求和；v5「最后分数」合计 717 为兑换前累计
-var currentBalance = 0, redeemedTotal = 0, v5PreRedemptionTotal = 717;
+// 余额与兑换（累计口径）：余额 = 流水求和；兑换额直接来自已发货订单
+var currentBalance = 0, redeemedTotal = 0;
 
 function sf(path, opts) {
   return fetch(SUPABASE_URL + path, Object.assign({
@@ -187,7 +187,7 @@ async function loadReport() {
     orders = ordRes.ok ? await ordRes.json() : [];
     var plogs = plRes.ok ? await plRes.json() : [];
     currentBalance = plogs.reduce(function(s,p){ return s + (p.change||0); }, 0);
-    redeemedTotal = Math.max(0, v5PreRedemptionTotal - currentBalance);
+    redeemedTotal = orders.filter(function(o){ return o.status === 'shipped'; }).reduce(function(sum, o){ return sum + (o.points_spent||0); }, 0);
     renderReport(period);
   } catch(e) {
     document.getElementById('report-content').innerHTML = '<div class="error"><div class="icon">😵</div><p>数据加载失败: ' + e.message + '</p><button class="btn-retry" onclick="loadReport()">重新加载</button></div>';

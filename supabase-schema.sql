@@ -67,7 +67,7 @@ CREATE TABLE reward_options (
 INSERT INTO reward_options (name, points_cost, description, amount_text) VALUES
   ('💎 钻石', 1, '1 积分 = 450 钻石', '450 钻石'),
   ('🎮 Google Play $10', 2, '2 积分 = $10 礼品卡', '$10 Google Play 礼品卡'),
-  ('📦 周边福袋', 3, '3 积分 = 随机 3 件周边', '随机周边 × 3');
+  ('📦 周边福袋', 5, '5 积分 = 随机 3 件周边', '随机周边 × 3');
 
 -- 索引
 CREATE INDEX idx_point_logs_uid ON point_logs(uid);

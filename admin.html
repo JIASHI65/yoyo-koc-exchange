@@ -1353,11 +1353,6 @@ async function sendMochiDM(discordUsername, message) {
 // ===== SUBMISSIONS: Render table =====
 var now = new Date();
 var currentPeriod = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-if (new Date().getDate() <= 5) {
-  var d = new Date();
-  d.setMonth(d.getMonth() - 1);
-  currentPeriod = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-}
 var allSubmissions = [];
 function getRowPeriod(row) {
   if (row && row.period) return row.period;
@@ -1799,11 +1794,18 @@ async function batchMarkScored() {
     var count = 0, failed = 0;
     for (var i = 0; i < pending.length; i++) {
       var s = pending[i];
-      var linkCount = (s.links_engagement||'').split('\n').filter(Boolean).length;
-      var viewCount = (s.links_views||'').split('\n').filter(Boolean).length;
+      // 只标记为已评分，不覆盖 points_earned（算分由 Agent 在 score_details 里给出）
+      var patch = { status: 'scored', scored_at: new Date().toISOString() };
+      if (s.points_earned == null || s.points_earned === 0) {
+        try {
+          var sd = JSON.parse(s.score_details || '{}');
+          var p = sd.points || sd.total_points || sd.actual_score;
+          if (p != null) patch.points_earned = p;
+        } catch(e) {}
+      }
       var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + s.id, {
         method: 'PATCH',
-        body: JSON.stringify({ status: 'scored', points_earned: linkCount + viewCount })
+        body: JSON.stringify(patch)
       });
       if (resp.ok) count++; else failed++;
     }
@@ -3442,10 +3444,9 @@ async function loadDashboard() {
     var totalPts = monthSubs.reduce(function(su, s) { return su + (s.points_earned||0); }, 0);
     var shippedOrders = monthOrders.filter(function(o) { return o.status === 'shipped'; });
     var redeemedPts = shippedOrders.reduce(function(acc, o) { return acc + (o.points_spent||0); }, 0);
-    // 余额与兑换：以 point_logs 流水为准（余额 = 流水求和）；v5「最后分数」合计 717 为兑换前累计
+    // 余额与兑换：以 point_logs 流水为准（余额 = 流水求和）
     var currentBalance = plogs.reduce(function(acc, p) { return acc + (p.change||0); }, 0);
-    var v5PreRedemptionTotal = 717;
-    var redeemedTotal = Math.max(0, v5PreRedemptionTotal - currentBalance);
+    var redeemedTotal = shippedOrders.reduce(function(acc, o) { return acc + (o.points_spent||0); }, 0);
     var tierStats = {}; kocs.forEach(function(k) { var t = k.tier||'certified'; tierStats[t] = (tierStats[t]||0) + 1; });
     var plat = tierStats['platinum']||0, gold = tierStats['gold']||0, cert = tierStats['certified']||0;
     var ccCount = kocs.filter(function(k) { return (k.notes||'').indexOf('CC:' + currentPeriod) >= 0; }).length;
@@ -3761,12 +3762,12 @@ async function loadDashboard() {
       ins += '</div></div>';
 
       // Block 4: 积分与兑换策略
-      var redemptionRate = v5PreRedemptionTotal > 0 ? Math.round(redeemedTotal / v5PreRedemptionTotal * 100) : 0;
+      var redemptionRate = totalPts > 0 ? Math.round(redeemedTotal / totalPts * 100) : 0;
       if (totalPts > 0) {
         ins += '<div style="background:white;border-radius:10px;padding:10px 12px;">';
         ins += '<div style="font-size:12px;font-weight:600;color:#ad1457;margin-bottom:4px;">🎯 积分与兑换策略</div>';
         ins += '<div style="font-size:12px;color:#555;line-height:1.7;">';
-        ins += '本月新增积分 ' + totalPts + ' 分；累计产生 ' + v5PreRedemptionTotal + ' 分，已兑换 ' + redeemedTotal + ' 分（' + redemptionRate + '%），当前余额 ' + currentBalance + ' 分。';
+        ins += '本月新增积分 ' + totalPts + ' 分；累计已兑换 ' + redeemedTotal + ' 分（' + redemptionRate + '%），当前余额 ' + currentBalance + ' 分。';
         if (redeemedTotal > 0) ins += '<br>兑换机制已跑通，下月可推出限时兑换活动继续催化消费。';
         else ins += '<br>积分尚未开始兑换，可策划首期兑换活动验证链路。';
         ins += '</div></div>';
@@ -4142,7 +4143,7 @@ function getSelectedKocUids() {
 
 // ===== 批量发奖 (merch / diamonds / gplay) =====
 var BATCH_REWARD_DEFAULTS = {
-  merch:    { title: '📦 批量发放周边', name: '📦 周边福袋',        amount: '随机周边 × 1' },
+  merch:    { title: '📦 批量发放周边', name: '📦 周边福袋',        amount: '随机周边 × 3' },
   diamonds: { title: '💎 批量发放端内奖励', name: '💎 钻石',        amount: '450 钻石' },
   gplay:    { title: '🎮 批量发放 Google Play 卡', name: '🎮 Google Play', amount: '$10 礼品卡' }
 };
