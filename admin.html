@@ -5084,6 +5084,7 @@ function getKocMap() {
 }
 
 
+
 function getDisplayName(koc, order) {
   return (koc && (koc.discord_name || koc.name)) || (order && (order.discord_name || order.koc_name)) || '-';
 }
@@ -5111,58 +5112,93 @@ function getInGameRewardText(ccCount, order) {
   if (order) parts.push(getDiamondRewardText(order));
   return parts.join('，');
 }
-function buildInGameRewardRows() {
+function getBatchLabelFromPeriod(period) {
+  var parts = String(period || currentPeriod || '').split('-');
+  var month = parts.length === 2 ? parseInt(parts[1], 10) : (new Date().getMonth() + 1);
+  return month + '月koc结算';
+}
+function comparePeriodDesc(a, b) {
+  return String(b || '').localeCompare(String(a || ''));
+}
+function buildInGameRewardRows(allHistory) {
   var kmap = getKocMap();
-  var diamondOrders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'diamonds' && o.status === 'shipped' && (o.points_spent || 0) > 0; }));
-  var diamondByUid = {};
-  diamondOrders.forEach(function(o) { diamondByUid[o.uid] = o; });
-  var ccCreators = (allKocs || []).filter(function(k) {
-    return k.status === 'active' && (k.notes || '').includes('CC:' + currentPeriod);
-  });
+  var diamondOrders = (allHistory || allOrders).filter(function(o) { return o.option_type === 'diamonds' && o.status === 'shipped' && (o.points_spent || 0) > 0; });
+  var ccCreators = (allKocs || []).filter(function(k) { return k.status === 'active'; });
   var ccByUid = {};
   ccCreators.forEach(function(k) {
-    var matches = (k.notes || '').match(new RegExp('CC:' + currentPeriod, 'g')) || [];
-    ccByUid[k.uid] = Math.max(1, matches.length || 1);
+    var matches = (k.notes || '').match(/CC:([0-9]{4}-[0-9]{2})/g) || [];
+    if (!matches.length) return;
+    var grouped = {};
+    matches.forEach(function(tag) {
+      var p = tag.slice(3);
+      grouped[p] = (grouped[p] || 0) + 1;
+    });
+    ccByUid[k.uid] = grouped;
   });
-  var uids = {};
-  Object.keys(diamondByUid).forEach(function(uid) { uids[uid] = true; });
-  Object.keys(ccByUid).forEach(function(uid) { uids[uid] = true; });
-  return Object.keys(uids).map(function(uid) {
-    var koc = kmap[uid] || {};
-    var order = diamondByUid[uid] || null;
-    var ccCount = ccByUid[uid] || 0;
-    return {
-      id: (order && order.id) || uid,
-      uid: uid,
+  var grouped = {};
+  diamondOrders.forEach(function(o) {
+    var period = o.period || (o.created_at || '').substring(0, 7) || currentPeriod;
+    if (!grouped[period]) grouped[period] = { both: [], ccOnly: [], diamondOnly: [] };
+    var koc = kmap[o.uid] || {};
+    var ccCount = (ccByUid[o.uid] && ccByUid[o.uid][period]) || 0;
+    var row = {
+      id: o.id,
+      uid: o.uid,
       koc: koc,
-      order: order,
+      order: o,
       ccCount: ccCount,
       hasCC: ccCount > 0,
-      hasDiamond: !!order,
-      name: getDisplayName(koc, order),
+      hasDiamond: !!o,
+      name: getDisplayName(koc, o),
       server: getServerName(koc),
       accountId: getAccountId(koc),
-      reward: getInGameRewardText(ccCount, order)
+      reward: getInGameRewardText(ccCount, o),
+      period: period
     };
+    if (ccCount > 0) grouped[period].both.push(row);
+    else grouped[period].diamondOnly.push(row);
   });
+  Object.keys(ccByUid).forEach(function(uid) {
+    var koc = kmap[uid] || {};
+    var ccPeriods = ccByUid[uid];
+    Object.keys(ccPeriods).forEach(function(period) {
+      if (!grouped[period]) grouped[period] = { both: [], ccOnly: [], diamondOnly: [] };
+      var hasDiamond = diamondOrders.some(function(o) { return o.uid === uid && (o.period || (o.created_at || '').substring(0, 7) || currentPeriod) === period; });
+      if (!hasDiamond) {
+        grouped[period].ccOnly.push({
+          id: uid + '-' + period,
+          uid: uid,
+          koc: koc,
+          order: null,
+          ccCount: ccPeriods[period],
+          hasCC: true,
+          hasDiamond: false,
+          name: getDisplayName(koc, null),
+          server: getServerName(koc),
+          accountId: getAccountId(koc),
+          reward: getCCRewardText(ccPeriods[period]),
+          period: period
+        });
+      }
+    });
+  });
+  return grouped;
 }
-function renderInGameRewardTable(rows, type) {
+function renderInGameRewardTable(rows, type, period) {
   if (!rows.length) return '';
-  rows = applyOrder('diamonds-' + type, currentPeriod, rows);
+  var body = rows.map(function(r) {
+    return '<tr draggable="true" data-order-id="' + escAttr(r.id) + '">' +
+      '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
+      '<td><strong>' + esc(r.name) + '</strong></td>' +
+      '<td>' + esc(r.server) + '</td>' +
+      '<td style="font-family:monospace;font-size:12px;">' + esc(r.accountId) + '</td>' +
+      '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(r.uid) + '</td>' +
+      '<td>' + esc(r.reward) + '</td>' +
+    '</tr>';
+  }).join('');
   return '<table class="month-table"><thead><tr>' +
     '<th style="width:30px;"></th><th>姓名</th><th>区服</th><th>UID</th><th>ID</th><th>奖励内容</th>' +
-    '</tr></thead><tbody data-sort-type="diamonds-' + type + '" data-sort-month="' + currentPeriod + '">' +
-    rows.map(function(r) {
-      var oid = r.order ? r.order.id : r.uid;
-      return '<tr draggable="true" data-order-id="' + escAttr(r.id) + '">' +
-        '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
-        '<td><strong>' + esc(r.name) + '</strong></td>' +
-        '<td>' + esc(r.server) + '</td>' +
-        '<td style="font-family:monospace;font-size:12px;">' + esc(r.accountId) + '</td>' +
-        '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(r.uid) + '</td>' +
-        '<td>' + esc(r.reward) + '</td>' +
-      '</tr>';
-    }).join('') + '</tbody></table>';
+    '</tr></thead><tbody data-sort-type="diamonds-' + type + '" data-sort-month="' + period + '">' + body + '</tbody></table>';
 }
 function getRewardQty(order, defaultCost) {
   var amount = String((order && order.reward_amount) || '');
@@ -5176,11 +5212,8 @@ function renderGplayRewardText(order) {
   return '$10谷歌卡*' + getRewardQty(order, 2);
 }
 function getBatchLabel() {
-  var parts = (currentPeriod || '').split('-');
-  var month = parts.length === 2 ? parseInt(parts[1], 10) : (new Date().getMonth() + 1);
-  return month + '月koc结算';
+  return getBatchLabelFromPeriod(currentPeriod);
 }
-
 function fmtDate(d) {
   if (!d) return '-';
   try { return new Date(d).toLocaleDateString('en-CA'); } catch(e) { return '-'; }
@@ -5259,76 +5292,94 @@ function renderMerchTab() {
     '</tbody></table></div>';
   setTimeout(function() { initSortable('merch'); }, 100);
 }
+
+function isCurrentLedgerPeriod(period) {
+  return period === currentPeriod;
+}
+function makeLedgerSection(title, count, icon, bg, exportType, period, bodyHtml) {
+  var open = isCurrentLedgerPeriod(period);
+  var secId = 'ledger-' + exportType + '-' + period;
+  return '<div class="month-section">' +
+    '<div class="month-header" style="background:' + bg + ';cursor:pointer;" onclick="toggleLedgerSection(\'' + escAttr(secId) + '\')">' +
+    '<span class="month-icon">' + icon + '</span><span>' + title + '</span>' +
+    '<span class="count">(' + count + ')</span>' +
+    '<span style="font-size:12px;color:var(--text-light);margin-left:8px;">' + (open ? '展开中' : '点击展开') + '</span>' +
+    '<div style="margin-left:auto;display:flex;gap:6px;" onclick="event.stopPropagation();"><button class="btn btn-primary btn-sm export-btn" data-type="' + exportType + '" data-label="' + period + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button></div></div>' +
+    '<div id="' + secId + '" style="display:' + (open ? 'block' : 'none') + ';">' + bodyHtml + '</div></div>';
+}
+function toggleLedgerSection(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
 function renderDiamondTab() {
   var label = currentPeriod.replace('-', '年') + '月';
-  var rows = buildInGameRewardRows();
-  var both = rows.filter(function(r) { return r.hasCC && r.hasDiamond; });
-  var ccOnly = rows.filter(function(r) { return r.hasCC && !r.hasDiamond; });
-  var diamondOnly = rows.filter(function(r) { return !r.hasCC && r.hasDiamond; });
-  document.getElementById('diamond-count').textContent = '📅 ' + label + ' (' + both.length + ' 持续+钻石 / ' + ccOnly.length + ' 持续 / ' + diamondOnly.length + ' 钻石)';
+  var history = buildInGameRewardRows(allOrders);
+  var groups = Object.keys(history).sort(comparePeriodDesc);
+  var allRows = [];
+  groups.forEach(function(period) {
+    var g = history[period];
+    g.both.forEach(function(r) { allRows.push(r); });
+    g.ccOnly.forEach(function(r) { allRows.push(r); });
+    g.diamondOnly.forEach(function(r) { allRows.push(r); });
+  });
+  document.getElementById('diamond-count').textContent = '📅 长期台账 (' + allRows.length + ' 条)';
   var container = document.getElementById('diamond-table');
-  if (!rows.length) {
-    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无 ' + label + ' 的端内奖励数据</div>';
+  if (!allRows.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无端内奖励台账</div>';
     return;
   }
   var html = '';
-  if (both.length) {
-    html += '<div class="month-section"><div class="month-header" style="background:#e8f5e9;">' +
-      '<span class="month-icon">🎁</span><span>' + label + '端内奖励——（持续创作奖+钻石）</span>' +
-      '<span class="count">(' + both.length + ' creators)</span>' +
-      '<div style="margin-left:auto;display:flex;gap:6px;"><button class="btn btn-primary btn-sm export-btn" data-type="diamonds-both" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button></div></div>' +
-      renderInGameRewardTable(both, 'both') + '</div>';
-  }
-  if (ccOnly.length) {
-    html += '<div class="month-section"><div class="month-header" style="background:#fff8e1;">' +
-      '<span class="month-icon">🏆</span><span>' + label + '端内奖励——只有持续创作激励奖</span>' +
-      '<span class="count">(' + ccOnly.length + ' creators)</span>' +
-      '<div style="margin-left:auto;display:flex;gap:6px;"><button class="btn btn-primary btn-sm export-btn" data-type="diamonds-cc-only" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button></div></div>' +
-      renderInGameRewardTable(ccOnly, 'cc-only') + '</div>';
-  }
-  if (diamondOnly.length) {
-    html += '<div class="month-section"><div class="month-header" style="background:#e3f2fd;">' +
-      '<span class="month-icon">💎</span><span>' + label + '端内奖励——只有钻石</span>' +
-      '<span class="count">(' + diamondOnly.length + ' orders)</span>' +
-      '<div style="margin-left:auto;display:flex;gap:6px;"><button class="btn btn-primary btn-sm export-btn" data-type="diamonds-only" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button></div></div>' +
-      renderInGameRewardTable(diamondOnly, 'only') + '</div>';
-  }
+  groups.forEach(function(period) {
+    var g = history[period];
+    if (g.both.length) {
+      html += makeLedgerSection(getBatchLabelFromPeriod(period) + '——（持续创作奖+钻石）', g.both.length, '🎁', '#e8f5e9', 'diamonds-both', period, renderInGameRewardTable(g.both, 'both', period));
+    }
+    if (g.ccOnly.length) {
+      html += makeLedgerSection(getBatchLabelFromPeriod(period) + '——只有持续创作激励奖', g.ccOnly.length, '🏆', '#fff8e1', 'diamonds-cc-only', period, renderInGameRewardTable(g.ccOnly, 'cc-only', period));
+    }
+    if (g.diamondOnly.length) {
+      html += makeLedgerSection(getBatchLabelFromPeriod(period) + '——只有钻石', g.diamondOnly.length, '💎', '#e3f2fd', 'diamonds-only', period, renderInGameRewardTable(g.diamondOnly, 'only', period));
+    }
+  });
   container.innerHTML = html;
   setTimeout(function() { initSortable('diamonds-both'); initSortable('diamonds-cc-only'); initSortable('diamonds-only'); }, 100);
 }
 
 function renderGplayTab() {
   var kmap = getKocMap();
-  var orders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'gplay' && o.status === 'shipped'; }));
-  var label = currentPeriod.replace('-', '年') + '月';
-  orders = applyOrder('gplay', currentPeriod, orders);
-  document.getElementById('gplay-count').textContent = '📅 ' + label + ' (' + orders.length + ' orders)';
+  var orders = allOrders.filter(function(o) { return o.option_type === 'gplay' && o.status === 'shipped'; }).sort(function(a, b) { return String((b.period || (b.created_at || '').substring(0, 7)) || '').localeCompare(String((a.period || (a.created_at || '').substring(0, 7)) || '')); });
+  document.getElementById('gplay-count').textContent = '📅 长期台账 (' + orders.length + ' orders)';
   var container = document.getElementById('gplay-table');
   if (!orders.length) {
-    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无 ' + label + ' 的谷歌卡数据</div>';
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无谷歌卡台账</div>';
     return;
   }
-  container.innerHTML = '<div class="month-section">' +
-    '<div class="month-header">' +
-    '<span class="month-icon">🎮</span><span>' + label + '谷歌卡</span>' +
-    '<span class="count">(' + orders.length + ' orders)</span>' +
-    '<div style="margin-left:auto;display:flex;gap:6px;">' +
-    '<button class="btn btn-primary btn-sm export-btn" data-type="gplay" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
-    '</div></div>' +
-    '<table class="month-table"><thead><tr>' +
-    '<th style="width:30px;"></th><th>批次</th><th>姓名</th><th>国家</th><th>奖励</th>' +
-    '</tr></thead><tbody data-sort-type="gplay" data-sort-month="' + currentPeriod + '">' +
-    orders.map(function(o) {
-      var koc = kmap[o.uid];
-      return '<tr draggable="true" data-order-id="' + o.id + '">' +
-        '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
-        '<td>' + esc(getBatchLabel()) + '</td>' +
-        '<td><strong ondblclick="event.stopPropagation();editOrderInline(this,\'discord_name\',' + o.id + ')">' + esc(getDisplayName(koc, o)) + '</strong></td>' +
-        '<td style="font-size:12px;" ondblclick="event.stopPropagation();editOrderInline(this,\'region\',' + o.id + ')">' + esc(getCountryName(koc)) + '</td>' +
-        '<td ondblclick="event.stopPropagation();editOrderInline(this,\'option_name\',' + o.id + ')">' + esc(renderGplayRewardText(o)) + '</td>' +
-      '</tr>';
-    }).join('') +
-    '</tbody></table></div>';
+  var groups = {};
+  orders.forEach(function(o) {
+    var p = o.period || (o.created_at || '').substring(0, 7) || currentPeriod;
+    if (!groups[p]) groups[p] = [];
+    groups[p].push(o);
+  });
+  var html = '';
+  Object.keys(groups).sort(comparePeriodDesc).forEach(function(period) {
+    var body = '<table class="month-table"><thead><tr>' +
+      '<th style="width:30px;"></th><th>批次</th><th>姓名</th><th>国家</th><th>奖励</th>' +
+      '</tr></thead><tbody data-sort-type="gplay" data-sort-month="' + period + '">' +
+      groups[period].map(function(o) {
+        var koc = kmap[o.uid];
+        return '<tr draggable="true" data-order-id="' + o.id + '">' +
+          '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
+          '<td>' + esc(getBatchLabelFromPeriod(period)) + '</td>' +
+          '<td><strong ondblclick="event.stopPropagation();editOrderInline(this,\'discord_name\',' + o.id + ')">' + esc(getDisplayName(koc, o)) + '</strong></td>' +
+          '<td style="font-size:12px;" ondblclick="event.stopPropagation();editOrderInline(this,\'region\',' + o.id + ')">' + esc(getCountryName(koc)) + '</td>' +
+          '<td ondblclick="event.stopPropagation();editOrderInline(this,\'option_name\',' + o.id + ')">' + esc(renderGplayRewardText(o)) + '</td>' +
+        '</tr>';
+      }).join('') + '</tbody></table>';
+    html += makeLedgerSection(getBatchLabelFromPeriod(period) + '——谷歌卡', groups[period].length, '🎮', '#f3e5f5', 'gplay', period, body);
+  });
+  container.innerHTML = html;
   setTimeout(function() { initSortable('gplay'); }, 100);
 }
 
@@ -5348,6 +5399,7 @@ function fallbackCopy(text, count) {
   showToast('\uD83D\uDCCB Exported ' + count + ' orders', 'success');
 }
 
+
 function exportMonth(type, label) {
   if (typeof type === 'object' && type !== null) {
     label = type.getAttribute('data-label');
@@ -5356,9 +5408,7 @@ function exportMonth(type, label) {
   var kmap = getKocMap();
   var header, rows, text;
   if (type === 'merch') {
-    var merchOrders = allOrders.filter(function(o) {
-      return o.option_type === 'merch' && o.status === 'shipped' && getMonthGroup(o) === label;
-    });
+    var merchOrders = allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }).sort(function(a, b) { return String((b.period || (b.created_at || '').substring(0, 7)) || '').localeCompare(String((a.period || (a.created_at || '').substring(0, 7)) || '')); });
     if (!merchOrders.length) { showToast('No orders to export', 'error'); return; }
     header = 'Discord\tUID\tReward\tAddress';
     rows = merchOrders.map(function(o) {
@@ -5371,42 +5421,32 @@ function exportMonth(type, label) {
     return;
   }
   if (type === 'diamonds-both' || type === 'diamonds-cc-only' || type === 'diamonds-only') {
-    var allRows = buildInGameRewardRows();
-    var rewardRows = allRows.filter(function(r) {
-      if (type === 'diamonds-both') return r.hasCC && r.hasDiamond;
-      if (type === 'diamonds-cc-only') return r.hasCC && !r.hasDiamond;
-      return !r.hasCC && r.hasDiamond;
+    var history = buildInGameRewardRows(allOrders);
+    var rewardRows = [];
+    Object.keys(history).forEach(function(period) {
+      var g = history[period];
+      if (type === 'diamonds-both') rewardRows = rewardRows.concat(g.both);
+      else if (type === 'diamonds-cc-only') rewardRows = rewardRows.concat(g.ccOnly);
+      else rewardRows = rewardRows.concat(g.diamondOnly);
     });
     if (!rewardRows.length) { showToast('No orders to export', 'error'); return; }
     header = '姓名\t区服\tUID\tID\t奖励内容';
-    rows = rewardRows.map(function(r) {
-      return [r.name, r.server, r.accountId, r.uid, r.reward].map(function(v) { return clean(esc(v)); }).join('\t');
-    }).join('\n');
+    rows = rewardRows.map(function(r) { return [r.name, r.server, r.accountId, r.uid, r.reward].map(function(v) { return clean(esc(v)); }).join('\t'); }).join('\n');
     text = header + '\n' + rows;
     exportToClipboard(text, rewardRows.length);
     return;
   }
-  if (type === 'diamonds') {
-    var legacyRows = buildInGameRewardRows();
-    if (!legacyRows.length) { showToast('No orders to export', 'error'); return; }
-    header = '姓名\t区服\tUID\tID\t奖励内容';
-    rows = legacyRows.map(function(r) { return [r.name, r.server, r.accountId, r.uid, r.reward].map(function(v) { return clean(esc(v)); }).join('\t'); }).join('\n');
-    text = header + '\n' + rows;
-    exportToClipboard(text, legacyRows.length);
-    return;
-  }
   if (type === 'gplay') {
-    var gplayOrders = allOrders.filter(function(o) {
-      return o.option_type === 'gplay' && o.status === 'shipped' && getMonthGroup(o) === label;
-    });
+    var gplayOrders = allOrders.filter(function(o) { return o.option_type === 'gplay' && o.status === 'shipped'; }).sort(function(a, b) { return String((b.period || (b.created_at || '').substring(0, 7)) || '').localeCompare(String((a.period || (a.created_at || '').substring(0, 7)) || '')); });
     if (!gplayOrders.length) { showToast('No orders to export', 'error'); return; }
     header = '批次\t姓名\t国家\t奖励';
     rows = gplayOrders.map(function(o) {
       var koc = kmap[o.uid];
-      return [getBatchLabel(), getDisplayName(koc, o), getCountryName(koc), renderGplayRewardText(o)].map(function(v) { return clean(esc(v)); }).join('\t');
+      return [getBatchLabelFromPeriod(o.period || (o.created_at || '').substring(0, 7)), getDisplayName(koc, o), getCountryName(koc), renderGplayRewardText(o)].map(function(v) { return clean(esc(v)); }).join('\t');
     }).join('\n');
     text = header + '\n' + rows;
     exportToClipboard(text, gplayOrders.length);
+    return;
   }
 }
 
