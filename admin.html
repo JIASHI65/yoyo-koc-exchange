@@ -5083,6 +5083,104 @@ function getKocMap() {
   return m;
 }
 
+
+function getDisplayName(koc, order) {
+  return (koc && (koc.discord_name || koc.name)) || (order && (order.discord_name || order.koc_name)) || '-';
+}
+function getAccountId(koc) { return (koc && koc.account_id) || '-'; }
+function getServerName(koc) { return (koc && koc.server) || '正式服'; }
+function getCountryName(koc) { return (koc && (koc.country || koc.region)) || '-'; }
+function getDiamondUnits(order) {
+  var amt = String((order && (order.reward_amount || order.option_name)) || '');
+  var m = amt.match(/(?:450\s*钻石?\s*[×x*]?\s*|450\s*[×x*]\s*)(\d+)/i) || amt.match(/(\d+)\s*(?:分|钻石)/);
+  if (m) return parseInt(m[1], 10) || 0;
+  return order && order.points_spent ? order.points_spent : 0;
+}
+function getCCRewardText(multiplier) {
+  multiplier = multiplier || 1;
+  if (multiplier > 1) return '豪华月卡' + multiplier + '，蜗壳币500*' + multiplier + '，金币1000*' + multiplier;
+  return '豪华月卡1，蜗壳币500，金币1000';
+}
+function getDiamondRewardText(order) {
+  var n = getDiamondUnits(order);
+  return n > 0 ? '450钻石*' + n : '450钻石';
+}
+function getInGameRewardText(ccCount, order) {
+  var parts = [];
+  if (ccCount > 0) parts.push(getCCRewardText(ccCount));
+  if (order) parts.push(getDiamondRewardText(order));
+  return parts.join('，');
+}
+function buildInGameRewardRows() {
+  var kmap = getKocMap();
+  var diamondOrders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'diamonds' && o.status === 'shipped' && (o.points_spent || 0) > 0; }));
+  var diamondByUid = {};
+  diamondOrders.forEach(function(o) { diamondByUid[o.uid] = o; });
+  var ccCreators = (allKocs || []).filter(function(k) {
+    return k.status === 'active' && (k.notes || '').includes('CC:' + currentPeriod);
+  });
+  var ccByUid = {};
+  ccCreators.forEach(function(k) {
+    var matches = (k.notes || '').match(new RegExp('CC:' + currentPeriod, 'g')) || [];
+    ccByUid[k.uid] = Math.max(1, matches.length || 1);
+  });
+  var uids = {};
+  Object.keys(diamondByUid).forEach(function(uid) { uids[uid] = true; });
+  Object.keys(ccByUid).forEach(function(uid) { uids[uid] = true; });
+  return Object.keys(uids).map(function(uid) {
+    var koc = kmap[uid] || {};
+    var order = diamondByUid[uid] || null;
+    var ccCount = ccByUid[uid] || 0;
+    return {
+      id: (order && order.id) || uid,
+      uid: uid,
+      koc: koc,
+      order: order,
+      ccCount: ccCount,
+      hasCC: ccCount > 0,
+      hasDiamond: !!order,
+      name: getDisplayName(koc, order),
+      server: getServerName(koc),
+      accountId: getAccountId(koc),
+      reward: getInGameRewardText(ccCount, order)
+    };
+  });
+}
+function renderInGameRewardTable(rows, type) {
+  if (!rows.length) return '';
+  rows = applyOrder('diamonds-' + type, currentPeriod, rows);
+  return '<table class="month-table"><thead><tr>' +
+    '<th style="width:30px;"></th><th>姓名</th><th>区服</th><th>UID</th><th>ID</th><th>奖励内容</th>' +
+    '</tr></thead><tbody data-sort-type="diamonds-' + type + '" data-sort-month="' + currentPeriod + '">' +
+    rows.map(function(r) {
+      var oid = r.order ? r.order.id : r.uid;
+      return '<tr draggable="true" data-order-id="' + escAttr(r.id) + '">' +
+        '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
+        '<td><strong>' + esc(r.name) + '</strong></td>' +
+        '<td>' + esc(r.server) + '</td>' +
+        '<td style="font-family:monospace;font-size:12px;">' + esc(r.accountId) + '</td>' +
+        '<td style="font-family:monospace;font-size:12px;color:var(--text-light);">' + esc(r.uid) + '</td>' +
+        '<td>' + esc(r.reward) + '</td>' +
+      '</tr>';
+    }).join('') + '</tbody></table>';
+}
+function getRewardQty(order, defaultCost) {
+  var amount = String((order && order.reward_amount) || '');
+  var option = String((order && order.option_name) || '');
+  var m = amount.match(/^(\d+)\s*x/i) || option.match(/[×x*]\s*(\d+)/i);
+  if (m) return parseInt(m[1], 10) || 1;
+  var spent = Number(order && order.points_spent) || 0;
+  return spent > 0 ? Math.max(1, Math.round(spent / (defaultCost || 1))) : 1;
+}
+function renderGplayRewardText(order) {
+  return '$10谷歌卡*' + getRewardQty(order, 2);
+}
+function getBatchLabel() {
+  var parts = (currentPeriod || '').split('-');
+  var month = parts.length === 2 ? parseInt(parts[1], 10) : (new Date().getMonth() + 1);
+  return month + '月koc结算';
+}
+
 function fmtDate(d) {
   if (!d) return '-';
   try { return new Date(d).toLocaleDateString('en-CA'); } catch(e) { return '-'; }
@@ -5162,76 +5260,48 @@ function renderMerchTab() {
   setTimeout(function() { initSortable('merch'); }, 100);
 }
 function renderDiamondTab() {
-  var kmap = getKocMap();
-  var orders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'diamonds' && o.status === 'shipped'; }));
   var label = currentPeriod.replace('-', '年') + '月';
-  // Include CC creators for this month in end内奖励
-  var ccCreators = (allKocs || []).filter(function(k) {
-    return k.status === 'active' && (k.notes || '').includes('CC:' + currentPeriod);
-  });
-  document.getElementById('diamond-count').textContent = '📅 ' + label + ' (' + orders.length + ' 常规 + ' + ccCreators.length + ' CC)';
+  var rows = buildInGameRewardRows();
+  var both = rows.filter(function(r) { return r.hasCC && r.hasDiamond; });
+  var ccOnly = rows.filter(function(r) { return r.hasCC && !r.hasDiamond; });
+  var diamondOnly = rows.filter(function(r) { return !r.hasCC && r.hasDiamond; });
+  document.getElementById('diamond-count').textContent = '📅 ' + label + ' (' + both.length + ' 持续+钻石 / ' + ccOnly.length + ' 持续 / ' + diamondOnly.length + ' 钻石)';
   var container = document.getElementById('diamond-table');
-  if (!orders.length && !ccCreators.length) {
+  if (!rows.length) {
     container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无 ' + label + ' 的端内奖励数据</div>';
     return;
   }
   var html = '';
-  // CC section
-  if (ccCreators.length) {
-    html += '<div class="month-section">' +
-      '<div class="month-header" style="background:#e8f5e9;">' +
-      '<span class="month-icon">🎁</span><span>' + label + ' · 连续创作奖励 (CC)</span>' +
-      '<span class="count">(' + ccCreators.length + ' creators)</span>' +
-      '<div style="margin-left:auto;display:flex;gap:6px;">' +
-      '<button class="btn btn-primary btn-sm export-btn" data-type="diamonds-cc" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
-      '</div></div>' +
-      '<table class="month-table"><thead><tr>' +
-      '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Account ID</th><th>Server</th><th>Reward</th>' +
-      '</tr></thead><tbody>' +
-      ccCreators.map(function(k) {
-        return '<tr>' +
-          '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
-          '<td><strong ondblclick="event.stopPropagation();inlineEdit(this,\'discord_name\',\'' + k.uid + '\')">' + esc(k.discord_name) + '</strong></td>' +
-          '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();inlineEdit(this,\'uid\',\'' + k.uid + '\')">' + esc(k.uid) + '</td>' +
-          '<td style="font-family:monospace;font-size:12px;" ondblclick="event.stopPropagation();inlineEdit(this,\'account_id\',\'' + k.uid + '\')">' + esc(k.account_id || '-') + '</td>' +
-          '<td style="font-size:12px;" ondblclick="event.stopPropagation();inlineEdit(this,\'server\',\'' + k.uid + '\')">' + esc(k.server || '-') + '</td>' +
-          '<td>🎁 月卡×1 + 🪙 蜗壳币×500 + 💰 金币×1000</td>' +
-        '</tr>';
-      }).join('') +
-      '</tbody></table></div>';
+  if (both.length) {
+    html += '<div class="month-section"><div class="month-header" style="background:#e8f5e9;">' +
+      '<span class="month-icon">🎁</span><span>' + label + '端内奖励——（持续创作奖+钻石）</span>' +
+      '<span class="count">(' + both.length + ' creators)</span>' +
+      '<div style="margin-left:auto;display:flex;gap:6px;"><button class="btn btn-primary btn-sm export-btn" data-type="diamonds-both" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button></div></div>' +
+      renderInGameRewardTable(both, 'both') + '</div>';
   }
-  // Regular diamond orders
-  if (orders.length) {
-    html += '<div class="month-section">' +
-      '<div class="month-header">' +
-      '<span class="month-icon">💎</span><span>' + label + ' · 钻石兑换</span>' +
-      '<span class="count">(' + orders.length + ' orders)</span>' +
-      '<div style="margin-left:auto;display:flex;gap:6px;">' +
-      '<button class="btn btn-primary btn-sm export-btn" data-type="diamonds" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
-      '</div></div>' +
-      '<table class="month-table"><thead><tr>' +
-      '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Account ID</th><th>Server</th><th>Reward</th>' +
-      '</tr></thead><tbody>' +
-      orders.map(function(o) {
-        var koc = kmap[o.uid];
-        return '<tr data-order-id="' + o.id + '" ondblclick="editOrderInline(event.target,' + o.id + ')">' +
-          '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
-          '<td><strong ondblclick="event.stopPropagation();editOrderInline(this,\'discord_name\',' + o.id + ')">' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
-          '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();editOrderInline(this,\'uid\',' + o.id + ')">' + esc(o.uid) + '</td>' +
-          '<td style="font-family:monospace;font-size:12px;" ondblclick="event.stopPropagation();editOrderInline(this,\'account_id\',' + o.id + ')">' + (esc(koc ? koc.account_id : '-') || '-') + '</td>' +
-          '<td style="font-size:12px;" ondblclick="event.stopPropagation();editOrderInline(this,\'server\',' + o.id + ')">' + (esc(koc ? koc.server : '-') || '-') + '</td>' +
-          '<td ondblclick="event.stopPropagation();editOrderInline(this,\'option_name\',' + o.id + ')">' + esc(o.option_name) + '</td>' +
-        '</tr>';
-      }).join('') +
-      '</tbody></table></div>';
+  if (ccOnly.length) {
+    html += '<div class="month-section"><div class="month-header" style="background:#fff8e1;">' +
+      '<span class="month-icon">🏆</span><span>' + label + '端内奖励——只有持续创作激励奖</span>' +
+      '<span class="count">(' + ccOnly.length + ' creators)</span>' +
+      '<div style="margin-left:auto;display:flex;gap:6px;"><button class="btn btn-primary btn-sm export-btn" data-type="diamonds-cc-only" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button></div></div>' +
+      renderInGameRewardTable(ccOnly, 'cc-only') + '</div>';
+  }
+  if (diamondOnly.length) {
+    html += '<div class="month-section"><div class="month-header" style="background:#e3f2fd;">' +
+      '<span class="month-icon">💎</span><span>' + label + '端内奖励——只有钻石</span>' +
+      '<span class="count">(' + diamondOnly.length + ' orders)</span>' +
+      '<div style="margin-left:auto;display:flex;gap:6px;"><button class="btn btn-primary btn-sm export-btn" data-type="diamonds-only" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button></div></div>' +
+      renderInGameRewardTable(diamondOnly, 'only') + '</div>';
   }
   container.innerHTML = html;
-  setTimeout(function() { initSortable('diamond'); }, 100);
+  setTimeout(function() { initSortable('diamonds-both'); initSortable('diamonds-cc-only'); initSortable('diamonds-only'); }, 100);
 }
+
 function renderGplayTab() {
   var kmap = getKocMap();
   var orders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'gplay' && o.status === 'shipped'; }));
   var label = currentPeriod.replace('-', '年') + '月';
+  orders = applyOrder('gplay', currentPeriod, orders);
   document.getElementById('gplay-count').textContent = '📅 ' + label + ' (' + orders.length + ' orders)';
   var container = document.getElementById('gplay-table');
   if (!orders.length) {
@@ -5240,22 +5310,22 @@ function renderGplayTab() {
   }
   container.innerHTML = '<div class="month-section">' +
     '<div class="month-header">' +
-    '<span class="month-icon">📅</span><span>' + label + '</span>' +
+    '<span class="month-icon">🎮</span><span>' + label + '谷歌卡</span>' +
     '<span class="count">(' + orders.length + ' orders)</span>' +
     '<div style="margin-left:auto;display:flex;gap:6px;">' +
     '<button class="btn btn-primary btn-sm export-btn" data-type="gplay" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
     '</div></div>' +
     '<table class="month-table"><thead><tr>' +
-    '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Region</th><th>Reward</th>' +
-    '</tr></thead><tbody>' +
+    '<th style="width:30px;"></th><th>批次</th><th>姓名</th><th>国家</th><th>奖励</th>' +
+    '</tr></thead><tbody data-sort-type="gplay" data-sort-month="' + currentPeriod + '">' +
     orders.map(function(o) {
       var koc = kmap[o.uid];
-      return '<tr data-order-id="' + o.id + '" ondblclick="editOrderInline(event.target,' + o.id + ')">' +
+      return '<tr draggable="true" data-order-id="' + o.id + '">' +
         '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
-        '<td><strong ondblclick="event.stopPropagation();editOrderInline(this,\'discord_name\',' + o.id + ')">' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
-        '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();editOrderInline(this,\'uid\',' + o.id + ')">' + esc(o.uid) + '</td>' +
-        '<td style="font-size:12px;" ondblclick="event.stopPropagation();editOrderInline(this,\'region\',' + o.id + ')">' + (esc(koc ? koc.region : '-') || '-') + '</td>' +
-        '<td ondblclick="event.stopPropagation();editOrderInline(this,\'option_name\',' + o.id + ')">' + esc(o.option_name) + '</td>' +
+        '<td>' + esc(getBatchLabel()) + '</td>' +
+        '<td><strong ondblclick="event.stopPropagation();editOrderInline(this,\'discord_name\',' + o.id + ')">' + esc(getDisplayName(koc, o)) + '</strong></td>' +
+        '<td style="font-size:12px;" ondblclick="event.stopPropagation();editOrderInline(this,\'region\',' + o.id + ')">' + esc(getCountryName(koc)) + '</td>' +
+        '<td ondblclick="event.stopPropagation();editOrderInline(this,\'option_name\',' + o.id + ')">' + esc(renderGplayRewardText(o)) + '</td>' +
       '</tr>';
     }).join('') +
     '</tbody></table></div>';
@@ -5284,34 +5354,60 @@ function exportMonth(type, label) {
     type = type.getAttribute('data-type');
   }
   var kmap = getKocMap();
-  var orders = allOrders.filter(function(o) {
-    return o.option_type === type && o.status === 'shipped' && getMonthGroup(o) === label;
-  });
-  if (!orders.length) { showToast('No orders to export', 'error'); return; }
-  
-  var header, rows;
+  var header, rows, text;
   if (type === 'merch') {
+    var merchOrders = allOrders.filter(function(o) {
+      return o.option_type === 'merch' && o.status === 'shipped' && getMonthGroup(o) === label;
+    });
+    if (!merchOrders.length) { showToast('No orders to export', 'error'); return; }
     header = 'Discord\tUID\tReward\tAddress';
-    rows = orders.map(function(o) {
+    rows = merchOrders.map(function(o) {
       var koc = kmap[o.uid];
       var addr = koc ? (koc.address || '') : '';
-      return clean(esc(o.discord_name)) + '\t' + o.uid + '\t' + clean(esc(o.option_name)) + '\t' + clean(esc(addr));
+      return clean(esc(getDisplayName(koc, o))) + '\t' + o.uid + '\t' + clean(esc(o.option_name)) + '\t' + clean(esc(addr));
     }).join('\n');
-  } else if (type === 'diamonds') {
-    header = 'Discord\tUID\tReward\tAccount ID\tServer';
-    rows = orders.map(function(o) {
-      var koc = kmap[o.uid];
-      return clean(esc(o.discord_name)) + '\t' + o.uid + '\t' + clean(esc(o.option_name)) + '\t' + (koc ? koc.account_id : '-') + '\t' + (koc ? koc.server : '-');
-    }).join('\n');
-  } else if (type === 'gplay') {
-    header = 'Discord\tUID\tReward\tRegion';
-    rows = orders.map(function(o) {
-      var koc = kmap[o.uid];
-      return clean(esc(o.discord_name)) + '\t' + o.uid + '\t' + clean(esc(o.option_name)) + '\t' + (koc ? koc.region : '-');
-    }).join('\n');
+    text = header + '\n' + rows;
+    exportToClipboard(text, merchOrders.length);
+    return;
   }
-  var text = header + '\n' + rows;
-  exportToClipboard(text, orders.length);
+  if (type === 'diamonds-both' || type === 'diamonds-cc-only' || type === 'diamonds-only') {
+    var allRows = buildInGameRewardRows();
+    var rewardRows = allRows.filter(function(r) {
+      if (type === 'diamonds-both') return r.hasCC && r.hasDiamond;
+      if (type === 'diamonds-cc-only') return r.hasCC && !r.hasDiamond;
+      return !r.hasCC && r.hasDiamond;
+    });
+    if (!rewardRows.length) { showToast('No orders to export', 'error'); return; }
+    header = '姓名\t区服\tUID\tID\t奖励内容';
+    rows = rewardRows.map(function(r) {
+      return [r.name, r.server, r.accountId, r.uid, r.reward].map(function(v) { return clean(esc(v)); }).join('\t');
+    }).join('\n');
+    text = header + '\n' + rows;
+    exportToClipboard(text, rewardRows.length);
+    return;
+  }
+  if (type === 'diamonds') {
+    var legacyRows = buildInGameRewardRows();
+    if (!legacyRows.length) { showToast('No orders to export', 'error'); return; }
+    header = '姓名\t区服\tUID\tID\t奖励内容';
+    rows = legacyRows.map(function(r) { return [r.name, r.server, r.accountId, r.uid, r.reward].map(function(v) { return clean(esc(v)); }).join('\t'); }).join('\n');
+    text = header + '\n' + rows;
+    exportToClipboard(text, legacyRows.length);
+    return;
+  }
+  if (type === 'gplay') {
+    var gplayOrders = allOrders.filter(function(o) {
+      return o.option_type === 'gplay' && o.status === 'shipped' && getMonthGroup(o) === label;
+    });
+    if (!gplayOrders.length) { showToast('No orders to export', 'error'); return; }
+    header = '批次\t姓名\t国家\t奖励';
+    rows = gplayOrders.map(function(o) {
+      var koc = kmap[o.uid];
+      return [getBatchLabel(), getDisplayName(koc, o), getCountryName(koc), renderGplayRewardText(o)].map(function(v) { return clean(esc(v)); }).join('\t');
+    }).join('\n');
+    text = header + '\n' + rows;
+    exportToClipboard(text, gplayOrders.length);
+  }
 }
 
 function clean(s) { return s || '-'; }
