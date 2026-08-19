@@ -5080,14 +5080,29 @@ function getCCRewardText(multiplier) {
   if (multiplier > 1) return '豪华月卡' + multiplier + '，蜗壳币500*' + multiplier + '，金币1000*' + multiplier;
   return '豪华月卡1，蜗壳币500，金币1000';
 }
+function getStoredInGameRewardText(order) {
+  var text = String((order && (order.reward_amount || order.option_name)) || '').trim();
+  if (text && (text.indexOf('豪华月卡') >= 0 || text.indexOf('蜗壳币') >= 0 || text.indexOf('金币') >= 0 || text.indexOf('450') >= 0)) return text;
+  return '';
+}
+function rewardHasCC(order) {
+  var text = getStoredInGameRewardText(order);
+  return text.indexOf('豪华月卡') >= 0 || text.indexOf('蜗壳币') >= 0 || text.indexOf('金币') >= 0 || String((order && order.option_name) || '').indexOf('CC:') === 0;
+}
+function rewardHasDiamond(order) {
+  var text = getStoredInGameRewardText(order);
+  return text.indexOf('450') >= 0 || getDiamondUnits(order) > 0;
+}
 function getDiamondRewardText(order) {
   var n = getDiamondUnits(order);
   return n > 0 ? '450钻石*' + n : '450钻石';
 }
 function getInGameRewardText(ccCount, order) {
+  var stored = getStoredInGameRewardText(order);
+  if (stored) return stored;
   var parts = [];
   if (ccCount > 0) parts.push(getCCRewardText(ccCount));
-  if (order) parts.push(getDiamondRewardText(order));
+  if (order && rewardHasDiamond(order)) parts.push(getDiamondRewardText(order));
   return parts.join('，');
 }
 function getBatchLabelFromPeriod(period) {
@@ -5100,7 +5115,7 @@ function comparePeriodDesc(a, b) {
 }
 function buildInGameRewardRows(allHistory) {
   var kmap = getKocMap();
-  var diamondOrders = (allHistory || allOrders).filter(function(o) { return o.option_type === 'diamonds' && o.status === 'shipped' && (o.points_spent || 0) > 0; });
+  var diamondOrders = (allHistory || allOrders).filter(function(o) { return o.option_type === 'diamonds' && o.status === 'shipped' && (rewardHasDiamond(o) || rewardHasCC(o)); });
   var ccCreators = (allKocs || []).filter(function(k) { return k.status === 'active'; });
   var ccByUid = {};
   ccCreators.forEach(function(k) {
@@ -5119,22 +5134,25 @@ function buildInGameRewardRows(allHistory) {
     if (!grouped[period]) grouped[period] = { both: [], ccOnly: [], diamondOnly: [] };
     var koc = kmap[o.uid] || {};
     var ccCount = (ccByUid[o.uid] && ccByUid[o.uid][period]) || 0;
+    var hasCC = rewardHasCC(o) || ccCount > 0;
+    var hasDiamond = rewardHasDiamond(o);
     var row = {
       id: o.id,
       uid: o.uid,
       koc: koc,
       order: o,
       ccCount: ccCount,
-      hasCC: ccCount > 0,
-      hasDiamond: !!o,
+      hasCC: hasCC,
+      hasDiamond: hasDiamond,
       name: getDisplayName(koc, o),
       server: getServerName(koc),
       accountId: getAccountId(koc),
       reward: getInGameRewardText(ccCount, o),
       period: period
     };
-    if (ccCount > 0) grouped[period].both.push(row);
-    else grouped[period].diamondOnly.push(row);
+    if (hasCC && hasDiamond) grouped[period].both.push(row);
+    else if (hasCC) grouped[period].ccOnly.push(row);
+    else if (hasDiamond) grouped[period].diamondOnly.push(row);
   });
   Object.keys(ccByUid).forEach(function(uid) {
     var koc = kmap[uid] || {};
