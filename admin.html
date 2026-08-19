@@ -888,6 +888,17 @@ Elite: 连续 6 个月达到 5 分</textarea>
       <button class="btn btn-sm" style="background:#f3e5f5;color:#6a1b9a;text-align:left;" onclick="previewBroadcast('tier_upgrade')">⭐ ④ 等级变动 — 晋升通知</button>
     </div>
 
+    <div style="font-size:13px;font-weight:600;margin:8px 0 4px;">📄 CSV 逐条私信（每人不同文案）</div>
+    <div style="background:#f8f9ff;border:1px solid #dfe3ff;border-radius:10px;padding:8px;margin-bottom:8px;">
+      <div style="font-size:11px;color:var(--text-light);line-height:1.5;margin-bottom:6px;">格式：Discord昵称, Game UID 或 Account ID, 个性化话术全文。首行可留表头；话术含逗号/换行请用双引号包裹。</div>
+      <textarea id="mochi-csv-input" style="width:100%;min-height:74px;border:1px solid #ccd3ff;border-radius:6px;padding:6px;font-size:12px;margin-bottom:6px;" placeholder="Discord昵称,Game UID,个性化话术全文\nKuro,PeJhjGkSftQF,Hi Kuro..."></textarea>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <input type="file" id="mochi-csv-file" accept=".csv,text/csv,text/plain" style="flex:1;font-size:11px;" onchange="loadMochiCsvFile(this)">
+        <button class="btn btn-sm" style="background:#5865F2;color:white;white-space:nowrap;" onclick="previewMochiCsvBroadcast()">📋 解析预览</button>
+      </div>
+      <div id="mochi-csv-summary" style="font-size:11px;color:var(--text-light);margin-top:5px;"></div>
+    </div>
+
     <!-- 预览/编辑区 -->
     <div id="broadcast-preview-area" style="display:none;background:white;border:2px solid #5865F2;border-radius:12px;padding:12px;margin-top:4px;margin-bottom:8px;">
       <div style="font-size:13px;font-weight:700;margin-bottom:6px;">📋 发送预览</div>
@@ -2554,8 +2565,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 function mochiSupportFooter(message) {
-  var footer = ['', '---', 'Please do not reply to MochiBot directly. Check the FAQ first, then post in #town-service-station if you still need help.'].join('\n');
-  return (message || '') + footer;
+  var footerText = '---\nPlease do not reply to MochiBot directly. Check the FAQ first, then post in #town-service-station if you still need help.';
+  var base = String(message || '').replace(/\n+$/, '');
+  if (base.indexOf(footerText) >= 0) return base;
+  return base ? (base + '\n' + footerText) : footerText;
 }
 // ===== MOCHI BROADCAST MODAL =====
 // ===== MOCHI DM PRESETS =====
@@ -2565,6 +2578,81 @@ var mochiPresetMessage = '';
 // ===== MOCHI BROADCAST - preview/confirm =====
 var mochiBroadcastTargets = [];
 var mochiBroadcastType = '';
+var mochiCsvTargets = [];
+
+function parseMochiCsv(text) {
+  text = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  var rows = [], row = [], cell = '', q = false;
+  for (var i = 0; i < text.length; i++) {
+    var ch = text[i], nx = text[i + 1];
+    if (q) { if (ch === '"' && nx === '"') { cell += '"'; i++; } else if (ch === '"') q = false; else cell += ch; continue; }
+    if (ch === '"') { q = true; continue; }
+    if (ch === ',') { row.push(cell); cell = ''; continue; }
+    if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; continue; }
+    cell += ch;
+  }
+  row.push(cell); rows.push(row);
+  return rows.filter(function(r) { return r.some(function(v) { return String(v || '').trim(); }); });
+}
+function isMochiCsvHeader(row) {
+  var t = row.join(' ').toLowerCase();
+  return t.indexOf('discord') >= 0 && (t.indexOf('uid') >= 0 || t.indexOf('account') >= 0);
+}
+function loadMochiCsvFile(input) {
+  if (!input || !input.files || !input.files[0]) return;
+  var reader = new FileReader();
+  reader.onload = function() { document.getElementById('mochi-csv-input').value = reader.result || ''; previewMochiCsvBroadcast(); };
+  reader.readAsText(input.files[0], 'UTF-8');
+}
+function findKocByCsvKey(key) {
+  var q = String(key || '').trim().toLowerCase();
+  if (!q) return null;
+  for (var i = 0; i < allKocs.length; i++) {
+    var k = allKocs[i] || {};
+    if (String(k.uid || '').toLowerCase() === q || String(k.account_id || '').toLowerCase() === q) return k;
+  }
+  return null;
+}
+function buildMochiCsvTargets(text) {
+  var rows = parseMochiCsv(text), out = [], seen = {};
+  rows.forEach(function(r, idx) {
+    if (idx === 0 && isMochiCsvHeader(r)) return;
+    var name = String(r[0] || '').trim(), key = String(r[1] || '').trim(), msg = r.slice(2).join(',').trim();
+    if (!name && !key && !msg) return;
+    var k = findKocByCsvKey(key);
+    var sendName = (k && k.discord_name) || name;
+    var dedupe = ((k && k.uid) || key || sendName).toLowerCase();
+    if (seen[dedupe]) return; seen[dedupe] = true;
+    out.push({ discord_name: sendName, csv_name: name, uid: (k && k.uid) || key, account_id: (k && k.account_id) || '', message: msg, matched: !!k, checked: true, reason: k ? '已匹配' : '未匹配' });
+  });
+  return out;
+}
+function previewMochiCsvBroadcast() {
+  var txt = document.getElementById('mochi-csv-input').value || '';
+  mochiCsvTargets = buildMochiCsvTargets(txt);
+  mochiBroadcastTargets = mochiCsvTargets;
+  window._bcTargets = [];
+  mochiBroadcastType = 'csv';
+  var matched = mochiCsvTargets.filter(function(t){return t.matched;}).length;
+  var sum = document.getElementById('mochi-csv-summary');
+  if (sum) sum.textContent = '已解析 ' + mochiCsvTargets.length + ' 行，匹配 ' + matched + '，未匹配 ' + (mochiCsvTargets.length - matched);
+  var list = document.getElementById('broadcast-target-list');
+  var count = document.getElementById('broadcast-target-count');
+  if (count) count.textContent = mochiCsvTargets.length + ' 行（逐条文案）';
+  if (list) list.innerHTML = mochiCsvTargets.map(function(t, i) {
+    var prev = (t.message || '').slice(0, 80) + ((t.message || '').length > 80 ? '…' : '');
+    return '<div style="display:grid;grid-template-columns:24px 1fr auto;gap:5px;padding:3px 4px;font-size:12px;align-items:start;' + (t.matched ? '' : 'opacity:.65;') + '"><input type="checkbox" class="mochi-csv-cb" data-index="' + i + '" checked><span><b>' + esc(t.discord_name || t.csv_name || '(空)') + '</b> <span style="color:#999;">' + esc(t.uid || '') + '</span><br><span style="font-size:11px;color:#666;">' + esc(prev) + '</span></span><span style="font-size:11px;color:' + (t.matched ? '#2e7d32' : '#c62828') + ';">' + esc(t.reason) + '</span></div>';
+  }).join('') || '<div style="padding:6px;color:#999;">没有可发送行</div>';
+  var editor = document.getElementById('broadcast-msg-editor');
+  if (editor) editor.value = mochiCsvTargets[0] ? mochiCsvTargets[0].message : '';
+  document.getElementById('broadcast-preview-area').style.display = 'block';
+}
+
+function clearMochiCsvBroadcastState() {
+  mochiCsvTargets = [];
+  var sum = document.getElementById('mochi-csv-summary');
+  if (sum) sum.textContent = '';
+}
 
 async function previewBroadcast(type) {
   // Read token from input if not set
@@ -2573,6 +2661,8 @@ async function previewBroadcast(type) {
     if (inp && inp.value.trim()) MOCHI_TOKEN = inp.value.trim();
   }
   if (!MOCHI_TOKEN) { showToast('请先填写 Bot Token', 'error'); return; }
+
+  clearMochiCsvBroadcastState();
 
   // Ensure modal is open
   var modal = document.getElementById('mochi-modal');
@@ -2810,6 +2900,29 @@ async function confirmBroadcast() {
     showToast('请先填写 Bot Token', 'error'); return;
   }
   if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
+
+  if (mochiBroadcastType === 'csv') {
+    if (!mochiCsvTargets.length) previewMochiCsvBroadcast();
+    var csvTargets = [];
+    document.querySelectorAll('.mochi-csv-cb').forEach(function(cb) {
+      var i = parseInt(cb.getAttribute('data-index'));
+      if (cb.checked && mochiCsvTargets[i]) csvTargets.push(mochiCsvTargets[i]);
+    });
+    if (!csvTargets.length) { showToast('没有可发送的 CSV 收件人', 'error'); return; }
+    if (!confirmDanger('Send Mochi CSV DMs now?', ['Recipients: ' + csvTargets.length + ' creators', 'Each row sends its own personalized message.', 'This will send real Discord private messages.'])) return;
+    var statusElCsv = document.getElementById('mochi-status');
+    var sentCsv = 0, failedCsv = 0;
+    for (var j = 0; j < csvTargets.length; j++) {
+      var r = await sendMochiDM(csvTargets[j].discord_name, mochiSupportFooter(csvTargets[j].message));
+      if (r.ok) sentCsv++; else failedCsv++;
+      statusElCsv.textContent = '⏳ CSV进度: ' + (j+1) + '/' + csvTargets.length + ' (成功' + sentCsv + ', 失败' + failedCsv + (r.ok ? '' : '：' + csvTargets[j].discord_name + ' ' + r.reason) + ')';
+      if (j < csvTargets.length - 1) await new Promise(function(resolve){ setTimeout(resolve, 1000); });
+    }
+    statusElCsv.textContent = '✅ CSV完成！成功: ' + sentCsv + ', 失败: ' + failedCsv;
+    showToast('✅ 已发送 ' + sentCsv + '/' + csvTargets.length + ' 条 CSV 私信', sentCsv > 0 ? 'success' : 'error');
+    if (sentCsv > 0) writeAuditLog('config', 'Mochi CSV广播发送 ' + sentCsv + '/' + csvTargets.length + ' 条');
+    return;
+  }
 
   var msg = mochiSupportFooter(document.getElementById('broadcast-msg-editor').value.trim());
   if (!msg) { showToast('消息不能为空', 'error'); return; }
