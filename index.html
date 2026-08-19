@@ -943,7 +943,19 @@ function showDashboard() {
   if (typeof displayName === 'object' && displayName !== null) displayName = displayName.discord_name || 'Unknown';
   document.getElementById('display-user').textContent = 'Welcome, ' + displayName;
   var spl = document.getElementById('sub-period-label'); if (spl) spl.textContent = currentPeriod.replace('-', '') + '';
-  document.getElementById('current-period-label').textContent = currentPeriod.replace('-', '') + '';
+
+  // Show current settlement period clearly
+  var periodLabel = document.getElementById('current-period-label');
+  if (periodLabel) {
+    var year = currentPeriod.split('-')[0];
+    var month = currentPeriod.split('-')[1];
+    var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    var monthName = monthNames[parseInt(month) - 1] || month;
+    periodLabel.textContent = monthName + ' ' + year + ' Settlement Period';
+    periodLabel.style.fontWeight = '700';
+    periodLabel.style.color = '#ad1457';
+  }
+
   // initSubmitTab called by switchCreatorTab
   // Fetch and show tier badge
   try {
