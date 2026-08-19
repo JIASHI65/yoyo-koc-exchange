@@ -646,6 +646,25 @@ let currentUser = null;
 let redemptionOpen = false;
 let selections = {};
 
+// Load current period from campaign_config on page load
+async function loadCurrentPeriod() {
+  try {
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?is_current_period=eq.true&select=period');
+    if (res.ok) {
+      var data = await res.json();
+      if (data && data.length > 0 && data[0].period) {
+        currentPeriod = data[0].period;
+        console.log('Loaded current period from config:', currentPeriod);
+        return;
+      }
+    }
+  } catch(e) {
+    console.warn('Failed to load current period from config, using today:', e);
+  }
+  // Fallback to today's natural month if config lookup fails
+  currentPeriod = getSettlementPeriod();
+}
+
 // Do NOT auto-fill or auto-login. Users must type their Game UID + System ID every time.
 function tryAutoLogin() {
   // intentionally no-op: no prefill from any stored session
@@ -689,6 +708,9 @@ async function getPendingRedemptionTotal(uid) {
   } catch(e) { return 0; }
 }
 async function login() {
+  // Load current period from config before login
+  await loadCurrentPeriod();
+
   const accountId = document.getElementById('input-account-id').value.trim();
   const uid = document.getElementById('input-uid').value.trim();
   if (!accountId || !uid) { showToast('Please enter both Game UID and System ID', 'error'); return; }

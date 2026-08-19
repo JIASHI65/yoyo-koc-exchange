@@ -1260,19 +1260,26 @@ async function saveCampaignConfig() {
     if (existing && existing.length > 0) {
       saveResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?id=eq.' + existing[0].id, {
         method: 'PATCH',
-        body: JSON.stringify({ rules_json: JSON.stringify(rules), points_cap: pointsCap, updated_at: new Date().toISOString() })
+        body: JSON.stringify({ rules_json: JSON.stringify(rules), points_cap: pointsCap, is_current_period: true, updated_at: new Date().toISOString() })
       });
     } else {
       saveResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config', {
         method: 'POST',
-        body: JSON.stringify({ period: period, name: period + ' Settlement', rules_json: JSON.stringify(rules), points_cap: pointsCap, is_active: true })
+        body: JSON.stringify({ period: period, name: period + ' Settlement', rules_json: JSON.stringify(rules), points_cap: pointsCap, is_active: true, is_current_period: true })
       });
     }
     if (!saveResp.ok) throw new Error('保存配置失败: HTTP ' + saveResp.status);
+
+    // Clear is_current_period flag from all other periods
+    await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=neq.' + period, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_current_period: false })
+    });
+
     document.getElementById('cfg-status').textContent = '✅ Saved!';
     document.getElementById('cfg-status').style.color = '#4caf50';
-    showToast('✅ Campaign config saved!', 'success');
-    writeAuditLog('config', 'campaign config saved for ' + period + ' (points_cap=' + pointsCap + ')');
+    showToast('✅ Campaign config saved! This period is now active for creators.', 'success');
+    writeAuditLog('config', 'campaign config saved for ' + period + ' (points_cap=' + pointsCap + ', set as current period)');
   } catch(e) {
     document.getElementById('cfg-status').textContent = 'Error: ' + e.message;
     document.getElementById('cfg-status').style.color = '#e74c3c';
