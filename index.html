@@ -884,17 +884,50 @@ function showDashboard() {
     var isOld = notes.indexOf('old_creator') >= 0;
     var bonusDone = notes.indexOf('newbie_bonus:' + currentPeriod) >= 0;
     var isNewbie = false;
+    var isJoinedMidMonth = false;
+    var nextNewbieMonth = '';
+
     if (!isOld && currentUser.created_at) {
       var regDate = new Date(currentUser.created_at);
       var regMonthNum = regDate.getFullYear() * 12 + regDate.getMonth();
       var curMonthNum = parseInt(currentPeriod.split('-')[0]) * 12 + parseInt(currentPeriod.split('-')[1]);
-      if (curMonthNum >= regMonthNum && curMonthNum <= regMonthNum + 1) {
+
+      // 判断是否月初加入（1-3号算月初，算完整月）
+      var joinedAtMonthStart = regDate.getDate() <= 3;
+
+      if (curMonthNum === regMonthNum && joinedAtMonthStart) {
+        // 注册月就是完整月（1-3号加入）
+        isNewbie = true;
+      } else if (curMonthNum === regMonthNum && !joinedAtMonthStart) {
+        // 注册月但是中途加入，提示下月才是新人月
+        isJoinedMidMonth = true;
+        var nextMonth = new Date(regDate);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        nextNewbieMonth = monthNames[nextMonth.getMonth()] + ' ' + nextMonth.getFullYear();
+      } else if (curMonthNum === regMonthNum + 1 && !joinedAtMonthStart) {
+        // 上月中途加入，这个月是新人月
         isNewbie = true;
       }
     }
-    if (isNewbie && !bonusDone) {
-      var nbBanner = document.getElementById('newbie-banner-submit');
-      if (nbBanner) nbBanner.style.display = 'block';
+
+    var nbBanner = document.getElementById('newbie-banner-submit');
+    if (nbBanner) {
+      if (isNewbie && !bonusDone) {
+        // 显示新人月 banner
+        nbBanner.style.display = 'block';
+      } else if (isJoinedMidMonth) {
+        // 显示中途加入提示
+        nbBanner.style.display = 'block';
+        nbBanner.style.background = 'linear-gradient(135deg,#fff3e0,#ffe0b2)';
+        nbBanner.style.borderColor = '#ff9800';
+        var titleSpan = nbBanner.querySelector('span:nth-child(2)');
+        if (titleSpan) titleSpan.textContent = 'You joined mid-month!';
+        var msgDiv = nbBanner.querySelector('div:nth-child(2)');
+        if (msgDiv) msgDiv.textContent = 'Your newbie bonus will apply next month (' + nextNewbieMonth + ') when you earn ≥5 pts!';
+      } else {
+        nbBanner.style.display = 'none';
+      }
     }
   }, 1000);
   // Fetch campaign config (submission + redemption toggle)
