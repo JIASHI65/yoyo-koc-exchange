@@ -276,16 +276,7 @@
         <div style="display:flex;align-items:center;gap:6px;background:#fce4ec;padding:6px 14px;border-radius:10px;border:2px solid var(--pink);">
           <span style="font-size:13px;font-weight:600;color:var(--pink-dark);">📅 结算月份</span>
           <select id="settle-month" style="width:140px;padding:4px 8px;border:1.5px solid var(--pink);border-radius:6px;font-size:13px;font-weight:600;background:white;cursor:pointer;" onchange="changeSettlePeriod()">
-            <option value="2026-01">2026年1月</option>
-            <option value="2026-02">2026年2月</option>
-            <option value="2026-03">2026年3月</option>
-            <option value="2026-04">2026年4月</option>
-            <option value="2026-05">2026年5月</option>
-            <option value="2026-06">2026年6月</option>
-            <option value="2026-07" selected>2026年7月</option>
-            <option value="2026-08">2026年8月</option>
-            <option value="2026-09">2026年9月</option>
-            <option value="2026-10">2026年10月</option>
+            <!-- 动态加载期号 -->
           </select>
           <div style="display:flex;gap:2px;">
             <button class="btn btn-sm" style="padding:2px 6px;font-size:12px;" onclick="shiftSettleMonth(-1)" title="上月">◀</button>
@@ -1020,7 +1011,10 @@ window.adminLogin = function adminLogin() {
     localStorage.setItem('admin_session', 'logged_in');
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('admin-panel').classList.remove('hidden');
-    setTimeout(function() { loadData(); }, 100);
+    setTimeout(function() {
+      loadSettleMonthDropdown();
+      loadData();
+    }, 100);
   } else {
     alert('Wrong password (hint: ' + ADMIN_PASSWORD + ')');
   }
@@ -1171,54 +1165,56 @@ async function syncTiersFromDiscord() {
 }
 
 // ===== CAMPAIGN / RULES CONFIG =====
+async function loadSettleMonthDropdown() {
+  try {
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?select=period&order=period.asc');
+    if (!res.ok) return;
+    var data = await res.json();
+
+    var sel = document.getElementById('settle-month');
+    sel.innerHTML = '';
+
+    // 只显示 2026-08 及之后的期号
+    var filteredData = data.filter(function(row) { return row.period >= '2026-08'; });
+
+    filteredData.forEach(function(row) {
+      var opt = document.createElement('option');
+      opt.value = row.period;
+      var parts = row.period.split('-');
+      var year = parts[0];
+      var month = parseInt(parts[1]);
+      opt.textContent = year + '年' + month + '月';
+      sel.appendChild(opt);
+    });
+
+    // 默认选中当前期
+    var currentRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?is_current_period=eq.true&select=period');
+    if (currentRes.ok) {
+      var currentData = await currentRes.json();
+      if (currentData && currentData.length > 0 && currentData[0].period >= '2026-08') {
+        sel.value = currentData[0].period;
+      }
+    }
+
+    changeSettlePeriod();
+  } catch(e) { console.error('loadSettleMonthDropdown:', e); }
+}
+
 async function loadAllPeriods() {
   try {
-    // 先尝试从数据库加载
+    // 从数据库加载期号
     var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?select=period&order=period.desc');
     if (!res.ok) return;
     var data = await res.json();
 
-    // 生成未来12个月的期号（如果数据库里没有）
-    var existingPeriods = data.map(function(d) { return d.period; });
-    var now = new Date();
-    var periodsToCreate = [];
-
-    for (var i = -1; i < 12; i++) {
-      var d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-      var period = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-      if (existingPeriods.indexOf(period) < 0) {
-        periodsToCreate.push(period);
-      }
-    }
-
-    // 批量创建缺失的期号
-    if (periodsToCreate.length > 0) {
-      for (var j = 0; j < periodsToCreate.length; j++) {
-        var p = periodsToCreate[j];
-        await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config', {
-          method: 'POST',
-          body: JSON.stringify({
-            period: p,
-            name: p + ' Settlement',
-            rules_json: '{"scoring":{"tiktok":{"per_point":200},"youtube":{"per_point":200},"engagement":{"per_point":40,"80_engagements":2}},"points_cap":40,"tier_upgrade_threshold":5}',
-            points_cap: 40,
-            is_active: true,
-            submissions_open: false,
-            redemption_open: false,
-            is_current_period: false
-          })
-        });
-      }
-      // 重新加载
-      res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?select=period&order=period.desc');
-      data = await res.json();
-    }
+    // 只显示 2026-08 及之后的期号
+    var filteredData = data.filter(function(row) { return row.period >= '2026-08'; });
 
     // 填充下拉框
     var sel = document.getElementById('cfg-period');
     sel.innerHTML = '';
     var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    data.forEach(function(row) {
+    filteredData.forEach(function(row) {
       var opt = document.createElement('option');
       opt.value = row.period;
       var parts = row.period.split('-');
@@ -1231,7 +1227,7 @@ async function loadAllPeriods() {
     var currentRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?is_current_period=eq.true&select=period');
     if (currentRes.ok) {
       var currentData = await currentRes.json();
-      if (currentData && currentData.length > 0) {
+      if (currentData && currentData.length > 0 && currentData[0].period >= '2026-08') {
         sel.value = currentData[0].period;
       }
     }
