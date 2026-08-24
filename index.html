@@ -1082,7 +1082,7 @@ function updateUI() {
     const p = document.getElementById('p-' + r.id); const m = document.getElementById('m-' + r.id);
     if (!p) return;
     const already = (selections[r.id] || 0) > 0;
-    p.disabled = !((already || selCount < 2) && totalCost + r.cost <= bal);
+    p.disabled = !((already || selCount < 1) && totalCost + r.cost <= bal);
     if (m) m.disabled = !(selections[r.id] || 0);
   });
 
@@ -1090,7 +1090,7 @@ function updateUI() {
   if (!footer || !currentUser) return;
   const chosen = REWARDS.filter(r => selections[r.id] > 0);
   if (chosen.length === 0) {
-    footer.innerHTML = '<div style="font-size:13px;color:var(--text-light);text-align:center;padding:8px;">Select up to 2 reward types</div>';
+    footer.innerHTML = '<div style="font-size:13px;color:var(--text-light);text-align:center;padding:8px;">Select 1 reward type per month</div>';
     return;
   }
   const rem = bal - totalCost;
@@ -1106,7 +1106,7 @@ function changeQty(id, d) {
   const opt = REWARDS.find(r => r.id === id); if (!opt) return;
   const cur = selections[id] || 0; const nxt = cur + d;
   if (nxt < 0) return;
-  if (d > 0 && cur === 0 && getSelCount() >= 2) return;
+  if (d > 0 && cur === 0 && getSelCount() >= 1) return;
   const newTotal = getTotalCost() - cur * opt.cost + nxt * opt.cost;
   if (newTotal > currentUser.points) return;
   selections[id] = nxt; updateUI();
