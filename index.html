@@ -1672,8 +1672,8 @@ async function loadMySubmissions() {
     if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + (await res.text().catch(function(){return '';})).substring(0, 120));
     var allSubs = await res.json() || [];
 
-    // Fetch point_logs
-    var ptRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&limit=100&select=period,change,balance_after,reason,created_at');
+    // Fetch point_logs (filter by period >= 2026-07 to include historical data)
+    var ptRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(currentUser.uid) + '&period=gte.2026-07&order=created_at.desc&select=period,change,balance_after,reason,created_at');
     var ptLogs = ptRes.ok ? await ptRes.json() || [] : [];
 
     // Group submissions by period first; fallback to created_at for legacy rows.
