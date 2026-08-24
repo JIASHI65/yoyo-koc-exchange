@@ -1718,56 +1718,56 @@ async function runMonthlyReconcileCheck() {
 }
 
 // ===== AGENT INPUT TEMPLATE =====
-var SCORING_RULES_TEXT = `# Yoyo Creator Studio · Official Incentive Rules (Updated Periodically)
+var SCORING_RULES_TEXT = `# Yoyo KOC Exchange · Agent 算分任务（v2 · 2026-08）
 
-## Scoring Rules
+## 规则（最新口径）
 
-### 1. Video Platforms (TikTok, YouTube)
-Points are counted by view count:
-- TikTok: 200 views = 1 Point; 400 views = 2 Points
-- YouTube: 20 sec watch time AND 200 views = 1 Point; 400 views = 2 Points
+### 1. 视频平台（TikTok / YouTube）
+- 按播放量计分：**200 views = 1 分；400 views = 2 分**
+- YouTube 额外要求：**观看时长 ≥ 20 秒**（不满足算 0 分）
 
-### 2. Image/Social Platforms (Pinterest / Facebook / Instagram / X / Reddit)
-Points by total engagement (likes + comments + shares + saves / upvotes):
-- 40 engagements = 1 Point; 80 engagements = 2 Points
+### 2. 图片/社媒平台（Pinterest / Facebook / Instagram / X / Reddit）
+- 按互动量计分：**40 互动 = 1 分；80 互动 = 2 分**
+- 各平台互动定义（严格区分）：
+  - Pinterest：likes + comments + saves
+  - Facebook：likes + comments + shares
+  - Instagram：likes + comments + shares + saves
+  - X：likes + comments + reposts + bookmarks
+  - Reddit：**upvotes（帖子左侧数字，不是百分比）** + comments
 
-### Engagement Definition by Platform:
-- Pinterest: likes + comments + saves
-- Facebook: likes + comments + shares
-- Instagram: likes + comments + shares + saves
-- X (Twitter): likes + comments + reposts + bookmarks
-- Reddit: upvotes (the number on the left, NOT percentage) + comments
+### 3. 封顶
+- 月度封顶 20 分：总分 >20 且 <40 → 按 20 结算；**≥40 → 按 40 结算**
 
-### 3. Official Merch Showcase Bonus
-- Posting a photo/video showing off official Yoyo merch = +1 Point (manual review).
-- Reviewed and approved by admin in the 作品审核 tab; does NOT count toward the 2 work submissions.
-- This bonus is applied manually — do NOT include showcase posts in agent scoring.
+### 4. Showcase（周边晒图）
+- **不算分**！不要计入 agent 算分，由管理员在「作品审核」人工 +1
 
-### Points Cap
-- Monthly cap is 20 points. If total exceeds 20 but is below 40, it still counts as 20.
-- If total reaches 40 or above, the full 40 points are settled.
+## 抓取要求（实战踩坑，必须遵守）
 
-## Agent Task Instructions
-1. Open each link in browser and read the real engagement/view count from the page.
-2. Do NOT fabricate or guess numbers. If a link is inaccessible, mark "N/A" and note the reason.
-3. TikTok: click into the creator's profile page to find the video, then read the view count.
-4. YouTube: read view count AND check if watch time meets 20 sec minimum.
-5. Image platforms: sum likes + comments + shares + saves (as defined above).
-6. Reddit: read the upvote count (the number on the left side of the post, NOT percentage).
+1. **TikTok 必须点进作者主页找视频读播放量**：列表页/分享页数字不准；照片帖在主页也能看到播放量。短链接（\`vm.tiktok.com\` / \`tiktok.com/t/\`）先用 oembed/curl 解析成完整链接再抓。
+2. **Facebook/Instagram 必须在登录态下抓**：不登录批量抓会假零（互动全 0），"全部 0"先怀疑抓取失败。
+3. **YouTube**：\`shorts\` 链接 viewCount 常为 0，转 \`watch?v=\` 再读；同时确认 20 秒观看时长。
+4. **Reddit**：读左侧 upvote 数（非百分比）+ comments；多个 JSON 文件可能重复，按 URL 去重。
+5. **IG Story 链接**（\`instagram.com/s/...\`）过期后拿不到，标记 N/A 并注明。
+6. **抓不到就标 \`N/A\` + 原因，绝不编数/估算**；单条 submission 部分链接失败时，成功部分照算，失败部分备注。
 
-## Output Format
-Return results for ALL submissions in this JSON format:
+## 文件读取
+
+- 输入 JSON 的 \`links\` / \`engagement_links\` / \`view_links\` 是**数组**，\`links\` 已合并互动+视频链接
+- 逐条打开算分，按 submission 汇总后输出
+
+## 输出格式（每项都填，缺数据用 N/A）
+
 \`\`\`json
 {
   "submissions": [
     {
-      "id": <submission_id>,
-      "discord_name": "<username>",
-      "uid": "<uid>",
-      "total_engagement": <integer> (互动数: likes+comments+shares+saves),
-      "total_impressions": <integer> (浏览量/曝光量),
-      "total_views": <integer> (播放量: 视频观看次数),
-      "points_earned": <integer>
+      "id": 提交ID,
+      "discord_name": "用户名",
+      "uid": "UID",
+      "total_engagement": 0,
+      "total_impressions": 0,
+      "total_views": 0,
+      "points_earned": 0
     }
   ]
 }
@@ -1782,40 +1782,9 @@ function generateAgentTemplate() {
   }
 
   var lines = [
-    '# Yoyo KOC Exchange · Agent Scoring Task',
+    '# Yoyo KOC Exchange · Agent 算分任务（v2 · 2026-08）',
     '',
     SCORING_RULES_TEXT,
-    '',
-    '## 任务',
-    '请用浏览器打开以下每个链接，查看三个数据：📺 播放量(TikTok/YouTube视频观看次数)、👁️ 浏览量/曝光量(Facebook/Instagram/Reddit/X/Pinterest的阅读数)、💬 互动数(点赞+评论+分享+收藏)。三项都必须填写，不要漏掉任何一个。',
-    '不要凭空编造数据。如果链接无法访问，请标注 "N/A"。',
-    '',
-    '## 输出格式要求',
-    '输出一个 JSON 格式的结果，严格按照以下结构：',
-    '',
-    '```json',
-    '{',
-    '  "batch": "2026-07",',
-    '  "submissions": [',
-    '    {',
-    '      "id": 提交ID,',
-    '      "discord_name": "Discord用户名",',
-    '      "uid": "UID",',
-    '      "engagement_links": [',
-    '        { "url": "链接地址", "likes": N, "comments": N, "shares": N, "saves": N, "engagement_total": N }',
-    '      ],',
-    '      "view_links": [',
-    '        { "url": "链接地址", "view_count": N }',
-    '      ],',
-    '      "total_engagement": <integer> (总互动数: 点赞+评论+分享+收藏),',
-    '      "total_impressions": <integer> (总浏览量: 曝光量/阅读数),',
-    '      "total_views": <integer> (总播放量: 视频观看次数),',
-    '      "points_earned": N,',
-    '      "points_detail": "40-99=1pt, 100-199=2pt, ..."',
-    '    }',
-    '  ]',
-    '}',
-    '```',
     '',
     '## 作品列表',
     ''
@@ -1981,36 +1950,16 @@ async function copyAgentPrompt() {
   }
   var filename = 'koc-submissions-' + currentPeriod + '.json';
   var prompt = [
-    '# Yoyo KOC Exchange · Agent 算分任务',
-    '',
-    '## 规则',
     SCORING_RULES_TEXT,
     '',
     '## 操作步骤',
     '1. 打开我给你的文件: ' + filename,
-    '2. 文件里每个 submission 有 id / discord_name / uid / links / engagement_links / view_links 字段',
-    '3. 用浏览器打开 links 里的每条链接（links 已合并互动平台和视频平台链接），查看三个数据：📺 播放量（TikTok/YouTube 视频观看次数）、👁️ 浏览量/曝光量（Facebook/Instagram/Reddit/X/Pinterest 阅读数）、💬 互动数（点赞+评论+分享+收藏）。三项都必须填写。',
+    '2. 文件里每个 submission 有 id / discord_name / uid / links 字段',
+    '3. links 已合并互动平台和视频平台链接，逐条打开算分',
     '4. 按上方规则计算每条 submission 的积分',
-    '5. 输出 JSON 结果给我',
-    '',
-    '## 输出格式',
-    '```json',
-    '{',
-    '  "submissions": [',
-    '    {',
-    '      "id": 提交ID,',
-    '      "discord_name": "用户名",',
-    '      "uid": "UID",',
-    '      "total_engagement": <integer> (总互动数: 点赞+评论+分享+收藏),',
-    '      "total_impressions": <integer> (总浏览量: 曝光量/阅读数),',
-    '      "total_views": <integer> (总播放量: 视频观看次数),',
-    '      "points_earned": N',
-    '    }',
-    '  ]',
-    '}',
-    '```'
+    '5. 输出 JSON 结果给我'
   ].join('\n');
-  
+
   try {
     await navigator.clipboard.writeText(prompt);
     showToast('✅ 提示词已复制! 共 ' + pending.length + ' 条，文件名为 ' + filename, 'success');
