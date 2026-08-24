@@ -3401,7 +3401,12 @@ function changeSettlePeriod() {
     sel.options[i].selected = (sel.options[i].value === currentPeriod);
   }
   var lbl = document.getElementById('settle-label');
-  if (lbl) lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
+  if (lbl && currentPeriod) {
+    var parts = currentPeriod.split('-');
+    var year = parts[0];
+    var month = parseInt(parts[1]);
+    lbl.textContent = '📅 ' + year + '年' + month + '月';
+  }
   // Refresh current active tab
   var activeId = null;
   var tabIds = ['dashboard','community','koc-ledger','scoring','submissions','diamond','gplay','tiers','rules','audit'];
@@ -3418,7 +3423,7 @@ function changeSettlePeriod() {
   else if (activeId === 'tiers') renderTiersTable();
   else if (activeId === 'rules') loadCampaignConfig();
   else if (activeId === 'audit') loadAuditLog();
-  showToast('📅 切换到 ' + currentPeriod.replace('-', '年') + '月', 'success');
+  showToast('📅 切换到 ' + year + '年' + month + '月', 'success');
 }
 
 // ===== CHECK CC STATUS =====
