@@ -1654,12 +1654,17 @@ async function loadMySubmissions() {
   if (!window._subViewMonth) window._subViewMonth = currentPeriod;
 
   try {
-    // 最近 6 个月 + 实际有数据月份，避免月份写死导致后续活动看不到。
+    // 从 campaign_config 读取所有已创建的期号
     var monthSet = {};
-    getLast6Months(currentPeriod).forEach(function(m) {
-      // 只保留 2026-08 及之后的月份
-      if (m >= '2026-08') monthSet[m] = true;
-    });
+    var configRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?select=period&order=period.asc');
+    if (configRes.ok) {
+      var configData = await configRes.json() || [];
+      configData.forEach(function(row) {
+        if (row.period && row.period >= '2026-08') {
+          monthSet[row.period] = true;
+        }
+      });
+    }
 
     // Fetch submissions for this user
     var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=*');
