@@ -666,8 +666,42 @@ async function loadCurrentPeriod() {
 }
 
 // Do NOT auto-fill or auto-login. Users must type their Game UID + System ID every time.
-function tryAutoLogin() {
-  // intentionally no-op: no prefill from any stored session
+async function tryAutoLogin() {
+  try {
+    var session = localStorage.getItem('koc_session');
+    if (!session) return;
+
+    var sessionData = JSON.parse(session);
+    if (!sessionData.uid || !sessionData.account_id_verified) return;
+
+    // 加载当前期配置
+    await loadCurrentPeriod();
+
+    // 从数据库验证并加载用户数据
+    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sessionData.uid) + '&select=*');
+    if (!res.ok) {
+      localStorage.removeItem('koc_session');
+      return;
+    }
+    var data = await res.json();
+    if (!data || data.length === 0) {
+      localStorage.removeItem('koc_session');
+      return;
+    }
+
+    // 恢复用户会话
+    var koc = data[0];
+    var pts = await getBalance(koc.uid);
+    var pendingSpent = await getPendingRedemptionTotal(koc.uid);
+    currentUser = { ...koc, points: Math.max(0, pts - pendingSpent) };
+
+    // 显示仪表盘
+    showDashboard();
+    checkDeadline();
+  } catch(e) {
+    console.error('Auto-login failed:', e);
+    localStorage.removeItem('koc_session');
+  }
 }
 
 function initSelections() { selections = {}; REWARDS.forEach(r => selections[r.id] = 0); }
