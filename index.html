@@ -1830,7 +1830,7 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
           if (s) s.textContent = r > 0 ? '超过 ' + pct + '% 的人' : '暂未上榜';
         });
       }).catch(function(){});
-    })(currentUser.uid, ym);
+    })(currentUser.uid, prevYm);
     html += '</div></div>';
 
     // === POINTS TREND (last 6 months mini line chart) ===
