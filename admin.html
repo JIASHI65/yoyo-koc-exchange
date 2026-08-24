@@ -1187,7 +1187,14 @@ async function loadSettleMonthDropdown() {
       var currentData = await currentRes.json();
       if (currentData && currentData.length > 0 && currentData[0].period >= '2026-08') {
         sel.value = currentData[0].period;
+        currentPeriod = currentData[0].period;
       }
+    }
+
+    // 如果没有找到 is_current_period=true，默认选第一个
+    if (!sel.value && filteredData.length > 0) {
+      sel.value = filteredData[0].period;
+      currentPeriod = filteredData[0].period;
     }
 
     changeSettlePeriod();
