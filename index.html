@@ -1638,11 +1638,16 @@ async function loadMySubmissions() {
     allSubs.forEach(function(s) {
       var ym = s.period || (s.created_at || '').substring(0, 7);
       if (!ym) return;
-      monthSet[ym] = true;
-      if (!byMonth[ym]) byMonth[ym] = [];
-      byMonth[ym].push(s);
+      // 只保留 2026-08 及之后的月份
+      if (ym >= '2026-08') {
+        monthSet[ym] = true;
+        if (!byMonth[ym]) byMonth[ym] = [];
+        byMonth[ym].push(s);
+      }
     });
-    ptLogs.forEach(function(p) { if (p.period) monthSet[p.period] = true; });
+    ptLogs.forEach(function(p) {
+      if (p.period && p.period >= '2026-08') monthSet[p.period] = true;
+    });
     var months = Object.keys(monthSet).sort();
     window._mySubMonths = months;
     window._mySubsByMonth = byMonth;

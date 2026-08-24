@@ -564,9 +564,8 @@
         <div class="row">
           <label>活动周期</label>
           <select id="cfg-period" onchange="loadCampaignConfig()" style="width:200px;">
-            <!-- 动态加载 -->
+            <!-- 自动加载上个月到未来12个月 -->
           </select>
-          <button class="btn btn-sm" onclick="addNewPeriod()" style="margin-left:8px;">+ 新增期号</button>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
@@ -1174,9 +1173,48 @@ async function syncTiersFromDiscord() {
 // ===== CAMPAIGN / RULES CONFIG =====
 async function loadAllPeriods() {
   try {
+    // 先尝试从数据库加载
     var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?select=period&order=period.desc');
     if (!res.ok) return;
     var data = await res.json();
+
+    // 生成未来12个月的期号（如果数据库里没有）
+    var existingPeriods = data.map(function(d) { return d.period; });
+    var now = new Date();
+    var periodsToCreate = [];
+
+    for (var i = -1; i < 12; i++) {
+      var d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      var period = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+      if (existingPeriods.indexOf(period) < 0) {
+        periodsToCreate.push(period);
+      }
+    }
+
+    // 批量创建缺失的期号
+    if (periodsToCreate.length > 0) {
+      for (var j = 0; j < periodsToCreate.length; j++) {
+        var p = periodsToCreate[j];
+        await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config', {
+          method: 'POST',
+          body: JSON.stringify({
+            period: p,
+            name: p + ' Settlement',
+            rules_json: '{"scoring":{"tiktok":{"per_point":200},"youtube":{"per_point":200},"engagement":{"per_point":40,"80_engagements":2}},"points_cap":40,"tier_upgrade_threshold":5}',
+            points_cap: 40,
+            is_active: true,
+            submissions_open: false,
+            redemption_open: false,
+            is_current_period: false
+          })
+        });
+      }
+      // 重新加载
+      res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?select=period&order=period.desc');
+      data = await res.json();
+    }
+
+    // 填充下拉框
     var sel = document.getElementById('cfg-period');
     sel.innerHTML = '';
     var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -1188,6 +1226,7 @@ async function loadAllPeriods() {
       opt.textContent = row.period + ' (' + monthNames[monthIdx] + ')';
       sel.appendChild(opt);
     });
+
     // 默认选中当前期
     var currentRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?is_current_period=eq.true&select=period');
     if (currentRes.ok) {
@@ -1198,37 +1237,6 @@ async function loadAllPeriods() {
     }
     await loadCampaignConfig();
   } catch(e) { console.error('loadAllPeriods:', e); }
-}
-
-function addNewPeriod() {
-  var period = prompt('输入新期号（格式: 2026-08）:');
-  if (!period) return;
-  if (!/^\d{4}-\d{2}$/.test(period)) {
-    alert('格式错误，应为 YYYY-MM');
-    return;
-  }
-  (async function() {
-    try {
-      var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config', {
-        method: 'POST',
-        body: JSON.stringify({
-          period: period,
-          name: period + ' Settlement',
-          rules_json: '{"scoring":{"tiktok":{"per_point":200},"youtube":{"per_point":200},"engagement":{"per_point":40,"80_engagements":2}},"points_cap":40,"tier_upgrade_threshold":5}',
-          points_cap: 40,
-          is_active: true,
-          submissions_open: false,
-          redemption_open: false,
-          is_current_period: false
-        })
-      });
-      if (!res.ok) throw new Error('创建失败: ' + res.status);
-      showToast('✅ 新期号 ' + period + ' 已创建', 'success');
-      await loadAllPeriods();
-    } catch(e) {
-      showToast('❌ ' + e.message, 'error');
-    }
-  })();
 }
 
 async function loadCampaignConfig() {
