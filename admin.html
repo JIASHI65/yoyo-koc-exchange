@@ -1937,7 +1937,7 @@ function exportCurrentTable() {
 }
 
 function exportSubmissionsFile() {
-  var pending = allSubmissions.filter(function(s) { return s.status === 'pending' && s.submission_type !== 'showcase'; });
+  var pending = allSubmissions.filter(function(s) { return s.status === 'pending'; });
   if (pending.length === 0) {
     showToast('No pending submissions to export', 'error');
     return;
@@ -1953,6 +1953,7 @@ function exportSubmissionsFile() {
         id: s.id,
         discord_name: s.discord_name,
         uid: s.uid,
+        submission_type: s.submission_type || 'work',
         links: engagementLinks.concat(viewLinks),
         engagement_links: engagementLinks,
         view_links: viewLinks
