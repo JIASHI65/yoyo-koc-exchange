@@ -1123,6 +1123,21 @@ async function redeem() {
   if (statusEl) statusEl.textContent = '';
 
   try {
+    // Backend check: verify redemption is still open before submitting
+    const configRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + encodeURIComponent(currentPeriod) + '&select=redemption_open');
+    if (configRes.ok) {
+      const configData = await configRes.json();
+      if (configData && configData.length > 0 && configData[0].redemption_open === false) {
+        showToast('🔒 Redemption has been closed by admin. Please refresh the page.', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Confirm Redemption';
+        // Update local state to prevent further attempts
+        redemptionOpen = false;
+        document.getElementById('btn-redeem').disabled = true;
+        return;
+      }
+    }
+
     const freshBalance = await getBalance(currentUser.uid);
     const pendingTotal = await getPendingRedemptionTotal(currentUser.uid);
     const available = Math.max(0, freshBalance - pendingTotal);
