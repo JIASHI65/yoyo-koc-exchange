@@ -749,7 +749,7 @@ async function login() {
   const accountId = document.getElementById('input-account-id').value.trim();
   const uid = document.getElementById('input-uid').value.trim();
   if (!accountId || !uid) { showToast('Please enter both Game UID and System ID', 'error'); return; }
-  if (!/^6\d{5,}$/.test(accountId)) { showToast('System ID should be numbers starting with 6', 'error'); return; }
+  if (!/^\d{19}$/.test(accountId)) { showToast('System ID must be exactly 19 digits', 'error'); return; }
 
   const btn = document.getElementById('btn-login');
   btn.disabled = true; btn.textContent = 'Checking...';
