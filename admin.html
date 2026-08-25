@@ -3178,7 +3178,7 @@ async function loadData() {
     allKocs = await kocRes.json();
     allOrders = await ordRes.json();
     // Re-render current active tab
-    var tabIds = ['dashboard','koc-ledger','scoring','submissions','diamond','gplay','tiers','rules','audit'];
+    var tabIds = ['dashboard','koc-ledger','scoring','submissions','diamond','gplay','merch','tiers','rules','audit'];
     var activeId = null;
     tabIds.forEach(function(id) {
       var el = document.getElementById('tab-'+id);
@@ -3190,6 +3190,7 @@ async function loadData() {
       else if (activeId === 'scoring') renderScoringTable();
       else if (activeId === 'diamond') renderDiamondTab();
       else if (activeId === 'gplay') renderGplayTab();
+      else if (activeId === 'merch') renderMerchTab();
       else if (activeId === 'submissions') loadSubmissions();
       else if (activeId === 'tiers') renderTiersTable();
       else if (activeId === 'rules') loadAllPeriods();
@@ -5431,39 +5432,41 @@ function toggleLedgerSection(id) {
 
 function renderMerchTab() {
   var kmap = getKocMap();
-  var merchOrders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }));
-  var label = currentPeriod.replace('-', '年') + '月';
-  document.getElementById('merch-count').textContent = '📅 ' + label + ' (' + merchOrders.length + ' orders)';
+  var orders = allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }).sort(function(a, b) { return String((b.period || (b.created_at || '').substring(0, 7)) || '').localeCompare(String((a.period || (a.created_at || '').substring(0, 7)) || '')); });
+  document.getElementById('merch-count').textContent = '📅 长期台账 (' + orders.length + ' orders)';
   var container = document.getElementById('merch-table');
-  if (!merchOrders.length) {
-    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无 ' + label + ' 的已发货周边</div>';
+  if (!orders.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无周边台账</div>';
     return;
   }
-  container.innerHTML = '<div class="month-section">' +
-    '<div class="month-header">' +
-    '<span class="month-icon">📅</span><span>' + label + '</span>' +
-    '<span class="count">(' + merchOrders.length + ' orders)</span>' +
-    '<div style="margin-left:auto;display:flex;gap:6px;">' +
-    '<button class="btn btn-primary btn-sm export-btn" data-type="merch" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
-    '</div></div>' +
-    '<table class="month-table"><thead><tr>' +
-    '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Address</th><th>Phone</th><th>Reward</th><th>Notes</th>' +
-    '</tr></thead><tbody>' +
-    merchOrders.map(function(o) {
-      var koc = kmap[o.uid];
-      var addr = koc ? (koc.address || '') : '';
-      var phone = koc ? (koc.phone || '') : '';
-      return '<tr data-order-id="' + o.id + '" style="cursor:pointer;">' +
-        '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
-        '<td ondblclick="editOrderInline(this,\'discord_name\',' + o.id + ')"><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
-        '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="editOrderInline(this,\'uid\',' + o.id + ')">' + esc(o.uid) + '</td>' +
-        '<td style="font-size:12px;white-space:pre-wrap;min-width:200px;" ondblclick="editOrderInline(this,\'contact_info\',' + o.id + ')">' + (esc(o.contact_info || addr) || '-') + '</td>' +
-        '<td style="font-size:12px;white-space:nowrap;" ondblclick="editOrderInline(this,\'reward_amount\',' + o.id + ')">' + (esc(phone) || '-') + '</td>' +
-        '<td ondblclick="editOrderInline(this,\'option_name\',' + o.id + ')">📦 ' + esc(o.option_name || 'Merch Pack') + '</td>' +
-        '<td style="font-size:12px;color:#666;max-width:200px;white-space:pre-wrap;" ondblclick="editOrderInline(this,\'admin_notes\',' + o.id + ')">' + (esc(o.admin_notes) || '-') + '</td>' +
-      '</tr>';
-    }).join('') +
-    '</tbody></table></div>';
+  var groups = {};
+  orders.forEach(function(o) {
+    var p = o.period || (o.created_at || '').substring(0, 7) || currentPeriod;
+    if (!groups[p]) groups[p] = [];
+    groups[p].push(o);
+  });
+  var html = '';
+  Object.keys(groups).sort(comparePeriodDesc).forEach(function(period) {
+    var body = '<table class="month-table"><thead><tr>' +
+      '<th style="width:30px;"></th><th>Discord</th><th>UID</th><th>Address</th><th>Phone</th><th>Reward</th><th>Notes</th>' +
+      '</tr></thead><tbody data-sort-type="merch" data-sort-month="' + period + '">' +
+      groups[period].map(function(o) {
+        var koc = kmap[o.uid];
+        var addr = koc ? (koc.address || '') : '';
+        var phone = koc ? (koc.phone || '') : '';
+        return '<tr draggable="true" data-order-id="' + o.id + '">' +
+          '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
+          '<td ondblclick="editOrderInline(this,\'discord_name\',' + o.id + ')"><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+          '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="editOrderInline(this,\'uid\',' + o.id + ')">' + esc(o.uid) + '</td>' +
+          '<td style="font-size:12px;white-space:pre-wrap;min-width:200px;" ondblclick="editOrderInline(this,\'contact_info\',' + o.id + ')">' + (esc(o.contact_info || addr) || '-') + '</td>' +
+          '<td style="font-size:12px;white-space:nowrap;" ondblclick="editOrderInline(this,\'reward_amount\',' + o.id + ')">' + (esc(phone) || '-') + '</td>' +
+          '<td ondblclick="editOrderInline(this,\'option_name\',' + o.id + ')">📦 ' + esc(o.option_name || 'Merch Pack') + '</td>' +
+          '<td style="font-size:12px;color:#666;max-width:200px;white-space:pre-wrap;" ondblclick="editOrderInline(this,\'admin_notes\',' + o.id + ')">' + (esc(o.admin_notes) || '-') + '</td>' +
+        '</tr>';
+      }).join('') + '</tbody></table>';
+    html += makeLedgerSection(getBatchLabelFromPeriod(period) + '——周边', groups[period].length, '📦', '#fff3e0', 'merch', period, body);
+  });
+  container.innerHTML = html;
   setTimeout(function() { initSortable('merch'); }, 100);
 }
 
@@ -5671,7 +5674,7 @@ function resetOrder(type, month) {
   .then(function(r){return r.json()}).then(function(d){
     if(d&&d.length&&d[0].notes){try{var cfg=JSON.parse(d[0].notes);var ck='display_order_'+type;if(cfg.display_orders&&cfg.display_orders[ck]){delete cfg.display_orders[ck][month];supabaseFetch(SUPABASE_URL+'/rest/v1/kocs?uid=eq.__config__',{method:'PATCH',body:JSON.stringify({notes:JSON.stringify(cfg)})}).catch(function(){})}}catch(e){}}
   }).catch(function(){});
-  if(type==='diamonds')renderDiamondTab();else if(type==='gplay')renderGplayTab();
+  if(type==='diamonds')renderDiamondTab();else if(type==='gplay')renderGplayTab();else if(type==='merch')renderMerchTab();
 }
 // Global click handler for export buttons
 document.addEventListener('click', function(e) {
