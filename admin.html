@@ -4446,16 +4446,26 @@ async function batchMarkSelected(type) {
 async function batchDeleteSelected() {
   var uids = getSelectedKocUids();
   if (!uids.length) { showToast('请先勾选创作者', 'error'); return; }
-  if (!confirmDanger('Delete selected creators?', [
+  if (!confirmDanger('Delete selected creators and ALL their data?', [
     'Creators: ' + uids.length,
-    'This deletes rows from kocs and cannot be undone from the admin page.',
-    'Please export/backup first if you are not 100% sure.'
+    '⚠️ This will PERMANENTLY delete:',
+    '• KOC records',
+    '• All submissions',
+    '• All point logs',
+    '• All redemption orders',
+    'This CANNOT be undone. Export/backup first!'
   ])) return;
   var ok = 0, failed = 0;
   var errors = [];
   for (var i = 0; i < uids.length; i++) {
     try {
-      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uids[i]), {
+      var uid = uids[i];
+      // Delete related records first (to avoid foreign key constraint)
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(uid), { method: 'DELETE' });
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(uid), { method: 'DELETE' });
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid), { method: 'DELETE' });
+      // Finally delete the KOC
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
         method: 'DELETE'
       });
       if (r.ok) {
@@ -4463,7 +4473,7 @@ async function batchDeleteSelected() {
       } else {
         failed++;
         var errText = await r.text().catch(function() { return ''; });
-        errors.push('UID ' + uids[i] + ': ' + (errText || 'HTTP ' + r.status));
+        errors.push('UID ' + uid + ': ' + (errText || 'HTTP ' + r.status));
       }
     } catch(e) {
       failed++;
@@ -4474,9 +4484,9 @@ async function batchDeleteSelected() {
     console.error('Delete errors:', errors);
     showToast('⚠️ 成功 ' + ok + '，失败 ' + failed + '。查看控制台了解详情', 'error');
   } else {
-    showToast('✅ ' + ok + '/' + uids.length + ' 已删除', 'success');
+    showToast('✅ ' + ok + '/' + uids.length + ' 已删除（含所有相关数据）', 'success');
   }
-  writeAuditLog('koc', 'batch delete creators: ' + ok + '/' + uids.length + (failed ? ', failed ' + failed : ''));
+  writeAuditLog('koc', 'batch delete creators (cascade): ' + ok + '/' + uids.length + (failed ? ', failed ' + failed : ''));
   await loadData();
 }
 function renderScoringTable() {
