@@ -12,7 +12,7 @@
     padding: 30px 20px;
     line-height: 1.5;
   }
-  .container { max-width: 700px; margin: 0 auto; }
+  .container { max-width: 1200px; margin: 0 auto; }
 
   /* Header */
   .hero {
@@ -235,6 +235,50 @@
   }
 
   /* Footer */
+  .faq-section {
+    background: white;
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(210,120,150,0.12);
+  }
+  .faq-section h2 {
+    font-size: 22px;
+    color: #d4749a;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .faq-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  .faq-item {
+    background: #fef6f9;
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .faq-q {
+    font-size: 14px;
+    font-weight: 700;
+    color: #d4749a;
+    margin-bottom: 8px;
+  }
+  .faq-a {
+    font-size: 13px;
+    color: #5a4a53;
+    line-height: 1.6;
+  }
+
+  /* Two column layout for main content */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  /* Footer */
   .footer {
     background: white;
     border-radius: 20px;
@@ -386,6 +430,37 @@
     <p style="font-size: 13px; color: #8a7a83; margin-top: 12px;">
       Hosted on <strong>GitHub Pages</strong> - a trusted platform used by millions of developers worldwide
     </p>
+  </div>
+
+  <!-- FAQ Section -->
+  <div class="faq-section">
+    <h2>❓ Frequently Asked Questions</h2>
+    <div class="faq-grid">
+      <div class="faq-item">
+        <div class="faq-q">Q: Is this link safe? Is it a scam?</div>
+        <div class="faq-a">A: This is the <strong>official YoYo Town Creator Portal</strong>, hosted on GitHub Pages (a trusted platform). We never ask for your game password, credit cards, or sensitive documents.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q: I've used my 2 submissions. Can I submit more?</div>
+        <div class="faq-a">A: Regular submissions are limited to 2/month. However, you can submit unlimited <strong>Showcase posts</strong>, and the limit resets next month.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q: When will I receive my points/rewards?</div>
+        <div class="faq-a">A: <strong>Points:</strong> Admin reviews throughout the month. <strong>Digital rewards:</strong> Usually within a few days. <strong>Physical items:</strong> 2-4 weeks shipping.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q: Game UID vs System ID - what's the difference?</div>
+        <div class="faq-a">A: <strong>Game UID:</strong> Your in-game username (has letters, like "YOYO-123") - used to login. <strong>System ID:</strong> 19-digit number - only needed for registration.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q: I forgot my password. How do I reset it?</div>
+        <div class="faq-a">A: The portal doesn't use passwords! Just login with your Game UID each time. If you can't access your account, contact YoYo assistant💗Mochi on Discord.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q: What is the CC (Continuous Creation) Reward?</div>
+        <div class="faq-a">A: If you submit <strong>15+ works in a month</strong>, you automatically qualify for a bonus CC reward: Premium Monthly Card + Shelly Coins x500 + Gold x1000!</div>
+      </div>
+    </div>
   </div>
 
   <!-- Footer -->
