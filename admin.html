@@ -3200,6 +3200,8 @@ window.addEventListener('unhandledrejection', function() {
 // Patch loadData to also load submissions
 var _origLoadData = loadData;
 loadData = async function() {
+  _scoringMonthlyPointsPeriod = '';
+  _scoringMonthlyPointsByUid = {};
   await _origLoadData();
   loadSubmissions();
 };
@@ -4575,6 +4577,144 @@ async function batchDeleteSelected() {
   writeAuditLog('koc', 'batch delete creators (cascade): ' + ok + '/' + uids.length + (failed ? ', failed ' + failed : ''));
   await loadData();
 }
+
+var _scoringMonthlyPointsPeriod = '';
+var _scoringMonthlyPointsByUid = {};
+var _scoringMonthlyPointsPromise = null;
+var _ccEligibilityPeriod = '';
+var _ccEligibilityCheckedAt = 0;
+var _ccEligibilityPromise = null;
+
+function normalizeSubmissionLink(link) {
+  return String(link || '').trim().toLowerCase().replace(/[#?].*$/, '').replace(/\/+$/, '');
+}
+
+function countMonthlyWorkLinksByUid(submissions) {
+  var linksByUid = {};
+  (submissions || []).forEach(function(submission) {
+    if (!submission || !submission.uid || submission.submission_type === 'showcase') return;
+    if (!linksByUid[submission.uid]) linksByUid[submission.uid] = {};
+    String(submission.links_engagement || '').split('\n')
+      .concat(String(submission.links_views || '').split('\n'))
+      .forEach(function(link) {
+        var key = normalizeSubmissionLink(link);
+        if (key) linksByUid[submission.uid][key] = true;
+      });
+  });
+  var counts = {};
+  Object.keys(linksByUid).forEach(function(uid) {
+    counts[uid] = Object.keys(linksByUid[uid]).length;
+  });
+  return counts;
+}
+
+function loadScoringMonthlyPoints() {
+  if (_scoringMonthlyPointsPeriod === currentPeriod) {
+    return Promise.resolve(_scoringMonthlyPointsByUid);
+  }
+  if (_scoringMonthlyPointsPromise && _scoringMonthlyPointsPromise.period === currentPeriod) {
+    return _scoringMonthlyPointsPromise;
+  }
+  var period = currentPeriod;
+  var request = (async function() {
+    try {
+      var response = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?period=eq.' + encodeURIComponent(period) + '&select=uid,change,source');
+      if (!response.ok) return {};
+      var logs = await response.json() || [];
+      var scoreMap = {};
+      logs.forEach(function(log) {
+        if (Number(log.change) > 0 && log.source !== 'redemption') {
+          scoreMap[log.uid] = (scoreMap[log.uid] || 0) + Number(log.change || 0);
+        }
+      });
+      if (currentPeriod === period) {
+        _scoringMonthlyPointsPeriod = period;
+        _scoringMonthlyPointsByUid = scoreMap;
+        Object.keys(scoreMap).forEach(function(uid) {
+          var cell = document.getElementById('mspts-' + uid);
+          if (cell) cell.textContent = scoreMap[uid];
+        });
+        (allKocs || []).forEach(function(koc) {
+          var cell = document.getElementById('mspts-' + koc.uid);
+          if (cell && scoreMap[koc.uid] == null) cell.textContent = '0';
+        });
+      }
+      return scoreMap;
+    } catch(e) {
+      console.error('Failed to load monthly points:', e);
+      return {};
+    } finally {
+      if (_scoringMonthlyPointsPromise === request) _scoringMonthlyPointsPromise = null;
+    }
+  })();
+  request.period = period;
+  _scoringMonthlyPointsPromise = request;
+  return request;
+}
+
+function ensureCCEligibilityForCurrentPeriod(force) {
+  var now = Date.now();
+  if (!force && _ccEligibilityPeriod === currentPeriod && now - _ccEligibilityCheckedAt < 30000) {
+    return Promise.resolve();
+  }
+  if (_ccEligibilityPromise && _ccEligibilityPromise.period === currentPeriod) return _ccEligibilityPromise;
+  var period = currentPeriod;
+  var request = (async function() {
+    var changed = false;
+    try {
+      var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?period=eq.' + encodeURIComponent(period) + '&select=uid,submission_type,links_engagement,links_views');
+      if (!subRes.ok) return;
+      var workCounts = countMonthlyWorkLinksByUid(await subRes.json() || []);
+      for (var i = 0; i < allKocs.length; i++) {
+        var koc = allKocs[i];
+        if (!koc || koc.status !== 'active' || (workCounts[koc.uid] || 0) < 15) continue;
+        var ccTag = 'CC:' + period;
+        if ((koc.notes || '').includes(ccTag)) continue;
+        var updatedNotes = koc.notes ? koc.notes + ', ' + ccTag : ccTag;
+        var noteResponse = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(koc.uid), {
+          method: 'PATCH',
+          body: JSON.stringify({ notes: updatedNotes })
+        });
+        if (!noteResponse.ok) continue;
+        koc.notes = updatedNotes;
+        var existingResponse = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(koc.uid) + '&period=eq.' + encodeURIComponent(period) + '&option_name=eq.' + encodeURIComponent(ccTag) + '&select=id');
+        var existing = existingResponse.ok ? await existingResponse.json() || [] : [];
+        if (!existing.length) {
+          var orderResponse = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
+            method: 'POST',
+            body: JSON.stringify({
+              uid: koc.uid,
+              discord_name: koc.discord_name,
+              koc_name: koc.discord_name,
+              option_type: 'diamonds',
+              option_name: ccTag,
+              points_spent: 0,
+              reward_amount: 'Premium Monthly Card x1 + Shelly Coins x500 + Gold x1000',
+              contact_info: period,
+              status: 'pending',
+              period: period,
+              admin_notes: ccTag + ' - Auto-enabled (≥15 submitted works)',
+              created_at: new Date().toISOString()
+            })
+          });
+          if (!orderResponse.ok) continue;
+        }
+        changed = true;
+      }
+    } catch(e) {
+      console.error('Auto CC check error:', e);
+    } finally {
+      _ccEligibilityPeriod = period;
+      _ccEligibilityCheckedAt = Date.now();
+      if (_ccEligibilityPromise === request) _ccEligibilityPromise = null;
+    }
+    if (changed && currentPeriod === period) await loadData();
+  })();
+  request.period = period;
+  _ccEligibilityPromise = request;
+  return request;
+}
+
 function renderScoringTable() {
   // Load redemption state from campaign_config (single source of truth)
   (async function() {
@@ -4652,66 +4792,6 @@ function renderScoringTable() {
   var ccEl = document.getElementById('stat-cc');
   if (ccEl) ccEl.textContent = '🎁 CC: ' + ccCount + ' creators';
 
-  // Auto-check CC eligibility based on submissions count
-  (async function() {
-    try {
-      var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?period=eq.' + encodeURIComponent(currentPeriod) + '&select=uid');
-      if (!subRes.ok) return;
-      var subs = await subRes.json();
-      var subCounts = {};
-      subs.forEach(function(s) {
-        subCounts[s.uid] = (subCounts[s.uid] || 0) + 1;
-      });
-
-      for (var i = 0; i < filtered.length; i++) {
-        var k = filtered[i];
-        var count = subCounts[k.uid] || 0;
-        var hasCC = (k.notes || '').includes('CC:' + currentPeriod);
-        var shouldHaveCC = count >= 15;
-
-        // Auto-enable CC if eligible and not yet enabled
-        if (shouldHaveCC && !hasCC) {
-          var updated = k.notes ? k.notes + ', CC:' + currentPeriod : 'CC:' + currentPeriod;
-          await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(k.uid), {
-            method: 'PATCH',
-            body: JSON.stringify({ notes: updated })
-          });
-          k.notes = updated;
-
-          // Create CC reward order
-          var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(k.uid) + '&period=eq.' + encodeURIComponent(currentPeriod) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod) + '&select=id');
-          if (checkRes.ok) {
-            var existing = await checkRes.json();
-            if (!existing || existing.length === 0) {
-              await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
-                method: 'POST',
-                body: JSON.stringify({
-                  uid: k.uid,
-                  discord_name: k.discord_name,
-                  koc_name: k.discord_name,
-                  option_type: 'diamonds',
-                  option_name: 'CC:' + currentPeriod,
-                  points_spent: 0,
-                  reward_amount: 'Premium Monthly Card x1 + Shelly Coins x500 + Gold x1000',
-                  contact_info: currentPeriod,
-                  status: 'pending',
-                  period: currentPeriod,
-                  admin_notes: 'CC:' + currentPeriod + ' - Auto-enabled (≥15 submissions) - ' + currentPeriod,
-                  created_at: new Date().toISOString()
-                })
-              });
-              console.log('Auto-enabled CC for ' + k.uid + ' (' + count + ' submissions)');
-            }
-          }
-        }
-      }
-      // Refresh after auto-enabling
-      await loadData();
-    } catch(e) {
-      console.error('Auto CC check error:', e);
-    }
-  })();
-
   tbody.innerHTML = filtered.map(function(k) {
     var orders = allOrders.filter(function(o) {
       return o.uid === k.uid && ((o.period||'') === currentPeriod || (o.created_at||'').substring(0,7) === currentPeriod);
@@ -4722,7 +4802,7 @@ function renderScoringTable() {
       '<td style="text-align:center;"><input type="checkbox" class="scoring-select" value="' + k.uid + '"></td>' +
       '<td><strong ondblclick="inlineEdit(this,\'discord_name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.discord_name) + '</strong></td>' +
       '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();inlineEdit(this,\'uid\',\'' + k.uid + '\')">' + esc(k.uid) + '</td>' +
-      '<td><span class="pts" id="mspts-' + k.uid + '">\u22EF</span></td>' +
+      '<td><span class="pts" id="mspts-' + k.uid + '">' + (_scoringMonthlyPointsPeriod === currentPeriod ? (_scoringMonthlyPointsByUid[k.uid] || 0) : '\u22EF') + '</span></td>' +
       '<td style="text-align:center;">' +
         '<div class="toggle-wrap">' +
           '<input type="checkbox" class="toggle-cb" id="cc-' + k.uid + '" ' + (cc ? 'checked' : '') + ' onchange="toggleCC(\'' + k.uid + '\',\'' + escAttr(k.notes||'') + '\')">' +
@@ -4748,27 +4828,8 @@ function renderScoringTable() {
       '</td>' +
     '</tr>';
   }).join('');
-  // Load monthly points (from point_logs for accuracy)
-  (async function() {
-    try {
-      var plRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?period=eq.' + encodeURIComponent(currentPeriod) + '&select=uid,change,source');
-      if (!plRes.ok) return;
-      var logs = await plRes.json();
-      var scoreMap = {};
-      logs.forEach(function(p) {
-        if (p.change > 0 && p.source !== 'redemption') {
-          scoreMap[p.uid] = (scoreMap[p.uid] || 0) + p.change;
-        }
-      });
-      allKocs.forEach(function(k) {
-        var monthPts = scoreMap[k.uid] || 0;
-        var el = document.getElementById('mspts-' + k.uid);
-        if (el) el.textContent = monthPts;
-      });
-    } catch(e) {
-      console.error('Failed to load monthly points:', e);
-    }
-  })();
+  loadScoringMonthlyPoints();
+  ensureCCEligibilityForCurrentPeriod(false);
 }
 
 async function syncAllBalances() {
