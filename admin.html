@@ -484,6 +484,7 @@
             <option value="gold">🟡 金级创作官</option>
             <option value="platinum">💎 铂金创作官</option>
           </select>
+          <button class="btn btn-sm" style="background:#e1f5fe;color:#01579b;border:1px solid #4fc3f7;font-weight:600;" onclick="manualCCCheck()">🔍 检测CC资格 (≥15)</button>
           <button class="btn btn-sm" style="background:#fce4ec;color:#c62828;border:1px solid #ef9a9a;margin-left:auto;" onclick="batchDeleteFromScoring()">🗑 删除所选</button>
         </div>
         <div style="overflow-x:auto;">
@@ -4576,27 +4577,42 @@ async function batchDeleteSelected() {
   await loadData();
 }
 function renderScoringTable() {
-  // Load redemption state from campaign_config (single source of truth)
-  (async function() {
-    try {
-      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + encodeURIComponent(currentPeriod) + '&select=redemption_open');
-      if (r.ok) {
-        var d = await r.json();
-        if (d && d.length > 0) {
-          var open = d[0].redemption_open === true;
-          if (!window._cfgSwitches) window._cfgSwitches = {};
-          window._cfgSwitches.redemption_open = open;
-          var btn = document.getElementById('btn-toggle-redeem');
-          if (btn) {
-            btn.textContent = open ? '🔒 关闭兑换' : '🔓 开放兑换';
-            btn.style.background = open ? '#e74c3c' : '#43b581';
-          }
-        }
-      }
-    } catch(e) {}
-  })();
+  console.log('[DEBUG] renderScoringTable called at', new Date().toISOString());
   var tbody = document.getElementById('scoring-table');
   if (!tbody) return;
+
+  // Load redemption button state once
+  if (!window._redemptionStateLoaded) {
+    window._redemptionStateLoaded = true;
+    (async function() {
+      try {
+        var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + encodeURIComponent(currentPeriod) + '&select=redemption_open');
+        if (r.ok) {
+          var d = await r.json();
+          if (d && d.length > 0) {
+            var open = d[0].redemption_open === true;
+            if (!window._cfgSwitches) window._cfgSwitches = {};
+            window._cfgSwitches.redemption_open = open;
+            var btn = document.getElementById('btn-toggle-redeem');
+            if (btn) {
+              btn.textContent = open ? '🔒 关闭兑换' : '🔓 开放兑换';
+              btn.style.background = open ? '#e74c3c' : '#43b581';
+            }
+          }
+        }
+      } catch(e) {}
+    })();
+  }
+
+  // Pre-calculate monthly points for all creators
+  var scoreMap = {};
+  if (allPointLogs && allPointLogs.length > 0) {
+    allPointLogs.filter(function(p) { return p.period === currentPeriod; }).forEach(function(p) {
+      if (p.change > 0 && p.source !== 'redemption') {
+        scoreMap[p.uid] = (scoreMap[p.uid] || 0) + p.change;
+      }
+    });
+  }
 
   // Search and filters
   var searchInput = document.getElementById('scoring-search-input');
@@ -4652,66 +4668,6 @@ function renderScoringTable() {
   var ccEl = document.getElementById('stat-cc');
   if (ccEl) ccEl.textContent = '🎁 CC: ' + ccCount + ' creators';
 
-  // Auto-check CC eligibility based on submissions count
-  (async function() {
-    try {
-      var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?period=eq.' + encodeURIComponent(currentPeriod) + '&select=uid');
-      if (!subRes.ok) return;
-      var subs = await subRes.json();
-      var subCounts = {};
-      subs.forEach(function(s) {
-        subCounts[s.uid] = (subCounts[s.uid] || 0) + 1;
-      });
-
-      for (var i = 0; i < filtered.length; i++) {
-        var k = filtered[i];
-        var count = subCounts[k.uid] || 0;
-        var hasCC = (k.notes || '').includes('CC:' + currentPeriod);
-        var shouldHaveCC = count >= 15;
-
-        // Auto-enable CC if eligible and not yet enabled
-        if (shouldHaveCC && !hasCC) {
-          var updated = k.notes ? k.notes + ', CC:' + currentPeriod : 'CC:' + currentPeriod;
-          await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(k.uid), {
-            method: 'PATCH',
-            body: JSON.stringify({ notes: updated })
-          });
-          k.notes = updated;
-
-          // Create CC reward order
-          var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(k.uid) + '&period=eq.' + encodeURIComponent(currentPeriod) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod) + '&select=id');
-          if (checkRes.ok) {
-            var existing = await checkRes.json();
-            if (!existing || existing.length === 0) {
-              await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
-                method: 'POST',
-                body: JSON.stringify({
-                  uid: k.uid,
-                  discord_name: k.discord_name,
-                  koc_name: k.discord_name,
-                  option_type: 'diamonds',
-                  option_name: 'CC:' + currentPeriod,
-                  points_spent: 0,
-                  reward_amount: 'Premium Monthly Card x1 + Shelly Coins x500 + Gold x1000',
-                  contact_info: currentPeriod,
-                  status: 'pending',
-                  period: currentPeriod,
-                  admin_notes: 'CC:' + currentPeriod + ' - Auto-enabled (≥15 submissions) - ' + currentPeriod,
-                  created_at: new Date().toISOString()
-                })
-              });
-              console.log('Auto-enabled CC for ' + k.uid + ' (' + count + ' submissions)');
-            }
-          }
-        }
-      }
-      // Refresh after auto-enabling
-      await loadData();
-    } catch(e) {
-      console.error('Auto CC check error:', e);
-    }
-  })();
-
   tbody.innerHTML = filtered.map(function(k) {
     var orders = allOrders.filter(function(o) {
       return o.uid === k.uid && ((o.period||'') === currentPeriod || (o.created_at||'').substring(0,7) === currentPeriod);
@@ -4722,7 +4678,7 @@ function renderScoringTable() {
       '<td style="text-align:center;"><input type="checkbox" class="scoring-select" value="' + k.uid + '"></td>' +
       '<td><strong ondblclick="inlineEdit(this,\'discord_name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.discord_name) + '</strong></td>' +
       '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();inlineEdit(this,\'uid\',\'' + k.uid + '\')">' + esc(k.uid) + '</td>' +
-      '<td><span class="pts" id="mspts-' + k.uid + '">\u22EF</span></td>' +
+      '<td><span class="pts" id="mspts-' + k.uid + '">' + (scoreMap[k.uid] || 0) + '</span></td>' +
       '<td style="text-align:center;">' +
         '<div class="toggle-wrap">' +
           '<input type="checkbox" class="toggle-cb" id="cc-' + k.uid + '" ' + (cc ? 'checked' : '') + ' onchange="toggleCC(\'' + k.uid + '\',\'' + escAttr(k.notes||'') + '\')">' +
@@ -4748,27 +4704,6 @@ function renderScoringTable() {
       '</td>' +
     '</tr>';
   }).join('');
-  // Load monthly points (from point_logs for accuracy)
-  (async function() {
-    try {
-      var plRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?period=eq.' + encodeURIComponent(currentPeriod) + '&select=uid,change,source');
-      if (!plRes.ok) return;
-      var logs = await plRes.json();
-      var scoreMap = {};
-      logs.forEach(function(p) {
-        if (p.change > 0 && p.source !== 'redemption') {
-          scoreMap[p.uid] = (scoreMap[p.uid] || 0) + p.change;
-        }
-      });
-      allKocs.forEach(function(k) {
-        var monthPts = scoreMap[k.uid] || 0;
-        var el = document.getElementById('mspts-' + k.uid);
-        if (el) el.textContent = monthPts;
-      });
-    } catch(e) {
-      console.error('Failed to load monthly points:', e);
-    }
-  })();
 }
 
 async function syncAllBalances() {
@@ -4794,6 +4729,103 @@ function updateKocTierInline(uid) {
     }
   }).catch(function(e) { showToast('Error: ' + e.message, 'error'); });
 }
+
+async function manualCCCheck() {
+  if (!confirm('检测所有创作者当月作品数，自动为≥15作品的创作者开启CC奖励？')) return;
+
+  var btn = event.target;
+  var originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⏳ 检测中...';
+
+  try {
+    // Get all submissions for current period
+    var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?period=eq.' + encodeURIComponent(currentPeriod) + '&select=uid');
+    if (!subRes.ok) throw new Error('Failed to load submissions');
+    var subs = await subRes.json();
+
+    // Count submissions per UID
+    var subCounts = {};
+    subs.forEach(function(s) {
+      subCounts[s.uid] = (subCounts[s.uid] || 0) + 1;
+    });
+
+    var autoEnabled = [];
+    var alreadyHasCC = [];
+
+    for (var i = 0; i < allKocs.length; i++) {
+      var k = allKocs[i];
+      if (k.status !== 'active') continue;
+
+      var count = subCounts[k.uid] || 0;
+      var hasCC = (k.notes || '').includes('CC:' + currentPeriod);
+
+      if (count >= 15) {
+        if (hasCC) {
+          alreadyHasCC.push(k.discord_name + ' (' + count + ' works)');
+        } else {
+          // Auto-enable CC
+          var updated = k.notes ? k.notes + ', CC:' + currentPeriod : 'CC:' + currentPeriod;
+          await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(k.uid), {
+            method: 'PATCH',
+            body: JSON.stringify({ notes: updated })
+          });
+
+          // Create CC reward order
+          var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(k.uid) + '&period=eq.' + encodeURIComponent(currentPeriod) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod) + '&select=id');
+          if (checkRes.ok) {
+            var existing = await checkRes.json();
+            if (!existing || existing.length === 0) {
+              await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
+                method: 'POST',
+                body: JSON.stringify({
+                  uid: k.uid,
+                  discord_name: k.discord_name,
+                  koc_name: k.discord_name,
+                  option_type: 'diamonds',
+                  option_name: 'CC:' + currentPeriod,
+                  points_spent: 0,
+                  reward_amount: 'Premium Monthly Card x1 + Shelly Coins x500 + Gold x1000',
+                  contact_info: currentPeriod,
+                  status: 'pending',
+                  period: currentPeriod,
+                  admin_notes: 'CC:' + currentPeriod + ' - Manual check (≥15 submissions)',
+                  created_at: new Date().toISOString()
+                })
+              });
+              autoEnabled.push(k.discord_name + ' (' + count + ' works)');
+            }
+          }
+        }
+      }
+    }
+
+    var msg = [];
+    if (autoEnabled.length > 0) {
+      msg.push('✅ 已自动开启 ' + autoEnabled.length + ' 位创作者的CC奖励：\n' + autoEnabled.join('\n'));
+    }
+    if (alreadyHasCC.length > 0) {
+      msg.push('ℹ️ ' + alreadyHasCC.length + ' 位创作者已有CC：\n' + alreadyHasCC.join('\n'));
+    }
+    if (autoEnabled.length === 0 && alreadyHasCC.length === 0) {
+      msg.push('ℹ️ 没有发现符合条件（≥15作品且未开启CC）的创作者');
+    }
+
+    alert(msg.join('\n\n'));
+    console.log('Manual CC check results:', { autoEnabled: autoEnabled, alreadyHasCC: alreadyHasCC });
+
+    // Refresh only the scoring table, not all data
+    renderScoringTable();
+
+  } catch(e) {
+    showToast('❌ CC检测失败: ' + e.message, 'error');
+    console.error('Manual CC check error:', e);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
 
 function esc(s) { return s == null ? '' : String(s).replace(/[&<>]/g, function(c) { return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]; }); }
 function escAttr(s) { return String(s).replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, '\\n'); }
@@ -4948,7 +4980,6 @@ async function shipOrder(ev, id) {
         // \u53d1\u8d27\u5df2\u6210\u529f\u4f46\u6263\u5206\u5931\u8d25:\u5982\u5b9e\u544a\u8b66,\u4e0d\u8c0e\u62a5"\u5df2\u6263\u5206"
         if (!dedResp.ok) {
           showToast('\u26a0\ufe0f \u5df2\u6807\u8bb0\u53d1\u8d27\uff0c\u4f46\u6263\u5206\u5931\u8d25\uff0c\u8bf7\u624b\u52a8\u6838\u5bf9 ' + order.uid + ' \u7684\u79ef\u5206', 'error');
-          loadData();
           return;
         }
       }
@@ -4956,7 +4987,20 @@ async function shipOrder(ev, id) {
 
     showToast('\u2705 Shipped' + (order.points_spent > 0 ? ' + pts deducted' : ''), 'success');
     writeAuditLog('diamond', 'ship order #' + id + ' uid ' + order.uid + ' points ' + (order.points_spent || 0));
-    loadData();
+
+    // Update order status in local cache
+    var localOrder = allOrders.find(function(o) { return o.id === id; });
+    if (localOrder) localOrder.status = 'shipped';
+
+    // Re-render current active tab
+    var activeTab = document.querySelector('.tab-btn.active');
+    if (activeTab) {
+      var activeId = activeTab.getAttribute('data-tab');
+      if (activeId === 'scoring') renderScoringTable();
+      else if (activeId === 'diamond') renderDiamondTab();
+      else if (activeId === 'merch') renderMerchTab();
+      else if (activeId === 'gplay') renderGplayTab();
+    }
   } catch (e) { showToast('Error: ' + e.message, 'error'); }
   finally {
     if (shipBtn) { shipBtn.disabled = false; shipBtn.textContent = originalText || '✓'; }
