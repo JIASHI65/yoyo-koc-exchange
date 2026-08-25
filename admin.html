@@ -188,7 +188,7 @@
 .koc-table-wrap th, .koc-table-wrap td { text-align: center; }
 .koc-table-wrap td[style*="pre-wrap"] { text-align: left; }
 /* Larger checkboxes for KOC table */
-.koc-select, #koc-select-all {
+.koc-select, #koc-select-all, .scoring-select, #scoring-select-all {
   width: 18px;
   height: 18px;
   cursor: pointer;
@@ -484,10 +484,12 @@
             <option value="gold">🟡 金级创作官</option>
             <option value="platinum">💎 铂金创作官</option>
           </select>
+          <button class="btn btn-sm" style="background:#fce4ec;color:#c62828;border:1px solid #ef9a9a;margin-left:auto;" onclick="batchDeleteFromScoring()">🗑 删除所选</button>
         </div>
         <div style="overflow-x:auto;">
         <table>
           <thead><tr>
+            <th style="width:50px;"><input type="checkbox" id="scoring-select-all" onchange="toggleAllScoring()"></th>
             <th>Discord</th>
             <th>UID</th>
             <th>📅 当月积分</th>
@@ -4295,6 +4297,64 @@ function getSelectedKocUids() {
   return uids;
 }
 
+function toggleAllScoring() {
+  var checked = document.getElementById('scoring-select-all').checked;
+  document.querySelectorAll('.scoring-select').forEach(function(cb) { cb.checked = checked; });
+}
+
+function getSelectedScoringUids() {
+  var uids = [];
+  document.querySelectorAll('.scoring-select:checked').forEach(function(cb) { uids.push(cb.value); });
+  return uids;
+}
+
+async function batchDeleteFromScoring() {
+  var uids = getSelectedScoringUids();
+  if (!uids.length) { showToast('请先勾选创作者', 'error'); return; }
+  if (!confirmDanger('Delete selected creators and ALL their data?', [
+    'Creators: ' + uids.length,
+    '⚠️ This will PERMANENTLY delete:',
+    '• KOC records',
+    '• All submissions',
+    '• All point logs',
+    '• All redemption orders',
+    'This CANNOT be undone. Export/backup first!'
+  ])) return;
+  var ok = 0, failed = 0;
+  var errors = [];
+  for (var i = 0; i < uids.length; i++) {
+    try {
+      var uid = uids[i];
+      // Delete related records first (to avoid foreign key constraint)
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(uid), { method: 'DELETE' });
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(uid), { method: 'DELETE' });
+      await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(uid), { method: 'DELETE' });
+      // Finally delete the KOC
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
+        method: 'DELETE'
+      });
+      if (r.ok) {
+        ok++;
+      } else {
+        failed++;
+        var errText = await r.text().catch(function() { return ''; });
+        errors.push('UID ' + uid + ': ' + (errText || 'HTTP ' + r.status));
+      }
+    } catch(e) {
+      failed++;
+      errors.push('UID ' + uids[i] + ': ' + e.message);
+    }
+  }
+  if (failed > 0) {
+    console.error('Delete errors:', errors);
+    showToast('⚠️ 成功 ' + ok + '，失败 ' + failed + '。查看控制台了解详情', 'error');
+  } else {
+    showToast('✅ ' + ok + '/' + uids.length + ' 已删除（含所有相关数据）', 'success');
+  }
+  writeAuditLog('koc', 'batch delete from scoring (cascade): ' + ok + '/' + uids.length + (failed ? ', failed ' + failed : ''));
+  await loadData();
+}
+
 // ===== 批量发奖 (diamonds / gplay / merch) =====
 var BATCH_REWARD_DEFAULTS = {
   diamonds: { title: '💎 批量发放端内奖励', name: '💎 钻石',        amount: '450 钻石' },
@@ -4587,12 +4647,13 @@ function renderScoringTable() {
   if (ccEl) ccEl.textContent = '🎁 CC: ' + ccCount + ' creators';
 
   tbody.innerHTML = filtered.map(function(k) {
-    var orders = allOrders.filter(function(o) { 
+    var orders = allOrders.filter(function(o) {
       return o.uid === k.uid && ((o.period||'') === currentPeriod || (o.created_at||'').substring(0,7) === currentPeriod);
     });
     var pendingOrders = orders.filter(function(o) { return o.status === 'pending'; });
     var cc = hasCC(k.notes);
     return '<tr>' +
+      '<td style="text-align:center;"><input type="checkbox" class="scoring-select" value="' + k.uid + '"></td>' +
       '<td><strong ondblclick="inlineEdit(this,\'discord_name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.discord_name) + '</strong></td>' +
       '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();inlineEdit(this,\'uid\',\'' + k.uid + '\')">' + esc(k.uid) + '</td>' +
       '<td><span class="pts" id="mspts-' + k.uid + '">\u22EF</span></td>' +
