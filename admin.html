@@ -299,6 +299,7 @@
       <button class="tab" onclick="switchTab('feedback')">💬 反馈收集</button>
       <button class="tab" onclick="switchTab('diamond')">💎 端内奖励</button>
       <button class="tab" onclick="switchTab('gplay')">🎮 谷歌卡</button>
+      <button class="tab" onclick="switchTab('merch')">📦 周边发货</button>
       <button class="tab" onclick="switchTab('rules')">📐 规则配置</button>
       <button class="tab" onclick="switchTab('audit')">📜 操作日志</button>
     </div>
@@ -503,7 +504,6 @@
     </div>
 
     <!-- ======== TAB: 谷歌卡 ======== -->
-    <!-- ======== TAB: 作品审核 ======== -->
     <div id="tab-gplay" class="tab-content">
       <div class="card">
         <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
@@ -512,6 +512,19 @@
         </div>
        <div style="overflow-x:auto;">
          <div id="gplay-table"></div>
+       </div>
+      </div>
+    </div>
+
+    <!-- ======== TAB: 周边发货 ======== -->
+    <div id="tab-merch" class="tab-content">
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>📦 周边发货清单 <span id="merch-count" style="font-size:12px;color:var(--text-light);"></span></span>
+          <button class="btn btn-primary btn-sm" style="border-radius:20px;padding:6px 16px;" onclick="openBatchRewardModal('merch')">➕ 批量发奖</button>
+        </div>
+       <div style="overflow-x:auto;">
+         <div id="merch-table"></div>
        </div>
       </div>
     </div>
@@ -2530,6 +2543,7 @@ function switchTab(name) {
   if (name === 'scoring') renderScoringTable();
   if (name === 'diamond') renderDiamondTab();
   if (name === 'gplay') renderGplayTab();
+  if (name === 'merch') renderMerchTab();
   if (name === 'submissions') loadSubmissions();
   if (name === 'feedback') loadFeedback();
   if (name === 'tiers') renderTiersTable();
@@ -4253,10 +4267,11 @@ function getSelectedKocUids() {
   return uids;
 }
 
-// ===== 批量发奖 (diamonds / gplay) =====
+// ===== 批量发奖 (diamonds / gplay / merch) =====
 var BATCH_REWARD_DEFAULTS = {
   diamonds: { title: '💎 批量发放端内奖励', name: '💎 钻石',        amount: '450 钻石' },
-  gplay:    { title: '🎮 批量发放 Google Play 卡', name: '🎮 Google Play', amount: '$10 礼品卡' }
+  gplay:    { title: '🎮 批量发放 Google Play 卡', name: '🎮 Google Play', amount: '$10 礼品卡' },
+  merch:    { title: '📦 批量发放周边', name: '📦 周边福袋',        amount: '随机周边 × 3' }
 };
 var _batchRewardType = null;
 
@@ -5414,6 +5429,41 @@ function toggleLedgerSection(id) {
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
+function renderMerchTab() {
+  var kmap = getKocMap();
+  var merchOrders = filterByPeriod(allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }));
+  var label = currentPeriod.replace('-', '年') + '月';
+  document.getElementById('merch-count').textContent = '📅 ' + label + ' (' + merchOrders.length + ' orders)';
+  var container = document.getElementById('merch-table');
+  if (!merchOrders.length) {
+    container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:var(--text-light);font-size:14px;">暂无 ' + label + ' 的已发货周边</div>';
+    return;
+  }
+  container.innerHTML = '<div class="month-section">' +
+    '<div class="month-header">' +
+    '<span class="month-icon">📅</span><span>' + label + '</span>' +
+    '<span class="count">(' + merchOrders.length + ' orders)</span>' +
+    '<div style="margin-left:auto;display:flex;gap:6px;">' +
+    '<button class="btn btn-primary btn-sm export-btn" data-type="merch" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
+    '</div></div>' +
+    '<table class="month-table"><thead><tr>' +
+    '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Address</th><th>Reward</th>' +
+    '</tr></thead><tbody>' +
+    merchOrders.map(function(o) {
+      var koc = kmap[o.uid];
+      var addr = koc ? (koc.address || '') : '';
+      return '<tr data-order-id="' + o.id + '" style="cursor:pointer;" ondblclick="editOrderInline(event.target,' + o.id + ')">' +
+        '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
+        '<td><strong ondblclick="event.stopPropagation();editOrderInline(this,\'discord_name\',' + o.id + ')">' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+        '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();editOrderInline(this,\'uid\',' + o.id + ')">' + esc(o.uid) + '</td>' +
+        '<td style="font-size:12px;white-space:pre-wrap;min-width:300px;" ondblclick="event.stopPropagation();editOrderInline(this,\'address\',' + o.id + ')">' + (esc(addr) || '-') + '</td>' +
+        '<td ondblclick="event.stopPropagation();editOrderInline(this,\'option_name\',' + o.id + ')">📦 ' + esc(o.option_name || 'Merch Pack') + '</td>' +
+      '</tr>';
+    }).join('') +
+    '</tbody></table></div>';
+  setTimeout(function() { initSortable('merch'); }, 100);
+}
+
 function renderDiamondTab() {
   var label = currentPeriod.replace('-', '年') + '月';
   var history = buildInGameRewardRows(allOrders);
@@ -5534,6 +5584,29 @@ function exportMonth(type, label) {
     }).join('\n');
     text = header + '\n' + rows;
     exportToClipboard(text, gplayOrders.length);
+    return;
+  }
+  if (type === 'merch') {
+    var merchOrders = allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }).sort(function(a, b) { return String((b.period || (b.created_at || '').substring(0, 7)) || '').localeCompare(String((a.period || (a.created_at || '').substring(0, 7)) || '')); });
+    if (!merchOrders.length) { showToast('No orders to export', 'error'); return; }
+    header = '批次\t姓名\tDiscord\t地址\t城市\t州/省\t邮编\t国家\t手机\t奖励';
+    rows = merchOrders.map(function(o) {
+      var koc = kmap[o.uid];
+      return [
+        getBatchLabelFromPeriod(o.period || (o.created_at || '').substring(0, 7)),
+        getDisplayName(koc, o),
+        koc ? koc.discord_name : o.discord_name,
+        koc ? koc.address : '',
+        koc ? koc.city : '',
+        koc ? koc.state : '',
+        koc ? koc.postal_code : '',
+        getCountryName(koc),
+        koc ? koc.phone : '',
+        o.option_name || 'Merch Pack'
+      ].map(function(v) { return clean(esc(v)); }).join('\t');
+    }).join('\n');
+    text = header + '\n' + rows;
+    exportToClipboard(text, merchOrders.length);
     return;
   }
 }
