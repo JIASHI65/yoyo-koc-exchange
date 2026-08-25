@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YoYo Town Creator Portal - Quick Guide</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #fef6f9 0%, #fce4ec 100%);
+    padding: 30px 20px;
+    line-height: 1.5;
+  }
+  .container { max-width: 700px; margin: 0 auto; }
+
+  /* Header */
+  .hero {
+    background: linear-gradient(135deg, #f2a6c4 0%, #d4749a 100%);
+    border-radius: 24px;
+    padding: 40px 30px;
+    text-align: center;
+    color: white;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 32px rgba(210,120,150,0.3);
+  }
+  .hero h1 {
+    font-size: 28px;
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+  .hero p {
+    font-size: 16px;
+    opacity: 0.95;
+  }
+  .official-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.25);
+    padding: 6px 16px;
+    border-radius: 20px;
+    margin-top: 12px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* What is it section */
+  .what-section {
+    background: white;
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(210,120,150,0.12);
+    text-align: center;
+  }
+  .what-section h2 {
+    font-size: 22px;
+    color: #d4749a;
+    margin-bottom: 16px;
+  }
+  .what-section p {
+    font-size: 15px;
+    color: #5a4a53;
+    margin-bottom: 20px;
+  }
+
+  /* Icon grid */
+  .icon-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .icon-item {
+    text-align: center;
+    padding: 16px 8px;
+    background: #fef6f9;
+    border-radius: 12px;
+    transition: transform 0.2s;
+  }
+  .icon-item:hover {
+    transform: translateY(-4px);
+  }
+  .icon-big {
+    font-size: 36px;
+    margin-bottom: 8px;
+  }
+  .icon-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #3d2b36;
+  }
+
+  /* How it works - flow chart */
+  .flow-section {
+    background: white;
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(210,120,150,0.12);
+  }
+  .flow-section h2 {
+    font-size: 22px;
+    color: #d4749a;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .flow-chart {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 20px 0;
+  }
+  .flow-step {
+    flex: 1;
+    text-align: center;
+    position: relative;
+  }
+  .flow-icon {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #f2a6c4 0%, #d4749a 100%);
+    border-radius: 50%;
+    margin: 0 auto 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    box-shadow: 0 4px 12px rgba(242,166,196,0.4);
+  }
+  .flow-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #3d2b36;
+    margin-bottom: 4px;
+  }
+  .flow-desc {
+    font-size: 11px;
+    color: #8a7a83;
+  }
+  .flow-arrow {
+    font-size: 24px;
+    color: #f0dae4;
+    margin: 0 8px;
+    flex-shrink: 0;
+  }
+
+  /* Important box */
+  .important-box {
+    background: #fff3e0;
+    border-left: 4px solid #ff9800;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+  }
+  .important-box .title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #e65100;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .important-box ul {
+    margin-left: 20px;
+    color: #5a4a53;
+    font-size: 14px;
+  }
+  .important-box li {
+    margin-bottom: 6px;
+  }
+
+  /* Safe box */
+  .safe-box {
+    background: #e8f5e9;
+    border-left: 4px solid #4caf50;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+  }
+  .safe-box .title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2e7d32;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .safe-box .subtitle {
+    font-size: 14px;
+    color: #5a4a53;
+    margin-bottom: 12px;
+  }
+  .check-list {
+    margin-left: 20px;
+    color: #2e7d32;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .check-list li {
+    margin-bottom: 6px;
+  }
+  .x-list {
+    margin-left: 20px;
+    color: #c62828;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .x-list li {
+    margin-bottom: 6px;
+  }
+
+  /* URL box */
+  .url-box {
+    background: white;
+    border: 2px solid #f2a6c4;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 20px 0;
+    text-align: center;
+  }
+  .url-label {
+    font-size: 13px;
+    color: #8a7a83;
+    margin-bottom: 8px;
+  }
+  .url-text {
+    font-family: monospace;
+    font-size: 13px;
+    color: #d4749a;
+    font-weight: 600;
+    word-break: break-all;
+  }
+
+  /* Footer */
+  .footer {
+    background: white;
+    border-radius: 20px;
+    padding: 24px;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(210,120,150,0.12);
+    margin-top: 20px;
+  }
+  .footer-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+  }
+  .footer-text {
+    font-size: 14px;
+    color: #5a4a53;
+  }
+  .footer-contact {
+    font-size: 15px;
+    font-weight: 600;
+    color: #d4749a;
+    margin-top: 8px;
+  }
+
+  /* Mobile responsive */
+  @media (max-width: 600px) {
+    .icon-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .flow-chart {
+      flex-direction: column;
+      gap: 12px;
+    }
+    .flow-arrow {
+      transform: rotate(90deg);
+      margin: 8px 0;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Hero Section -->
+  <div class="hero">
+    <h1>💗 YoYo Town Creator Portal</h1>
+    <p>Official Rewards System for Creators</p>
+    <div class="official-badge">✅ Official & Safe</div>
+  </div>
+
+  <!-- What is it -->
+  <div class="what-section">
+    <h2>🎯 What is This?</h2>
+    <p>The <strong>official platform</strong> where YoYo Town creators submit content, earn points, and redeem awesome rewards!</p>
+
+    <div class="icon-grid">
+      <div class="icon-item">
+        <div class="icon-big">📤</div>
+        <div class="icon-label">Submit Content</div>
+      </div>
+      <div class="icon-item">
+        <div class="icon-big">⭐</div>
+        <div class="icon-label">Earn Points</div>
+      </div>
+      <div class="icon-item">
+        <div class="icon-big">🎁</div>
+        <div class="icon-label">Get Rewards</div>
+      </div>
+      <div class="icon-item">
+        <div class="icon-big">📊</div>
+        <div class="icon-label">Track Progress</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- How it works -->
+  <div class="flow-section">
+    <h2>⚡ How It Works</h2>
+
+    <div class="flow-chart">
+      <div class="flow-step">
+        <div class="flow-icon">🔐</div>
+        <div class="flow-label">Register/Login</div>
+        <div class="flow-desc">Use your Game UID</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-icon">📤</div>
+        <div class="flow-label">Submit</div>
+        <div class="flow-desc">Share your links</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-icon">⭐</div>
+        <div class="flow-label">Get Points</div>
+        <div class="flow-desc">Admin reviews</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-icon">🎁</div>
+        <div class="flow-label">Redeem</div>
+        <div class="flow-desc">Choose rewards</div>
+      </div>
+    </div>
+
+    <div class="important-box">
+      <div class="title">
+        <span>⚠️</span>
+        <span>IMPORTANT: Monthly Limits</span>
+      </div>
+      <ul>
+        <li><strong>You can submit only 2 times per month</strong></li>
+        <li>The counter resets at the start of each new month</li>
+        <li>Showcase posts don't count toward this limit</li>
+        <li>Plan your submissions wisely!</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Safety Section -->
+  <div class="what-section">
+    <h2>🔒 Is This Safe? (Yes!)</h2>
+    <div class="safe-box">
+      <div class="title">
+        <span>✅</span>
+        <span>This is 100% Official & Safe</span>
+      </div>
+      <div class="subtitle">We ONLY ask for:</div>
+      <ul class="check-list">
+        <li>✅ Your Game UID (username)</li>
+        <li>✅ Discord name</li>
+        <li>✅19-digit System ID (for verification)</li>
+        <li>✅ Address (for physical rewards only)</li>
+      </ul>
+      <div class="subtitle" style="margin-top: 16px;">We NEVER ask for:</div>
+      <ul class="x-list">
+        <li>❌ Game password</li>
+        <li>❌ Credit card or payment info</li>
+        <li>❌ Social security number</li>
+        <li>❌ Downloads or software installation</li>
+      </ul>
+    </div>
+
+    <div class="url-box">
+      <div class="url-label">📌 Official Portal URL (bookmark this!):</div>
+      <div class="url-text">https://jiashi65.github.io/yoyo-koc-exchange/</div>
+    </div>
+
+    <p style="font-size: 13px; color: #8a7a83; margin-top: 12px;">
+      Hosted on <strong>GitHub Pages</strong> - a trusted platform used by millions of developers worldwide
+    </p>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-icon">💬</div>
+    <div class="footer-text">Questions or need help?</div>
+    <div class="footer-contact">Contact YoYo assistant💗Mochi on Discord</div>
+    <p style="margin-top: 16px; font-size: 12px; color: #bbb;">
+      YoYo Town Creator Portal © 2026
+    </p>
+  </div>
+</div>
+
+</body>
+</html>
