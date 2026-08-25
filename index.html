@@ -1387,7 +1387,7 @@ async function registerCreator() {
 
   if (!discord) { status.textContent = '❌ Please enter your Discord username'; status.style.color = '#e74c3c'; return; }
   if (!accountId) { status.textContent = '❌ Please enter your System ID'; status.style.color = '#e74c3c'; return; }
-  if (!/^6\d{5,}$/.test(accountId)) { status.textContent = '❌ System ID should be numbers starting with 6'; status.style.color = '#e74c3c'; return; }
+  if (!/^\d{19}$/.test(accountId)) { status.textContent = '❌ System ID must be exactly 19 digits'; status.style.color = '#e74c3c'; return; }
   if (!gameUid) { status.textContent = '❌ Please enter your Game UID'; status.style.color = '#e74c3c'; return; }
   if (!fullname) { status.textContent = '❌ Please enter your full legal name'; status.style.color = '#e74c3c'; return; }
   if (!server) { status.textContent = '❌ Please select your server'; status.style.color = '#e74c3c'; return; }
