@@ -5161,7 +5161,7 @@ function editOrderInline(cell, field, orderId, uid) {
         'Status: ' + currentVal + ' → ' + newVal,
         'This changes what creators/admins see for this order.'
       ])) { cell.textContent = currentVal || '-'; return; }
-    } else if (['discord_name','option_name','uid','account_id','address','server','region'].indexOf(field) >= 0) {
+    } else if (['discord_name','option_name','uid','account_id','address','server','region','contact_info','reward_amount','admin_notes'].indexOf(field) >= 0) {
       if (!confirmDanger('Save inline order/KOC change?', [
         'Order ID: #' + orderId,
         'UID: ' + (uid || '(unknown)'),
@@ -5171,7 +5171,7 @@ function editOrderInline(cell, field, orderId, uid) {
         field === 'uid' ? 'UID changes can affect KOC, submissions, point logs, and order matching.' : 'Please confirm this field is correct before saving.'
       ])) { cell.textContent = currentVal || '-'; return; }
     }
-    if (['discord_name','option_name','status'].indexOf(field) >= 0) {
+    if (['discord_name','option_name','status','contact_info','reward_amount','admin_notes'].indexOf(field) >= 0) {
       // Update redemption_orders
       var update = {};
       update[field] = newVal;
@@ -5179,7 +5179,7 @@ function editOrderInline(cell, field, orderId, uid) {
         method: 'PATCH',
         body: JSON.stringify(update)
       }).then(async function(r) {
-        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); await loadData(); renderKocTable(); renderScoringTable(); try{renderDiamondTab()}catch(e){} try{renderGplayTab()}catch(e){} }
+        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); await loadData(); renderKocTable(); renderScoringTable(); try{renderMerchTab()}catch(e){} try{renderDiamondTab()}catch(e){} try{renderGplayTab()}catch(e){} }
         else { cell.textContent = currentVal || '-'; var et=await r.text().catch(function(){return '';}); showToast('Failed: '+et.substring(0,60), 'error'); }
       }).catch(function(e) { cell.textContent = currentVal || '-'; showToast('Error: '+e.message, 'error'); });
     } else if (field === 'uid') {
@@ -5200,7 +5200,7 @@ function editOrderInline(cell, field, orderId, uid) {
       supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uid), {
         method: 'PATCH', body: JSON.stringify(update)
       }).then(async function(r) {
-        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); await loadData(); renderKocTable(); renderScoringTable(); try{renderDiamondTab()}catch(e){} try{renderGplayTab()}catch(e){} }
+        if (r.ok) { showToast('\u2705 ' + field + ' updated', 'success'); await loadData(); renderKocTable(); renderScoringTable(); try{renderMerchTab()}catch(e){} try{renderDiamondTab()}catch(e){} try{renderGplayTab()}catch(e){} }
         else { cell.textContent = currentVal || '-'; showToast('Failed', 'error'); }
       }).catch(function(e) { cell.textContent = currentVal || '-'; });
     }
@@ -5447,17 +5447,20 @@ function renderMerchTab() {
     '<button class="btn btn-primary btn-sm export-btn" data-type="merch" data-label="' + label + '" style="border-radius:20px;padding:5px 14px;">📋 导出</button>' +
     '</div></div>' +
     '<table class="month-table"><thead><tr>' +
-    '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Address</th><th>Reward</th>' +
+    '<th style="width:22px;">⠿</th><th>Discord</th><th>UID</th><th>Address</th><th>Phone</th><th>Reward</th><th>Notes</th>' +
     '</tr></thead><tbody>' +
     merchOrders.map(function(o) {
       var koc = kmap[o.uid];
       var addr = koc ? (koc.address || '') : '';
-      return '<tr data-order-id="' + o.id + '" style="cursor:pointer;" ondblclick="editOrderInline(event.target,' + o.id + ')">' +
+      var phone = koc ? (koc.phone || '') : '';
+      return '<tr data-order-id="' + o.id + '" style="cursor:pointer;">' +
         '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle" title="Drag to reorder">⠇</td>' +
-        '<td><strong ondblclick="event.stopPropagation();editOrderInline(this,\'discord_name\',' + o.id + ')">' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
-        '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="event.stopPropagation();editOrderInline(this,\'uid\',' + o.id + ')">' + esc(o.uid) + '</td>' +
-        '<td style="font-size:12px;white-space:pre-wrap;min-width:300px;" ondblclick="event.stopPropagation();editOrderInline(this,\'address\',' + o.id + ')">' + (esc(addr) || '-') + '</td>' +
-        '<td ondblclick="event.stopPropagation();editOrderInline(this,\'option_name\',' + o.id + ')">📦 ' + esc(o.option_name || 'Merch Pack') + '</td>' +
+        '<td ondblclick="editOrderInline(this,\'discord_name\',' + o.id + ')"><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
+        '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="editOrderInline(this,\'uid\',' + o.id + ')">' + esc(o.uid) + '</td>' +
+        '<td style="font-size:12px;white-space:pre-wrap;min-width:200px;" ondblclick="editOrderInline(this,\'contact_info\',' + o.id + ')">' + (esc(o.contact_info || addr) || '-') + '</td>' +
+        '<td style="font-size:12px;white-space:nowrap;" ondblclick="editOrderInline(this,\'reward_amount\',' + o.id + ')">' + (esc(phone) || '-') + '</td>' +
+        '<td ondblclick="editOrderInline(this,\'option_name\',' + o.id + ')">📦 ' + esc(o.option_name || 'Merch Pack') + '</td>' +
+        '<td style="font-size:12px;color:#666;max-width:200px;white-space:pre-wrap;" ondblclick="editOrderInline(this,\'admin_notes\',' + o.id + ')">' + (esc(o.admin_notes) || '-') + '</td>' +
       '</tr>';
     }).join('') +
     '</tbody></table></div>';
@@ -5589,7 +5592,7 @@ function exportMonth(type, label) {
   if (type === 'merch') {
     var merchOrders = allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }).sort(function(a, b) { return String((b.period || (b.created_at || '').substring(0, 7)) || '').localeCompare(String((a.period || (a.created_at || '').substring(0, 7)) || '')); });
     if (!merchOrders.length) { showToast('No orders to export', 'error'); return; }
-    header = '批次\t姓名\tDiscord\t地址\t城市\t州/省\t邮编\t国家\t手机\t奖励';
+    header = '批次\t姓名\tDiscord\t地址\t城市\t州/省\t邮编\t国家\t手机\t奖励\t备注';
     rows = merchOrders.map(function(o) {
       var koc = kmap[o.uid];
       return [
@@ -5602,7 +5605,8 @@ function exportMonth(type, label) {
         koc ? koc.postal_code : '',
         getCountryName(koc),
         koc ? koc.phone : '',
-        o.option_name || 'Merch Pack'
+        o.option_name || 'Merch Pack',
+        o.admin_notes || ''
       ].map(function(v) { return clean(esc(v)); }).join('\t');
     }).join('\n');
     text = header + '\n' + rows;

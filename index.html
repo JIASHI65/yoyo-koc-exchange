@@ -1460,6 +1460,32 @@ async function registerCreator() {
       throw new Error('Registration failed: ' + (errText || resp.status));
     }
 
+    // Auto-create welcome gift (merch pack) for new creator
+    try {
+      var giftResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          uid: gameUid,
+          discord_name: discord,
+          koc_name: fullname,
+          option_type: 'merch',
+          option_name: '🎁 新人入职周边',
+          points_spent: 0,
+          reward_amount: '随机周边 × 1',
+          contact_info: '',
+          status: 'pending',
+          admin_notes: 'Welcome gift - auto created on registration',
+          period: currentPeriod,
+          created_at: new Date().toISOString()
+        })
+      });
+      if (!giftResp.ok) {
+        console.error('Welcome gift creation failed:', await giftResp.text().catch(function() { return ''; }));
+      }
+    } catch(e) {
+      console.error('Welcome gift error:', e);
+    }
+
     status.innerHTML = '<div style="background:#f1fff4;border:1px solid #a5d6a7;border-radius:14px;padding:12px;text-align:left;color:#2e7d32;line-height:1.7;">' +
       '<div style="font-weight:800;font-size:14px;margin-bottom:6px;">✅ Registration complete!</div>' +
       '<div><strong>Your Game UID:</strong> <span style="font-family:monospace;">' + esc(gameUid) + '</span></div>' +
