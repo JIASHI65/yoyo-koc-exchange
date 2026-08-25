@@ -465,8 +465,25 @@
           <span id="stat-pending">Loading...</span>
           <span id="stat-cc" style="margin-left:12px;font-size:12px;color:var(--text-light);"></span>
         </div>
-        <div style="margin:12px 0;">
+        <div style="margin:12px 0;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
           <input type="text" id="scoring-search-input" placeholder="🔍 Search Discord or UID..." style="width:280px;font-size:13px;padding:8px 12px;border:1.5px solid var(--pink);border-radius:8px;" oninput="renderScoringTable()">
+          <select id="scoring-filter-status" style="padding:8px 12px;border:1.5px solid var(--pink);border-radius:8px;font-size:13px;" onchange="renderScoringTable()">
+            <option value="all">全部创作者</option>
+            <option value="has-pending">有 Pending 订单</option>
+            <option value="has-orders">有当月订单</option>
+            <option value="no-orders">无当月订单</option>
+          </select>
+          <select id="scoring-filter-cc" style="padding:8px 12px;border:1.5px solid var(--pink);border-radius:8px;font-size:13px;" onchange="renderScoringTable()">
+            <option value="all">全部 CC 状态</option>
+            <option value="cc-yes">有 CC</option>
+            <option value="cc-no">无 CC</option>
+          </select>
+          <select id="scoring-filter-tier" style="padding:8px 12px;border:1.5px solid var(--pink);border-radius:8px;font-size:13px;" onchange="renderScoringTable()">
+            <option value="all">全部等级</option>
+            <option value="certified">✅ 认证创作官</option>
+            <option value="gold">🟡 金级创作官</option>
+            <option value="platinum">💎 铂金创作官</option>
+          </select>
         </div>
         <div style="overflow-x:auto;">
         <table>
@@ -4515,12 +4532,44 @@ function renderScoringTable() {
   var tbody = document.getElementById('scoring-table');
   if (!tbody) return;
 
-  // Search filter
+  // Search and filters
   var searchInput = document.getElementById('scoring-search-input');
+  var filterStatus = document.getElementById('scoring-filter-status');
+  var filterCC = document.getElementById('scoring-filter-cc');
+  var filterTier = document.getElementById('scoring-filter-tier');
+
   var q = searchInput ? searchInput.value.toLowerCase() : '';
+  var statusFilter = filterStatus ? filterStatus.value : 'all';
+  var ccFilter = filterCC ? filterCC.value : 'all';
+  var tierFilter = filterTier ? filterTier.value : 'all';
+
   var filtered = allKocs.filter(function(k) {
-    if (!q) return true;
-    return (k.discord_name || '').toLowerCase().includes(q) || (k.uid || '').toLowerCase().includes(q);
+    // Search filter
+    if (q && !((k.discord_name || '').toLowerCase().includes(q) || (k.uid || '').toLowerCase().includes(q))) {
+      return false;
+    }
+
+    // Order status filter
+    var orders = allOrders.filter(function(o) {
+      return o.uid === k.uid && ((o.period||'') === currentPeriod || (o.created_at||'').substring(0,7) === currentPeriod);
+    });
+    var hasPending = orders.some(function(o) { return o.status === 'pending'; });
+    var hasOrders = orders.length > 0;
+
+    if (statusFilter === 'has-pending' && !hasPending) return false;
+    if (statusFilter === 'has-orders' && !hasOrders) return false;
+    if (statusFilter === 'no-orders' && hasOrders) return false;
+
+    // CC filter
+    var hasCC = (k.notes || '').includes('CC:' + currentPeriod);
+    if (ccFilter === 'cc-yes' && !hasCC) return false;
+    if (ccFilter === 'cc-no' && hasCC) return false;
+
+    // Tier filter
+    var tier = k.tier || 'certified';
+    if (tierFilter !== 'all' && tier !== tierFilter) return false;
+
+    return true;
   });
 
   if (!filtered.length) {
