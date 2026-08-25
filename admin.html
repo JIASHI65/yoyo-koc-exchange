@@ -4451,17 +4451,32 @@ async function batchDeleteSelected() {
     'This deletes rows from kocs and cannot be undone from the admin page.',
     'Please export/backup first if you are not 100% sure.'
   ])) return;
-  var ok = 0;
+  var ok = 0, failed = 0;
+  var errors = [];
   for (var i = 0; i < uids.length; i++) {
     try {
       var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uids[i]), {
         method: 'DELETE'
       });
-      if (r.ok) ok++;
-    } catch(e) {}
+      if (r.ok) {
+        ok++;
+      } else {
+        failed++;
+        var errText = await r.text().catch(function() { return ''; });
+        errors.push('UID ' + uids[i] + ': ' + (errText || 'HTTP ' + r.status));
+      }
+    } catch(e) {
+      failed++;
+      errors.push('UID ' + uids[i] + ': ' + e.message);
+    }
   }
-  showToast('✅ ' + ok + '/' + uids.length + ' 已删除', 'success');
-  writeAuditLog('koc', 'batch delete creators: ' + ok + '/' + uids.length);
+  if (failed > 0) {
+    console.error('Delete errors:', errors);
+    showToast('⚠️ 成功 ' + ok + '，失败 ' + failed + '。查看控制台了解详情', 'error');
+  } else {
+    showToast('✅ ' + ok + '/' + uids.length + ' 已删除', 'success');
+  }
+  writeAuditLog('koc', 'batch delete creators: ' + ok + '/' + uids.length + (failed ? ', failed ' + failed : ''));
   await loadData();
 }
 function renderScoringTable() {
