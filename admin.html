@@ -4512,15 +4512,27 @@ function renderScoringTable() {
       '</td>' +
     '</tr>';
   }).join('');
-  // Load monthly points (from this month's submissions)
-  allKocs.forEach(function(k) {
-    var monthSubs = allSubmissions.filter(function(s) {
-      return s.uid === k.uid && getRowPeriod(s) === currentPeriod;
-    });
-    var monthPts = monthSubs.reduce(function(s, x) { return s + (x.points_earned || 0); }, 0);
-    var el = document.getElementById('mspts-' + k.uid);
-    if (el) el.textContent = monthPts;
-  });
+  // Load monthly points (from point_logs for accuracy)
+  (async function() {
+    try {
+      var plRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?period=eq.' + encodeURIComponent(currentPeriod) + '&select=uid,change,source');
+      if (!plRes.ok) return;
+      var logs = await plRes.json();
+      var scoreMap = {};
+      logs.forEach(function(p) {
+        if (p.change > 0 && p.source !== 'redemption') {
+          scoreMap[p.uid] = (scoreMap[p.uid] || 0) + p.change;
+        }
+      });
+      allKocs.forEach(function(k) {
+        var monthPts = scoreMap[k.uid] || 0;
+        var el = document.getElementById('mspts-' + k.uid);
+        if (el) el.textContent = monthPts;
+      });
+    } catch(e) {
+      console.error('Failed to load monthly points:', e);
+    }
+  })();
 }
 
 async function syncAllBalances() {
