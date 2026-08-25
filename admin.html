@@ -4652,6 +4652,66 @@ function renderScoringTable() {
   var ccEl = document.getElementById('stat-cc');
   if (ccEl) ccEl.textContent = '🎁 CC: ' + ccCount + ' creators';
 
+  // Auto-check CC eligibility based on submissions count
+  (async function() {
+    try {
+      var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?period=eq.' + encodeURIComponent(currentPeriod) + '&select=uid');
+      if (!subRes.ok) return;
+      var subs = await subRes.json();
+      var subCounts = {};
+      subs.forEach(function(s) {
+        subCounts[s.uid] = (subCounts[s.uid] || 0) + 1;
+      });
+
+      for (var i = 0; i < filtered.length; i++) {
+        var k = filtered[i];
+        var count = subCounts[k.uid] || 0;
+        var hasCC = (k.notes || '').includes('CC:' + currentPeriod);
+        var shouldHaveCC = count >= 15;
+
+        // Auto-enable CC if eligible and not yet enabled
+        if (shouldHaveCC && !hasCC) {
+          var updated = k.notes ? k.notes + ', CC:' + currentPeriod : 'CC:' + currentPeriod;
+          await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(k.uid), {
+            method: 'PATCH',
+            body: JSON.stringify({ notes: updated })
+          });
+          k.notes = updated;
+
+          // Create CC reward order
+          var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(k.uid) + '&period=eq.' + encodeURIComponent(currentPeriod) + '&option_name=eq.' + encodeURIComponent('CC:' + currentPeriod) + '&select=id');
+          if (checkRes.ok) {
+            var existing = await checkRes.json();
+            if (!existing || existing.length === 0) {
+              await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
+                method: 'POST',
+                body: JSON.stringify({
+                  uid: k.uid,
+                  discord_name: k.discord_name,
+                  koc_name: k.discord_name,
+                  option_type: 'diamonds',
+                  option_name: 'CC:' + currentPeriod,
+                  points_spent: 0,
+                  reward_amount: 'Premium Monthly Card x1 + Shelly Coins x500 + Gold x1000',
+                  contact_info: currentPeriod,
+                  status: 'pending',
+                  period: currentPeriod,
+                  admin_notes: 'CC:' + currentPeriod + ' - Auto-enabled (≥15 submissions) - ' + currentPeriod,
+                  created_at: new Date().toISOString()
+                })
+              });
+              console.log('Auto-enabled CC for ' + k.uid + ' (' + count + ' submissions)');
+            }
+          }
+        }
+      }
+      // Refresh after auto-enabling
+      await loadData();
+    } catch(e) {
+      console.error('Auto CC check error:', e);
+    }
+  })();
+
   tbody.innerHTML = filtered.map(function(k) {
     var orders = allOrders.filter(function(o) {
       return o.uid === k.uid && ((o.period||'') === currentPeriod || (o.created_at||'').substring(0,7) === currentPeriod);
