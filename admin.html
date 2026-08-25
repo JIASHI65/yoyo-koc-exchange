@@ -465,6 +465,9 @@
           <span id="stat-pending">Loading...</span>
           <span id="stat-cc" style="margin-left:12px;font-size:12px;color:var(--text-light);"></span>
         </div>
+        <div style="margin:12px 0;">
+          <input type="text" id="scoring-search-input" placeholder="🔍 Search Discord or UID..." style="width:280px;font-size:13px;padding:8px 12px;border:1.5px solid var(--pink);border-radius:8px;" oninput="renderScoringTable()">
+        </div>
         <div style="overflow-x:auto;">
         <table>
           <thead><tr>
@@ -4511,21 +4514,30 @@ function renderScoringTable() {
   })();
   var tbody = document.getElementById('scoring-table');
   if (!tbody) return;
-  if (!allKocs.length) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-light);">No creators</td></tr>';
+
+  // Search filter
+  var searchInput = document.getElementById('scoring-search-input');
+  var q = searchInput ? searchInput.value.toLowerCase() : '';
+  var filtered = allKocs.filter(function(k) {
+    if (!q) return true;
+    return (k.discord_name || '').toLowerCase().includes(q) || (k.uid || '').toLowerCase().includes(q);
+  });
+
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-light);">No matching creators</td></tr>';
     return;
   }
-  document.getElementById('stat-total').textContent = '\uD83D\uDC65 Total: ' + allKocs.length;
+  document.getElementById('stat-total').textContent = '\uD83D\uDD0D Showing: ' + filtered.length + '/' + allKocs.length;
   var periodOrders = allOrders.filter(function(o) { return (o.period || '') === currentPeriod; });
   var shipped = periodOrders.filter(function(o) { return o.status === 'shipped'; }).length;
   var pending = periodOrders.filter(function(o) { return o.status === 'pending'; }).length;
   document.getElementById('stat-shipped').textContent = '\u2705 Shipped: ' + shipped;
   document.getElementById('stat-pending').textContent = '\u23F3 Pending: ' + pending;
-  var ccCount = allKocs.filter(function(k) { return k.status === 'active' && (k.notes || '').includes('CC:' + currentPeriod); }).length;
+  var ccCount = filtered.filter(function(k) { return k.status === 'active' && (k.notes || '').includes('CC:' + currentPeriod); }).length;
   var ccEl = document.getElementById('stat-cc');
   if (ccEl) ccEl.textContent = '🎁 CC: ' + ccCount + ' creators';
-  
-  tbody.innerHTML = allKocs.map(function(k) {
+
+  tbody.innerHTML = filtered.map(function(k) {
     var orders = allOrders.filter(function(o) { 
       return o.uid === k.uid && ((o.period||'') === currentPeriod || (o.created_at||'').substring(0,7) === currentPeriod);
     });
