@@ -4576,10 +4576,34 @@ async function batchDeleteSelected() {
   writeAuditLog('koc', 'batch delete creators (cascade): ' + ok + '/' + uids.length + (failed ? ', failed ' + failed : ''));
   await loadData();
 }
-function renderScoringTable() {
+// Debounced version to prevent rapid re-renders
+var renderScoringTableDebounced = (function() {
+  var timer = null;
+  var isRendering = false;
+  return function() {
+    if (isRendering) {
+      console.log('[DEBUG] renderScoringTable blocked - already rendering');
+      return;
+    }
+    clearTimeout(timer);
+    timer = setTimeout(function() {
+      renderScoringTableActual();
+    }, 100);
+  };
+})();
+
+function renderScoringTableActual() {
+  if (window._renderingScoringTable) {
+    console.log('[DEBUG] renderScoringTable blocked - re-entry detected');
+    return;
+  }
+  window._renderingScoringTable = true;
   console.log('[DEBUG] renderScoringTable called at', new Date().toISOString());
   var tbody = document.getElementById('scoring-table');
-  if (!tbody) return;
+  if (!tbody) {
+    window._renderingScoringTable = false;
+    return;
+  }
 
   // Load redemption button state once
   if (!window._redemptionStateLoaded) {
@@ -4704,6 +4728,12 @@ function renderScoringTable() {
       '</td>' +
     '</tr>';
   }).join('');
+  window._renderingScoringTable = false;
+}
+
+// Wrapper function for backward compatibility
+function renderScoringTable() {
+  renderScoringTableDebounced();
 }
 
 async function syncAllBalances() {
