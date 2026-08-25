@@ -1239,6 +1239,12 @@ async function loadSettleMonthDropdown() {
       currentPeriod = filteredData[0].period;
     }
 
+    // Update display label
+    var lbl = document.getElementById('settle-label');
+    if (lbl && currentPeriod) {
+      lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
+    }
+
     changeSettlePeriod();
   } catch(e) { console.error('loadSettleMonthDropdown:', e); }
 }
