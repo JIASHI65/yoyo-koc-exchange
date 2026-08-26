@@ -55,6 +55,23 @@ serve(async (req) => {
         break;
       }
 
+      // 获取指定频道的最近消息（用于新人入群自动欢迎）
+      case "list_channel_messages": {
+        const { channel_id, limit = 10 } = data;
+        const safeLimit = Math.min(Math.max(Number(limit) || 10, 1), 100);
+        const res = await fetch(`${DISCORD_API}/channels/${channel_id}/messages?limit=${safeLimit}`, {
+          headers: authHeaders,
+        });
+        const body = await res.text();
+        if (!res.ok) {
+          return new Response(JSON.stringify({ ok: false, error: `获取频道消息失败: ${res.status} ${body}` }), {
+            status: res.status, headers,
+          });
+        }
+        result = JSON.parse(body);
+        break;
+      }
+
       // 发送私信给用户
       case "send_dm": {
         const { user_id, message } = data;
