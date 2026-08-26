@@ -278,6 +278,10 @@ CREATE TABLE IF NOT EXISTS campaign_config (
   name TEXT NOT NULL DEFAULT '',        -- "July Settlement"
   rules_json TEXT NOT NULL DEFAULT '{}', -- 完整规则 JSON
   points_cap INTEGER NOT NULL DEFAULT 40,  -- 月上限（统一40）
+  submissions_open BOOLEAN DEFAULT false,
+  redemption_open BOOLEAN DEFAULT false,
+  submissions_close_at TIMESTAMPTZ,
+  redemption_close_at TIMESTAMPTZ,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

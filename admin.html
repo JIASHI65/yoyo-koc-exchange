@@ -127,9 +127,6 @@
   .toggle-cb:checked + .toggle-label { background: var(--pink); }
   .toggle-cb:checked + .toggle-label::after { transform: translateX(16px); }
 
-  .deadline-box { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px; background: #faf5f7; border-radius: 8px; font-size: 13px; }
- .deadline-box input[type="date"] { width: 150px; }
- .deadline-box input[type="time"] { width: 110px; }
   .cc-badge { display: inline-block; font-size: 10px; padding: 2px 8px; border-radius: 10px; background: var(--pink-light); color: var(--pink-dark); }
   .month-section { margin-bottom: 24px; }
   .month-header { 
@@ -436,7 +433,7 @@
             <span style="font-size:12px;color:var(--text-light);">💡 确认应用积分后，点此按钮将积分同步到创作者端</span>
             <span style="font-size:11px;color:#4caf50;padding:8px 0;display:inline-block;">✅ 确认应用时已自动写入积分，不需要再次传送</span>
           </div>
-          <button class="btn btn-sm" id="btn-toggle-redeem" style="background:#43b581;color:white;font-weight:700;padding:8px 16px;" onclick="toggleRedemption()">🔓 开放兑换</button>
+          <span id="scoring-redemption-status" style="font-size:12px;font-weight:700;padding:8px 12px;border-radius:8px;background:#f5f5f5;color:#666;">🎁 兑换状态读取中…</span>
           <button class="btn btn-sm" id="btn-sync-balance" style="background:#7b1fa2;color:white;font-weight:700;padding:8px 16px;" onclick="syncAllBalances()">🔄 更新剩余积分</button>
         </div>
         <div class="stats-bar" id="stats-bar">
@@ -482,21 +479,6 @@
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
-          <span>⏰ 提交截止时间</span>
-          <span style="font-size:12px;color:var(--text-light);">
-            ⭐ 认证(默认) → 🟡 金级(连续2月≥5分) → 💎 铂金(连续3月≥5分)
-          </span>
-        </div>
-        <div class="deadline-box">
-          <span>Submission closes:</span>
-          <input type="date" id="deadline-date">
-          <input type="time" id="deadline-time">
-          <button class="btn btn-primary btn-sm" onclick="saveDeadline()">Save</button>
-          <span id="deadline-status" style="font-size:12px;color:var(--text-light);"></span>
-        </div>
-      </div>
     </div>
 
     <!-- ======== TAB: 端内奖励 ======== -->
@@ -599,6 +581,15 @@
               </div>
               <button class="btn btn-sm" style="font-weight:600;" id="btn-toggle-submissions" onclick="toggleCampaignSwitch('submissions_open')">🔒 投稿已关闭</button>
             </div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid #ead8e2;">
+              <label style="font-size:11px;color:#666;">自动关闭时间（按你电脑本地时间填写，保存为 UTC）</label>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                <input type="datetime-local" id="cfg-submissions-close-at" style="flex:1;min-width:190px;font-size:12px;">
+                <button class="btn btn-sm btn-outline" onclick="saveCampaignCloseTime('submissions')">保存</button>
+                <button class="btn btn-sm btn-outline" onclick="clearCampaignCloseTime('submissions')">清除</button>
+              </div>
+              <div id="cfg-submissions-close-status" style="font-size:10px;color:#999;margin-top:4px;">未设置自动关闭</div>
+            </div>
           </div>
           <div style="background:#faf5f7;border:2px solid #e0c4d4;border-radius:12px;padding:14px;">
             <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -607,6 +598,15 @@
                 <div style="font-size:11px;color:#999;margin-top:2px;">开启后创作者端才能兑换奖励</div>
               </div>
               <button class="btn btn-sm" style="font-weight:600;" id="btn-toggle-redemption" onclick="toggleCampaignSwitch('redemption_open')">🔒 兑换已关闭</button>
+            </div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid #ead8e2;">
+              <label style="font-size:11px;color:#666;">自动关闭时间（按你电脑本地时间填写，保存为 UTC）</label>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                <input type="datetime-local" id="cfg-redemption-close-at" style="flex:1;min-width:190px;font-size:12px;">
+                <button class="btn btn-sm btn-outline" onclick="saveCampaignCloseTime('redemption')">保存</button>
+                <button class="btn btn-sm btn-outline" onclick="clearCampaignCloseTime('redemption')">清除</button>
+              </div>
+              <div id="cfg-redemption-close-status" style="font-size:10px;color:#999;margin-top:4px;">未设置自动关闭</div>
             </div>
           </div>
         </div>
@@ -1296,8 +1296,81 @@ async function loadCampaignConfig() {
         document.getElementById('cfg-eng-80').value = (rules.scoring.engagement && rules.scoring.engagement['80_engagements']) || 2;
       }
       document.getElementById('cfg-tier-threshold').value = (rules && rules.tier_upgrade_threshold) || 5;
+      if (!window._cfgSwitches) window._cfgSwitches = {};
+      window._cfgSwitches.submissions_open = cfg.submissions_open === true;
+      window._cfgSwitches.redemption_open = cfg.redemption_open === true;
+      window._cfgSwitches.submissions_close_at = cfg.submissions_close_at || null;
+      window._cfgSwitches.redemption_close_at = cfg.redemption_close_at || null;
+      updateToggleButton('btn-toggle-submissions', isCampaignFeatureOpen(cfg.submissions_open, cfg.submissions_close_at));
+      updateToggleButton('btn-toggle-redemption', isCampaignFeatureOpen(cfg.redemption_open, cfg.redemption_close_at));
+      setCampaignCloseTimeUi('submissions', cfg.submissions_close_at);
+      setCampaignCloseTimeUi('redemption', cfg.redemption_close_at);
     }
   } catch(e) { console.error('loadCampaignConfig:', e); }
+}
+
+function isCampaignFeatureOpen(manualOpen, closeAt) {
+  return manualOpen === true && (!closeAt || Date.now() < new Date(closeAt).getTime());
+}
+
+function toDatetimeLocalValue(iso) {
+  if (!iso) return '';
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  var pad = function(v) { return String(v).padStart(2, '0'); };
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function setCampaignCloseTimeUi(type, iso) {
+  var input = document.getElementById('cfg-' + type + '-close-at');
+  var status = document.getElementById('cfg-' + type + '-close-status');
+  if (input) input.value = toDatetimeLocalValue(iso);
+  if (!status) return;
+  if (!iso) {
+    status.textContent = '未设置自动关闭';
+    status.style.color = '#999';
+    return;
+  }
+  var d = new Date(iso);
+  var expired = Date.now() >= d.getTime();
+  status.textContent = (expired ? '⛔ 已到期：' : '⏰ 将自动关闭：') + d.toLocaleString() + '（UTC ' + d.toISOString().replace('.000Z', 'Z') + '）';
+  status.style.color = expired ? '#c62828' : '#6d4c00';
+}
+
+async function saveCampaignCloseTime(type) {
+  var period = document.getElementById('cfg-period').value;
+  var input = document.getElementById('cfg-' + type + '-close-at');
+  if (!input || !input.value) { showToast('请先选择自动关闭日期和时间', 'error'); return; }
+  var date = new Date(input.value);
+  if (isNaN(date.getTime())) { showToast('自动关闭时间无效', 'error'); return; }
+  var field = type + '_close_at';
+  var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + encodeURIComponent(period), {
+    method: 'PATCH',
+    body: JSON.stringify({ [field]: date.toISOString(), updated_at: new Date().toISOString() })
+  });
+  if (!res.ok) { showToast('保存自动关闭时间失败，请确认已执行数据库迁移', 'error'); return; }
+  if (!window._cfgSwitches) window._cfgSwitches = {};
+  window._cfgSwitches[field] = date.toISOString();
+  setCampaignCloseTimeUi(type, date.toISOString());
+  updateToggleButton(type === 'submissions' ? 'btn-toggle-submissions' : 'btn-toggle-redemption', isCampaignFeatureOpen(window._cfgSwitches[type + '_open'], date.toISOString()));
+  showToast('✅ 已保存' + (type === 'submissions' ? '投稿' : '兑换') + '自动关闭时间', 'success');
+  writeAuditLog('config', period + ' ' + type + ' auto close -> ' + date.toISOString());
+}
+
+async function clearCampaignCloseTime(type) {
+  var period = document.getElementById('cfg-period').value;
+  var field = type + '_close_at';
+  var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + encodeURIComponent(period), {
+    method: 'PATCH',
+    body: JSON.stringify({ [field]: null, updated_at: new Date().toISOString() })
+  });
+  if (!res.ok) { showToast('清除自动关闭时间失败', 'error'); return; }
+  if (!window._cfgSwitches) window._cfgSwitches = {};
+  window._cfgSwitches[field] = null;
+  setCampaignCloseTimeUi(type, null);
+  updateToggleButton(type === 'submissions' ? 'btn-toggle-submissions' : 'btn-toggle-redemption', window._cfgSwitches[type + '_open'] === true);
+  showToast('已清除' + (type === 'submissions' ? '投稿' : '兑换') + '自动关闭时间', 'success');
+  writeAuditLog('config', period + ' ' + type + ' auto close cleared');
 }
 
 function updateToggleButton(btnId, isOpen) {
@@ -1315,6 +1388,12 @@ function updateToggleButton(btnId, isOpen) {
 async function toggleCampaignSwitch(field) {
   var period = document.getElementById('cfg-period').value;
   var isOpen = window._cfgSwitches && window._cfgSwitches[field] ? false : true;
+  var type = field === 'submissions_open' ? 'submissions' : 'redemption';
+  var closeAt = window._cfgSwitches && window._cfgSwitches[type + '_close_at'];
+  if (isOpen && closeAt && Date.now() >= new Date(closeAt).getTime()) {
+    showToast('⛔ 自动关闭时间已经过去，请先修改或清除截止时间', 'error');
+    return;
+  }
   if (!confirmDanger('Change campaign switch?', [
     'Period: ' + period,
     'Switch: ' + field,
@@ -1329,7 +1408,7 @@ async function toggleCampaignSwitch(field) {
     if (!window._cfgSwitches) window._cfgSwitches = {};
     window._cfgSwitches[field] = isOpen;
     var btnId = field === 'submissions_open' ? 'btn-toggle-submissions' : 'btn-toggle-redemption';
-    updateToggleButton(btnId, isOpen);
+    updateToggleButton(btnId, isCampaignFeatureOpen(isOpen, closeAt));
     showToast((isOpen ? '已开启' : '已关闭') + (field === 'submissions_open' ? '投稿' : '兑换'), 'success');
     writeAuditLog('config', 'campaign switch ' + period + ' ' + field + ' -> ' + isOpen);
   } else {
@@ -3296,7 +3375,6 @@ async function loadData() {
     } else {
       renderKocTable();
     }
-    loadDeadline();
   } catch (e) { showToast('Error loading data', 'error'); }
 }
 
@@ -3354,44 +3432,6 @@ function filterByPeriod(orders) {
     return ym === currentPeriod;
   });
 }
-async function toggleRedemption() {
-  // Single source of truth = campaign_config.redemption_open (same as 活动配置 page toggle).
-  // (Legacy code wrote kocs.__config__.notes, which the creator portal never reads.)
-  try {
-    var period = currentPeriod;
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + encodeURIComponent(period) + '&select=redemption_open');
-    var data = res.ok ? await res.json() : [];
-    if (!data || data.length === 0) {
-      showToast('⚠️ ' + period + ' 活动配置不存在，请先在「活动配置」页保存一次', 'error');
-      return;
-    }
-    var currentlyOpen = data[0].redemption_open === true;
-    var newState = !currentlyOpen;
-    if (!confirmDanger(newState ? 'Open reward redemption?' : 'Close reward redemption?', [
-      'Period: ' + period,
-      'Current state: ' + (currentlyOpen ? 'open' : 'closed'),
-      'New state: ' + (newState ? 'open' : 'closed'),
-      newState ? 'Creators will be able to submit redemption orders.' : 'Creators will no longer be able to submit new redemptions.'
-    ])) return;
-    var patch = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + encodeURIComponent(period), {
-      method: 'PATCH',
-      body: JSON.stringify({ redemption_open: newState })
-    });
-    if (!patch.ok) { showToast('操作失败，请重试', 'error'); return; }
-    // Keep in-memory switch cache + both toggle buttons in sync
-    if (!window._cfgSwitches) window._cfgSwitches = {};
-    window._cfgSwitches.redemption_open = newState;
-    var btn = document.getElementById('btn-toggle-redeem');
-    if (btn) {
-      btn.textContent = newState ? '🔒 关闭兑换' : '🔓 开放兑换';
-      btn.style.background = newState ? '#e74c3c' : '#43b581';
-    }
-    if (typeof updateToggleButton === 'function') updateToggleButton('btn-toggle-redemption', newState);
-    showToast(newState ? '✅ 兑换已开放，创作者现在可以兑换' : '🔒 兑换已关闭', 'success');
-    writeAuditLog('config', 'scoring tab redemption toggle ' + period + ' -> ' + newState);
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
-}
-
 function initSettleSelect() {
   var sel = document.getElementById('settle-month');
   if (!sel || sel.options.length > 0) return;
@@ -4780,17 +4820,19 @@ function renderScoringTable() {
   // Load redemption state from campaign_config (single source of truth)
   (async function() {
     try {
-      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + encodeURIComponent(currentPeriod) + '&select=redemption_open');
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + encodeURIComponent(currentPeriod) + '&select=redemption_open,redemption_close_at');
       if (r.ok) {
         var d = await r.json();
         if (d && d.length > 0) {
-          var open = d[0].redemption_open === true;
+          var open = isCampaignFeatureOpen(d[0].redemption_open, d[0].redemption_close_at);
           if (!window._cfgSwitches) window._cfgSwitches = {};
           window._cfgSwitches.redemption_open = open;
-          var btn = document.getElementById('btn-toggle-redeem');
-          if (btn) {
-            btn.textContent = open ? '🔒 关闭兑换' : '🔓 开放兑换';
-            btn.style.background = open ? '#e74c3c' : '#43b581';
+          var status = document.getElementById('scoring-redemption-status');
+          if (status) {
+            var closeText = d[0].redemption_close_at ? ' · 自动截止 ' + new Date(d[0].redemption_close_at).toLocaleString() : '';
+            status.textContent = open ? '🟢 兑换已开启' + closeText : '🔴 兑换已关闭' + closeText;
+            status.style.background = open ? '#e8f5e9' : '#ffebee';
+            status.style.color = open ? '#2e7d32' : '#c62828';
           }
         }
       }
@@ -6025,69 +6067,6 @@ document.addEventListener('click', function(e) {
     exportMonth(btn.getAttribute('data-type'), btn.getAttribute('data-label'));
   }
 });
-// ===== DEADLINE =====
-async function loadDeadline() {
-  try {
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
-    var data = await res.json();
-    if (data && data.length > 0 && data[0].notes) {
-      try {
-        var cfg = JSON.parse(data[0].notes);
-        if (cfg.submission_deadline_date) {
-          document.getElementById('deadline-date').value = cfg.submission_deadline_date || '';
-          document.getElementById('deadline-time').value = cfg.submission_deadline_time || '23:59';
-          updateDeadlineDisplay(cfg.submission_deadline_date, cfg.submission_deadline_time);
-        }
-      } catch(e) {}
-    }
-  } catch(e) {}
-}
-
-async function saveDeadline() {
-  var date = document.getElementById('deadline-date').value;
-  var time = document.getElementById('deadline-time').value || '23:59';
-  if (!date) { showToast('Select a date', 'error'); return; }
-  
-  try {
-    // Read existing config first, then merge (don't overwrite redemption_open etc.)
-    var readRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
-    if (!readRes.ok) throw new Error('读取现有配置失败: HTTP ' + readRes.status);
-    var existingData = await readRes.json();
-    var currentConfig = {};
-    if (existingData && existingData.length > 0 && existingData[0].notes) {
-      try { currentConfig = JSON.parse(existingData[0].notes); } catch(e) { currentConfig = {}; }
-    }
-    currentConfig.submission_deadline_date = date;
-    currentConfig.submission_deadline_time = time;
-    var config = JSON.stringify(currentConfig);
-    
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=uid');
-    if (!res.ok) throw new Error('读取配置失败: HTTP ' + res.status);
-    var existing = await res.json();
-    var saveResp;
-    if (existing && existing.length > 0) {
-      saveResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__', {
-        method: 'PATCH',
-        body: JSON.stringify({ notes: config })
-      });
-    } else {
-      saveResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs', {
-        method: 'POST',
-        body: JSON.stringify({ uid: '__config__', discord_name: '__config__', name: 'System Config', status: 'active', notes: config })
-      });
-    }
-    if (!saveResp.ok) throw new Error('保存截止时间失败: HTTP ' + saveResp.status);
-    updateDeadlineDisplay(date, time);
-    showToast('\u2705 Deadline saved', 'success');
-    writeAuditLog('config', 'deadline saved ' + date + ' ' + time);
-  } catch(e) { showToast('Error: ' + e.message, 'error'); }
-}
-
-function updateDeadlineDisplay(date, time) {
-  document.getElementById('deadline-status').textContent = date ? '\u23F0 ' + date + ' ' + time : '';
-  document.getElementById('deadline-show').textContent = date ? '\u23F0 Closes: ' + date : '';
-}
-
 // Auto-login + restore tab on page load — 用 DOMContentLoaded 确保 DOM 渲染完成再执行
 document.addEventListener('DOMContentLoaded', function() {
   try {

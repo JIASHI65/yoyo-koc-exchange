@@ -60,7 +60,6 @@
   textarea:focus { border-color: var(--pink); }
   select { width: 100%; padding: 12px 14px; border: 2px solid var(--border); border-radius: 10px; font-size: 14px; outline: none; background: #faf5f7; font-family: inherit; margin-bottom: 12px; }
   select:focus { border-color: var(--pink); }
-  .deadline-bar { background: #fff8e1; border: 1.5px solid #ffe082; border-radius: 10px; padding: 8px 12px; font-size: 12px; text-align: center; margin-bottom: 12px; color: #6d4c00; }
   .tier-badge { display: inline-flex; align-items: center; gap: 12px; padding: 14px 38px; border-radius: 50px; font-size: 22px; font-weight: 900; letter-spacing: 1.5px; box-shadow: 0 8px 28px rgba(0,0,0,0.15), inset 0 2px 0 rgba(255,255,255,0.6); }
   .tier-platinum { background: linear-gradient(145deg,#ede7f6 0%,#d1c4e9 30%,#b39ddb 60%,#9575cd 100%); color: #1a0033; border: 2.5px solid #7e57c2; box-shadow: 0 0 30px rgba(106,61,232,0.5), 0 0 60px rgba(106,61,232,0.2), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); text-shadow: 0 2px 0 rgba(255,255,255,0.4); position:relative; overflow:hidden; animation: tierGlow 3s ease-in-out infinite; }
   .tier-platinum::before { content: '✦ ✦ ✦'; position:absolute; left:4px; top:-2px; font-size:7px; letter-spacing:2px; opacity:0.5; animation: sparkleFloat 3s ease-in-out infinite; color:#7e57c2; }
@@ -93,7 +92,6 @@
 
 
   <!-- Deadline Info -->
-  <div id="deadline-bar" class="deadline-bar hidden"></div>
 
   <!-- ===== ：Home ===== -->
   <div id="step-login" style="max-width:520px;margin:60px auto;background:linear-gradient(145deg,#fff5f9,#fce4ec);border-radius:36px;padding:56px 48px 44px;text-align:center;box-shadow:0 20px 100px rgba(242,166,196,0.35),0 0 0 1px rgba(248,187,208,0.3);position:relative;overflow:hidden;">
@@ -649,6 +647,24 @@ function getSubmissionPeriod(item) {
 var currentPeriod = getSettlementPeriod();
 let currentUser = null;
 let redemptionOpen = false;
+
+function isFeatureWindowOpen(manualOpen, closeAt) {
+  return manualOpen === true && (!closeAt || Date.now() < new Date(closeAt).getTime());
+}
+
+async function fetchCurrentCampaignAccess() {
+  var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + encodeURIComponent(currentPeriod) + '&select=submissions_open,redemption_open,submissions_close_at,redemption_close_at');
+  if (!res.ok) throw new Error('Unable to verify campaign status');
+  var data = await res.json();
+  if (!data || data.length === 0) throw new Error('Campaign configuration not found');
+  var cfg = data[0];
+  return {
+    submissionsOpen: isFeatureWindowOpen(cfg.submissions_open, cfg.submissions_close_at),
+    redemptionOpen: isFeatureWindowOpen(cfg.redemption_open, cfg.redemption_close_at),
+    submissionsCloseAt: cfg.submissions_close_at || null,
+    redemptionCloseAt: cfg.redemption_close_at || null
+  };
+}
 let selections = {};
 
 // Load current period from campaign_config on page load
@@ -702,7 +718,6 @@ async function tryAutoLogin() {
 
     // 显示仪表盘
     showDashboard();
-    checkDeadline();
   } catch(e) {
     console.error('Auto-login failed:', e);
     localStorage.removeItem('koc_session');
@@ -794,7 +809,6 @@ async function login() {
     localStorage.setItem('koc_session', JSON.stringify({ uid: currentUser.uid, account_id_verified: true, created_at: currentUser.created_at }));
     if (statusEl) statusEl.textContent = 'Verified! Loading dashboard...';
     showDashboard();
-    checkDeadline();
     // Fill submit discord field
     var submitDiscord = document.getElementById('submit-discord');
     if (submitDiscord && koc.discord_name) {
@@ -902,15 +916,15 @@ function initSubmitTab() {
         if (cd) { cd.innerHTML = '📌 You have <strong>' + remaining + '</strong> chances left. Check before submitting.'; cd.style.background = '#fce4ec'; }
       }
     } catch(e) {
-      // If check fails (network error etc.), show form unlocked rather than broken
+      // Fail closed: network/config errors must not bypass campaign controls.
       var formArea = document.getElementById('submit-form-area');
       var btn = document.getElementById('btn-submit');
       var cd = document.getElementById('submit-countdown');
       var remEl = document.getElementById('submit-remaining');
-      if (formArea) { formArea.style.opacity = '1'; formArea.style.pointerEvents = 'auto'; }
-      if (btn) { btn.disabled = false; btn.textContent = '📤 Submit Works'; }
-      if (remEl) remEl.textContent = '2';
-      if (cd) { cd.innerHTML = '📌 You have <strong>2</strong> chances left. Check before submitting.'; cd.style.background = '#fce4ec'; }
+      if (formArea) { formArea.style.opacity = '0.4'; formArea.style.pointerEvents = 'none'; }
+      if (btn) { btn.disabled = true; btn.textContent = '🔒 Temporarily Unavailable'; }
+      if (remEl) remEl.textContent = '—';
+      if (cd) { cd.innerHTML = '🔒 Unable to verify submission status. Please refresh and try again.'; cd.style.background = '#fbe9e7'; }
     }
   })();
 }
@@ -969,25 +983,27 @@ function showDashboard() {
       }
     }
   }, 1000);
-  // Fetch campaign config (submission + redemption toggle)
+  // Fetch campaign config (manual switches + automatic UTC close times)
   (async function() {
     try {
-      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + currentPeriod + '&select=submissions_open,redemption_open');
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + currentPeriod + '&select=submissions_open,redemption_open,submissions_close_at,redemption_close_at');
       if (r.ok) {
         var d = await r.json();
         if (d && d.length > 0) {
           var cfg = d[0];
-          redemptionOpen = cfg.redemption_open === true;
-          window._submissionsOpen = cfg.submissions_open === true;
+          redemptionOpen = isFeatureWindowOpen(cfg.redemption_open, cfg.redemption_close_at);
+          window._submissionsOpen = isFeatureWindowOpen(cfg.submissions_open, cfg.submissions_close_at);
         }
       }
-      // Fallback: if campaign_config not available yet, default to open
-      if (window._submissionsOpen === undefined) window._submissionsOpen = true;
-    } catch(e) { console.error('Config fetch:', e); window._submissionsOpen = true; }
+      if (window._submissionsOpen === undefined) window._submissionsOpen = false;
+    } catch(e) { console.error('Config fetch:', e); window._submissionsOpen = false; redemptionOpen = false; }
     var lockEl = document.getElementById('redeem-locked-msg');
     var btnEl = document.getElementById('btn-redeem');
     if (lockEl) lockEl.style.display = redemptionOpen ? 'none' : 'block';
     if (btnEl) btnEl.disabled = !redemptionOpen;
+    if (currentUser) initSubmitTab();
+    if (!redemptionOpen) selections = {};
+    renderOptions();
   })();
   // Always fetch fresh balance from API on dashboard show
   (async function() {
@@ -1127,19 +1143,13 @@ async function redeem() {
   if (statusEl) statusEl.textContent = '';
 
   try {
-    // Backend check: verify redemption is still open before submitting
-    const configRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + encodeURIComponent(currentPeriod) + '&select=redemption_open');
-    if (configRes.ok) {
-      const configData = await configRes.json();
-      if (configData && configData.length > 0 && configData[0].redemption_open === false) {
-        showToast('🔒 Redemption has been closed by admin. Please refresh the page.', 'error');
-        btn.disabled = false;
-        btn.textContent = 'Confirm Redemption';
-        // Update local state to prevent further attempts
-        redemptionOpen = false;
-        document.getElementById('btn-redeem').disabled = true;
-        return;
-      }
+    var access = await fetchCurrentCampaignAccess();
+    if (!access.redemptionOpen) {
+      showToast('🔒 Redemption is closed or its deadline has passed.', 'error');
+      redemptionOpen = false;
+      btn.disabled = true;
+      btn.textContent = '🔒 Redemption Closed';
+      return;
     }
 
     const freshBalance = await getBalance(currentUser.uid);
@@ -1295,31 +1305,6 @@ function switchCreatorTab(name) {
   if (name === 'history') loadMySubmissions();
   if (name === 'redeem') { renderOptions(); loadOrders(); }
 }
-
-// ===== DEADLINE CHECK =====
-async function checkDeadline() {
-  try {
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__&select=notes');
-    var data = await res.json();
-    if (data && data.length > 0 && data[0].notes) {
-      var cfg = JSON.parse(data[0].notes);
-      if (cfg.submission_deadline_date) {
-        var deadline = new Date(cfg.submission_deadline_date + 'T' + (cfg.submission_deadline_time || '23:59'));
-        var bar = document.getElementById('deadline-bar');
-        bar.classList.remove('hidden');
-        if (new Date() > deadline) {
-          bar.innerHTML = '⏰ Submission closed on ' + cfg.submission_deadline_date + ' ' + (cfg.submission_deadline_time || '23:59');
-          bar.style.background = '#fbe9e7';
-          bar.style.borderColor = '#ef9a9a';
-        } else {
-          bar.innerHTML = '⏰ Submit your works before ' + cfg.submission_deadline_date + ' ' + (cfg.submission_deadline_time || '23:59');
-        }
-      }
-    }
-  } catch(e) {}
-}
-
-
 
 // ===== SUBMIT WORKS =====
 
@@ -1537,6 +1522,14 @@ async function submitWorks() {
   status.textContent = '';
 
   try {
+    var access = await fetchCurrentCampaignAccess();
+    if (!access.submissionsOpen) {
+      status.textContent = '🔒 Submission is closed or its deadline has passed.';
+      status.style.color = '#e74c3c';
+      btn.disabled = true;
+      btn.textContent = '🔒 Submission Closed';
+      return;
+    }
     // Check existing WORK submissions (showcase 不占 2 次名额)
     var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id,created_at,period,submission_type');
     var existingSubs = checkRes.ok ? await checkRes.json() : [];
