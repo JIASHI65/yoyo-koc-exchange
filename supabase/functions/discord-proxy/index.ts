@@ -160,6 +160,92 @@ serve(async (req) => {
         break;
       }
 
+      // 扫描 Bot 在指定时间后发送的系统私信，只读，不删除
+      case "scan_recent_dms": {
+        const since = new Date(data?.since || Date.now() - 6 * 60 * 60 * 1000);
+        if (Number.isNaN(since.getTime())) {
+          return new Response(JSON.stringify({ ok: false, error: "无效的扫描起始时间" }), { status: 400, headers });
+        }
+        const meRes = await fetch(`${DISCORD_API}/users/@me`, { headers: authHeaders });
+        const meBody = await meRes.text();
+        if (!meRes.ok) {
+          return new Response(JSON.stringify({ ok: false, error: `获取 Bot 信息失败: ${meRes.status} ${meBody}` }), { status: meRes.status, headers });
+        }
+        const botUser = JSON.parse(meBody);
+        const guildRes = await fetch(`${DISCORD_API}/users/@me/guilds`, { headers: authHeaders });
+        const guildBody = await guildRes.text();
+        if (!guildRes.ok) {
+          return new Response(JSON.stringify({ ok: false, error: `获取 Bot 服务器列表失败: ${guildRes.status} ${guildBody}` }), { status: guildRes.status, headers });
+        }
+        const guilds = JSON.parse(guildBody);
+        const memberMap = new Map<string, any>();
+        for (const guild of guilds) {
+          const memberRes = await fetch(`${DISCORD_API}/guilds/${guild.id}/members?limit=1000`, { headers: authHeaders });
+          if (!memberRes.ok) continue;
+          for (const member of await memberRes.json()) {
+            if (!member.user?.bot) memberMap.set(member.user.id, member.user);
+          }
+        }
+        const candidates: any[] = [];
+        const failures: string[] = [];
+        for (const user of memberMap.values()) {
+          const dmRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
+            method: "POST",
+            headers: authHeaders,
+            body: JSON.stringify({ recipient_id: user.id }),
+          });
+          if (!dmRes.ok) continue;
+          const dm = await dmRes.json();
+          const messagesRes = await fetch(`${DISCORD_API}/channels/${dm.id}/messages?limit=20`, { headers: authHeaders });
+          if (!messagesRes.ok) {
+            failures.push(`${user.username}: ${messagesRes.status}`);
+            continue;
+          }
+          const messages = await messagesRes.json();
+          for (const message of messages) {
+            const sentAt = new Date(message.timestamp);
+            const content = String(message.content || "");
+            const isMochiSystemMessage = content.includes("MochiBot only sends system notifications") ||
+              content.includes("jiashi65.github.io/yoyo-koc-exchange/index.html");
+            if (message.author?.id === botUser.id && sentAt >= since && isMochiSystemMessage) {
+              candidates.push({
+                channel_id: dm.id,
+                message_id: message.id,
+                user_id: user.id,
+                username: user.username,
+                timestamp: message.timestamp,
+                preview: content.slice(0, 120),
+              });
+            }
+          }
+        }
+        result = { candidates, scanned_members: memberMap.size, failures };
+        break;
+      }
+
+      // 删除指定的 Bot 私信；调用方必须先通过 scan_recent_dms 确认精确消息 ID
+      case "delete_dm_messages": {
+        const messages = Array.isArray(data?.messages) ? data.messages : [];
+        const deleted: any[] = [];
+        const failures: any[] = [];
+        for (const message of messages) {
+          const channelId = String(message?.channel_id || "");
+          const messageId = String(message?.message_id || "");
+          if (!/^\d+$/.test(channelId) || !/^\d+$/.test(messageId)) {
+            failures.push({ channel_id: channelId, message_id: messageId, error: "无效消息 ID" });
+            continue;
+          }
+          const deleteRes = await fetch(`${DISCORD_API}/channels/${channelId}/messages/${messageId}`, {
+            method: "DELETE",
+            headers: authHeaders,
+          });
+          if (deleteRes.ok || deleteRes.status === 204) deleted.push({ channel_id: channelId, message_id: messageId });
+          else failures.push({ channel_id: channelId, message_id: messageId, error: `${deleteRes.status} ${await deleteRes.text()}` });
+        }
+        result = { deleted, failures };
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ ok: false, error: `未知操作: ${action}` }), {
           status: 400, headers,
