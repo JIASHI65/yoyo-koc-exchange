@@ -898,13 +898,13 @@ Elite: 连续 6 个月达到 5 分</textarea>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px;">
       <button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;text-align:left;" onclick="previewBroadcast('welcome')">🆕 ① 新人欢迎 — 发送注册链接</button>
       <button class="btn btn-sm" style="background:#fff3e0;color:#e65100;text-align:left;" onclick="previewBroadcast('reminder')">📥 ② 催交链接 — 收集作品提醒</button>
-      <button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;text-align:left;" onclick="previewBroadcast('scored')">✅ ③ 算分完成 — 通知积分结果</button>
+      <button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;text-align:left;" onclick="previewBroadcast('scored')">✅ ③ 算分完成 — 当前月已评分 KOC</button>
       <button class="btn btn-sm" style="background:#f3e5f5;color:#6a1b9a;text-align:left;" onclick="previewBroadcast('tier_upgrade')">⭐ ④ 等级变动 — 晋升通知</button>
     </div>
 
-    <div style="font-size:13px;font-weight:600;margin:8px 0 4px;">📄 CSV 逐条私信（每人不同文案）</div>
+    <div style="font-size:13px;font-weight:600;margin:8px 0 4px;">📄 算分完成 · CSV 个性化通知（推荐）</div>
     <div style="background:#f8f9ff;border:1px solid #dfe3ff;border-radius:10px;padding:8px;margin-bottom:8px;">
-      <div style="font-size:11px;color:var(--text-light);line-height:1.5;margin-bottom:6px;">格式：Discord昵称, Game UID 或 Account ID, 个性化话术全文。首行可留表头；话术含逗号/换行请用双引号包裹。</div>
+      <div style="font-size:11px;color:var(--text-light);line-height:1.5;margin-bottom:6px;">仅用于月度算分结果：每位创作者收到自己的得分表现和兑换入口。格式：Discord昵称, Game UID 或 Account ID, 个性化话术全文。首行可留表头；话术含逗号/换行请用双引号包裹。</div>
       <textarea id="mochi-csv-input" style="width:100%;min-height:74px;border:1px solid #ccd3ff;border-radius:6px;padding:6px;font-size:12px;margin-bottom:6px;" placeholder="Discord昵称,Game UID,个性化话术全文\nKuro,PeJhjGkSftQF,Hi Kuro..."></textarea>
       <div style="display:flex;gap:6px;align-items:center;">
         <input type="file" id="mochi-csv-file" accept=".csv,text/csv,text/plain" style="flex:1;font-size:11px;" onchange="loadMochiCsvFile(this)">
@@ -2680,9 +2680,13 @@ function buildMochiCsvTargets(text) {
     if (!name && !key && !msg) return;
     var k = findKocByCsvKey(key);
     var sendName = (k && k.discord_name) || name;
+    var hasCurrentScored = !!(k && (allSubmissions || []).some(function(s) {
+      return String(s.uid || '') === String(k.uid || '') && s.status === 'scored' && getRowPeriod(s) === currentPeriod;
+    }));
     var dedupe = ((k && k.uid) || key || sendName).toLowerCase();
     if (seen[dedupe]) return; seen[dedupe] = true;
-    out.push({ discord_name: sendName, csv_name: name, uid: (k && k.uid) || key, account_id: (k && k.account_id) || '', message: msg, matched: !!k, checked: true, reason: k ? '已匹配' : '未匹配' });
+    var reason = !k ? '未匹配 KOC' : hasCurrentScored ? currentPeriod + ' 已评分' : currentPeriod + ' 无已评分记录';
+    out.push({ discord_name: sendName, csv_name: name, uid: (k && k.uid) || key, account_id: (k && k.account_id) || '', message: msg, matched: !!k, eligible: hasCurrentScored, checked: hasCurrentScored, reason: reason });
   });
   return out;
 }
@@ -2693,14 +2697,15 @@ function previewMochiCsvBroadcast() {
   window._bcTargets = [];
   mochiBroadcastType = 'csv';
   var matched = mochiCsvTargets.filter(function(t){return t.matched;}).length;
+  var eligible = mochiCsvTargets.filter(function(t){return t.eligible;}).length;
   var sum = document.getElementById('mochi-csv-summary');
-  if (sum) sum.textContent = '已解析 ' + mochiCsvTargets.length + ' 行，匹配 ' + matched + '，未匹配 ' + (mochiCsvTargets.length - matched);
+  if (sum) sum.textContent = '已解析 ' + mochiCsvTargets.length + ' 行，可发送 ' + eligible + '，无当前月评分/未匹配 ' + (mochiCsvTargets.length - eligible);
   var list = document.getElementById('broadcast-target-list');
   var count = document.getElementById('broadcast-target-count');
   if (count) count.textContent = mochiCsvTargets.length + ' 行（逐条文案）';
   if (list) list.innerHTML = mochiCsvTargets.map(function(t, i) {
     var prev = (t.message || '').slice(0, 80) + ((t.message || '').length > 80 ? '…' : '');
-    return '<div style="display:grid;grid-template-columns:24px 1fr auto;gap:5px;padding:3px 4px;font-size:12px;align-items:start;' + (t.matched ? '' : 'opacity:.65;') + '"><input type="checkbox" class="mochi-csv-cb" data-index="' + i + '" checked><span><b>' + esc(t.discord_name || t.csv_name || '(空)') + '</b> <span style="color:#999;">' + esc(t.uid || '') + '</span><br><span style="font-size:11px;color:#666;">' + esc(prev) + '</span></span><span style="font-size:11px;color:' + (t.matched ? '#2e7d32' : '#c62828') + ';">' + esc(t.reason) + '</span></div>';
+    return '<div style="display:grid;grid-template-columns:24px 1fr auto;gap:5px;padding:3px 4px;font-size:12px;align-items:start;' + (t.eligible ? '' : 'opacity:.55;') + '"><input type="checkbox" class="mochi-csv-cb" data-index="' + i + '"' + (t.eligible ? ' checked' : ' disabled') + '><span><b>' + esc(t.discord_name || t.csv_name || '(空)') + '</b> <span style="color:#999;">' + esc(t.uid || '') + '</span><br><span style="font-size:11px;color:#666;">' + esc(prev) + '</span></span><span style="font-size:11px;color:' + (t.eligible ? '#2e7d32' : '#c62828') + ';">' + esc(t.reason) + '</span></div>';
   }).join('') || '<div style="padding:6px;color:#999;">没有可发送行</div>';
   var editor = document.getElementById('broadcast-msg-editor');
   if (editor) editor.value = mochiCsvTargets[0] ? mochiCsvTargets[0].message : '';
@@ -2767,7 +2772,7 @@ async function previewBroadcast(type) {
     // Step 3: 获取 submissions 数据
     var subs = [];
     try {
-      var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=id,discord_name,uid,status,points_earned,links_engagement,links_views,created_at&order=created_at.desc');
+      var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=id,discord_name,uid,status,points_earned,links_engagement,links_views,period,created_at&order=created_at.desc');
       if (subRes.ok) subs = await subRes.json() || [];
     } catch(e) {
       console.warn('Submissions fetch failed, continuing:', e);
@@ -2779,9 +2784,9 @@ async function previewBroadcast(type) {
 
     // Type-specific messages
     var msgs = {
-      'welcome': '🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\n📅 下个月将是你首个新人活动月！\n在下个月内投稿满 5 积分，即可额外获得 +2 积分 🎯\n\n📝 请先完成注册：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n点击 "I\'m a New Creator" 填写信息\n\n完成注册后即可开始投稿！\n\n如有问题请在 🎫｜town-service-station 开帖询问',
+      'welcome': '🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\n📅 下个月将是你首个新人活动月！\n在下个月内投稿满 5 积分，即可额外获得 +2 积分 🎯\n\n📝 请先完成注册：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n点击 "I\'m a New Creator" 填写信息\n\n完成注册后即可开始投稿！',
       'reminder': '📥 Reminder! 作品收集已开启\n\n请在 **下个月5号前** 提交所有作品链接：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\n只有通过表单提交的链接才计入积分！',
-      'scored': '✅ 你的作品已评分完成！\n\n查看积分并兑换奖励：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\n兑换选项：\n• 1 积分 = 450 钻石\n• 2 积分 = $10 Google Play 礼品卡\n• 5 积分 = 3 随机周边',
+      'scored': '✅ Your monthly creator score is ready!\n\nYour submitted works have been reviewed and your points have been added to the KOC Creator Portal. Log in to view your score summary and redeem your rewards:\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\nReward options:\n• 1 Point = 450 Diamonds\n• 2 Points = $10 Google Play Gift Card\n• 5 Points = 3 Random Merchandise Items',
       'tier_upgrade': '⭐ 恭喜晋升！\n\n你的创作者等级已提升！查看最新等级和权益：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\n继续创作，冲击下一级！💎'
     };
     msg = msgs[type] || msgs['welcome'];
@@ -2822,19 +2827,14 @@ async function previewBroadcast(type) {
           if (isKoc) {
             var scoredPts = 0;
             var hasScored = false;
-            var nameLower = name.toLowerCase().trim();
-            var nickLower = nick.toLowerCase().trim();
             (subs||[]).forEach(function(s) {
-              if (s && s.status === 'scored') {
-                var sn = (s.discord_name||'').toLowerCase().trim();
-                if (sn === nameLower || sn === nickLower || sn === displayName.toLowerCase().trim()) {
-                  hasScored = true;
-                  scoredPts += (s.points_earned||0);
-                }
+              if (s && s.status === 'scored' && getRowPeriod(s) === currentPeriod && String(s.uid || '') === String(uid || '')) {
+                hasScored = true;
+                scoredPts += (Number(s.points_earned) || 0);
               }
             });
             checked = hasScored;
-            reason = hasScored ? '已评分: ' + scoredPts + ' 分' : '无评分';
+            reason = hasScored ? currentPeriod + ' 已评分: ' + scoredPts + ' 分' : currentPeriod + ' 无已评分作品';
           } else {
             checked = false;
             reason = '未注册创作者';
@@ -2970,14 +2970,14 @@ async function confirmBroadcast() {
     if (!csvTargets.length) { showToast('没有可发送的 CSV 收件人', 'error'); return; }
     if (!confirmDanger('Send Mochi CSV DMs now?', ['Recipients: ' + csvTargets.length + ' creators', 'Each row sends its own personalized message.', 'This will send real Discord private messages.'])) return;
     var statusElCsv = document.getElementById('mochi-status');
-    var sentCsv = 0, failedCsv = 0;
+    var sentCsv = 0, failedCsv = 0, failedCsvDetails = [];
     for (var j = 0; j < csvTargets.length; j++) {
       var r = await sendMochiDM(csvTargets[j].discord_name, mochiSupportFooter(csvTargets[j].message));
-      if (r.ok) sentCsv++; else failedCsv++;
+      if (r.ok) sentCsv++; else { failedCsv++; failedCsvDetails.push(csvTargets[j].discord_name + ': ' + r.reason); }
       statusElCsv.textContent = '⏳ CSV进度: ' + (j+1) + '/' + csvTargets.length + ' (成功' + sentCsv + ', 失败' + failedCsv + (r.ok ? '' : '：' + csvTargets[j].discord_name + ' ' + r.reason) + ')';
-      if (j < csvTargets.length - 1) await new Promise(function(resolve){ setTimeout(resolve, 1000); });
+      if (j < csvTargets.length - 1) await new Promise(function(resolve){ setTimeout(resolve, 15000); });
     }
-    statusElCsv.textContent = '✅ CSV完成！成功: ' + sentCsv + ', 失败: ' + failedCsv;
+    statusElCsv.textContent = '✅ CSV完成！成功: ' + sentCsv + ', 失败: ' + failedCsv + (failedCsvDetails.length ? '｜' + failedCsvDetails.join('；') : '');
     showToast('✅ 已发送 ' + sentCsv + '/' + csvTargets.length + ' 条 CSV 私信', sentCsv > 0 ? 'success' : 'error');
     if (sentCsv > 0) writeAuditLog('config', 'Mochi CSV广播发送 ' + sentCsv + '/' + csvTargets.length + ' 条');
     return;
@@ -3008,13 +3008,14 @@ async function confirmBroadcast() {
 
   var sent = 0;
   var failed = 0;
+  var failedDetails = [];
   for (var i = 0; i < targets.length; i++) {
     var result = await sendMochiDM(targets[i].discord_name, msg);
-    if (result.ok) { sent++; } else { failed++; statusEl.textContent += ' | ' + targets[i].discord_name + ': ' + result.reason; }
+    if (result.ok) { sent++; } else { failed++; failedDetails.push(targets[i].discord_name + ': ' + result.reason); }
     statusEl.textContent = '⏳ 进度: ' + (i+1) + '/' + targets.length + ' (成功' + sent + ', 失败' + failed + ')';
-    if (i < targets.length - 1) await new Promise(r => setTimeout(r, 1000));
+    if (i < targets.length - 1) await new Promise(r => setTimeout(r, 15000));
   }
-  statusEl.textContent = '✅ 完成！成功: ' + sent + ', 失败: ' + failed;
+  statusEl.textContent = '✅ 完成！成功: ' + sent + ', 失败: ' + failed + (failedDetails.length ? '｜' + failedDetails.join('；') : '');
   showToast('✅ 已发送 ' + sent + '/' + targets.length + ' 条私信', sent > 0 ? 'success' : 'error');
   if (sent > 0) writeAuditLog('config', 'Mochi广播: ' + mochiBroadcastType + ' 发送 ' + sent + '/' + targets.length + ' 条');
 
