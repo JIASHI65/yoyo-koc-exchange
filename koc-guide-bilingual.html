@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YoYo Town Creator Portal - Quick Guide</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #fef6f9 0%, #fce4ec 100%);
+    padding: 30px 20px;
+    line-height: 1.5;
+  }
+  .container { max-width: 1200px; margin: 0 auto; }
+
+  /* Language Toggle */
+  .lang-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: white;
+    border-radius: 30px;
+    padding: 8px 12px;
+    box-shadow: 0 4px 12px rgba(210,120,150,0.2);
+    display: flex;
+    gap: 8px;
+  }
+  .lang-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 20px;
+    background: transparent;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    color: #8a7a83;
+    transition: all 0.3s;
+  }
+  .lang-btn.active {
+    background: linear-gradient(135deg, #f2a6c4 0%, #d4749a 100%);
+    color: white;
+  }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, #f2a6c4 0%, #d4749a 100%);
+    border-radius: 24px;
+    padding: 40px 30px;
+    text-align: center;
+    color: white;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 32px rgba(210,120,150,0.3);
+  }
+  .hero h1 {
+    font-size: 28px;
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+  .hero p {
+    font-size: 16px;
+    opacity: 0.95;
+  }
+  .official-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.25);
+    padding: 6px 16px;
+    border-radius: 20px;
+    margin-top: 12px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  /* Sections */
+  .what-section {
+    background: white;
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(210,120,150,0.12);
+    text-align: center;
+  }
+  .what-section h2 {
+    font-size: 22px;
+    color: #d4749a;
+    margin-bottom: 16px;
+  }
+  .what-section p {
+    font-size: 15px;
+    color: #5a4a53;
+    margin-bottom: 8px;
+  }
+
+  /* Icon grid */
+  .icon-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .icon-item {
+    text-align: center;
+    padding: 16px 8px;
+    background: #fef6f9;
+    border-radius: 12px;
+    transition: transform 0.2s;
+  }
+  .icon-item:hover {
+    transform: translateY(-4px);
+  }
+  .icon-big {
+    font-size: 36px;
+    margin-bottom: 8px;
+  }
+  .icon-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #3d2b36;
+  }
+
+  /* Flow section */
+  .flow-section {
+    background: white;
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(210,120,150,0.12);
+  }
+  .flow-section h2 {
+    font-size: 22px;
+    color: #d4749a;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .flow-chart {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 20px 0;
+  }
+  .flow-step {
+    flex: 1;
+    text-align: center;
+    position: relative;
+  }
+  .flow-icon {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #f2a6c4 0%, #d4749a 100%);
+    border-radius: 50%;
+    margin: 0 auto 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    box-shadow: 0 4px 12px rgba(242,166,196,0.4);
+  }
+  .flow-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #3d2b36;
+    margin-bottom: 4px;
+  }
+  .flow-desc {
+    font-size: 11px;
+    color: #8a7a83;
+  }
+  .flow-arrow {
+    font-size: 24px;
+    color: #f0dae4;
+    margin: 0 8px;
+    flex-shrink: 0;
+  }
+
+  /* Important box */
+  .important-box {
+    background: #fff3e0;
+    border-left: 4px solid #ff9800;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+  }
+  .important-box .title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #e65100;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .important-box ul {
+    margin-left: 20px;
+    color: #5a4a53;
+    font-size: 14px;
+  }
+  .important-box li {
+    margin-bottom: 6px;
+  }
+
+  /* Safe box */
+  .safe-box {
+    background: #e8f5e9;
+    border-left: 4px solid #4caf50;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+  }
+  .safe-box .title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2e7d32;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .safe-box .subtitle {
+    font-size: 14px;
+    color: #5a4a53;
+    margin-bottom: 12px;
+  }
+  .check-list {
+    margin-left: 20px;
+    color: #2e7d32;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .check-list li {
+    margin-bottom: 6px;
+  }
+  .x-list {
+    margin-left: 20px;
+    color: #c62828;
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .x-list li {
+    margin-bottom: 6px;
+  }
+
+  /* URL box */
+  .url-box {
+    background: white;
+    border: 2px solid #f2a6c4;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 20px 0;
+    text-align: center;
+  }
+  .url-label {
+    font-size: 13px;
+    color: #8a7a83;
+    margin-bottom: 8px;
+  }
+  .url-text {
+    font-family: monospace;
+    font-size: 13px;
+    color: #d4749a;
+    font-weight: 600;
+    word-break: break-all;
+  }
+
+  /* FAQ */
+  .faq-section {
+    background: white;
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(210,120,150,0.12);
+  }
+  .faq-section h2 {
+    font-size: 22px;
+    color: #d4749a;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .faq-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  .faq-item {
+    background: #fef6f9;
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .faq-q {
+    font-size: 14px;
+    font-weight: 700;
+    color: #d4749a;
+    margin-bottom: 8px;
+  }
+  .faq-a {
+    font-size: 13px;
+    color: #5a4a53;
+    line-height: 1.6;
+  }
+
+  /* Footer */
+  .footer {
+    background: white;
+    border-radius: 20px;
+    padding: 24px;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(210,120,150,0.12);
+    margin-top: 20px;
+  }
+  .footer-icon {
+    font-size: 32px;
+    margin-bottom: 8px;
+  }
+  .footer-text {
+    font-size: 14px;
+    color: #5a4a53;
+  }
+  .footer-contact {
+    font-size: 15px;
+    font-weight: 600;
+    color: #d4749a;
+    margin-top: 8px;
+  }
+
+  /* Language control */
+  .lang-content {
+    display: none;
+  }
+  .lang-content.active {
+    display: block;
+  }
+
+  /* Mobile responsive */
+  @media (max-width: 768px) {
+    .icon-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .flow-chart {
+      flex-direction: column;
+      gap: 12px;
+    }
+    .flow-arrow {
+      transform: rotate(90deg);
+      margin: 8px 0;
+    }
+    .faq-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- Language Toggle -->
+<div class="lang-toggle">
+  <button class="lang-btn active" onclick="switchLang('en')">English</button>
+  <button class="lang-btn" onclick="switchLang('zh')">中文</button>
+</div>
+
+<div class="container">
+
+<!-- ENGLISH VERSION -->
+<div id="content-en" class="lang-content active">
+  <!-- Hero Section -->
+  <div class="hero">
+    <h1>💗 YoYo Town Creator Portal</h1>
+    <p>Official Rewards System for Creators</p>
+    <div class="official-badge">✅ Official & Safe</div>
+  </div>
+
+  <!-- What is it -->
+  <div class="what-section">
+    <h2>🎯 What is This?</h2>
+    <p>The <strong>official platform</strong> where YoYo Town creators submit content, earn points, and redeem awesome rewards!</p>
+    <p style="font-size: 13px; color: #8a7a83; margin-top: 8px;">This guide covers: <strong>What it is</strong> • <strong>How to use it</strong> • <strong>Safety info</strong> • <strong>Common questions (FAQ)</strong></p>
+
+    <div class="icon-grid">
+      <div class="icon-item">
+        <div class="icon-big">📤</div>
+        <div class="icon-label">Submit Content</div>
+      </div>
+      <div class="icon-item">
+        <div class="icon-big">⭐</div>
+        <div class="icon-label">Earn Points</div>
+      </div>
+      <div class="icon-item">
+        <div class="icon-big">🎁</div>
+        <div class="icon-label">Get Rewards</div>
+      </div>
+      <div class="icon-item">
+        <div class="icon-big">📊</div>
+        <div class="icon-label">Track Progress</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- How it works -->
+  <div class="flow-section">
+    <h2>⚡ How It Works</h2>
+
+    <div class="flow-chart">
+      <div class="flow-step">
+        <div class="flow-icon">🔐</div>
+        <div class="flow-label">Register/Login</div>
+        <div class="flow-desc">Use your Game UID</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-icon">📤</div>
+        <div class="flow-label">Submit</div>
+        <div class="flow-desc">Share your links</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-icon">⭐</div>
+        <div class="flow-label">Get Points</div>
+        <div class="flow-desc">Admin reviews</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-icon">🎁</div>
+        <div class="flow-label">Redeem</div>
+        <div class="flow-desc">Choose rewards</div>
+      </div>
+    </div>
+
+    <div class="important-box">
+      <div class="title">
+        <span>⚠️</span>
+        <span>IMPORTANT: Monthly Limits</span>
+      </div>
+      <ul>
+        <li><strong>You can submit only 2 times per month</strong></li>
+        <li>The counter resets at the start of each new month</li>
+        <li>Showcase posts don't count toward this limit</li>
+        <li>Plan your submissions wisely!</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Safety Section -->
+  <div class="what-section">
+    <h2>🔒 Is This Safe? (Yes!)</h2>
+    <div class="safe-box">
+      <div class="title">
+        <span>✅</span>
+        <span>This is 100% Official & Safe</span>
+      </div>
+      <div class="subtitle">We ONLY ask for:</div>
+      <ul class="check-list">
+        <li>✅ Your Game UID (username)</li>
+        <li>✅ Discord name</li>
+        <li>✅ 19-digit System ID (for verification)</li>
+        <li>✅ Address (for physical rewards only)</li>
+      </ul>
+      <div class="subtitle" style="margin-top: 16px;">We NEVER ask for:</div>
+      <ul class="x-list">
+        <li>❌ Game password</li>
+        <li>❌ Credit card or payment info</li>
+        <li>❌ Social security number</li>
+        <li>❌ Downloads or software installation</li>
+      </ul>
+    </div>
+
+    <div class="url-box">
+      <div class="url-label">📌 Official Portal URL (bookmark this!):</div>
+      <div class="url-text">https://jiashi65.github.io/yoyo-koc-exchange/</div>
+    </div>
+
+    <p style="font-size: 13px; color: #8a7a83; margin-top: 12px;">
+      Hosted on <strong>GitHub Pages</strong> - a trusted platform used by millions of developers worldwide
+    </p>
+  </div>
+
+  <!-- FAQ Section -->
+  <div class="faq-section">
+    <h2>❓ Frequently Asked Questions</h2>
+    <div class="faq-grid">
+      <div class="faq-item">
+        <div class="faq-q">Q: Is this link safe? Is it a scam?</div>
+        <div class="faq-a">A: This is the <strong>official YoYo Town Creator Portal</strong>, hosted on GitHub Pages (a trusted platform). We never ask for your game password, credit cards, or sensitive documents.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q: I've used my 2 submissions. Can I submit more?</div>
+        <div class="faq-a">A: Regular submissions are limited to 2/month. However, you can submit unlimited <strong>Showcase posts</strong>, and the limit resets next month.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q: When will I receive my points/rewards?</div>
+        <div class="faq-a">A: <strong>Points:</strong> Admin reviews throughout the month. <strong>Digital rewards:</strong> Usually within a few days. <strong>Physical items:</strong> 2-4 weeks shipping.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q: Game UID vs System ID - what's the difference?</div>
+        <div class="faq-a">A: <strong>Game UID:</strong> Your in-game username (has letters, like "YOYO-123") - used to login. <strong>System ID:</strong> 19-digit number - only needed for registration.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q: I forgot my password. How do I reset it?</div>
+        <div class="faq-a">A: The portal doesn't use passwords! Just login with your Game UID each time. If you can't access your account, contact YoYo assistant💗Mochi on Discord.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Q: What is the CC (Continuous Creation) Reward?</div>
+        <div class="faq-a">A: If you submit <strong>15+ works in a month</strong>, you automatically qualify for a bonus CC reward: Premium Monthly Card + Shelly Coins x500 + Gold x1000!</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-icon">💬</div>
+    <div class="footer-text">Questions or need help?</div>
+    <div class="footer-contact">Contact YoYo assistant💗Mochi on Discord</div>
+    <p style="margin-top: 16px; font-size: 12px; color: #bbb;">
+      YoYo Town Creator Portal © 2026
+    </p>
+  </div>
+</div>
+
+<!-- CHINESE VERSION -->
+<div id="content-zh" class="lang-content">
+  <!-- Hero Section -->
+  <div class="hero">
+    <h1>💗 YoYo Town 创作者门户</h1>
+    <p>官方创作者奖励系统</p>
+    <div class="official-badge">✅ 官方认证·安全可靠</div>
+  </div>
+
+  <!-- What is it -->
+  <div class="what-section">
+    <h2>🎯 这是什么？</h2>
+    <p>YoYo Town创作者<strong>官方平台</strong>，用于提交作品、赚取积分、兑换奖励！</p>
+    <p style="font-size: 13px; color: #8a7a83; margin-top: 8px;">本指南包含：<strong>平台介绍</strong> • <strong>使用方法</strong> • <strong>安全说明</strong> • <strong>常见问题(FAQ)</strong></p>
+
+    <div class="icon-grid">
+      <div class="icon-item">
+        <div class="icon-big">📤</div>
+        <div class="icon-label">提交作品</div>
+      </div>
+      <div class="icon-item">
+        <div class="icon-big">⭐</div>
+        <div class="icon-label">赚取积分</div>
+      </div>
+      <div class="icon-item">
+        <div class="icon-big">🎁</div>
+        <div class="icon-label">兑换奖励</div>
+      </div>
+      <div class="icon-item">
+        <div class="icon-big">📊</div>
+        <div class="icon-label">追踪进度</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- How it works -->
+  <div class="flow-section">
+    <h2>⚡ 如何使用</h2>
+
+    <div class="flow-chart">
+      <div class="flow-step">
+        <div class="flow-icon">🔐</div>
+        <div class="flow-label">注册/登录</div>
+        <div class="flow-desc">使用游戏UID</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-icon">📤</div>
+        <div class="flow-label">提交作品</div>
+        <div class="flow-desc">分享你的链接</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-icon">⭐</div>
+        <div class="flow-label">获得积分</div>
+        <div class="flow-desc">管理员审核</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-icon">🎁</div>
+        <div class="flow-label">兑换奖励</div>
+        <div class="flow-desc">选择心仪奖励</div>
+      </div>
+    </div>
+
+    <div class="important-box">
+      <div class="title">
+        <span>⚠️</span>
+        <span>重要：每月提交限制</span>
+      </div>
+      <ul>
+        <li><strong>每月最多只能提交2次</strong></li>
+        <li>每个月初计数器会重置</li>
+        <li>展示帖不计入此限制</li>
+        <li>请合理安排提交时间！</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Safety Section -->
+  <div class="what-section">
+    <h2>🔒 这个链接安全吗？(当然安全！)</h2>
+    <div class="safe-box">
+      <div class="title">
+        <span>✅</span>
+        <span>这是100%官方认证的安全平台</span>
+      </div>
+      <div class="subtitle">我们只会要求：</div>
+      <ul class="check-list">
+        <li>✅ 游戏UID（用户名）</li>
+        <li>✅ Discord名称</li>
+        <li>✅ 19位系统ID（用于验证）</li>
+        <li>✅ 收货地址（仅用于实物奖励）</li>
+      </ul>
+      <div class="subtitle" style="margin-top: 16px;">我们绝不会要求：</div>
+      <ul class="x-list">
+        <li>❌ 游戏密码</li>
+        <li>❌ 信用卡或支付信息</li>
+        <li>❌ 身份证号等敏感信息</li>
+        <li>❌ 下载或安装任何软件</li>
+      </ul>
+    </div>
+
+    <div class="url-box">
+      <div class="url-label">📌 官方门户网址（请收藏）：</div>
+      <div class="url-text">https://jiashi65.github.io/yoyo-koc-exchange/</div>
+    </div>
+
+    <p style="font-size: 13px; color: #8a7a83; margin-top: 12px;">
+      托管于<strong>GitHub Pages</strong> - 全球数百万开发者信赖的平台
+    </p>
+  </div>
+
+  <!-- FAQ Section -->
+  <div class="faq-section">
+    <h2>❓ 常见问题</h2>
+    <div class="faq-grid">
+      <div class="faq-item">
+        <div class="faq-q">问：这个链接安全吗？是诈骗吗？</div>
+        <div class="faq-a">答：这是<strong>YoYo Town官方创作者门户</strong>，托管在GitHub Pages（一个可信赖的平台）。我们绝不会索要游戏密码、信用卡或敏感文件。</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">问：我已经用完2次提交了，还能继续提交吗？</div>
+        <div class="faq-a">答：常规作品提交每月限2次。但你可以无限次提交<strong>展示帖</strong>，而且下个月限制会重置。</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">问：什么时候能收到积分/奖励？</div>
+        <div class="faq-a">答：<strong>积分：</strong>管理员会在月内审核。<strong>数字奖励：</strong>通常几天内发放。<strong>实物奖励：</strong>需要2-4周物流时间。</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">问：游戏UID和系统ID有什么区别？</div>
+        <div class="faq-a">答：<strong>游戏UID：</strong>游戏内用户名（包含字母，如"YOYO-123"）- 用于登录。<strong>系统ID：</strong>19位数字 - 仅注册时需要。</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">问：我忘记密码了，怎么重置？</div>
+        <div class="faq-a">答：门户不使用密码！每次只需用游戏UID登录即可。如果无法访问账户，请联系Discord的YoYo assistant💗Mochi。</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">问：CC（持续创作）奖励是什么？</div>
+        <div class="faq-a">答：如果你当月提交<strong>15+作品</strong>，会自动获得CC奖励：高级月卡 + 贝壳币x500 + 金币x1000！</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="footer-icon">💬</div>
+    <div class="footer-text">有问题需要帮助？</div>
+    <div class="footer-contact">在Discord联系 YoYo assistant💗Mochi</div>
+    <p style="margin-top: 16px; font-size: 12px; color: #bbb;">
+      YoYo Town 创作者门户 © 2026
+    </p>
+  </div>
+</div>
+
+</div>
+
+<script>
+function switchLang(lang) {
+  // Hide all content
+  document.querySelectorAll('.lang-content').forEach(function(el) {
+    el.classList.remove('active');
+  });
+
+  // Show selected language
+  document.getElementById('content-' + lang).classList.add('active');
+
+  // Update button states
+  document.querySelectorAll('.lang-btn').forEach(function(btn) {
+    btn.classList.remove('active');
+  });
+  event.target.classList.add('active');
+}
+</script>
+
+</body>
+</html>
