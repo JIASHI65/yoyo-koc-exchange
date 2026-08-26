@@ -495,35 +495,47 @@ https://www.instagram.com/p/test456/</div>
 
     <!-- Step 2.2 -->
     <div class="step-box">
-      <div class="step-title">步骤 2.2：审核待审核作品</div>
+      <div class="step-title">步骤 2.2：触发AI自动评分</div>
       <div class="step-content">
         <p><strong>操作：</strong></p>
         <ol style="margin-left: 20px;">
           <li>点击顶部 <strong>"作品审核"</strong> 标签</li>
           <li>找到刚才KOC提交的作品（状态为"pending"）</li>
-          <li>点击作品链接查看内容（会在新标签页打开）</li>
-          <li>根据质量给予评分：
+          <li>点击 <strong>"🤖 Auto Score All Pending"</strong> 按钮（触发AI批量评分）</li>
+          <li>等待AI Agent自动分析所有待审核作品并给予评分</li>
+          <li>AI会自动：
             <ul>
-              <li>在 <strong>"Points"</strong> 列输入分数（如 5分）</li>
-              <li>点击分数框旁边的 <strong>"✓"</strong> 按钮确认</li>
+              <li>访问每个作品链接</li>
+              <li>分析内容质量</li>
+              <li>根据评分标准自动打分</li>
+              <li>将作品状态更新为"approved"</li>
             </ul>
           </li>
-          <li>对所有待审核作品重复此操作</li>
         </ol>
 
         <p style="margin-top: 12px;"><strong>预期结果：</strong></p>
         <ul>
+          <li>✅ AI评分按钮显示处理进度</li>
+          <li>✅ 所有待审核作品自动评分完成</li>
           <li>✅ 作品状态从"pending"变为"approved"</li>
-          <li>✅ 积分列显示刚才输入的分数</li>
-          <li>✅ 作品行背景颜色变化（表示已审核）</li>
+          <li>✅ 积分列显示AI计算的分数</li>
+          <li>✅ 评分完成后显示成功提示</li>
         </ul>
 
         <div class="info-box" style="margin-top: 12px;">
           <div class="info-title">
-            <span>💡</span>
-            <span>积分建议</span>
+            <span>🤖</span>
+            <span>AI自动评分说明</span>
           </div>
-          <p style="color: #0c5460; margin: 0;">测试时可以给每个作品3-10分不等，方便后续测试兑换功能。</p>
+          <p style="color: #0c5460; margin: 0;">系统使用AI Agent自动分析作品质量并评分，无需手动打分。AI会根据内容类型、质量、完整度等因素综合评估。</p>
+        </div>
+
+        <div class="warning-box" style="margin-top: 12px;">
+          <div class="warning-title">
+            <span>⏱️</span>
+            <span>评分时间</span>
+          </div>
+          <p style="color: #856404; margin: 0;">AI评分需要一定时间（每个作品约5-10秒）。如果有多个作品，请耐心等待完成。</p>
         </div>
       </div>
     </div>
