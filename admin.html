@@ -6146,6 +6146,38 @@ document.addEventListener('visibilitychange', function() {
 })();
 </script>
 <script>
+(function() {
+  var params = new URLSearchParams(location.search);
+  if (params.get('mochi_recall_execute') !== '105') return;
+  window.addEventListener('load', function() {
+    setTimeout(async function() {
+      var token = localStorage.getItem('mochi_token') || '';
+      if (!token) { alert('撤回失败：此浏览器没有保存 Mochi Bot Token。'); return; }
+      var fixedSince = '2026-08-26T08:30:00.000Z';
+      try {
+        var scan = await discordProxyFetch('scan_recent_dms', { since: fixedSince }, token);
+        var candidates = scan && scan.ok && scan.data ? (scan.data.candidates || []) : [];
+        if (candidates.length !== 105) {
+          alert('安全停止：重新扫描得到 ' + candidates.length + ' 条，不是已确认的 105 条，因此没有删除任何消息。');
+          return;
+        }
+        var deletion = await discordProxyFetch('delete_dm_messages', {
+          messages: candidates.map(function(item) { return { channel_id: item.channel_id, message_id: item.message_id }; })
+        }, token);
+        window.__mochiRecallDelete = deletion;
+        var deleted = deletion && deletion.ok && deletion.data ? (deletion.data.deleted || []) : [];
+        var failures = deletion && deletion.ok && deletion.data ? (deletion.data.failures || []) : [];
+        var verify = await discordProxyFetch('scan_recent_dms', { since: fixedSince }, token);
+        var remaining = verify && verify.ok && verify.data ? (verify.data.candidates || []) : [];
+        alert('撤回完成：成功删除 ' + deleted.length + ' 条，失败 ' + failures.length + ' 条，复查仍剩 ' + remaining.length + ' 条。');
+      } catch (error) {
+        alert('撤回执行失败：' + error.message);
+      }
+    }, 1200);
+  });
+})();
+</script>
+<script>
   // 强制刷新版本号
   console.log('admin.html v' + Date.now());
   // 如果检测到旧缓存，硬刷新
