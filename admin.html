@@ -396,6 +396,14 @@
 
     <!-- ======== TAB: KOC信息库 ======== -->
     <div id="tab-koc-ledger" class="tab-content">
+      <div class="card" style="border:2px solid #ffcc80;background:#fffaf0;">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>🛡️ New Creator Applications <span id="registration-application-count" style="font-size:12px;color:#e65100;"></span></span>
+          <button class="btn btn-sm" onclick="loadRegistrationApplications()">🔄 Refresh</button>
+        </div>
+        <div style="font-size:12px;color:var(--text-light);margin-bottom:8px;">Applicants cannot log in, submit work, receive points, or receive a welcome gift until you approve them.</div>
+        <div id="registration-application-list"><div style="padding:12px;color:var(--text-light);">Loading applications...</div></div>
+      </div>
       <div class="card">
         <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
           <span>📋 KOC信息库 <span style="font-size:12px;color:var(--text-light);font-weight:normal;">— 所有板块的信息源，双击可编辑</span></span>
@@ -997,6 +1005,90 @@ function loadSortableJS() {
 let allKocs = [];
 let allOrders = [];
 let editingUid = null;
+let registrationApplications = [];
+
+async function registrationReviewFetch(action, data) {
+  var response = await supabaseFetch(SUPABASE_URL + '/functions/v1/registration-review', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + SUPABASE_KEY },
+    body: JSON.stringify({ action: action, data: data || {}, admin_password: ADMIN_PASSWORD })
+  });
+  var result = await response.json().catch(function() { return { ok: false, error: 'Invalid server response' }; });
+  if (!response.ok || !result.ok) throw new Error(result.error || ('HTTP ' + response.status));
+  return result;
+}
+
+async function loadRegistrationApplications() {
+  var root = document.getElementById('registration-application-list');
+  if (!root) return;
+  root.innerHTML = '<div style="padding:12px;color:var(--text-light);">Loading applications...</div>';
+  try {
+    var result = await registrationReviewFetch('list');
+    registrationApplications = result.applications || [];
+    renderRegistrationApplications();
+  } catch (error) {
+    root.innerHTML = '<div style="padding:12px;color:#c62828;">Unable to load applications: ' + esc(error.message) + '</div>';
+  }
+}
+
+function renderRegistrationApplications() {
+  var root = document.getElementById('registration-application-list');
+  if (!root) return;
+  var pending = registrationApplications.filter(function(application) { return application.status === 'pending'; });
+  var count = document.getElementById('registration-application-count');
+  if (count) count.textContent = pending.length ? '(' + pending.length + ' pending)' : '(0 pending)';
+  if (!pending.length) {
+    root.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-light);">No pending applications</div>';
+    return;
+  }
+  root.innerHTML = pending.map(function(application) {
+    var address = [application.address, application.city, application.state, application.postal_code, application.country].filter(Boolean).join(', ');
+    return '<div style="background:white;border:1px solid #ffe0b2;border-radius:10px;padding:12px;margin-bottom:8px;">' +
+      '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">' +
+        '<div><strong>' + esc(application.discord_name) + '</strong> · ' + esc(application.name) +
+        '<div style="font-size:12px;color:#666;margin-top:4px;"><strong>Game UID:</strong> ' + esc(application.uid) + ' · <strong>System ID:</strong> ' + esc(application.account_id) + ' · <strong>Server:</strong> ' + esc(application.server) + '</div>' +
+        '<div style="font-size:12px;color:#666;margin-top:3px;"><strong>Shipping:</strong> ' + esc(address) + ' · ' + esc(application.phone || '') + '</div>' +
+        '<div style="font-size:11px;color:#999;margin-top:3px;">Submitted: ' + esc(new Date(application.created_at).toLocaleString()) + '</div></div>' +
+        '<div style="display:flex;flex-direction:column;gap:6px;min-width:190px;">' +
+          '<label style="font-size:11px;display:flex;gap:4px;align-items:center;"><input type="checkbox" id="registration-gift-' + application.id + '"> Create welcome gift</label>' +
+          '<button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;" onclick="approveRegistrationApplication(' + application.id + ')">✅ Approve</button>' +
+          '<button class="btn btn-sm" style="background:#ffebee;color:#c62828;" onclick="rejectRegistrationApplication(' + application.id + ')">✖ Reject</button>' +
+        '</div>' +
+      '</div></div>';
+  }).join('');
+}
+
+async function approveRegistrationApplication(id) {
+  var application = registrationApplications.find(function(item) { return item.id === id; });
+  if (!application) return;
+  var createGift = Boolean(document.getElementById('registration-gift-' + id)?.checked);
+  if (!confirmDanger('Approve this creator application?', [
+    'Discord: ' + application.discord_name,
+    'Game UID: ' + application.uid,
+    'System ID: ' + application.account_id,
+    createGift ? 'A pending New Creator Welcome Gift will also be created.' : 'No welcome gift will be created.'
+  ])) return;
+  try {
+    await registrationReviewFetch('approve', { id: id, create_welcome_gift: createGift });
+    showToast('✅ Creator application approved', 'success');
+    writeAuditLog('koc', 'approved registration application #' + id + ' for ' + application.uid + (createGift ? ' + welcome gift' : ''));
+    await loadData();
+    await loadRegistrationApplications();
+  } catch (error) { showToast('Approval failed: ' + error.message, 'error'); }
+}
+
+async function rejectRegistrationApplication(id) {
+  var application = registrationApplications.find(function(item) { return item.id === id; });
+  if (!application) return;
+  var reason = prompt('Reason for rejection (saved for admin records):', 'Not approved');
+  if (reason === null) return;
+  try {
+    await registrationReviewFetch('reject', { id: id, review_notes: reason });
+    showToast('Application rejected', 'success');
+    writeAuditLog('koc', 'rejected registration application #' + id + ' for ' + application.uid);
+    await loadRegistrationApplications();
+  } catch (error) { showToast('Rejection failed: ' + error.message, 'error'); }
+}
 
 function supabaseFetch(url, opts = {}) {
   return fetch(url, { ...opts, headers: { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json', ...opts.headers } });
@@ -3383,6 +3475,7 @@ async function loadData() {
       supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?order=created_at.desc&limit=500&select=*')
     ]);
     allKocs = await kocRes.json();
+    loadRegistrationApplications();
     allOrders = await ordRes.json();
     // Re-render current active tab
     var tabIds = ['dashboard','koc-ledger','scoring','submissions','diamond','gplay','merch','tiers','rules','audit'];
