@@ -883,15 +883,15 @@ Elite: 连续 6 个月达到 5 分</textarea>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
         <div>
           <div style="font-size:13px;font-weight:700;color:#3347a8;">📬 Discord 新人自动欢迎</div>
-          <div style="font-size:11px;color:var(--text-light);margin-top:2px;">每 5 分钟检查 join-leave-log，只给尚未注册的新人发送欢迎私信。</div>
+          <div style="font-size:11px;color:var(--text-light);margin-top:2px;">开启时记录一个时间截面；之后每 5 分钟检查 join-leave-log，所有新入群账号都会收到欢迎私信。</div>
         </div>
         <button class="btn btn-sm" onclick="toggleAutoWelcome()" id="btn-auto-welcome" style="font-weight:700;min-width:112px;">⚪ 已关闭</button>
       </div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:8px;">
-        <button class="btn btn-sm btn-outline" onclick="checkLatestNewMember()">🔎 立即检查最新新人</button>
+        <button class="btn btn-sm btn-outline" onclick="checkLatestNewMember()">🔎 立即检查新入群记录</button>
         <span id="auto-welcome-status" style="font-size:11px;color:var(--text-light);">当前未运行</span>
       </div>
-      <div style="font-size:10px;color:#999;margin-top:6px;">需要先保存 Bot Token。自动检查仅在管理后台页面保持打开时运行。</div>
+      <div style="font-size:10px;color:#999;margin-top:6px;">不会补发给开启前已经在群里的人，也不检查是否注册。需要先保存 Bot Token；仅在管理后台页面保持打开时运行。</div>
     </div>
 
     <div style="font-size:13px;font-weight:600;margin:4px 0 4px;">✉️ 条件私信（按条件筛选 → 预览编辑 → 确认发送）</div>
@@ -3088,16 +3088,45 @@ async function startAutoWelcome(skipConfirmation) {
   }
   if (!skipConfirmation && !confirmDanger('开启 Discord 新人自动欢迎？', [
     'MochiBot 每 5 分钟检查一次新人入群记录。',
-    '尚未注册的新人会收到自动私信。',
+    '从本次开启的时间截面开始，之后所有新入群账号都会收到私信。',
+    '开启前已经在群里的成员和管理员不会补发。',
     '只有管理后台页面保持打开时才会运行。'
   ])) return;
 
-  await loadLastCheckedJoinId();
+  if (skipConfirmation) {
+    await loadLastCheckedJoinId();
+  } else {
+    var baselineData = await discordProxyFetch('list_channel_messages', {
+      channel_id: DISCORD_JOIN_LOG_CHANNEL_ID,
+      limit: 20
+    }, MOCHI_TOKEN);
+    if (!baselineData.ok) {
+      updateAutoWelcomeUi('开启失败：' + (baselineData.error || '读取入群频道失败'));
+      showToast('无法建立新人检查时间截面', 'error');
+      return;
+    }
+    var baselineMessages = baselineData.data || [];
+    var latestJoinId = null;
+    baselineMessages.forEach(function(message) {
+      (message.embeds || []).forEach(function(embed) {
+        if (String(embed.title || '').toLowerCase().indexOf('member joined') >= 0) {
+          if (!latestJoinId || message.id > latestJoinId) latestJoinId = message.id;
+        }
+      });
+    });
+    if (!latestJoinId) {
+      updateAutoWelcomeUi('开启失败：最近消息中没有入群记录');
+      showToast('无法建立时间截面：未找到 Member joined 记录', 'error');
+      return;
+    }
+    lastCheckedJoinId = latestJoinId;
+    await saveLastCheckedJoinId();
+  }
   if (autoWelcomeInterval) clearInterval(autoWelcomeInterval);
-  autoWelcomeInterval = setInterval(function() { checkNewMembers(false); }, 5 * 60 * 1000);
+  autoWelcomeInterval = setInterval(checkNewMembers, 5 * 60 * 1000);
   localStorage.setItem('mochi_auto_welcome', 'on');
-  updateAutoWelcomeUi('运行中 · 正在立即检查');
-  await checkNewMembers(false);
+  updateAutoWelcomeUi(skipConfirmation ? '运行中 · 正在恢复检查' : '已开启 · 时间截面已记录，等待新成员');
+  if (skipConfirmation) await checkNewMembers();
 }
 
 async function toggleAutoWelcome() {
@@ -3120,11 +3149,16 @@ async function checkLatestNewMember() {
     showToast('请先保存 Bot Token', 'error');
     return;
   }
+  if (!autoWelcomeInterval) {
+    updateAutoWelcomeUi('请先开启自动欢迎，建立时间截面');
+    showToast('请先开启自动欢迎', 'error');
+    return;
+  }
   await loadLastCheckedJoinId();
-  await checkNewMembers(true);
+  await checkNewMembers();
 }
 
-async function checkNewMembers(retryLatest) {
+async function checkNewMembers() {
   updateAutoWelcomeUi('正在检查 Discord 新人…');
   try {
     var messageData = await discordProxyFetch('list_channel_messages', {
@@ -3146,36 +3180,27 @@ async function checkNewMembers(retryLatest) {
     }
     if (!joinEvents.length) throw new Error('频道最近 20 条消息里没有找到 “Member joined” 记录');
 
-    if (!retryLatest && !lastCheckedJoinId) {
+    if (!lastCheckedJoinId) {
       lastCheckedJoinId = joinEvents[joinEvents.length - 1].message.id;
       await saveLastCheckedJoinId();
-      updateAutoWelcomeUi('已开启 · 等待下一位新人（测试可点“立即检查最新新人”）');
+      updateAutoWelcomeUi('时间截面已建立 · 等待下一位新人');
       return;
     }
 
-    var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=discord_name');
-    var kocRows = await kocRes.json();
-    var registeredNames = new Set((Array.isArray(kocRows) ? kocRows : []).map(function(row) {
-      return String(row.discord_name || '').trim().toLowerCase();
-    }));
     var sent = 0;
-    var skipped = 0;
     var failed = 0;
-    var candidates = retryLatest ? [joinEvents[joinEvents.length - 1]] : joinEvents;
+    var candidates = joinEvents;
 
     for (var eventIndex = 0; eventIndex < candidates.length; eventIndex++) {
       var event = candidates[eventIndex];
       var msgId = event.message.id;
-      if (!retryLatest && lastCheckedJoinId && msgId <= lastCheckedJoinId) continue;
+      if (lastCheckedJoinId && msgId <= lastCheckedJoinId) continue;
 
       var desc = event.embed.description || '';
       var idMatch = desc.match(/<@!?(\d+)>/);
       var discordId = idMatch ? idMatch[1] : null;
-      var name = (event.embed.author && event.embed.author.name) || 'Unknown';
       if (!discordId) {
         failed++;
-      } else if (registeredNames.has(String(name).trim().toLowerCase())) {
-        skipped++;
       } else {
         var now = new Date();
         var nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -3188,7 +3213,7 @@ async function checkNewMembers(retryLatest) {
     }
 
     await saveLastCheckedJoinId();
-    var resultText = '检查完成：发送 ' + sent + '，已注册跳过 ' + skipped + '，失败 ' + failed;
+    var resultText = '检查完成：新入群 ' + (sent + failed) + '，发送 ' + sent + '，失败 ' + failed;
     updateAutoWelcomeUi(resultText);
     showToast((failed ? '⚠️ ' : '✅ ') + resultText, failed ? 'error' : 'success');
   } catch(e) {
