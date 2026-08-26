@@ -6128,6 +6128,24 @@ document.addEventListener('visibilitychange', function() {
 });
 </script>
 <script>
+(function() {
+  if (new URLSearchParams(location.search).get('mochi_recall_scan') !== '1') return;
+  window.addEventListener('load', function() {
+    setTimeout(async function() {
+      var token = localStorage.getItem('mochi_token') || '';
+      if (!token) { alert('撤回扫描失败：此浏览器没有保存 Mochi Bot Token。'); return; }
+      try {
+        var result = await discordProxyFetch('scan_recent_dms', { since: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString() }, token);
+        window.__mochiRecallScan = result;
+        var candidates = result && result.ok && result.data ? (result.data.candidates || []) : [];
+        var lines = candidates.map(function(item) { return item.username + '｜' + item.timestamp + '｜' + item.preview.replace(/\n/g, ' '); });
+        prompt('只读扫描完成：找到 ' + candidates.length + ' 条最近系统私信。尚未删除。复制下面结果：', lines.join('\n'));
+      } catch (error) { alert('撤回扫描失败：' + error.message); }
+    }, 1000);
+  });
+})();
+</script>
+<script>
   // 强制刷新版本号
   console.log('admin.html v' + Date.now());
   // 如果检测到旧缓存，硬刷新
