@@ -206,7 +206,7 @@ serve(async (req) => {
             const sentAt = new Date(message.timestamp);
             const content = String(message.content || "");
             const isMochiSystemMessage = content.includes("MochiBot only sends system notifications") ||
-              content.includes("jiashi65.github.io/yoyo-koc-exchange/index.html");
+              content.includes("yoyo-koc-exchange/index.html");
             if (message.author?.id === botUser.id && sentAt >= since && isMochiSystemMessage) {
               candidates.push({
                 channel_id: dm.id,

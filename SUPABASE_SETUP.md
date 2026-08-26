@@ -11,7 +11,7 @@ Supabase 免费计划会在 7 天不活跃后自动暂停项目。
 ### 1. 添加 GitHub Secrets
 
 进入你的 GitHub 仓库：
-https://github.com/jiashi65/yoyo-koc-exchange/settings/secrets/actions
+https://github.com/yoyo-creative-studio/yoyo-koc-exchange/settings/secrets/actions
 
 点击 **New repository secret**，添加以下两个 secrets：
 

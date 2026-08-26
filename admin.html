@@ -2868,10 +2868,10 @@ async function previewBroadcast(type) {
 
     // Type-specific messages
     var msgs = {
-      'welcome': '🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\n📅 下个月将是你首个新人活动月！\n在下个月内投稿满 5 积分，即可额外获得 +2 积分 🎯\n\n📝 请先完成注册：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n点击 "I\'m a New Creator" 填写信息\n\n完成注册后即可开始投稿！',
-      'reminder': '📥 Reminder! 作品收集已开启\n\n请在 **下个月5号前** 提交所有作品链接：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\n只有通过表单提交的链接才计入积分！',
-      'scored': '✅ Your monthly creator score is ready!\n\nYour submitted works have been reviewed and your points have been added to the KOC Creator Portal. Log in to view your score summary and redeem your rewards:\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\nReward options:\n• 1 Point = 450 Diamonds\n• 2 Points = $10 Google Play Gift Card\n• 5 Points = 3 Random Merchandise Items',
-      'tier_upgrade': '⭐ 恭喜晋升！\n\n你的创作者等级已提升！查看最新等级和权益：\n👉 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n\n继续创作，冲击下一级！💎'
+      'welcome': '🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\n📅 下个月将是你首个新人活动月！\n在下个月内投稿满 5 积分，即可额外获得 +2 积分 🎯\n\n📝 请先完成注册：\n👉 https://yoyo-creative-studio.github.io/yoyo-koc-exchange/index.html\n点击 "I\'m a New Creator" 填写信息\n\n完成注册后即可开始投稿！',
+      'reminder': '📥 Reminder! 作品收集已开启\n\n请在 **下个月5号前** 提交所有作品链接：\n👉 https://yoyo-creative-studio.github.io/yoyo-koc-exchange/index.html\n\n只有通过表单提交的链接才计入积分！',
+      'scored': '✅ Your monthly creator score is ready!\n\nYour submitted works have been reviewed and your points have been added to the KOC Creator Portal. Log in to view your score summary and redeem your rewards:\n👉 https://yoyo-creative-studio.github.io/yoyo-koc-exchange/index.html\n\nReward options:\n• 1 Point = 450 Diamonds\n• 2 Points = $10 Google Play Gift Card\n• 5 Points = 3 Random Merchandise Items',
+      'tier_upgrade': '⭐ 恭喜晋升！\n\n你的创作者等级已提升！查看最新等级和权益：\n👉 https://yoyo-creative-studio.github.io/yoyo-koc-exchange/index.html\n\n继续创作，冲击下一级！💎'
     };
     msg = msgs[type] || msgs['welcome'];
 
@@ -3314,7 +3314,7 @@ async function checkNewMembers() {
         var now = new Date();
         var nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
         var newbieMonthLabel = nextMonth.getFullYear() + '年' + (nextMonth.getMonth() + 1) + '月';
-        var welcomeMsg = mochiSupportFooter('🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\n📅 **' + newbieMonthLabel + ' 将是你首个新人活动月！**\n在 ' + newbieMonthLabel + ' 内投稿满 5 积分，即可额外获得 **+2 积分** 🎯\n\n📝 **现在请先完成注册：**\n1️⃣ 打开 https://jiashi65.github.io/yoyo-koc-exchange/index.html\n2️⃣ 点击 "I\'m a New Creator"\n3️⃣ 填写信息：Account ID / Game UID / 姓名 / 服务器(正式服/灯塔服) / 完整收货地址+电话\n\n完成注册后即可开始投稿。\n\n📌 **投稿提醒：**\n• 把作品链接粘贴到 Submit Works\n• 每条链接一行，确保公开可见并带上 #myleisuretime\n• ' + newbieMonthLabel + ' 整月投稿达到 5 分，额外 +2 分！');
+        var welcomeMsg = mochiSupportFooter('🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\n📅 **' + newbieMonthLabel + ' 将是你首个新人活动月！**\n在 ' + newbieMonthLabel + ' 内投稿满 5 积分，即可额外获得 **+2 积分** 🎯\n\n📝 **现在请先完成注册：**\n1️⃣ 打开 https://yoyo-creative-studio.github.io/yoyo-koc-exchange/index.html\n2️⃣ 点击 "I\'m a New Creator"\n3️⃣ 填写信息：Account ID / Game UID / 姓名 / 服务器(正式服/灯塔服) / 完整收货地址+电话\n\n完成注册后即可开始投稿。\n\n📌 **投稿提醒：**\n• 把作品链接粘贴到 Submit Works\n• 每条链接一行，确保公开可见并带上 #myleisuretime\n• ' + newbieMonthLabel + ' 整月投稿达到 5 分，额外 +2 分！');
         var dmData = await discordProxyFetch('send_dm', { user_id: discordId, message: welcomeMsg }, MOCHI_TOKEN);
         if (dmData.ok) sent++; else failed++;
       }
