@@ -211,12 +211,15 @@
 <script>
 // ===== 缓存熔断 =====
 (function() {
-  var VERSION = 'v2.2.0';
+  var VERSION = 'v2.2.1';
   var cached = localStorage.getItem('admin_version');
   if (cached && cached !== VERSION) {
-    // 发现旧缓存，强制清除并刷新
-    localStorage.clear();
-    location.reload(true);
+    // 只清理页面缓存，保留 Bot Token、登录状态和运营设置
+    Object.keys(localStorage).forEach(function(key) {
+      if (key.indexOf('dash_cache_') === 0 || key.indexOf('dash_detail_') === 0 || key.indexOf('dash_summary_') === 0) {
+        localStorage.removeItem(key);
+      }
+    });
   }
   localStorage.setItem('admin_version', VERSION);
 })();
@@ -916,12 +919,12 @@ Elite: 连续 6 个月达到 5 分</textarea>
     <!-- 预览/编辑区 -->
     <div id="broadcast-preview-area" style="display:none;background:white;border:2px solid #5865F2;border-radius:12px;padding:12px;margin-top:4px;margin-bottom:8px;">
       <div style="font-size:13px;font-weight:700;margin-bottom:6px;">📋 发送预览</div>
-      <div style="display:flex;gap:4px;margin-bottom:4px;align-items:center;">
-        <input type="text" id="broadcast-search" style="flex:1;font-size:11px;padding:4px 6px;" placeholder="🔍 按 Discord / UID 筛选..." oninput="filterBroadcastList()">
+      <div style="display:grid;grid-template-columns:minmax(180px,1fr) auto;gap:6px;margin-bottom:6px;align-items:center;">
+        <input type="search" id="broadcast-search" style="width:100%;min-width:0;font-size:12px;padding:7px 9px;border:1px solid #b8bce8;border-radius:7px;background:#fff;" placeholder="🔍 搜索 Discord 昵称 / Game UID" oninput="filterBroadcastList()">
         <label style="font-size:11px;display:flex;align-items:center;gap:2px;white-space:nowrap;">
           <input type="checkbox" id="broadcast-select-all" onchange="toggleSelectAll()"> 全选
         </label>
-        <select id="broadcast-filter-mode" onchange="filterBroadcastList()" style="font-size:11px;padding:3px 4px;border:1px solid #ddd;border-radius:4px;">
+        <select id="broadcast-filter-mode" onchange="filterBroadcastList()" style="grid-column:1 / -1;width:100%;font-size:11px;padding:5px 6px;border:1px solid #ddd;border-radius:6px;">
           <option value="checked_first">✅ 勾选的在前</option>
           <option value="checked_only">✅ 只看勾选的</option>
           <option value="unchecked_only">⬜ 只看未勾选</option>
@@ -931,7 +934,7 @@ Elite: 连续 6 个月达到 5 分</textarea>
       <div style="font-size:12px;color:var(--text-light);margin-bottom:4px;">
         收件人: <strong id="broadcast-target-count">0</strong> 人
       </div>
-      <div id="broadcast-target-list" style="max-height:120px;overflow-y:auto;background:#f5f5f5;border:1px solid #eee;border-radius:6px;padding:6px;margin-bottom:6px;font-size:11px;font-family:monospace;"></div>
+      <div id="broadcast-target-list" style="max-height:260px;overflow-y:auto;background:#f5f5f5;border:1px solid #eee;border-radius:6px;padding:6px;margin-bottom:6px;font-size:11px;font-family:monospace;"></div>
       <div style="display:flex;gap:4px;margin-bottom:6px;">
         <button class="btn btn-sm" style="background:#f5f5f5;font-size:11px;padding:4px 6px;" onclick="addBroadcastTarget()">➕ 添加</button>
         <button class="btn btn-sm" style="background:#ffebee;font-size:11px;padding:4px 6px;color:#e74c3c;" onclick="removeBroadcastTarget()">➖ 移除勾选的</button>
@@ -1484,39 +1487,41 @@ function updateAgentRulesFromConfig() {
 
 // ===== MOCHI DISCORD BOT FUNCTIONS =====
 // Send a DM to a user by their Discord username (resolves member first)
-async function sendMochiDM(discordUsername, message) {
-  if (!discordUsername) return { ok: false, reason: '空用户名' };
+async function sendMochiDM(discordUsername, message, discordId) {
+  if (!discordUsername && !discordId) return { ok: false, reason: '缺少 Discord 用户' };
   if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
   try {
-    // Step 1: 通过 Edge Function 获取所有成员
-    var memberData = await discordProxyFetch('list_all_members', {}, MOCHI_TOKEN);
-    if (!memberData.ok) return { ok: false, reason: memberData.error || '获取成员失败' };
-    var members = (memberData.data && memberData.data.members) || [];
-
-    // Normalize: strip emoji/special chars, lowercase, trim
-    function norm(n) {
-      if (!n) return '';
-      return n.replace(/[^\w\- ]/g, '').trim().toLowerCase();
-    }
-    var targetNorm = norm(discordUsername);
-
-    // Try exact match first (username, nick, global_name)
-    var member = null;
-    members.forEach(function(m) {
-      if (norm(m.username) === targetNorm || norm(m.nick) === targetNorm || norm(m.global_name) === targetNorm) {
-        member = m;
-      }
-    });
-    // Fallback: substring match
+    var member = discordId ? { id: discordId } : null;
     if (!member) {
+      // 兼容手动添加和 CSV：没有 Discord ID 时才按昵称查找
+      var memberData = await discordProxyFetch('list_all_members', {}, MOCHI_TOKEN);
+      if (!memberData.ok) return { ok: false, reason: memberData.error || '获取成员失败' };
+      var members = (memberData.data && memberData.data.members) || [];
+
+      // Normalize: strip emoji/special chars, lowercase, trim
+      function norm(n) {
+        if (!n) return '';
+        return n.replace(/[^\w\- ]/g, '').trim().toLowerCase();
+      }
+      var targetNorm = norm(discordUsername);
+
+      // Try exact match first (username, nick, global_name)
       members.forEach(function(m) {
-        var un = norm(m.username);
-        var nick = norm(m.nick);
-        var gn = norm(m.global_name);
-        if ((un && un.indexOf(targetNorm) >= 0) || (nick && nick.indexOf(targetNorm) >= 0) || (gn && gn.indexOf(targetNorm) >= 0)) {
+        if (norm(m.username) === targetNorm || norm(m.nick) === targetNorm || norm(m.global_name) === targetNorm) {
           member = m;
         }
       });
+      // Fallback: substring match
+      if (!member) {
+        members.forEach(function(m) {
+          var un = norm(m.username);
+          var nick = norm(m.nick);
+          var gn = norm(m.global_name);
+          if ((un && un.indexOf(targetNorm) >= 0) || (nick && nick.indexOf(targetNorm) >= 0) || (gn && gn.indexOf(targetNorm) >= 0)) {
+            member = m;
+          }
+        });
+      }
     }
     if (!member) {
       return { ok: false, reason: '在服务器中未找到用户: ' + discordUsername };
@@ -2967,7 +2972,9 @@ async function previewBroadcast(type) {
     if (dbg) { dbg.style.display = 'block'; dbg.textContent = 'Error: ' + errMsg + '\n' + errStack; }
     console.error('previewBroadcast error:', e, e.stack);
   }
-}function renderBroadcastPreview(targets, msg) {
+}
+
+function renderBroadcastPreview(targets, msg) {
   var area = document.getElementById('broadcast-preview-area');
   var checkedCount = 0;
   targets.forEach(function(t) { if (t.checked) checkedCount++; });
@@ -2975,6 +2982,8 @@ async function previewBroadcast(type) {
   document.getElementById('broadcast-msg-editor').value = msg;
   // Store full list for filtering
   window._bcTargets = targets;
+  var search = document.getElementById('broadcast-search');
+  if (search) search.value = '';
   filterBroadcastList();
   area.style.display = 'block';
 }
@@ -2994,8 +3003,8 @@ function filterBroadcastList() {
     if (mode === 'checked_only' && !t.checked) return;
     if (mode === 'unchecked_only' && t.checked) return;
     filteredCount++;
-    html += '<div style="display:grid;grid-template-columns:24px 1fr auto;gap:4px;align-items:center;padding:2px 4px;font-size:12px;' + (t.checked ? '' : 'opacity:0.5;') + '">';
-    html += '<input type="checkbox" class="bc-target-cb" data-index="' + i + '" ' + (t.checked ? 'checked' : '') + '>';
+    html += '<div class="bc-target-row" data-index="' + i + '" style="display:grid;grid-template-columns:24px 1fr auto;gap:4px;align-items:center;padding:5px 4px;font-size:12px;' + (t.checked ? '' : 'opacity:0.5;') + '">';
+    html += '<input type="checkbox" class="bc-target-cb" data-index="' + i + '" onchange="setBroadcastTargetChecked(' + i + ', this.checked)" ' + (t.checked ? 'checked' : '') + '>';
     html += '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(t.discord_name) + (t.uid ? ' <span style="color:#999;">(' + esc(t.uid) + ')</span>' : '') + '</span>';
     html += t.reason ? '<span style="color:#e65100;font-size:11px;text-align:right;white-space:nowrap;">' + esc(t.reason) + '</span>' : '<span></span>';
     html += '</div>';
@@ -3006,6 +3015,28 @@ function filterBroadcastList() {
     else countEl.textContent = targets.length + ' 人（已选 ' + totalChecked + ' 人）';
   }
   listEl.innerHTML = html || '<div style="color:#999;padding:4px;">没有匹配的收件人</div>';
+  syncBroadcastSelectAll();
+}
+
+function setBroadcastTargetChecked(index, checked) {
+  var targets = window._bcTargets || [];
+  if (!targets[index]) return;
+  targets[index].checked = checked;
+  var row = document.querySelector('.bc-target-row[data-index="' + index + '"]');
+  if (row) row.style.opacity = checked ? '1' : '0.5';
+  var totalChecked = targets.filter(function(t) { return t.checked; }).length;
+  var countEl = document.getElementById('broadcast-target-count');
+  if (countEl) countEl.textContent = targets.length + ' 人（已选 ' + totalChecked + ' 人）';
+  syncBroadcastSelectAll();
+}
+
+function syncBroadcastSelectAll() {
+  var targets = window._bcTargets || [];
+  var selectAll = document.getElementById('broadcast-select-all');
+  if (!selectAll) return;
+  var checkedCount = targets.filter(function(t) { return t.checked; }).length;
+  selectAll.checked = targets.length > 0 && checkedCount === targets.length;
+  selectAll.indeterminate = checkedCount > 0 && checkedCount < targets.length;
 }
 
 function toggleSelectAll() {
@@ -3065,14 +3096,7 @@ async function confirmBroadcast() {
   var msg = mochiSupportFooter(document.getElementById('broadcast-msg-editor').value.trim());
   if (!msg) { showToast('消息不能为空', 'error'); return; }
 
-  var cbs = document.querySelectorAll('.bc-target-cb');
-  var targets = [];
-  cbs.forEach(function(cb) {
-    var i = parseInt(cb.getAttribute('data-index'));
-    if (cb.checked && mochiBroadcastTargets[i]) {
-      targets.push(mochiBroadcastTargets[i]);
-    }
-  });
+  var targets = (mochiBroadcastTargets || []).filter(function(target) { return target.checked; });
 
   if (targets.length === 0) { showToast('没有勾选收件人', 'error'); return; }
   if (!confirmDanger('Send Mochi DMs now?', [
@@ -3089,7 +3113,7 @@ async function confirmBroadcast() {
   var failed = 0;
   var failedDetails = [];
   for (var i = 0; i < targets.length; i++) {
-    var result = await sendMochiDM(targets[i].discord_name, msg);
+    var result = await sendMochiDM(targets[i].discord_name, msg, targets[i].discord_id);
     if (result.ok) { sent++; } else { failed++; failedDetails.push(targets[i].discord_name + ': ' + result.reason); }
     statusEl.textContent = '⏳ 进度: ' + (i+1) + '/' + targets.length + ' (成功' + sent + ', 失败' + failed + ')';
     if (i < targets.length - 1) await new Promise(r => setTimeout(r, 15000));
