@@ -1050,7 +1050,7 @@ function renderRegistrationApplications() {
         '<div style="font-size:12px;color:#666;margin-top:3px;"><strong>Shipping:</strong> ' + esc(address) + ' · ' + esc(application.phone || '') + '</div>' +
         '<div style="font-size:11px;color:#999;margin-top:3px;">Submitted: ' + esc(new Date(application.created_at).toLocaleString()) + '</div></div>' +
         '<div style="display:flex;flex-direction:column;gap:6px;min-width:190px;">' +
-          '<label style="font-size:11px;display:flex;gap:4px;align-items:center;"><input type="checkbox" id="registration-gift-' + application.id + '"> Create welcome gift</label>' +
+          '<div style="font-size:11px;color:#2e7d32;">🎁 Welcome gift will be created automatically</div>' +
           '<button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;" onclick="approveRegistrationApplication(' + application.id + ')">✅ Approve</button>' +
           '<button class="btn btn-sm" style="background:#ffebee;color:#c62828;" onclick="rejectRegistrationApplication(' + application.id + ')">✖ Reject</button>' +
         '</div>' +
@@ -1061,17 +1061,16 @@ function renderRegistrationApplications() {
 async function approveRegistrationApplication(id) {
   var application = registrationApplications.find(function(item) { return item.id === id; });
   if (!application) return;
-  var createGift = Boolean(document.getElementById('registration-gift-' + id)?.checked);
   if (!confirmDanger('Approve this creator application?', [
     'Discord: ' + application.discord_name,
     'Game UID: ' + application.uid,
     'System ID: ' + application.account_id,
-    createGift ? 'A pending New Creator Welcome Gift will also be created.' : 'No welcome gift will be created.'
+    'A pending New Creator Welcome Gift will be created automatically.'
   ])) return;
   try {
-    await registrationReviewFetch('approve', { id: id, create_welcome_gift: createGift });
+    await registrationReviewFetch('approve', { id: id });
     showToast('✅ Creator application approved', 'success');
-    writeAuditLog('koc', 'approved registration application #' + id + ' for ' + application.uid + (createGift ? ' + welcome gift' : ''));
+    writeAuditLog('koc', 'approved registration application #' + id + ' for ' + application.uid + ' + welcome gift');
     await loadData();
     await loadRegistrationApplications();
   } catch (error) { showToast('Approval failed: ' + error.message, 'error'); }

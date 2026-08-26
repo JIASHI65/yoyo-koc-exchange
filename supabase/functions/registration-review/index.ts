@@ -79,7 +79,6 @@ serve(async (req) => {
 
     if (action === "approve") {
       const applicationId = Number(data.id);
-      const createWelcomeGift = data.create_welcome_gift === true;
       const { data: application, error: loadError } = await db.from("registration_applications")
         .select("*").eq("id", applicationId).single();
       if (loadError || !application) return json({ ok: false, error: "Application not found" }, 404);
@@ -103,23 +102,24 @@ serve(async (req) => {
       });
       if (insertError) return json({ ok: false, error: `Unable to create creator account: ${insertError.message}` }, 400);
 
-      if (createWelcomeGift) {
-        const period = new Date().toISOString().slice(0, 7);
-        const { error: giftError } = await db.from("redemption_orders").insert({
-          uid: application.uid,
-          discord_name: application.discord_name,
-          koc_name: application.name,
-          option_type: "merch",
-          option_name: "🎁 New Creator Welcome Gift",
-          points_spent: 0,
-          reward_amount: "Random Merchandise × 1",
-          contact_info: "",
-          status: "pending",
-          admin_notes: "Welcome gift - created on registration approval",
-          period,
-          created_at: new Date().toISOString(),
-        });
-        if (giftError) console.error("Welcome gift creation failed", giftError);
+      const period = new Date().toISOString().slice(0, 7);
+      const { error: giftError } = await db.from("redemption_orders").insert({
+        uid: application.uid,
+        discord_name: application.discord_name,
+        koc_name: application.name,
+        option_type: "merch",
+        option_name: "🎁 New Creator Welcome Gift",
+        points_spent: 0,
+        reward_amount: "Random Merchandise × 1",
+        contact_info: "",
+        status: "pending",
+        admin_notes: "Welcome gift - created automatically on registration approval",
+        period,
+        created_at: new Date().toISOString(),
+      });
+      if (giftError) {
+        await db.from("kocs").delete().eq("uid", application.uid);
+        return json({ ok: false, error: `Unable to create mandatory welcome gift: ${giftError.message}` }, 400);
       }
 
       const { error: updateError } = await db.from("registration_applications").update({
