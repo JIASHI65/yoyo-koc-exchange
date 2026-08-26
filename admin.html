@@ -6133,31 +6133,7 @@ document.addEventListener('visibilitychange', function() {
   }
 });
 </script>
-<script>
-(function() {
-  if (new URLSearchParams(location.search).get('mochi_emergency_recall') !== '1') return;
-  window.addEventListener('load', function() {
-    setTimeout(async function() {
-      var token = localStorage.getItem('mochi_token') || '';
-      if (!token) { alert('紧急撤回失败：此浏览器没有保存 Mochi Bot Token。'); return; }
-      var since = '2026-08-26T10:20:00.000Z';
-      try {
-        var scan = await discordProxyFetch('scan_recent_dms', { since: since }, token);
-        var candidates = scan && scan.ok && scan.data ? (scan.data.candidates || []) : [];
-        if (!candidates.length) { alert('紧急复查完成：没有找到新的 MochiBot 系统私信。'); return; }
-        var deletion = await discordProxyFetch('delete_dm_messages', {
-          messages: candidates.map(function(item) { return { channel_id: item.channel_id, message_id: item.message_id }; })
-        }, token);
-        var deleted = deletion && deletion.ok && deletion.data ? (deletion.data.deleted || []) : [];
-        var failures = deletion && deletion.ok && deletion.data ? (deletion.data.failures || []) : [];
-        var verify = await discordProxyFetch('scan_recent_dms', { since: since }, token);
-        var remaining = verify && verify.ok && verify.data ? (verify.data.candidates || []) : [];
-        alert('紧急撤回完成：找到 ' + candidates.length + ' 条，成功删除 ' + deleted.length + ' 条，失败 ' + failures.length + ' 条，复查剩余 ' + remaining.length + ' 条。');
-      } catch (error) { alert('紧急撤回失败：' + error.message); }
-    }, 1000);
-  });
-})();
-</script>
+
 <script>
   // 强制刷新版本号
   console.log('admin.html v' + Date.now());
