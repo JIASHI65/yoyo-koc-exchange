@@ -130,6 +130,11 @@ serve(async (req) => {
 
       // 发送私信给用户
       case "send_dm": {
+        return new Response(JSON.stringify({
+          ok: false,
+          error: "MochiBot 发送功能已紧急停用，当前不会发送任何私信",
+        }), { status: 503, headers });
+        /* emergency-disabled
         const { user_id, message } = data;
         // 1. 创建 DM 频道
         const dmRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
@@ -158,6 +163,7 @@ serve(async (req) => {
         }
         result = { ok: true, message_id: JSON.parse(msgBody).id };
         break;
+        */
       }
 
       // 扫描 Bot 在指定时间后发送的系统私信，只读，不删除
