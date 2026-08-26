@@ -32,6 +32,62 @@ serve(async (req) => {
     let result;
 
     switch (action) {
+      // 获取 Bot 实际加入的服务器
+      case "list_guilds": {
+        const res = await fetch(`${DISCORD_API}/users/@me/guilds`, { headers: authHeaders });
+        const body = await res.text();
+        if (!res.ok) {
+          return new Response(JSON.stringify({ ok: false, error: `获取 Bot 服务器列表失败: ${res.status} ${body}` }), {
+            status: res.status, headers,
+          });
+        }
+        result = JSON.parse(body).map((guild: any) => ({ id: guild.id, name: guild.name }));
+        break;
+      }
+
+      // 从 Bot 实际可访问的所有服务器拉取成员，避免前端写死错误 Guild ID
+      case "list_all_members": {
+        const guildRes = await fetch(`${DISCORD_API}/users/@me/guilds`, { headers: authHeaders });
+        const guildBody = await guildRes.text();
+        if (!guildRes.ok) {
+          return new Response(JSON.stringify({ ok: false, error: `获取 Bot 服务器列表失败: ${guildRes.status} ${guildBody}` }), {
+            status: guildRes.status, headers,
+          });
+        }
+        const guilds = JSON.parse(guildBody);
+        const memberMap = new Map<string, any>();
+        const failures: string[] = [];
+        for (const guild of guilds) {
+          const memberRes = await fetch(`${DISCORD_API}/guilds/${guild.id}/members?limit=1000`, { headers: authHeaders });
+          const memberBody = await memberRes.text();
+          if (!memberRes.ok) {
+            failures.push(`${guild.name} (${guild.id}): ${memberRes.status}`);
+            continue;
+          }
+          for (const member of JSON.parse(memberBody)) {
+            memberMap.set(member.user.id, {
+              id: member.user.id,
+              username: member.user.username,
+              global_name: member.user.global_name || "",
+              nick: member.nick || "",
+              avatar: member.user.avatar,
+              guild_id: guild.id,
+              guild_name: guild.name,
+            });
+          }
+        }
+        if (memberMap.size === 0) {
+          return new Response(JSON.stringify({
+            ok: false,
+            error: guilds.length === 0
+              ? "MochiBot 尚未加入任何 Discord 服务器"
+              : `MochiBot 无法读取服务器成员。请在 Discord Developer Portal 开启 Server Members Intent，并确认 Bot 仍在服务器中。${failures.length ? ` 失败: ${failures.join(", ")}` : ""}`,
+          }), { status: 403, headers });
+        }
+        result = { members: Array.from(memberMap.values()), guilds: guilds.map((guild: any) => ({ id: guild.id, name: guild.name })), failures };
+        break;
+      }
+
       // 获取服务器所有成员
       case "list_members": {
         const { guild_id } = data;

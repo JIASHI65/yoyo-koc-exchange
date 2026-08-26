@@ -1489,9 +1489,9 @@ async function sendMochiDM(discordUsername, message) {
   if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
   try {
     // Step 1: 通过 Edge Function 获取所有成员
-    var memberData = await discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN);
+    var memberData = await discordProxyFetch('list_all_members', {}, MOCHI_TOKEN);
     if (!memberData.ok) return { ok: false, reason: memberData.error || '获取成员失败' };
-    var members = memberData.data;
+    var members = (memberData.data && memberData.data.members) || [];
 
     // Normalize: strip emoji/special chars, lowercase, trim
     function norm(n) {
@@ -2816,13 +2816,13 @@ async function previewBroadcast(type) {
 
   try {
     // Step 1: 从 Discord 获取所有成员
-    var memberData = await discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN);
+    var memberData = await discordProxyFetch('list_all_members', {}, MOCHI_TOKEN);
     if (!memberData.ok) {
       showToast('API返回错误: ' + JSON.stringify(memberData), 'error');
       console.error('previewBroadcast memberData:', memberData);
       return;
     }
-    var allMembers = memberData.data || [];
+    var allMembers = (memberData.data && memberData.data.members) || [];
     // Filter out bots
     allMembers = allMembers.filter(function(m) {
       return m && m.username && !m.username.toLowerCase().includes('bot');
@@ -4092,12 +4092,12 @@ async function loadCommunityReport() {
 
   try {
     // Step 1: Fetch Discord members
-    var memberRes = await discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN);
+    var memberRes = await discordProxyFetch('list_all_members', {}, MOCHI_TOKEN);
     if (!memberRes.ok) {
       console.log('获取成员失败: ' + JSON.stringify(memberRes.error||memberRes));
       return;
     }
-    var members = memberRes.data || [];
+    var members = (memberRes.data && memberRes.data.members) || [];
     members = members.filter(function(m) { return m && m.username && !m.username.toLowerCase().includes('bot'); });
 
     // Step 2: Fetch all Supabase data
