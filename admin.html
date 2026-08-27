@@ -568,10 +568,9 @@
       <div class="card">
         <div class="card-title">📐 积分规则配置</div>
         <div class="row">
-          <label>活动周期</label>
-          <select id="cfg-period" onchange="changeConfigPeriod()" style="width:200px;">
-            <!-- 自动加载上个月到未来12个月 -->
-          </select>
+          <label>当前工作月份</label>
+          <div id="cfg-period-display" style="padding:9px 12px;background:#fce4ec;border:1.5px solid var(--pink);border-radius:8px;font-weight:700;color:var(--pink-dark);"></div>
+          <input type="hidden" id="cfg-period">
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div>
@@ -1339,33 +1338,8 @@ async function loadSettleMonthDropdown() {
 }
 
 async function loadAllPeriods() {
-  try {
-    // 从数据库加载期号
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?select=period&order=period.desc');
-    if (!res.ok) return;
-    var data = await res.json();
-
-    // 只显示 2026-08 及之后的期号
-    var filteredData = data.filter(function(row) { return row.period >= '2026-08'; });
-
-    // 填充下拉框
-    var sel = document.getElementById('cfg-period');
-    sel.innerHTML = '';
-    var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    filteredData.forEach(function(row) {
-      var opt = document.createElement('option');
-      opt.value = row.period;
-      var parts = row.period.split('-');
-      var monthIdx = parseInt(parts[1]) - 1;
-      opt.textContent = row.period + ' (' + monthNames[monthIdx] + ')';
-      sel.appendChild(opt);
-    });
-
-    // 与顶部“工作月份”保持一致
-    if (filteredData.some(function(row) { return row.period === currentPeriod; })) sel.value = currentPeriod;
-    else if (filteredData.length > 0) sel.value = filteredData[0].period;
-    await loadCampaignConfig();
-  } catch(e) { console.error('loadAllPeriods:', e); }
+  syncAdminPeriodSelectors(currentPeriod);
+  await loadCampaignConfig();
 }
 
 function syncAdminPeriodSelectors(period) {
@@ -1374,16 +1348,11 @@ function syncAdminPeriodSelectors(period) {
   var settleSelect = document.getElementById('settle-month');
   var configSelect = document.getElementById('cfg-period');
   if (settleSelect && Array.from(settleSelect.options).some(function(option) { return option.value === period; })) settleSelect.value = period;
-  if (configSelect && Array.from(configSelect.options).some(function(option) { return option.value === period; })) configSelect.value = period;
+  if (configSelect) configSelect.value = period;
+  var configDisplay = document.getElementById('cfg-period-display');
+  if (configDisplay) configDisplay.textContent = period.replace('-', ' / ');
   var label = document.getElementById('settle-label');
   if (label) label.textContent = '📅 ' + period.replace('-', '年') + '月';
-}
-
-function changeConfigPeriod() {
-  var select = document.getElementById('cfg-period');
-  if (!select || !select.value) return;
-  syncAdminPeriodSelectors(select.value);
-  loadCampaignConfig();
 }
 
 async function loadCampaignConfig() {
