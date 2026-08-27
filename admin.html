@@ -1017,6 +1017,11 @@ async function registrationReviewFetch(action, data) {
   return result;
 }
 
+async function adminRpc(rpc, params) {
+  var result = await registrationReviewFetch('admin_rpc', { rpc: rpc, params: params || {} });
+  return result.result;
+}
+
 async function loadRegistrationApplications() {
   var root = document.getElementById('registration-application-list');
   if (!root) return;
@@ -1570,28 +1575,7 @@ async function saveCampaignConfig() {
     consistent_creation_bonus: { min_posts: 15 }
   };
   try {
-    var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + period + '&select=id');
-    if (!checkRes.ok) throw new Error('读取配置失败: HTTP ' + checkRes.status);
-    var existing = await checkRes.json();
-    var saveResp;
-    if (existing && existing.length > 0) {
-      saveResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?id=eq.' + existing[0].id, {
-        method: 'PATCH',
-        body: JSON.stringify({ rules_json: JSON.stringify(rules), points_cap: pointsCap, is_current_period: true, updated_at: new Date().toISOString() })
-      });
-    } else {
-      saveResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config', {
-        method: 'POST',
-        body: JSON.stringify({ period: period, name: period + ' Settlement', rules_json: JSON.stringify(rules), points_cap: pointsCap, is_active: true, is_current_period: true })
-      });
-    }
-    if (!saveResp.ok) throw new Error('保存配置失败: HTTP ' + saveResp.status);
-
-    // Clear is_current_period flag from all other periods
-    await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=neq.' + period, {
-      method: 'PATCH',
-      body: JSON.stringify({ is_current_period: false })
-    });
+    await adminRpc('publish_campaign_period', { p_period: period, p_rules_json: JSON.stringify(rules), p_points_cap: pointsCap });
 
     syncAdminPeriodSelectors(period);
 
@@ -2503,30 +2487,15 @@ async function confirmScoreImport() {
         pushedUids[sub.uid] = true;
         var pts = sub.points_earned || 0;
         try {
-          // Check if already written for this period (prevent duplicate)
-          var dupRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&period=eq.' + currentPeriod + '&source=eq.auto_settlement&select=id&limit=1');
-          if (!dupRes.ok) throw new Error('duplicate check failed: ' + dupRes.status);
-          var dupData = await dupRes.json();
-          if (dupData && dupData.length > 0) {
-            console.log('Skipping duplicate points write for ' + sub.uid + ' in ' + currentPeriod);
-            continue; // Already written
-          }
-          // Get current balance
-          var currentBalance = await getBalance(sub.uid);
-          var newBalance = currentBalance + pts;
-          var pointResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
-            method: 'POST',
-            body: JSON.stringify({
-              uid: sub.uid,
-              change: pts,
-              balance_after: newBalance,
-              source: 'auto_settlement',
-              reason: currentPeriod + ' submission settlement',
-              period: currentPeriod,
-              created_by: 'admin_confirm'
-            })
+          await adminRpc('add_point_log_once', {
+              p_uid: sub.uid,
+              p_change: pts,
+              p_source: 'auto_settlement',
+              p_reason: currentPeriod + ' submission settlement',
+              p_period: currentPeriod,
+              p_created_by: 'admin_confirm',
+              p_operation_key: 'settlement:' + currentPeriod + ':' + sub.uid
           });
-          if (!pointResp.ok) throw new Error('point_logs insert failed: ' + pointResp.status);
         } catch(e) {
           console.error('point_logs error for ' + sub.uid, e);
           errors.push((sub.uid || sub.discord_name || '?') + ': 积分流水写入失败 - ' + e.message);
@@ -2545,26 +2514,15 @@ async function confirmScoreImport() {
               var bonusClaimed2 = notes.indexOf('newbie_bonus:' + currentPeriod) >= 0 || notesObj2['newbie_bonus:' + currentPeriod] === true || notesObj2.newbie_bonus === currentPeriod;
               var isOld2 = notes.indexOf('old_creator') >= 0 || notesObj2.old_creator === true || notesObj2.old_creator === 'true';
               if (!isOld2 && nbMonth2 === currentPeriod && !bonusClaimed2 && pts >= 5) {
-                // Grant +2 bonus
-                var bonusBal = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(sub.uid) + '&select=change');
-                var bonusCur = 0;
-                if (bonusBal.ok) {
-                  var bd = await bonusBal.json();
-                  bonusCur = (bd || []).reduce(function(sum, row) { return sum + (Number(row.change) || 0); }, 0);
-                }
-                var bonusResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
-                  method: 'POST',
-                  body: JSON.stringify({
-                    uid: sub.uid,
-                    change: 2,
-                    balance_after: bonusCur + 2,
-                    source: 'auto_settlement',
-                    reason: 'New Creator Bonus (新人任务) - ' + currentPeriod + ' 5pts reach',
-                    period: currentPeriod,
-                    created_by: 'admin_confirm'
-                  })
+                await adminRpc('add_point_log_once', {
+                    p_uid: sub.uid,
+                    p_change: 2,
+                    p_source: 'auto_settlement',
+                    p_reason: 'New Creator Bonus (新人任务) - ' + currentPeriod + ' 5pts reach',
+                    p_period: currentPeriod,
+                    p_created_by: 'admin_confirm',
+                    p_operation_key: 'newbie-bonus:' + currentPeriod + ':' + sub.uid
                 });
-                if (!bonusResp.ok) throw new Error('newbie bonus point_logs insert failed: ' + bonusResp.status);
                 var updatedNotes = notes;
                 try {
                   var updatedObj = JSON.parse(notes || '{}');
@@ -2621,11 +2579,12 @@ async function confirmScoreImport() {
                             reward_amount: '\u6708\u5361x1 + \u8717\u58f3\u5e01x500 + \u91d1\u5e01x1000',
                             status: 'pending',
                             period: currentPeriod,
+                            request_id: 'cc:' + currentPeriod + ':' + sub.uid,
                             admin_notes: 'CC:' + currentPeriod + ' - Consistent Creation Reward',
                             created_at: new Date().toISOString()
                           })
                         });
-                        if (!ccAutoResp.ok) throw new Error('CC reward order create failed: ' + ccAutoResp.status);
+                        if (!ccAutoResp.ok && ccAutoResp.status !== 409) throw new Error('CC reward order create failed: ' + ccAutoResp.status);
                       }
                     } else {
                       throw new Error('CC order duplicate check failed: ' + checkCC.status);
@@ -3260,6 +3219,11 @@ async function confirmBroadcast() {
       if (cb.checked && mochiCsvTargets[i]) csvTargets.push(mochiCsvTargets[i]);
     });
     if (!csvTargets.length) { showToast('没有可发送的 CSV 收件人', 'error'); return; }
+    var csvTypedCount = prompt('即将真实发送逐条个性化 Discord 私信。\n\n收件人数：' + csvTargets.length + '\n请输入数字 ' + csvTargets.length + ' 才能继续：');
+    if (csvTypedCount !== String(csvTargets.length)) {
+      showToast('已取消发送：人数确认不匹配', 'error');
+      return;
+    }
     if (!confirmDanger('Send Mochi CSV DMs now?', ['Recipients: ' + csvTargets.length + ' creators', 'Each row sends its own personalized message.', 'This will send real Discord private messages.'])) return;
     var statusElCsv = document.getElementById('mochi-status');
     var sentCsv = 0, failedCsv = 0, failedCsvDetails = [];
@@ -3383,9 +3347,7 @@ async function startAutoWelcome(skipConfirmation) {
     '只有管理后台页面保持打开时才会运行。'
   ])) return;
 
-  if (skipConfirmation) {
-    await loadLastCheckedJoinId();
-  } else {
+  if (!skipConfirmation) {
     var baselineData = await discordProxyFetch('list_channel_messages', {
       channel_id: DISCORD_JOIN_LOG_CHANNEL_ID,
       limit: 20
@@ -3414,9 +3376,8 @@ async function startAutoWelcome(skipConfirmation) {
   }
   if (autoWelcomeInterval) clearInterval(autoWelcomeInterval);
   autoWelcomeInterval = setInterval(checkNewMembers, 5 * 60 * 1000);
-  localStorage.setItem('mochi_auto_welcome', 'on');
-  updateAutoWelcomeUi(skipConfirmation ? '运行中 · 正在恢复检查' : '已开启 · 时间截面已记录，等待新成员');
-  if (skipConfirmation) await checkNewMembers();
+  localStorage.removeItem('mochi_auto_welcome');
+  updateAutoWelcomeUi('已开启 · 时间截面已记录，等待新成员');
 }
 
 async function toggleAutoWelcome() {
@@ -3511,10 +3472,8 @@ async function checkNewMembers() {
 }
 
 function restoreAutoWelcome() {
+  localStorage.removeItem('mochi_auto_welcome');
   updateAutoWelcomeUi();
-  if (localStorage.getItem('mochi_auto_welcome') === 'on' && MOCHI_TOKEN) {
-    startAutoWelcome(true);
-  }
 }
 
 function openMochiBroadcast() {
@@ -3544,25 +3503,18 @@ window.addEventListener('error', function(e) {
 window.addEventListener('unhandledrejection', function() {
   try { showToast('⚠️ 请求失败或数据异常，请重试', 'error'); } catch(err) {}
 });
-// Patch loadData to also load submissions
-// Patch loadData to also load submissions
-var _origLoadData = loadData;
-loadData = async function() {
-  _scoringMonthlyPointsPeriod = '';
-  _scoringMonthlyPointsByUid = {};
-  await _origLoadData();
-  loadSubmissions();
-};
 // ===== DATA LOADING =====
 async function loadData() {
   try {
+    _scoringMonthlyPointsPeriod = '';
+    _scoringMonthlyPointsByUid = {};
     const [kocRes, ordRes] = await Promise.all([
       supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?order=discord_name.asc&select=*'),
       supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?order=created_at.desc&limit=500&select=*')
     ]);
     allKocs = await kocRes.json();
-    loadRegistrationApplications();
     allOrders = await ordRes.json();
+    await Promise.all([loadRegistrationApplications(), loadSubmissions()]);
     // Re-render current active tab
     var tabIds = ['dashboard','koc-ledger','scoring','submissions','diamond','gplay','merch','tiers','rules','audit'];
     var activeId = null;
@@ -3577,7 +3529,7 @@ async function loadData() {
       else if (activeId === 'diamond') renderDiamondTab();
       else if (activeId === 'gplay') renderGplayTab();
       else if (activeId === 'merch') renderMerchTab();
-      else if (activeId === 'submissions') loadSubmissions();
+      else if (activeId === 'submissions') renderSubmissions();
       else if (activeId === 'tiers') renderTiersTable();
       else if (activeId === 'rules') loadAllPeriods();
       else if (activeId === 'audit') loadAuditLog();
@@ -5278,51 +5230,7 @@ async function shipOrder(ev, id) {
     // Skip if already shipped
     if (order.status === 'shipped') { showToast('Already shipped', 'info'); return; }
 
-    // Ship the order
-    var shipResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?id=eq.' + id, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'shipped', processed_at: new Date().toISOString(), processed_by: 'admin' })
-    });
-    if (!shipResp.ok) {
-      var shipErr = await shipResp.text().catch(function() { return ''; });
-      throw new Error('标记发货失败: ' + (shipErr ? shipErr.substring(0, 80) : ('HTTP ' + shipResp.status)));
-    }
-
-    // Deduct points ONLY if points_spent > 0 AND not already deducted
-    if (order.points_spent > 0) {
-      // Check if already deducted via point_logs
-      var lRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + order.uid + '&source=eq.redemption&order=created_at.desc&limit=5&select=change,reason,created_at');
-      var logs = await lRes.json();
-      var alreadyDeducted = false;
-      if (logs && logs.length > 0) {
-        for (var l = 0; l < logs.length; l++) {
-          if (logs[l].change === -order.points_spent && logs[l].reason && logs[l].reason.indexOf('#' + id) >= 0) {
-            alreadyDeducted = true;
-            break;
-          }
-        }
-      }
-      if (!alreadyDeducted) {
-        var curBal = await getBalance(order.uid);
-        var newBal = Math.max(0, curBal - order.points_spent); // Never go below 0
-        var dedResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs', {
-          method: 'POST',
-          body: JSON.stringify({
-            uid: order.uid, change: -order.points_spent,
-            balance_after: newBal,
-            source: 'redemption', reason: 'Shipped order #' + id,
-            period: order.period || currentPeriod,
-            created_at: new Date().toISOString()
-          })
-        });
-        // \u53d1\u8d27\u5df2\u6210\u529f\u4f46\u6263\u5206\u5931\u8d25:\u5982\u5b9e\u544a\u8b66,\u4e0d\u8c0e\u62a5"\u5df2\u6263\u5206"
-        if (!dedResp.ok) {
-          showToast('\u26a0\ufe0f \u5df2\u6807\u8bb0\u53d1\u8d27\uff0c\u4f46\u6263\u5206\u5931\u8d25\uff0c\u8bf7\u624b\u52a8\u6838\u5bf9 ' + order.uid + ' \u7684\u79ef\u5206', 'error');
-          loadData();
-          return;
-        }
-      }
-    }
+    await adminRpc('ship_redemption_order', { p_order_id: id });
 
     showToast('\u2705 Shipped' + (order.points_spent > 0 ? ' + pts deducted' : ''), 'success');
     writeAuditLog('diamond', 'ship order #' + id + ' uid ' + order.uid + ' points ' + (order.points_spent || 0));

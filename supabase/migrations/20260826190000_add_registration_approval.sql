@@ -32,6 +32,7 @@ DROP POLICY IF EXISTS "registration_applications_anon_all" ON public.registratio
 DROP POLICY IF EXISTS "kocs_allow_insert" ON public.kocs;
 DROP POLICY IF EXISTS "anon all" ON public.kocs;
 DROP POLICY IF EXISTS "anon_insert_kocs" ON public.kocs;
+DROP POLICY IF EXISTS "kocs_no_public_insert" ON public.kocs;
 CREATE POLICY "kocs_no_public_insert" ON public.kocs
   FOR INSERT TO anon WITH CHECK (false);
 REVOKE INSERT ON TABLE public.kocs FROM anon, authenticated;

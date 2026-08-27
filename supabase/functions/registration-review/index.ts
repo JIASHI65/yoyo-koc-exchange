@@ -99,11 +99,34 @@ serve(async (req) => {
         .insert({ ...application, status: "pending" })
         .select("id,status,created_at")
         .single();
+      if (error?.code === "23505") {
+        const { data: concurrentApplication } = await db.from("registration_applications")
+          .select("id,status,review_notes")
+          .or(`uid.eq.${application.uid},account_id.eq.${application.account_id}`)
+          .in("status", ["pending", "approved"])
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (concurrentApplication) return json({ ok: true, duplicate: true, application: concurrentApplication });
+      }
       if (error) return json({ ok: false, error: error.message }, 400);
       return json({ ok: true, application: inserted });
     }
 
     if (!adminPassword || admin_password !== adminPassword) return json({ ok: false, error: "Admin verification failed" }, 403);
+
+    if (action === "admin_rpc") {
+      const rpcName = String(data.rpc || "");
+      const allowedRpcNames = new Set([
+        "publish_campaign_period",
+        "add_point_log_once",
+        "ship_redemption_order",
+      ]);
+      if (!allowedRpcNames.has(rpcName)) return json({ ok: false, error: "Admin operation is not allowed" }, 400);
+      const { data: rpcResult, error: rpcError } = await db.rpc(rpcName, data.params || {});
+      if (rpcError) return json({ ok: false, error: rpcError.message }, 400);
+      return json({ ok: true, result: rpcResult });
+    }
 
     if (action === "list") {
       const { data: applications, error } = await db.from("registration_applications")

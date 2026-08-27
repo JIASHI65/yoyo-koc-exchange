@@ -1321,6 +1321,7 @@ async function redeem() {
       method: 'POST',
       body: JSON.stringify({
         p_uid: currentUser.uid,
+        p_account_id: currentUser.account_id,
         p_period: currentPeriod,
         p_items: items,
         p_contact_info: contact,
@@ -1619,40 +1620,36 @@ async function submitWorks() {
       btn.textContent = '🔒 Submission Closed';
       return;
     }
-    // Check existing WORK submissions (showcase 不占 2 次名额)
-    var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id,created_at,period,submission_type,status');
-    var existingSubs = checkRes.ok ? await checkRes.json() : [];
-    var existingCount = countWorkSubmissionsThisPeriod(existingSubs);
-    
-    if (existingCount >= 2) {
-      status.innerHTML = '⚠️ Reached <strong>2 submission</strong> limit<br><span style="font-size:11px;">Contact admin for help</span>';
-      status.style.color = '#e65100';
-      document.getElementById('submit-form-area').style.opacity = '0.4';
-      document.getElementById('submit-form-area').style.pointerEvents = 'none';
-      btn.disabled = true;
-      btn.textContent = '🔒 Locked';
-      return;
-    }
-    
-    var payload = [{
-      discord_name: discord,
-      uid: currentUser ? currentUser.uid : null,
-      server: server,
-      links_engagement: links.join('\n'),
-      feedback: feedback,
-      status: 'pending',
-      period: currentPeriod,
-      created_at: new Date().toISOString()
-    }];
-
-    var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions', {
+    var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/rpc/submit_creator_work', {
       method: 'POST',
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        p_uid: currentUser.uid,
+        p_account_id: currentUser.account_id,
+        p_period: currentPeriod,
+        p_discord_name: discord,
+        p_server: server,
+        p_links: links.join('\n'),
+        p_feedback: feedback
+      })
     });
-    if (!resp.ok) throw new Error((await resp.text()).substring(0, 80));
+    if (!resp.ok) {
+      var submitError = (await resp.text()).toLowerCase();
+      if (submitError.indexOf('submission limit reached') >= 0) {
+        status.innerHTML = '⚠️ Reached <strong>2 submission</strong> limit<br><span style="font-size:11px;">Contact admin for help</span>';
+        status.style.color = '#e65100';
+        document.getElementById('submit-form-area').style.opacity = '0.4';
+        document.getElementById('submit-form-area').style.pointerEvents = 'none';
+        btn.disabled = true;
+        btn.textContent = '🔒 Locked';
+        return;
+      }
+      if (submitError.indexOf('submission window is closed') >= 0) throw new Error('Submission is closed or its deadline has passed.');
+      throw new Error(submitError.substring(0, 120));
+    }
+    var submitResult = await resp.json();
 
-    var newCount = existingCount + 1;
-    var remaining = 2 - newCount;
+    var newCount = Number(submitResult.used) || 1;
+    var remaining = Math.max(0, Number(submitResult.remaining) || 0);
     
     status.innerHTML = '<div style="background:#f1fff4;border:1px solid #a5d6a7;border-radius:14px;padding:12px;text-align:left;color:#2e7d32;line-height:1.7;">' +
       '<div style="font-weight:800;font-size:14px;">✅ Submission received!</div>' +
@@ -1714,43 +1711,27 @@ async function submitShowcase() {
   btn.textContent = '⏳ Submitting...';
   status.textContent = '';
   try {
-    // 每人每期最多提交 1 次 showcase；不占常规 2 次投稿名额。
-    var dupRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&period=eq.' + encodeURIComponent(currentPeriod) + '&submission_type=eq.showcase&select=id,status&limit=1');
-    if (!dupRes.ok) {
-      var dupErr = (await dupRes.text()).toLowerCase();
-      if (dupErr.indexOf('submission_type') >= 0 || dupErr.indexOf('column') >= 0) {
-        throw new Error('Showcase not enabled yet, please contact admin');
-      }
-      throw new Error(dupErr.substring(0, 80));
-    }
-    var existingShowcase = await dupRes.json() || [];
-    if (existingShowcase.length > 0) {
-      status.innerHTML = '⚠️ You already submitted a showcase for <strong>' + currentPeriod.replace('-', '/') + '</strong>.';
-      status.style.color = '#e65100';
-      return;
-    }
-
-    var payload = [{
-      discord_name: currentUser.discord_name || '',
-      uid: currentUser.uid,
-      server: (currentUser && currentUser.server) || '',
-      links_engagement: link,
-      submission_type: 'showcase',
-      status: 'pending',
-      period: currentPeriod,
-      created_at: new Date().toISOString()
-    }];
-    var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions', {
+    var access = await fetchCurrentCampaignAccess();
+    if (!access.submissionsOpen) throw new Error('Submission is closed or its deadline has passed.');
+    var resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/rpc/submit_creator_showcase', {
       method: 'POST',
-      body: JSON.stringify(payload)
+      body: JSON.stringify({
+        p_uid: currentUser.uid,
+        p_period: currentPeriod,
+        p_discord_name: currentUser.discord_name || '',
+        p_server: (currentUser && currentUser.server) || '',
+        p_link: link
+      })
     });
     if (!resp.ok) {
       var errTxt = (await resp.text()).toLowerCase();
-      // 列还没加时,明确提示,而不是污染常规投稿计数
-      if (errTxt.indexOf('submission_type') >= 0 || errTxt.indexOf('column') >= 0) {
-        throw new Error('Showcase not enabled yet, please contact admin');
+      if (errTxt.indexOf('showcase already submitted') >= 0) {
+        status.innerHTML = '⚠️ You already submitted a showcase for <strong>' + currentPeriod.replace('-', '/') + '</strong>.';
+        status.style.color = '#e65100';
+        return;
       }
-      throw new Error(errTxt.substring(0, 80));
+      if (errTxt.indexOf('submission window is closed') >= 0) throw new Error('Submission is closed or its deadline has passed.');
+      throw new Error(errTxt.substring(0, 120));
     }
     status.innerHTML = '<div style="background:#f1fff4;border:1px solid #a5d6a7;border-radius:14px;padding:12px;text-align:left;color:#2e7d32;line-height:1.7;">' +
       '<div style="font-weight:800;font-size:14px;">✅ Showcase received!</div>' +
