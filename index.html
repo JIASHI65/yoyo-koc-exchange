@@ -691,8 +691,32 @@ function getSettlementPeriod(date) {
 }
 function getNextMonthPeriod(date) {
   var d = date ? new Date(date) : new Date();
+  d.setDate(1);
   d.setMonth(d.getMonth() + 1);
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+function getCreatorNewbieMonth(creator) {
+  if (!creator) return '';
+  var notes = String(creator.notes || '');
+  var notesObj = {};
+  try { notesObj = JSON.parse(notes || '{}'); } catch(e) {}
+  if (notesObj.newbie_month && /^\d{4}-\d{2}$/.test(notesObj.newbie_month)) return notesObj.newbie_month;
+  var legacyMatch = notes.match(/["']?newbie_month["']?\s*[:=]\s*["']?(\d{4}-\d{2})/);
+  if (legacyMatch) return legacyMatch[1];
+  if (!creator.created_at) return '';
+  var registeredAt = new Date(creator.created_at);
+  if (isNaN(registeredAt.getTime())) return '';
+  return getNextMonthPeriod(registeredAt);
+}
+function isOldCreator(creator) {
+  if (!creator) return false;
+  var notes = String(creator.notes || '');
+  var notesObj = {};
+  try { notesObj = JSON.parse(notes || '{}'); } catch(e) {}
+  return notes.indexOf('old_creator') >= 0 || notesObj.old_creator === true || notesObj.old_creator === 'true';
+}
+function isCreatorNewbieForPeriod(creator, period) {
+  return !isOldCreator(creator) && getCreatorNewbieMonth(creator) === period;
 }
 function splitLinks(text) {
   return (text || '').split(/\n+/).map(function(x) { return x.trim(); }).filter(Boolean);
@@ -963,25 +987,12 @@ async function login() {
 function initSubmitTab() {
   if (!currentUser) return;
   var isSubmissionsOpen = window._submissionsOpen === true;
-  // Show newbie banner if applicable — based on created_at + old_creator flag
+  // Newcomer month is always the first full calendar month after registration.
   var nbBanner = document.getElementById('newbie-banner-submit');
   if (nbBanner) {
     var notes = currentUser.notes || '';
-    var isOld = notes.indexOf('old_creator') >= 0;
     var bonusDone = notes.indexOf('newbie_bonus:' + currentPeriod) >= 0;
-    // Calculate newbie status from created_at: register month + next month = newbie period
-    var isNewbie = false;
-    if (!isOld && currentUser.created_at) {
-      var regDate = new Date(currentUser.created_at);
-      var regYm = regDate.getFullYear() + '-' + String(regDate.getMonth() + 1).padStart(2, '0');
-      // Newbie period: registration month AND the following month
-      var regMonthNum = regDate.getFullYear() * 12 + regDate.getMonth();
-      var curMonthNum = parseInt(currentPeriod.split('-')[0]) * 12 + parseInt(currentPeriod.split('-')[1]);
-      // If current month is registration month or the month after, they're a newbie
-      if (curMonthNum >= regMonthNum && curMonthNum <= regMonthNum + 1) {
-        isNewbie = true;
-      }
-    }
+    var isNewbie = isCreatorNewbieForPeriod(currentUser, currentPeriod);
     if (isNewbie && !bonusDone) {
       nbBanner.style.display = 'block';
       // Update pts status
@@ -1054,54 +1065,17 @@ function initSubmitTab() {
 }
 
 function showDashboard() {
-  // Check newbie status and show banner — based on created_at
+  // Check the single newcomer month used by registration and settlement.
   setTimeout(function() {
     if (!currentUser) return;
     var notes = currentUser.notes || '';
-    var isOld = notes.indexOf('old_creator') >= 0;
     var bonusDone = notes.indexOf('newbie_bonus:' + currentPeriod) >= 0;
-    var isNewbie = false;
-    var isJoinedMidMonth = false;
-    var nextNewbieMonth = '';
-
-    if (!isOld && currentUser.created_at) {
-      var regDate = new Date(currentUser.created_at);
-      var regMonthNum = regDate.getFullYear() * 12 + regDate.getMonth();
-      var curMonthNum = parseInt(currentPeriod.split('-')[0]) * 12 + parseInt(currentPeriod.split('-')[1]);
-
-      // 判断是否月初加入（1-3号算月初，算完整月）
-      var joinedAtMonthStart = regDate.getDate() <= 3;
-
-      if (curMonthNum === regMonthNum && joinedAtMonthStart) {
-        // 注册月就是完整月（1-3号加入）
-        isNewbie = true;
-      } else if (curMonthNum === regMonthNum && !joinedAtMonthStart) {
-        // 注册月但是中途加入，提示下月才是新人月
-        isJoinedMidMonth = true;
-        var nextMonth = new Date(regDate);
-        nextMonth.setMonth(nextMonth.getMonth() + 1);
-        var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        nextNewbieMonth = monthNames[nextMonth.getMonth()] + ' ' + nextMonth.getFullYear();
-      } else if (curMonthNum === regMonthNum + 1 && !joinedAtMonthStart) {
-        // 上月中途加入，这个月是新人月
-        isNewbie = true;
-      }
-    }
+    var isNewbie = isCreatorNewbieForPeriod(currentUser, currentPeriod);
 
     var nbBanner = document.getElementById('newbie-banner-submit');
     if (nbBanner) {
       if (isNewbie && !bonusDone) {
-        // 显示新人月 banner
         nbBanner.style.display = 'block';
-      } else if (isJoinedMidMonth) {
-        // 显示中途加入提示
-        nbBanner.style.display = 'block';
-        nbBanner.style.background = 'linear-gradient(135deg,#fff3e0,#ffe0b2)';
-        nbBanner.style.borderColor = '#ff9800';
-        var titleSpan = nbBanner.querySelector('span:nth-child(2)');
-        if (titleSpan) titleSpan.textContent = 'You joined mid-month!';
-        var msgDiv = nbBanner.querySelector('div:nth-child(2)');
-        if (msgDiv) msgDiv.textContent = 'Your newbie bonus will apply next month (' + nextNewbieMonth + ') when you earn ≥5 pts!';
       } else {
         nbBanner.style.display = 'none';
       }
@@ -2033,23 +2007,16 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
       else html += '<div style="font-size:11px;color:#2e7d32;margin-top:3px;">' + '✅ 15 links done!' + '</div>';
       html += '</div>';
 
-      // 40pt hint
+      // Continuous Creation reward status
       if (totalLinks >= 15) {
         html += '<div style="background:#fff3e0;border:1px solid #ffe082;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#e65100;">';
-        html += '🏆 Goal reached! 40 point bonus awarded!' + '</div>';
+        html += '✅ Continuous Creation goal reached! Reward pending admin confirmation.' + '</div>';
       }
 
       
       // New Creator Task (Newbie Mission)
       if (isCurrent && currentUser.notes) {
-        var notesStr3 = currentUser.notes;
-        var notesObj3 = {};
-        try { notesObj3 = JSON.parse(notesStr3); } catch(e) {}
-        var nbMonth3 = notesObj3.newbie_month || '';
-        var ptMatch3 = notesStr3.match(/newbie_month:(\d{4}-\d{2})/);
-        if (ptMatch3) nbMonth3 = ptMatch3[1];
-        var isOld3 = notesStr3.indexOf('old_creator') >= 0 || notesObj3.old_creator === true || notesObj3.old_creator === 'true';
-        if (nbMonth3 === ym && !isOld3) {
+        if (isCreatorNewbieForPeriod(currentUser, ym)) {
         var newbieDone = currentUser.notes.indexOf('newbie_bonus:' + ym) >= 0;
         if (!newbieDone) {
           html += '<div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border:2px solid #66bb6a;border-radius:14px;padding:14px;margin-bottom:8px;">';
