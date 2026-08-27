@@ -537,7 +537,7 @@
         <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
           <span>⭐ 创作者等级管理</span>
           <div style="display:flex;gap:6px;">
-            <button class="btn btn-success btn-sm" onclick="autoUpgradeTiers()">🔄 一键自动升降级</button>
+            <button class="btn btn-success btn-sm" onclick="autoUpgradeTiers()">🔄 一键自动升级</button>
             <button class="btn btn-sm" style="background:#5865F2;color:white;" onclick="syncTiersFromDiscord()">💬 从 Discord 同步</button>
           </div>
         </div>
@@ -650,7 +650,7 @@
         <textarea id="cfg-tier-description" style="min-height:100px;width:100%;">认证创作官: 默认等级，所有人进来都是
 金级创作官: 连续 2 个月达到 5 分
 铂金创作官: 连续 3 个月达到 5 分
-Elite: 连续 6 个月达到 5 分</textarea>
+等级只升不降</textarea>
         <div class="row" style="margin-top:8px;">
           <button class="btn btn-primary btn-sm" onclick="saveCampaignConfig()">💾 保存配置</button>
           <button class="btn btn-outline btn-sm" onclick="updateAgentRulesFromConfig()">📋 同步到 Agent 模板</button>
@@ -1542,7 +1542,7 @@ async function saveCampaignConfig() {
     points_cap: pointsCap,
     tier_upgrade_threshold: tierThreshold,
     tier_description: document.getElementById('cfg-tier-description').value,
-    consistent_creation_bonus: { min_days: 5, min_posts: 15 }
+    consistent_creation_bonus: { min_posts: 15 }
   };
   try {
     var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + period + '&select=id');
@@ -2563,7 +2563,7 @@ async function confirmScoreImport() {
       // Auto-detect CC from unique work links in the current settlement period only.
       if ((sub.points_earned || 0) > 0 && sub.uid) {
         try {
-          var cntRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(sub.uid) + '&period=eq.' + encodeURIComponent(currentPeriod) + '&select=uid,submission_type,links_engagement,links_views');
+          var cntRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(sub.uid) + '&period=eq.' + encodeURIComponent(currentPeriod) + '&select=uid,submission_type,status,links_engagement,links_views');
           if (cntRes.ok) {
             var subsData = await cntRes.json();
             var currentMonthWorkCount = countMonthlyWorkLinksByUid(subsData)[sub.uid] || 0;
@@ -4717,9 +4717,7 @@ async function submitBatchReward() {
 async function batchMarkSelected(type) {
   var uids = getSelectedKocUids();
   if (!uids.length) { showToast('请先勾选创作者', 'error'); return; }
-  var tag = type === 'old_creator' ? 'old_creator:true' : '';
   var label = type === 'old_creator' ? '老创作者' : '新创作者';
-  if (type === 'new_creator') tag = '';
   if (!confirmDanger('Batch change creator category?', [
     'Creators: ' + uids.length,
     'Target: ' + label,
@@ -4728,9 +4726,14 @@ async function batchMarkSelected(type) {
   var ok = 0;
   for (var i = 0; i < uids.length; i++) {
     try {
+      var readResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uids[i]) + '&select=notes');
+      if (!readResp.ok) continue;
+      var rows = await readResp.json() || [];
+      if (!rows.length) continue;
+      var updatedNotes = setOldCreatorFlag(rows[0].notes, type === 'old_creator');
       var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(uids[i]), {
         method: 'PATCH',
-        body: JSON.stringify({ notes: type === 'old_creator' ? 'old_creator:true' : '' })
+        body: JSON.stringify({ notes: updatedNotes })
       });
       if (r.ok) ok++;
     } catch(e) {}
@@ -4822,6 +4825,19 @@ function removeKocNoteTag(notes, tag) {
   }
 }
 
+function setOldCreatorFlag(notes, isOld) {
+  var rawNotes = String(notes || '');
+  try {
+    var notesObj = JSON.parse(rawNotes || '{}');
+    if (isOld) notesObj.old_creator = true;
+    else delete notesObj.old_creator;
+    return JSON.stringify(notesObj);
+  } catch(e) {
+    var cleaned = rawNotes.replace(/(?:^|,\s*)old_creator(?::true)?(?=,|$)/gi, '').replace(/^,\s*/, '').replace(/,\s*$/, '').trim();
+    return isOld ? (cleaned ? cleaned + ', old_creator:true' : 'old_creator:true') : cleaned;
+  }
+}
+
 function resolveCreatorNewbieMonth(koc) {
   if (!koc) return '';
   var notes = String(koc.notes || '');
@@ -4841,7 +4857,7 @@ function resolveCreatorNewbieMonth(koc) {
 function countMonthlyWorkLinksByUid(submissions) {
   var linksByUid = {};
   (submissions || []).forEach(function(submission) {
-    if (!submission || !submission.uid || submission.submission_type === 'showcase') return;
+    if (!submission || !submission.uid || submission.submission_type === 'showcase' || submission.status === 'rejected') return;
     if (!linksByUid[submission.uid]) linksByUid[submission.uid] = {};
     String(submission.links_engagement || '').split('\n')
       .concat(String(submission.links_views || '').split('\n'))
@@ -4911,7 +4927,7 @@ function ensureCCEligibilityForCurrentPeriod(force) {
   var request = (async function() {
     var changed = false;
     try {
-      var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?period=eq.' + encodeURIComponent(period) + '&select=uid,submission_type,links_engagement,links_views');
+      var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?period=eq.' + encodeURIComponent(period) + '&select=uid,submission_type,status,links_engagement,links_views');
       if (!subRes.ok) return;
       var workCounts = countMonthlyWorkLinksByUid(await subRes.json() || []);
       for (var i = 0; i < allKocs.length; i++) {
@@ -5138,7 +5154,7 @@ async function batchMarkOldCreator() {
       var k = d[0];
       var notes = k.notes || '';
       if (notes.indexOf('old_creator') === -1) {
-        notes = notes ? notes + ', old_creator:true' : 'old_creator:true';
+        notes = setOldCreatorFlag(notes, true);
         var markResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(k.uid), {
           method: 'PATCH', body: JSON.stringify({ notes: notes })
         });

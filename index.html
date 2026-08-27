@@ -1026,7 +1026,7 @@ function initSubmitTab() {
   // Check if already at max submissions (2) and lock form
   (async function() {
     try {
-      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id,created_at,period,submission_type');
+      var r = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id,created_at,period,submission_type,status');
       if (!r.ok) throw new Error('fetch failed');
       var d = await r.json();
       var cnt = countWorkSubmissionsThisPeriod(d);
@@ -1601,7 +1601,7 @@ async function submitWorks() {
       return;
     }
     // Check existing WORK submissions (showcase 不占 2 次名额)
-    var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id,created_at,period,submission_type');
+    var checkRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=id,created_at,period,submission_type,status');
     var existingSubs = checkRes.ok ? await checkRes.json() : [];
     var existingCount = countWorkSubmissionsThisPeriod(existingSubs);
     
@@ -1676,7 +1676,7 @@ async function submitWorks() {
 // 若 submission_type 列尚未添加,undefined !== 'showcase' 为真 → 全部计入(保持原行为,零回退风险)。
 function countWorkSubmissionsThisPeriod(rows) {
   return (rows || []).filter(function(s) {
-    return getSubmissionPeriod(s) === currentPeriod && s.submission_type !== 'showcase';
+    return getSubmissionPeriod(s) === currentPeriod && s.submission_type !== 'showcase' && s.status !== 'rejected';
   }).length;
 }
 
@@ -1832,7 +1832,7 @@ function getPrevMonth(ym) {
 function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, periodLabel) {
   window._subViewMonth = ym;
   var subs = byMonth[ym] || [];
-  var workSubs = subs.filter(function(s) { return s.submission_type !== 'showcase'; });
+  var workSubs = subs.filter(function(s) { return s.submission_type !== 'showcase' && s.status !== 'rejected'; });
   var showcaseSubs = subs.filter(function(s) { return s.submission_type === 'showcase'; });
   var monthlyLinkKeys = {};
   workSubs.forEach(function(submission) {
@@ -2045,7 +2045,7 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
         html += '</div>';
       } else if (currentTier === 'gold') {
         html += '<div style="background:#fff8e1;border:1px solid #ffd54f;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#7c4d00;">';
-        html += '⭐ Get ≥5 pts this month to become Platinum Creator!';
+        html += '⭐ Keep earning ≥5 pts for 3 consecutive months to become Platinum Creator!';
         html += '</div>';
       }
       // Platinum: no promotion hint shown

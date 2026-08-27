@@ -62,6 +62,8 @@ DELETE FROM redemption_orders WHERE uid LIKE 'MANUALTEST%';
 
 ## 🎨 第一阶段：创作者投稿（30分钟）
 
+**投稿次数口径**：每期最多 2 次有效常规投稿；被拒绝投稿释放一次机会，Showcase 不占这 2 次。
+
 ### 测试 1.1: 登录与期号显示
 
 **操作**:
@@ -585,6 +587,8 @@ SELECT SUM(change) FROM point_logs WHERE uid = 'MANUALTEST001';
 ---
 
 ### 测试 5.5: CC 持续创作奖测试（如果有）
+
+**CC 口径**：只统计当前期未被拒绝的去重链接；达到 15 条即符合，不要求连续发布 5 天。
 
 **如果你的系统有 CC 奖励自动生成**:
 

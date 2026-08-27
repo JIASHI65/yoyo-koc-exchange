@@ -265,7 +265,7 @@ CREATE INDEX idx_score_imports_batch ON score_imports(batch_id);
 -- ============================================================
 
 -- 6. KOC 表新增等级字段
-ALTER TABLE kocs ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'new' 
+ALTER TABLE kocs ADD COLUMN IF NOT EXISTS tier TEXT DEFAULT 'certified'
   CHECK(tier IN ('certified','gold','platinum'));
 ALTER TABLE kocs ADD COLUMN IF NOT EXISTS tier_updated_at TIMESTAMPTZ;
 ALTER TABLE kocs ADD COLUMN IF NOT EXISTS tier_history TEXT DEFAULT '[]';
@@ -298,7 +298,7 @@ VALUES ('2026-07', 'July Settlement', '{
     "engagement": {"40_engagements": 1, "80_engagements": 2}
   },
   "points_cap": 40,
-  "consistent_creation_bonus": {"min_days": 5, "min_posts": 15},
+  "consistent_creation_bonus": {"min_posts": 15},
   "tier_upgrade_threshold": 5
 }', 40)
 ON CONFLICT (period) DO NOTHING;
