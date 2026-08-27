@@ -1341,20 +1341,26 @@ async function syncTiersFromDiscord() {
 // ===== CAMPAIGN / RULES CONFIG =====
 async function loadSettleMonthDropdown() {
   try {
-    var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?select=period&order=period.asc');
-    if (!res.ok) return;
-    var data = await res.json();
+    var [configRes, snapshotRes] = await Promise.all([
+      supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?select=period&order=period.asc'),
+      supabaseFetch(SUPABASE_URL + '/rest/v1/monthly_report_snapshots?select=period&order=period.asc')
+    ]);
+    if (!configRes.ok) return;
+    var data = await configRes.json();
+    var snapshotData = snapshotRes.ok ? await snapshotRes.json() : [];
+    var periodMap = {};
+    data.concat(snapshotData).forEach(function(row) {
+      if (row && /^\d{4}-\d{2}$/.test(row.period || '')) periodMap[row.period] = true;
+    });
+    var availablePeriods = Object.keys(periodMap).sort();
 
     var sel = document.getElementById('settle-month');
     sel.innerHTML = '';
 
-    // 只显示 2026-08 及之后的期号
-    var filteredData = data.filter(function(row) { return row.period >= '2026-08'; });
-
-    filteredData.forEach(function(row) {
+    availablePeriods.forEach(function(period) {
       var opt = document.createElement('option');
-      opt.value = row.period;
-      var parts = row.period.split('-');
+      opt.value = period;
+      var parts = period.split('-');
       var year = parts[0];
       var month = parseInt(parts[1]);
       opt.textContent = year + '年' + month + '月';
@@ -1365,16 +1371,16 @@ async function loadSettleMonthDropdown() {
     var currentRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?is_current_period=eq.true&select=period');
     if (currentRes.ok) {
       var currentData = await currentRes.json();
-      if (currentData && currentData.length > 0 && currentData[0].period >= '2026-08') {
+      if (currentData && currentData.length > 0 && periodMap[currentData[0].period]) {
         sel.value = currentData[0].period;
         currentPeriod = currentData[0].period;
       }
     }
 
     // 如果没有找到 is_current_period=true，回退到最新配置月份
-    if (!sel.value && filteredData.length > 0) {
-      sel.value = filteredData[filteredData.length - 1].period;
-      currentPeriod = filteredData[filteredData.length - 1].period;
+    if (!sel.value && availablePeriods.length > 0) {
+      sel.value = availablePeriods[availablePeriods.length - 1];
+      currentPeriod = availablePeriods[availablePeriods.length - 1];
     }
 
     // Update display label
