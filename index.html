@@ -166,12 +166,30 @@ input[type="text"]:focus,textarea:focus,select:focus,#input-uid:focus,#input-acc
 #creator-tab-faq .item-body strong{color:var(--hot)!important;background:#ffe0ef!important;padding:1px 3px!important}
 #creator-tab-faq .footer{padding:15px!important;background:var(--paper)!important;border:3px solid var(--line)!important;box-shadow:4px 4px 0 var(--pink-dark)!important;color:var(--text-light)!important;font-family:var(--ui)!important;font-size:11px!important;font-weight:700!important}
 a{color:var(--pink-dark)}
+.submission-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+.submission-stat-card{min-width:0;padding:13px;background:var(--paper);border:3px solid var(--line);box-shadow:4px 4px 0 var(--light)}
+.submission-stat-label{font-size:10px;font-weight:900;color:var(--text-light);letter-spacing:.3px;text-transform:uppercase}
+.submission-stat-value{margin-top:5px;font-size:24px;font-weight:900;color:var(--pink-dark);line-height:1.1}
+.submission-stat-note{margin-top:4px;font-size:10px;color:var(--text-light);line-height:1.4}
+.submission-progress-card{margin:12px 0;padding:13px;background:var(--paper-2);border:3px solid var(--line);box-shadow:4px 4px 0 var(--purple)}
+.submission-progress-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;font-weight:800}
+.submission-progress-track{height:10px;margin-top:9px;background:#fff;border:2px solid var(--line);overflow:hidden}
+.submission-progress-fill{height:100%;background:linear-gradient(90deg,var(--hot),var(--purple))}
+.submission-records{display:grid;gap:10px;margin-top:14px}
+.submission-record-card{padding:13px;background:var(--paper);border:3px solid var(--line);box-shadow:4px 4px 0 rgba(185,47,114,.32)}
+.submission-record-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.submission-record-title{font-size:13px;font-weight:900;color:var(--text);line-height:1.45}
+.submission-record-meta{margin-top:5px;font-size:11px;color:var(--text-light);line-height:1.55}
+.submission-record-score{margin-top:7px;font-size:12px;font-weight:900;color:var(--pink-dark)}
+.submission-status{flex:none;padding:5px 8px;border:2px solid currentColor;font-size:10px;font-weight:900;white-space:nowrap}
+.submission-status-pending{color:#e65100;background:#fff3e0}.submission-status-scored{color:#2e7d32;background:#e8f5e9}.submission-status-rejected{color:#777;background:#f3f3f3}
 @media(max-width:680px){
   .container{padding:15px 10px 42px!important}.header{margin-top:4px!important;padding:13px 10px 12px!important}.header:before{font-size:8px!important;letter-spacing:.7px!important}.header h1{font-size:14px!important}.header p{font-size:11px!important}
   #step-login{padding:31px 14px 23px!important;box-shadow:6px 6px 0 rgba(185,47,114,.68)!important}#step-login:before{margin-top:-47px!important;font-size:9px!important}#step-login>div[style*="font-size:48px"]{font-size:19px!important}#step-login>div[style*="font-size:80px"]{font-size:54px!important}
   .card{padding:14px!important}.card-title,.level-1-title{font-size:12px!important}.submit-period-badge{font-size:14px!important;padding:7px 9px!important}.tabs{grid-template-columns:1fr 1fr!important;gap:9px!important;margin-top:33px!important;padding:10px!important}.tabs:before{font-size:10px!important;top:-23px!important}.tab{min-height:76px!important;font-size:15px!important;padding:16px 8px!important;line-height:1.4!important}.tab.active:after{font-size:7px!important}.nav-title{font-size:11px!important}
   #creator-tab-faq .suggestions{justify-content:flex-start!important;overflow-x:auto!important;flex-wrap:nowrap!important;padding-bottom:6px!important}#creator-tab-faq .suggestions .chip{flex:none!important;max-width:250px!important}
   .reward-row{align-items:flex-start!important;gap:8px!important}.qty-selector{gap:6px!important}.tier-badge{font-size:13px!important;padding:11px 17px!important}
+  .submission-summary-grid{grid-template-columns:1fr 1fr;gap:8px}.submission-stat-card{padding:11px}.submission-stat-value{font-size:20px}.submission-record-head{flex-direction:column}.submission-status{align-self:flex-start}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style>
@@ -391,12 +409,6 @@ a{color:var(--pink-dark)}
           <select id="submission-month-select" onchange="switchSubMonth(this.value)" style="min-width:150px;padding:8px 10px;border:1.5px solid var(--pink);border-radius:10px;background:white;color:var(--text);font-size:13px;font-weight:700;"></select>
         </div>
         <div id="submission-count" style="font-size:11px;color:var(--text-light);"></div>
-        <div style="background:#faf5f7;border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0 12px;font-size:12px;line-height:1.55;color:var(--text-light);">
-          <div style="font-weight:700;color:var(--text);margin-bottom:4px;">Status guide</div>
-          <div><strong>pending</strong> = submitted, waiting for scoring.</div>
-          <div><strong>scored</strong> = reviewed/imported, points can be checked in Redeem Rewards.</div>
-          <div><strong>rejected</strong> = not eligible or needs admin review.</div>
-        </div>
         <div id="submissions-list"><div style="color:var(--text-light);font-size:13px;">Loading...</div></div>
       </div>
     </div>
@@ -1781,7 +1793,7 @@ async function loadMySubmissions() {
     var allSubs = await res.json() || [];
 
     // Fetch point_logs (filter by period >= 2026-07 to include historical data)
-    var ptRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(currentUser.uid) + '&period=gte.2026-07&order=created_at.desc&select=period,change,balance_after,reason,created_at');
+    var ptRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?uid=eq.' + encodeURIComponent(currentUser.uid) + '&period=gte.2026-07&order=created_at.desc&select=period,change,balance_after,reason,source,created_by,created_at');
     var ptLogs = ptRes.ok ? await ptRes.json() || [] : [];
 
     // Group submissions by period first; fallback to created_at for legacy rows.
@@ -1831,252 +1843,110 @@ function getPrevMonth(ym) {
 }
 function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, periodLabel) {
   window._subViewMonth = ym;
-  var subs = byMonth[ym] || [];
-  var workSubs = subs.filter(function(s) { return s.submission_type !== 'showcase' && s.status !== 'rejected'; });
-  var showcaseSubs = subs.filter(function(s) { return s.submission_type === 'showcase'; });
+  var subs = (byMonth[ym] || []).slice().sort(function(a, b) {
+    return String(b.created_at || '').localeCompare(String(a.created_at || ''));
+  });
+  var validWorkSubs = subs.filter(function(submission) {
+    return submission.submission_type !== 'showcase' && submission.status !== 'rejected';
+  });
+  var showcaseSubs = subs.filter(function(submission) { return submission.submission_type === 'showcase'; });
   var monthlyLinkKeys = {};
-  workSubs.forEach(function(submission) {
+  validWorkSubs.forEach(function(submission) {
     splitLinks(submission.links_engagement).concat(splitLinks(submission.links_views)).forEach(function(link) {
       var key = normalizeLinkKey(link);
       if (key) monthlyLinkKeys[key] = true;
     });
   });
   var totalLinks = Object.keys(monthlyLinkKeys).length;
-  var pendingCount = subs.filter(function(s) { return s.status === 'pending'; }).length;
-  var scoredCount = subs.filter(function(s) { return s.status === 'scored'; }).length;
-  var ccRemaining = Math.max(0, 15 - totalLinks);
+  var baseContentScore = validWorkSubs.filter(function(submission) {
+    return submission.status === 'scored';
+  }).reduce(function(total, submission) {
+    return total + Number(submission.points_earned || 0);
+  }, 0);
+  var totalAdded = (ptLogs || []).reduce(function(total, log) {
+    return log.period === ym && Number(log.change) > 0 ? total + Number(log.change) : total;
+  }, 0);
+  var bonusPoints = Math.max(0, totalAdded - baseContentScore);
+  var pendingCount = subs.filter(function(submission) { return submission.status === 'pending'; }).length;
+  var scoredCount = subs.filter(function(submission) { return submission.status === 'scored'; }).length;
+  var rejectedCount = subs.filter(function(submission) { return submission.status === 'rejected'; }).length;
   var currentTier = currentUser.tier || 'certified';
-  // Try to fetch fresh tier from API for accurate promotion hints
-  (function() { 
-    if (!currentUser || !currentUser.uid) return;
-    supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(currentUser.uid) + '&select=tier').then(function(r) {
-      if (!r.ok) return; return r.json();
-    }).then(function(d) {
-      if (d && d.length > 0 && d[0].tier) {
-        currentUser.tier = d[0].tier;
-        currentTier = d[0].tier;
-      }
-    }).catch(function() {});
-  })();
   var isCurrent = ym === currentPeriod;
-
-  // Month Pts
-  var monthPts = 0;
-  (ptLogs||[]).forEach(function(p) {
-    if (p.period === ym && p.change > 0) monthPts += p.change;
-  });
+  var monthDate = new Date(Number(ym.substring(0, 4)), Number(ym.substring(5, 7)) - 1, 1);
+  var monthLabel = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   var monthSelect = document.getElementById('submission-month-select');
   if (monthSelect) {
-    monthSelect.innerHTML = months.slice().sort().reverse().map(function(m) {
-      var data = byMonth[m] || [];
-      var label = m.replace('-', '/') + (m === currentPeriod ? ' · Current' : '') + (data.length ? ' (' + data.length + ')' : '');
-      return '<option value="' + esc(m) + '"' + (m === ym ? ' selected' : '') + '>' + esc(label) + '</option>';
+    monthSelect.innerHTML = months.slice().sort().reverse().map(function(month) {
+      var data = byMonth[month] || [];
+      var date = new Date(Number(month.substring(0, 4)), Number(month.substring(5, 7)) - 1, 1);
+      var label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      if (month === currentPeriod) label += ' · Current';
+      if (data.length) label += ' (' + data.length + ')';
+      return '<option value="' + esc(month) + '"' + (month === ym ? ' selected' : '') + '>' + esc(label) + '</option>';
     }).join('');
   }
 
-  var html = '';
+  var html = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-top:10px;">';
+  html += '<div><div style="font-size:19px;font-weight:900;color:var(--pink-dark);">' + esc(monthLabel) + '</div>';
+  html += '<div style="margin-top:4px;font-size:11px;color:var(--text-light);">' + scoredCount + ' scored · ' + pendingCount + ' pending' + (rejectedCount ? ' · ' + rejectedCount + ' rejected' : '') + '</div></div>';
+  html += '<div style="font-size:11px;color:var(--text-light);text-align:right;">Base score comes from scored work only.<br>Bonuses and carry-over do not affect creator tiers.</div></div>';
 
-  // Hero card
-  if (subs.length === 0) {
-    html += '<div style="background:#faf5f7;border-radius:16px;padding:30px;text-align:center;border:1px solid var(--border);">';
-    html += '<div style="font-size:40px;margin-bottom:6px;">📭</div>';
-    html += '<div style="font-size:14px;color:var(--text-light);">' + 'No submissions this month' + '</div>';
-    if (isCurrent) html += '<div style="font-size:12px;color:var(--text-light);margin-top:4px;">' + t('history_empty_hint') + '</div>';
-    html += '</div>';
-  } else {
-    html += '<div style="background:linear-gradient(135deg,#fff5f9,#fce4ec);border-radius:16px;padding:18px;margin-bottom:10px;border:1px solid #f8bbd0;">';
-    html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-    html += '<div><div style="font-size:22px;font-weight:800;color:#ad1457;">' + t('history_hero', {links: totalLinks}) + '</div>';
-    html += '<div style="font-size:12px;color:#880e4f;">' + scoredCount + ' scored · ' + subs.length + ' total' + (monthPts > 0 ? ' · 🏆 ' + monthPts + ' pts' : '') + '</div></div>';
-    html += '<div style="text-align:right;"><div style="font-size:12px;color:var(--text-light);">⏳ ' + pendingCount + ' pending</div>';
-    html += '<div style="font-size:12px;color:#2e7d32;">✅ ' + scoredCount + ' Scored</div></div>';
-    html += '</div></div>';
+  html += '<div class="submission-summary-grid">';
+  html += '<div class="submission-stat-card"><div class="submission-stat-label">Base Content Score</div><div class="submission-stat-value">' + baseContentScore + '</div><div class="submission-stat-note">Scored work only</div></div>';
+  html += '<div class="submission-stat-card"><div class="submission-stat-label">Bonus Points</div><div class="submission-stat-value">+' + bonusPoints + '</div><div class="submission-stat-note">Newbie, showcase, or manual bonus</div></div>';
+  html += '<div class="submission-stat-card"><div class="submission-stat-label">Total Added This Month</div><div class="submission-stat-value">+' + totalAdded + '</div><div class="submission-stat-note">All positive point entries</div></div>';
+  html += '<div class="submission-stat-card"><div class="submission-stat-label">Valid Work Links</div><div class="submission-stat-value">' + totalLinks + '</div><div class="submission-stat-note">Unique links from non-rejected work</div></div>';
+  html += '</div>';
 
-    // === MONTHLY SUMMARY CARD (previous month) ===
-    var prevYm = getPrevMonth(ym);
-    var prevSubs = byMonth[prevYm] || [];
-    var prevTotalLinks = prevSubs.reduce(function(su, s) { return su + (s.links_engagement || '').split('\n').filter(Boolean).length; }, 0);
-    var prevMonthPts = 0;
-    (ptLogs||[]).forEach(function(p) {
-      if (p.period === prevYm && p.change > 0) prevMonthPts += p.change;
-    });
-    html += '<div style="background:linear-gradient(135deg,#e3f2fd,#fff9c4);border:2px solid #90caf9;border-radius:16px;padding:18px;margin-bottom:10px;">';
-    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">';
-    html += '<span style="font-size:22px;">📊</span>';
-    html += '<span style="font-size:15px;font-weight:700;color:#1565c0;">' + prevYm.replace('-','/') + ' Summary</span>';
-    if (prevMonthPts >= 30) html += '<span style="font-size:11px;background:#ffd700;color:#5d4037;padding:2px 8px;border-radius:10px;font-weight:600;">🌟 Top Creator</span>';
-    else if (prevMonthPts >= 15) html += '<span style="font-size:11px;background:#a5d6a7;color:#1b5e20;padding:2px 8px;border-radius:10px;font-weight:600;">📈 Active Creator</span>';
-    else if (prevSubs.length > 0) html += '<span style="font-size:11px;background:#bbdefb;color:#0d47a1;padding:2px 8px;border-radius:10px;font-weight:600;">🌱 Growing</span>';
-    else html += '<span style="font-size:11px;background:#f5f5f5;color:#999;padding:2px 8px;border-radius:10px;">No data</span>';
-    html += '</div>';
-    html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">';
-    // 投稿数
-    html += '<div style="text-align:center;background:white;border-radius:12px;padding:12px 8px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">';
-    html += '<div style="font-size:10px;color:#8892b0;text-transform:uppercase;margin-bottom:2px;">📝 Submissions</div>';
-    html += '<div style="font-size:26px;font-weight:800;color:#1565c0;">' + prevTotalLinks + '</div>';
-    html += '<div style="font-size:10px;color:#8892b0;margin-top:2px;">links</div></div>';
-    // 得分数
-    html += '<div style="text-align:center;background:white;border-radius:12px;padding:12px 8px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">';
-    html += '<div style="font-size:10px;color:#8892b0;text-transform:uppercase;margin-bottom:2px;">🏆 Points Earned</div>';
-    html += '<div style="font-size:26px;font-weight:800;color:#e65100;">' + prevMonthPts + '</div>';
-    html += '<div style="font-size:10px;color:#8892b0;margin-top:2px;">pts</div></div>';
-    // 排名（下次刷新后显示）
-    var rankDisplayId = 'rank-display-' + Date.now();
-    html += '<div id="' + rankDisplayId + '" style="text-align:center;background:white;border-radius:12px;padding:12px 8px;box-shadow:0 1px 4px rgba(0,0,0,0.05);">';
-    html += '<div style="font-size:10px;color:#8892b0;text-transform:uppercase;margin-bottom:2px;">📈 Ranking</div>';
-    html += '<div style="font-size:26px;font-weight:800;color:#6a1b9a;line-height:1.1;">...</div>';
-    html += '<div style="font-size:10px;color:#8892b0;margin-top:2px;">Loading</div></div>';
-    // Async load ranking
-    (function(uid, month) {
-      supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?period=eq.' + month + '&select=uid,change,source').then(function(r) {
-        return r.ok ? r.json() : [];
-      }).then(function(allPt) {
-        var scoreMap = {};
-        allPt.forEach(function(p) { if (p.change > 0 && p.source !== 'redemption') scoreMap[p.uid] = (scoreMap[p.uid]||0) + p.change; });
-        var sorted = Object.entries(scoreMap).sort(function(a,b) { return b[1] - a[1]; });
-        if (sorted.length === 0) return;
-        var els = document.querySelectorAll('[id^="rank-display-"]');
-        els.forEach(function(el) {
-          var r = 0;
-          for (var i = 0; i < sorted.length; i++) { if (sorted[i][0] === uid && sorted[i][1] > 0) { r = i + 1; break; } }
-          var pct = Math.round((1 - r/sorted.length) * 100);
-          var v = el.querySelector('div:nth-child(2)');
-          var s = el.querySelector('div:nth-child(3)');
-          if (v) v.textContent = r > 0 ? '#' + r : '🏅';
-          if (s) s.textContent = r > 0 ? 'Top ' + (100 - pct) + '%' : 'Not ranked yet';
-        });
-      }).catch(function(){});
-    })(currentUser.uid, prevYm);
-    html += '</div></div>';
+  var ccPercent = Math.min(100, Math.round(totalLinks / 15 * 100));
+  html += '<div class="submission-progress-card"><div class="submission-progress-row"><span>🎮 Continuous Creation</span><span>' + totalLinks + ' / 15 links</span></div>';
+  html += '<div class="submission-progress-track"><div class="submission-progress-fill" style="width:' + ccPercent + '%;"></div></div>';
+  html += '<div class="submission-stat-note">' + (totalLinks >= 15 ? 'Goal reached. Reward awaits admin confirmation.' : (15 - totalLinks) + ' more valid links needed.') + '</div></div>';
 
-    // === POINTS TREND (last 6 months mini line chart) ===
-    html += '<div style="background:white;border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px;">';
-    html += '<div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px;">📈 Points Trend</div>';
-    var allMonths = getLast6Months(ym).filter(function(m) { return m >= '2026-08'; });
-    var trendPts = [];
-    allMonths.forEach(function(m) {
-      var pts = 0;
-      (ptLogs||[]).forEach(function(p) { if (p.period === m && p.change > 0) pts += p.change; });
-      trendPts.push(pts);
-    });
-    var maxPts = Math.max.apply(null, trendPts) || 1;
-    html += '<div style="display:flex;align-items:flex-end;gap:6px;height:100px;padding:0 4px;">';
-    allMonths.forEach(function(m, i) {
-      var pts = trendPts[i];
-      var h = Math.max(4, Math.round(pts / maxPts * 80));
-      var isCur = m === ym;
-      var barBg = isCur ? 'linear-gradient(180deg,#ff6b9d,#f06292)' : 'linear-gradient(180deg,#90caf9,#64b5f6)';
-      html += '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;">';
-      html += '<span style="font-size:9px;font-weight:600;color:'+(pts>0?'var(--text)':'var(--text-muted)')+';">'+(pts||0)+'</span>';
-      html += '<div style="width:100%;max-width:36px;height:'+h+'px;background:'+barBg+';border-radius:4px 4px 0 0;min-height:4px;" title="'+m+': '+pts+' pts"></div>';
-      var monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      var monthNum = parseInt(m.substring(5));
-      html += '<span style="font-size:9px;color:'+(isCur?'var(--pink-dark)':'var(--text-dim)')+';font-weight:'+(isCur?'700':'400')+';">' + monthNames[monthNum] + '</span>';
-      html += '</div>';
-    });
-    html += '</div></div>';
-
-    // === RANK for current month ===
-    var rankId2 = 'rank-display2-' + Date.now();
-    html += '<div style="background:linear-gradient(135deg,#f3e5f5,#e8eaf6);border:2px solid #ce93d8;border-radius:14px;padding:12px 16px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;" id="' + rankId2 + '">';
-    html += '<div><div style="font-size:12px;font-weight:600;color:#6a1b9a;">🏆 ' + ym.replace('-','/') + ' Ranking</div>';
-    html += '<div style="font-size:10px;color:#999;margin-top:2px;">' + monthPts + ' pts · Loading rank...</div></div>';
-    html += '<div style="font-size:32px;font-weight:800;color:#7b1fa2;line-height:1;">...</div>';
-    html += '</div>';
-    (function(uid, month, elId, myPts) {
-      supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?period=eq.' + month + '&select=uid,change,source').then(function(r) {
-        return r.ok ? r.json() : [];
-      }).then(function(allPt) {
-        var scoreMap = {};
-        allPt.forEach(function(p) { if (p.change > 0 && p.source !== 'redemption') scoreMap[p.uid] = (scoreMap[p.uid]||0) + p.change; });
-        var sorted = Object.entries(scoreMap).sort(function(a,b) { return b[1] - a[1]; });
-        var total = sorted.length;
-        var rank = 0;
-        for (var i = 0; i < sorted.length; i++) { if (sorted[i][0] === uid && sorted[i][1] > 0) { rank = i + 1; break; } }
-        var el = document.getElementById(elId);
-        if (!el) return;
-        el.querySelector('div:first-child div:nth-child(2)').textContent = myPts + ' pts · ' + (rank > 0 ? '#' + rank + ' / ' + total + ' creators' : 'Not ranked (' + total + ' total)');
-        el.querySelector('div:last-child').textContent = rank > 0 ? '#' + rank : '—';
-      }).catch(function(e){});
-    })(currentUser.uid, ym, rankId2, monthPts);
-
-    // CC progress
-    if (isCurrent) {
-      var ccPct = Math.min(100, Math.round(totalLinks / 15 * 100));
-      html += '<div style="background:#faf5f7;border-radius:14px;padding:14px;margin-bottom:8px;">';
-      html += '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;">';
-      html += '<span style="font-weight:600;">' + t('cc_title') + '</span><span style="color:var(--text-light);">' + totalLinks + '/15' + '</span></div>';
-      html += '<div style="background:#e0e0e0;border-radius:8px;height:8px;overflow:hidden;">';
-      html += '<div style="background:linear-gradient(90deg,#f06292,#ec407a);width:' + ccPct + '%;height:100%;border-radius:8px;"></div></div>';
-      if (ccRemaining > 0) html += '<div style="font-size:11px;color:#e65100;margin-top:3px;">' + ccRemaining + ' more needed' + '</div>';
-      else html += '<div style="font-size:11px;color:#2e7d32;margin-top:3px;">' + '✅ 15 links done!' + '</div>';
-      html += '</div>';
-
-      // Continuous Creation reward status
-      if (totalLinks >= 15) {
-        html += '<div style="background:#fff3e0;border:1px solid #ffe082;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#e65100;">';
-        html += '✅ Continuous Creation goal reached! Reward pending admin confirmation.' + '</div>';
-      }
-
-      
-      // New Creator Task (Newbie Mission)
-      if (isCurrent && currentUser.notes) {
-        if (isCreatorNewbieForPeriod(currentUser, ym)) {
-        var newbieDone = currentUser.notes.indexOf('newbie_bonus:' + ym) >= 0;
-        if (!newbieDone) {
-          html += '<div style="background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border:2px solid #66bb6a;border-radius:14px;padding:14px;margin-bottom:8px;">';
-          html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:24px;">🌱</span><span style="font-size:14px;font-weight:700;color:#2e7d32;">This is your newbie month!</span></div>';
-          html += '<div style="font-size:13px;color:#1b5e20;line-height:1.6;">';
-          html += 'This is your newbie month! Get ≥5 pts to earn +2 bonus!';
-          html += '📊 Current Points: <strong>' + monthPts + ' pts</strong> · ' + (monthPts >= 5 ? '✅ Completed!Waiting for settlement' : 'Need <strong>' + (5 - monthPts) + ' pts</strong> to go');
-          html += '</div></div>';
-        } else {
-          html += '<div style="background:linear-gradient(135deg,#e8f5e9,#a5d6a7);border:2px solid #43a047;border-radius:14px;padding:12px;margin-bottom:8px;text-align:center;">';
-          html += '<span style="font-size:14px;font-weight:700;color:#1b5e20;">' + '🌱 Newbie mission complete! +2 pts added' + '</span></div>';
-        }
-      }
-      }
-
-      // Grade hint: based on current tier
-      if (currentTier === 'certified') {
-        html += '<div style="background:#f3e5f5;border:1px solid #ce93d8;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#6a1b9a;">';
-        html += '🎯 Get ≥5 pts for 2 consecutive months to become Gold Creator!';
-        html += '</div>';
-      } else if (currentTier === 'gold') {
-        html += '<div style="background:#fff8e1;border:1px solid #ffd54f;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#7c4d00;">';
-        html += '⭐ Keep earning ≥5 pts for 3 consecutive months to become Platinum Creator!';
-        html += '</div>';
-      }
-      // Platinum: no promotion hint shown
-
-    }
+  if (isCurrent && currentUser.notes && isCreatorNewbieForPeriod(currentUser, ym)) {
+    var newbieDone = currentUser.notes.indexOf('newbie_bonus:' + ym) >= 0;
+    html += '<div class="submission-progress-card" style="box-shadow:4px 4px 0 var(--mint);"><div class="submission-progress-row"><span>🌱 Newbie Mission</span><span>' + baseContentScore + ' / 5 base pts</span></div>';
+    html += '<div class="submission-progress-track"><div class="submission-progress-fill" style="width:' + Math.min(100, Math.round(baseContentScore / 5 * 100)) + '%;background:linear-gradient(90deg,#66bb6a,#43a047);"></div></div>';
+    html += '<div class="submission-stat-note">' + (newbieDone ? 'Completed. Your +2 bonus has been added.' : (baseContentScore >= 5 ? 'Goal reached. Bonus will be added during settlement.' : (5 - baseContentScore) + ' more base points needed for the +2 bonus.')) + '</div></div>';
   }
 
-    // Submission list
-    html += '<div style="margin-top:4px;">';
-    subs.forEach(function(s) {
-      var st = s.status === 'pending' ? '<span style="color:#e65100;">⏳ Pending</span>' : s.status === 'scored' ? '<span style="color:#2e7d32;">✅ Scored</span>' : '<span style="color:#999;">❌ Rejected</span>';
-      var lc = (s.links_engagement || '').split('\n').filter(Boolean).length;
-      var vc = (s.links_views || '').split('\n').filter(Boolean).length;
-      var dt = new Date(s.created_at).toLocaleDateString('zh-CN');
-      var pts = s.points_earned || 0;
-      var isShowcase = s.submission_type === 'showcase';
-      var typeLabel = isShowcase ? '📸 Showcase +1' : ('🎨 Work · ' + lc + ' interactions' + (vc ? ' · ' + vc + ' views' : ''));
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">';
-      html += '<div><div style="font-size:13px;color:var(--text);">📅 ' + dt + ' · ' + typeLabel + '</div>';
-      if (pts > 0) html += '<div style="font-size:11px;color:#ad1457;">🏆 +' + pts + ' pts</div>';
-      html += '</div><div style="font-size:12px;">' + st + '</div></div>';
+  if (currentTier === 'certified') {
+    html += '<div class="submission-progress-card"><div class="submission-progress-row"><span>⭐ Gold Creator Progress</span><span>' + baseContentScore + ' base pts</span></div><div class="submission-stat-note">Earn at least 5 base content points for 2 consecutive months.</div></div>';
+  } else if (currentTier === 'gold') {
+    html += '<div class="submission-progress-card"><div class="submission-progress-row"><span>💎 Platinum Creator Progress</span><span>' + baseContentScore + ' base pts</span></div><div class="submission-stat-note">Earn at least 5 base content points for 3 consecutive months.</div></div>';
+  }
+
+  if (!subs.length) {
+    html += '<div class="submission-record-card" style="text-align:center;padding:28px;"><div style="font-size:36px;">📭</div><div class="submission-record-title" style="margin-top:8px;">No submissions in ' + esc(monthLabel) + '</div>';
+    if (isCurrent) html += '<div class="submission-record-meta">Submit your work in the Submit Works tab when submissions are open.</div>';
+    html += '</div>';
+  } else {
+    html += '<div class="submission-records">';
+    subs.forEach(function(submission) {
+      var status = submission.status || 'pending';
+      var statusLabel = status === 'scored' ? '✅ Scored' : (status === 'rejected' ? '❌ Rejected' : '⏳ Pending');
+      var engagementCount = splitLinks(submission.links_engagement).length;
+      var viewCount = splitLinks(submission.links_views).length;
+      var linkCount = engagementCount + viewCount;
+      var dateLabel = new Date(submission.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      var isShowcase = submission.submission_type === 'showcase';
+      var title = isShowcase ? '📸 Official Merch Showcase' : '🎨 Work Submission';
+      html += '<div class="submission-record-card"><div class="submission-record-head"><div><div class="submission-record-title">' + title + '</div>';
+      html += '<div class="submission-record-meta">' + esc(dateLabel) + ' · ' + linkCount + ' link' + (linkCount === 1 ? '' : 's') + (engagementCount && viewCount ? ' · ' + engagementCount + ' engagement / ' + viewCount + ' view' : '') + '</div>';
+      if (status === 'scored' && !isShowcase) html += '<div class="submission-record-score">Base Content Score: +' + Number(submission.points_earned || 0) + '</div>';
+      if (status === 'scored' && isShowcase) html += '<div class="submission-record-score">Showcase Bonus: +' + Number(submission.points_earned || 1) + '</div>';
+      if (status === 'pending') html += '<div class="submission-record-meta">Waiting for monthly review and scoring.</div>';
+      if (status === 'rejected') html += '<div class="submission-record-meta">This entry does not count toward your submission limit or Continuous Creation reward.</div>';
+      html += '</div><span class="submission-status submission-status-' + esc(status) + '">' + statusLabel + '</span></div></div>';
     });
     html += '</div>';
-
-
+  }
 
   container.innerHTML = html;
-  if (countEl) countEl.textContent = '📅 ' + ym.replace('-', '') + ' · Work links ' + totalLinks + (showcaseSubs.length ? ' · Showcase ' + showcaseSubs.length : '');
-  if (periodLabel) periodLabel.textContent = ym.replace('-', '') + '';
+  if (countEl) countEl.textContent = monthLabel + ' · ' + totalLinks + ' valid work links' + (showcaseSubs.length ? ' · ' + showcaseSubs.length + ' showcase' : '');
+  if (periodLabel) periodLabel.textContent = monthLabel;
 }
-
 function switchSubMonth(ym) {
   window._subViewMonth = ym;
   var months = window._mySubMonths || getLast6Months(currentPeriod);

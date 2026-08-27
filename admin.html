@@ -552,8 +552,8 @@
               <th>Discord</th>
               <th>UID</th>
               <th style="width:60px;">Current Tier</th>
-              <th style="width:60px;">Last Month Pts</th>
-              <th style="width:60px;">This Month Pts</th>
+              <th style="width:90px;">Last Month Base Score</th>
+              <th style="width:90px;">This Month Base Score</th>
               <th style="width:60px;">Consecutive Months</th>
               <th style="width:120px;">Actions</th>
             </tr></thead>
@@ -1199,18 +1199,27 @@ function getTierRank(tier) {
   return { certified: 0, gold: 1, platinum: 2 }[tier] || 0;
 }
 
+async function fetchMonthlyBaseScores(period) {
+  var response = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?period=eq.' + encodeURIComponent(period) + '&status=eq.scored&select=uid,points_earned,submission_type');
+  if (!response.ok) throw new Error('读取当月作品基础分失败');
+  var submissions = await response.json() || [];
+  var scores = {};
+  submissions.forEach(function(submission) {
+    if (!submission.uid || submission.submission_type === 'showcase') return;
+    scores[submission.uid] = (scores[submission.uid] || 0) + Number(submission.points_earned || 0);
+  });
+  return scores;
+}
+
 async function renderTiersTable() {
   var container = document.getElementById('tiers-table');
   if (!container) return;
   var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=*&order=discord_name.asc');
   if (!res.ok) return;
   var kocs = await res.json();
-  var plRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?period=eq.' + encodeURIComponent(currentPeriod) + '&select=uid,change,source');
-  var logs = plRes.ok ? await plRes.json() : [];
   var currentMonthPoints = {};
-  logs.forEach(function(l) {
-    if (Number(l.change) > 0 && l.source !== 'redemption') currentMonthPoints[l.uid] = (currentMonthPoints[l.uid] || 0) + Number(l.change || 0);
-  });
+  try { currentMonthPoints = await fetchMonthlyBaseScores(currentPeriod); }
+  catch (error) { showToast(error.message, 'error'); }
   var stats = {platinum:0, gold:0, newbie:0};
   var html = kocs.filter(function(k) { return k.uid !== '__config__'; }).map(function(k) {
     var tier = k.tier || 'certified';
@@ -1219,12 +1228,15 @@ async function renderTiersTable() {
     var history = [];
     try { history = JSON.parse(k.tier_history || '[]'); } catch(e) {}
     history = normalizeTierHistory(history);
-    var consecutiveMonths = countConsecutiveQualifiedMonths(history, 5);
+    var lastMonth = history.find(function(entry) { return entry.month === previousPeriod(currentPeriod); });
+    var displayHistory = history.filter(function(entry) { return entry.month !== currentPeriod; });
+    displayHistory.push({ month: currentPeriod, tier: tier, monthly_points: thisMonth });
+    var consecutiveMonths = countConsecutiveQualifiedMonths(displayHistory, 5);
     return '<tr>' +
       '<td><strong ondblclick="inlineEdit(this,\'discord_name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.discord_name) + '</strong></td>' +
       '<td>' + esc(k.uid) + '</td>' +
       '<td>' + getTierBadge(tier) + '</td>' +
-      '<td>' + (history.length > 0 ? history[history.length-1].monthly_points || 0 : 0) + '</td>' +
+      '<td>' + (lastMonth ? lastMonth.monthly_points || 0 : 0) + '</td>' +
       '<td style="font-weight:700;">' + thisMonth + '</td>' +
       '<td>' + consecutiveMonths + 'm</td>' +
       '<td>' +
@@ -1262,13 +1274,9 @@ async function autoUpgradeTiers() {
   var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=*');
   if (!res.ok) { showToast('读取创作者失败', 'error'); return; }
   var kocs = await res.json();
-  var logRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?period=eq.' + encodeURIComponent(currentPeriod) + '&select=uid,change,source');
-  if (!logRes.ok) { showToast('读取当月积分失败', 'error'); return; }
-  var logs = await logRes.json() || [];
   var monthlyPointsByUid = {};
-  logs.forEach(function(log) {
-    if (Number(log.change) > 0 && log.source !== 'redemption') monthlyPointsByUid[log.uid] = (monthlyPointsByUid[log.uid] || 0) + Number(log.change || 0);
-  });
+  try { monthlyPointsByUid = await fetchMonthlyBaseScores(currentPeriod); }
+  catch (error) { showToast(error.message, 'error'); return; }
   var upgraded = 0, failed = 0;
   for (var k of kocs) {
     if (k.uid === '__config__') continue;
