@@ -547,7 +547,8 @@ function renderFAQ(data) {
       let sid = item.id.slice(1);
       let rc = item.rarity === 'ssr' ? 'ssr' : '';
       let qe = esc(item.q);
-      html += '<div class="item" data-q="' + qe + '"><div class="item-header" onclick="toggleBody(this)"><span class="q-num">#' + sid + '</span><span class="q-text">' + qe + '</span><span class="rarity-tag ' + rc + '">' + item.rarity.toUpperCase() + '</span></div><div class="item-body">' + fmtAnswer(item.a) + '</div></div>';
+      let searchText = esc((item.q + ' ' + item.a).toLowerCase());
+      html += '<div class="item" data-search="' + searchText + '"><div class="item-header" onclick="toggleBody(this)"><span class="q-num">#' + sid + '</span><span class="q-text">' + qe + '</span><span class="rarity-tag ' + rc + '">' + item.rarity.toUpperCase() + '</span></div><div class="item-body">' + fmtAnswer(item.a) + '</div></div>';
       allQs.push(item.q);
     });
     html += '</div>';
@@ -577,19 +578,25 @@ function switchLang() {
 }
 
 function filterFAQ(q) {
-  let items = document.querySelectorAll('.item');
+  let query = String(q || '').trim().toLowerCase();
+  let categories = document.querySelectorAll('#faq-root .category');
   let count = 0;
-  items.forEach(el => {
-    let text = el.dataset.q || '';
-    if (!q || text.toLowerCase().includes(q.toLowerCase())) {
-      el.classList.remove('hidden');
-      count++;
-    } else {
-      el.classList.add('hidden');
-    }
+  categories.forEach(category => {
+    let visibleInCategory = 0;
+    category.querySelectorAll('.item').forEach(el => {
+      let matches = !query || (el.dataset.search || '').includes(query);
+      el.classList.toggle('hidden', !matches);
+      if (matches) {
+        visibleInCategory++;
+        count++;
+      }
+    });
+    category.classList.toggle('hidden', visibleInCategory === 0);
+    let badge = category.querySelector('.category-header .count');
+    if (badge) badge.textContent = visibleInCategory;
   });
   let empty = document.getElementById('empty-state');
-  if (count === 0 && q) {
+  if (count === 0 && query) {
     if (!empty) {
       let e = document.createElement('div');
       e.id = 'empty-state';
