@@ -130,12 +130,17 @@ serve(async (req) => {
 
       // 发送私信给用户
       case "send_dm": {
-        return new Response(JSON.stringify({
-          ok: false,
-          error: "MochiBot 发送功能已紧急停用，当前不会发送任何私信",
-        }), { status: 503, headers });
-        /* emergency-disabled
         const { user_id, message } = data;
+        if (!user_id || !/^\d{17,20}$/.test(String(user_id))) {
+          return new Response(JSON.stringify({ ok: false, error: "Discord 用户 ID 无效" }), {
+            status: 400, headers,
+          });
+        }
+        if (!message || !String(message).trim()) {
+          return new Response(JSON.stringify({ ok: false, error: "私信内容不能为空" }), {
+            status: 400, headers,
+          });
+        }
         // 1. 创建 DM 频道
         const dmRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
           method: "POST",
@@ -163,7 +168,6 @@ serve(async (req) => {
         }
         result = { ok: true, message_id: JSON.parse(msgBody).id };
         break;
-        */
       }
 
       // 扫描 Bot 在指定时间后发送的系统私信，只读，不删除
