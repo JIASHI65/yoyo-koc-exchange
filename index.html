@@ -118,6 +118,7 @@ body:after{right:8vw;bottom:14vh;width:18px;height:18px;background:var(--purple)
 }
 .card{padding:20px!important;margin-bottom:18px!important}
 .card-title,.level-1-title{margin-bottom:15px!important;padding:10px 12px!important;background:linear-gradient(90deg,var(--hot),#ff78ae)!important;border:3px solid var(--line)!important;color:#fff!important;font-family:var(--ui)!important;font-size:15px!important;font-weight:900!important;line-height:1.45!important;letter-spacing:.15px!important;text-shadow:2px 2px 0 #a72d65!important;box-shadow:4px 4px 0 var(--light)!important}
+.submit-period-badge{display:block!important;width:max-content!important;max-width:100%!important;margin-top:9px!important;padding:7px 11px!important;background:#fff!important;border:3px solid var(--line)!important;color:var(--pink-dark)!important;font-family:var(--ui)!important;font-size:16px!important;font-weight:900!important;line-height:1.2!important;letter-spacing:.4px!important;text-transform:uppercase!important;text-shadow:none!important;box-shadow:3px 3px 0 #a72d65!important}
 label{margin-bottom:6px!important;color:var(--text)!important;font-size:13px!important;font-weight:800!important}
 input[type="text"],textarea,select,#input-uid,#input-account-id{width:100%!important;padding:12px 13px!important;background:var(--paper-2)!important;border:3px solid var(--line)!important;border-radius:0!important;box-shadow:3px 3px 0 var(--light)!important;color:var(--text)!important;font-family:var(--ui)!important;font-size:14px!important;outline:none!important;transition:transform .1s,box-shadow .1s,background .1s!important}
 input[type="text"]:focus,textarea:focus,select:focus,#input-uid:focus,#input-account-id:focus{background:#fff!important;border-color:var(--hot)!important;box-shadow:5px 5px 0 var(--pink)!important;transform:translate(-1px,-1px)!important}
@@ -168,7 +169,7 @@ a{color:var(--pink-dark)}
 @media(max-width:680px){
   .container{padding:15px 10px 42px!important}.header{margin-top:4px!important;padding:13px 10px 12px!important}.header:before{font-size:8px!important;letter-spacing:.7px!important}.header h1{font-size:14px!important}.header p{font-size:11px!important}
   #step-login{padding:31px 14px 23px!important;box-shadow:6px 6px 0 rgba(185,47,114,.68)!important}#step-login:before{margin-top:-47px!important;font-size:9px!important}#step-login>div[style*="font-size:48px"]{font-size:19px!important}#step-login>div[style*="font-size:80px"]{font-size:54px!important}
-  .card{padding:14px!important}.card-title,.level-1-title{font-size:12px!important}.tabs{grid-template-columns:1fr 1fr!important;gap:9px!important;margin-top:33px!important;padding:10px!important}.tabs:before{font-size:10px!important;top:-23px!important}.tab{min-height:68px!important;font-size:12px!important;padding:14px 7px!important}.tab.active:after{font-size:7px!important}.nav-title{font-size:11px!important}
+  .card{padding:14px!important}.card-title,.level-1-title{font-size:12px!important}.submit-period-badge{font-size:14px!important;padding:7px 9px!important}.tabs{grid-template-columns:1fr 1fr!important;gap:9px!important;margin-top:33px!important;padding:10px!important}.tabs:before{font-size:10px!important;top:-23px!important}.tab{min-height:68px!important;font-size:12px!important;padding:14px 7px!important}.tab.active:after{font-size:7px!important}.nav-title{font-size:11px!important}
   #creator-tab-faq .suggestions{justify-content:flex-start!important;overflow-x:auto!important;flex-wrap:nowrap!important;padding-bottom:6px!important}#creator-tab-faq .suggestions .chip{flex:none!important;max-width:250px!important}
   .reward-row{align-items:flex-start!important;gap:8px!important}.qty-selector{gap:6px!important}.tier-badge{font-size:13px!important;padding:11px 17px!important}
 }
@@ -340,7 +341,7 @@ a{color:var(--pink-dark)}
     <div id="creator-tab-submit" class="tab-content">
       <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">🎨 Submit Works</span></div>
       <div class="card">
-        <div class="card-title">🎨 Submit Works</div><div style="font-size:12px;color:var(--text-light);">📅 <span id="current-period-label"></span></div>
+        <div class="card-title">🎨 Submit Works</div><div id="current-period-row" style="display:none;"><span id="current-period-label"></span></div>
         <div id="newbie-banner-submit" style="display:none;background:linear-gradient(135deg,#e8f5e9,#c8e6c9);border:2px solid #66bb6a;border-radius:14px;padding:14px;margin-bottom:12px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:24px;">🌱</span><span style="font-size:14px;font-weight:700;color:#2e7d32;">This is your newbie month!</span></div>
           <div style="font-size:13px;color:#1b5e20;line-height:1.6;">
@@ -963,7 +964,7 @@ function initSubmitTab() {
     if (submitCard) {
       periodLabel = document.createElement('span');
       periodLabel.id = 'submit-period-label';
-      periodLabel.style.cssText = 'font-size:12px;color:var(--text-light);font-weight:normal;margin-left:8px;';
+      periodLabel.className = 'submit-period-badge';
       submitCard.appendChild(periodLabel);
     }
   }
