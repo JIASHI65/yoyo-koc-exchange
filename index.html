@@ -431,9 +431,12 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);line-height:1
 .search-wrap input{width:100%;padding:10px 36px;background:var(--card);border:2px solid var(--ink);border-radius:99px;font-family:var(--body);font-size:13px;outline:none;transition:all .2s;color:var(--ink)}
 .search-wrap input:focus{border-color:var(--rose);box-shadow:0 0 0 3px rgba(242,97,140,.15)}
 .search-wrap .icon{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none}
-.suggestions{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;justify-content:center}
-.suggestions .chip{padding:4px 12px;background:var(--card);border:2px solid var(--line);border-radius:99px;font-size:11px;font-weight:600;cursor:pointer;transition:all .2s;color:var(--ink-soft);font-family:var(--body)}
-.suggestions .chip:hover{border-color:var(--rose);color:var(--rose);background:#FFF3F6}
+.suggestions{display:none;margin:-8px 5px 14px;background:#fff;border:2px solid var(--line);border-top:0;box-shadow:4px 5px 0 rgba(185,47,114,.22);position:relative;z-index:5}
+.suggestions.active{display:block}
+.suggestions .suggestion-row{display:flex;align-items:flex-start;gap:9px;width:100%;padding:10px 12px;border:0;border-bottom:1px solid var(--line);background:#fff;color:var(--ink);font-family:var(--body);font-size:12px;font-weight:700;text-align:left;cursor:pointer}
+.suggestions .suggestion-row:last-child{border-bottom:0}
+.suggestions .suggestion-row:hover,.suggestions .suggestion-row:focus{background:#fff3f6;outline:none}
+.suggestions .suggestion-icon{flex:none;color:var(--rose)}
 .category{margin-bottom:22px}
 .category-header{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:6px 0}
 .category-header .icon{font-size:22px;width:32px;text-align:center}
@@ -476,7 +479,7 @@ html[lang="en"] body{font-family:var(--en-body)}
 <div class="container">
   <div class="search-wrap">
     <span class="icon">🔍</span>
-    <input type="text" id="search" placeholder="Search questions..." oninput="filterFAQ(this.value)">
+    <input type="text" id="search" placeholder="Search questions..." autocomplete="off" oninput="handleFAQSearch(this.value)" onfocus="updateFAQSuggestions(this.value)">
   </div>
   <div class="suggestions" id="suggestions"></div>
   <div id="faq-root"></div>
@@ -541,7 +544,6 @@ function renderFAQ(data) {
   sug.innerHTML = '';
 
   let html = '';
-  let allQs = [];
   data.forEach(cat => {
     html += '<div class="category"><div class="category-header"><span class="icon">' + esc(cat.icon) + '</span><h2>' + esc(cat.name) + '</h2><span class="count">' + cat.items.length + '</span></div>';
     cat.items.forEach(item => {
@@ -549,20 +551,13 @@ function renderFAQ(data) {
       let rc = item.rarity === 'ssr' ? 'ssr' : '';
       let qe = esc(item.q);
       let searchText = esc((item.q + ' ' + item.a).toLowerCase());
-      html += '<div class="item" data-search="' + searchText + '"><div class="item-header" onclick="toggleBody(this)"><span class="q-num">#' + sid + '</span><span class="q-text">' + qe + '</span><span class="rarity-tag ' + rc + '">' + item.rarity.toUpperCase() + '</span></div><div class="item-body">' + fmtAnswer(item.a) + '</div></div>';
-      allQs.push(item.q);
+      html += '<div class="item" data-id="' + esc(item.id) + '" data-question="' + qe + '" data-search="' + searchText + '"><div class="item-header" onclick="toggleBody(this)"><span class="q-num">#' + sid + '</span><span class="q-text">' + qe + '</span><span class="rarity-tag ' + rc + '">' + item.rarity.toUpperCase() + '</span></div><div class="item-body">' + fmtAnswer(item.a) + '</div></div>';
     });
     html += '</div>';
   });
   root.innerHTML = html;
 
-  // suggestions
-  let seen = new Set(), chips = [];
-  allQs.forEach(q => {
-    let short = q.slice(0, 24);
-    if (!seen.has(short)) { seen.add(short); chips.push(q); }
-  });
-  sug.innerHTML = chips.slice(0, 8).map(q => '<span class="chip" data-full="' + esc(q) + '" onclick="searchChip(this)">' + esc(q.slice(0, 24)) + (q.length > 24 ? '…' : '') + '</span>').join('');
+  sug.classList.remove('active');
 }
 
 function toggleBody(h) {
@@ -609,6 +604,54 @@ function filterFAQ(q) {
     if (empty) empty.remove();
   }
 }
+
+function handleFAQSearch(value) {
+  filterFAQ(value);
+  updateFAQSuggestions(value);
+}
+
+function updateFAQSuggestions(value) {
+  let query = String(value || '').trim().toLowerCase();
+  let box = document.getElementById('suggestions');
+  if (!box || query.length < 2) {
+    if (box) { box.innerHTML = ''; box.classList.remove('active'); }
+    return;
+  }
+  let matches = Array.from(document.querySelectorAll('#faq-root .item')).filter(item => {
+    return (item.dataset.search || '').includes(query);
+  }).slice(0, 6);
+  if (!matches.length) {
+    box.innerHTML = '';
+    box.classList.remove('active');
+    return;
+  }
+  box.innerHTML = matches.map(item => {
+    return '<button type="button" class="suggestion-row" data-id="' + esc(item.dataset.id || '') + '" onclick="selectFAQSuggestion(this)"><span class="suggestion-icon">🔎</span><span>' + esc(item.dataset.question || '') + '</span></button>';
+  }).join('');
+  box.classList.add('active');
+}
+
+function selectFAQSuggestion(button) {
+  let id = button.getAttribute('data-id') || '';
+  let item = Array.from(document.querySelectorAll('#faq-root .item')).find(el => el.dataset.id === id);
+  if (!item) return;
+  let question = item.dataset.question || '';
+  let input = document.getElementById('search');
+  input.value = question;
+  filterFAQ(question);
+  let box = document.getElementById('suggestions');
+  box.innerHTML = '';
+  box.classList.remove('active');
+  let body = item.querySelector('.item-body');
+  if (body) body.classList.add('open');
+  setTimeout(function() { item.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30);
+}
+
+document.addEventListener('click', function(event) {
+  let box = document.getElementById('suggestions');
+  let searchWrap = document.querySelector('#creator-tab-faq .search-wrap');
+  if (box && searchWrap && !searchWrap.contains(event.target) && !box.contains(event.target)) box.classList.remove('active');
+});
 
 function searchChip(el) {
   var q = el.getAttribute('data-full') || el.textContent;
