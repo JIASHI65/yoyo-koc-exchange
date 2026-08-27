@@ -814,7 +814,7 @@ function getSubmissionPeriod(item) {
   if (item && item.created_at) return String(item.created_at).slice(0, 7);
   return currentPeriod;
 }
-var currentPeriod = getSettlementPeriod();
+var currentPeriod = '';
 let currentUser = null;
 let redemptionOpen = false;
 
@@ -848,19 +848,21 @@ let selections = {};
 async function loadCurrentPeriod() {
   try {
     var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?is_current_period=eq.true&select=period');
-    if (res.ok) {
-      var data = await res.json();
-      if (data && data.length > 0 && data[0].period) {
-        currentPeriod = data[0].period;
-        console.log('Loaded current period from config:', currentPeriod);
-        return;
-      }
+    if (!res.ok) throw new Error('Current period request failed: HTTP ' + res.status);
+    var data = await res.json();
+    if (!data || data.length !== 1 || !/^\d{4}-\d{2}$/.test(String(data[0].period || ''))) {
+      throw new Error('Exactly one published settlement period is required');
     }
+    currentPeriod = data[0].period;
+    console.log('Loaded current period from config:', currentPeriod);
+    return true;
   } catch(e) {
-    console.warn('Failed to load current period from config, using today:', e);
+    currentPeriod = '';
+    redemptionOpen = false;
+    window._submissionsOpen = false;
+    console.error('Failed to load the published settlement period:', e);
+    return false;
   }
-  // Fallback to today's natural month if config lookup fails
-  currentPeriod = getSettlementPeriod();
 }
 
 // Do NOT auto-fill or auto-login. Users must type their Game UID + System ID every time.
@@ -873,7 +875,7 @@ async function tryAutoLogin() {
     if (!sessionData.uid || !sessionData.account_id_verified) return;
 
     // 加载当前期配置
-    await loadCurrentPeriod();
+    if (!await loadCurrentPeriod()) return;
 
     // 从数据库验证并加载用户数据
     var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + encodeURIComponent(sessionData.uid) + '&status=eq.active&select=*');
@@ -952,7 +954,12 @@ async function refreshAvailableBalance() {
 }
 async function login() {
   // Load current period from config before login
-  await loadCurrentPeriod();
+  if (!await loadCurrentPeriod()) {
+    showToast('The current submission period is temporarily unavailable. Please try again later.', 'error');
+    var unavailableStatus = document.getElementById('login-status');
+    if (unavailableStatus) unavailableStatus.textContent = 'Unable to load the official submission period. No data was submitted.';
+    return;
+  }
 
   const accountId = document.getElementById('input-account-id').value.trim();
   const uid = document.getElementById('input-uid').value.trim();

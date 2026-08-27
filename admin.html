@@ -592,7 +592,7 @@
               <button class="btn btn-sm" style="font-weight:600;" id="btn-toggle-submissions" onclick="toggleCampaignSwitch('submissions_open')">🔒 投稿已关闭</button>
             </div>
             <div style="margin-top:10px;padding-top:10px;border-top:1px solid #ead8e2;">
-              <label style="font-size:11px;color:#666;">自动关闭时间（按你电脑本地时间填写，保存为 UTC）</label>
+              <label style="font-size:11px;color:#666;">自动关闭时间（固定按 UTC-7 填写，例如 9月5日 23:59）</label>
               <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                 <input type="datetime-local" id="cfg-submissions-close-at" style="flex:1;min-width:190px;font-size:12px;">
                 <button class="btn btn-sm btn-outline" onclick="saveCampaignCloseTime('submissions')">保存</button>
@@ -610,7 +610,7 @@
               <button class="btn btn-sm" style="font-weight:600;" id="btn-toggle-redemption" onclick="toggleCampaignSwitch('redemption_open')">🔒 兑换已关闭</button>
             </div>
             <div style="margin-top:10px;padding-top:10px;border-top:1px solid #ead8e2;">
-              <label style="font-size:11px;color:#666;">自动关闭时间（按你电脑本地时间填写，保存为 UTC）</label>
+              <label style="font-size:11px;color:#666;">自动关闭时间（固定按 UTC-7 填写，例如 9月5日 23:59）</label>
               <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                 <input type="datetime-local" id="cfg-redemption-close-at" style="flex:1;min-width:190px;font-size:12px;">
                 <button class="btn btn-sm btn-outline" onclick="saveCampaignCloseTime('redemption')">保存</button>
@@ -1434,18 +1434,35 @@ function isCampaignFeatureOpen(manualOpen, closeAt) {
   return manualOpen === true && (!closeAt || Date.now() < new Date(closeAt).getTime());
 }
 
-function toDatetimeLocalValue(iso) {
+function toCampaignTimezoneValue(iso) {
   if (!iso) return '';
   var d = new Date(iso);
   if (isNaN(d.getTime())) return '';
+  var campaignTime = new Date(d.getTime() - 7 * 60 * 60 * 1000);
   var pad = function(v) { return String(v).padStart(2, '0'); };
-  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  return campaignTime.getUTCFullYear() + '-' + pad(campaignTime.getUTCMonth() + 1) + '-' + pad(campaignTime.getUTCDate()) + 'T' + pad(campaignTime.getUTCHours()) + ':' + pad(campaignTime.getUTCMinutes());
+}
+
+function parseCampaignTimezoneValue(value) {
+  var match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(String(value || ''));
+  if (!match) return null;
+  var year = Number(match[1]);
+  var month = Number(match[2]);
+  var day = Number(match[3]);
+  var hour = Number(match[4]);
+  var minute = Number(match[5]);
+  if (month < 1 || month > 12 || hour > 23 || minute > 59) return null;
+  var localCheck = new Date(Date.UTC(year, month - 1, day, hour, minute));
+  if (localCheck.getUTCFullYear() !== year || localCheck.getUTCMonth() !== month - 1 || localCheck.getUTCDate() !== day) return null;
+  var timestamp = Date.UTC(year, month - 1, day, hour + 7, minute);
+  var date = new Date(timestamp);
+  return isNaN(date.getTime()) ? null : date;
 }
 
 function setCampaignCloseTimeUi(type, iso) {
   var input = document.getElementById('cfg-' + type + '-close-at');
   var status = document.getElementById('cfg-' + type + '-close-status');
-  if (input) input.value = toDatetimeLocalValue(iso);
+  if (input) input.value = toCampaignTimezoneValue(iso);
   if (!status) return;
   if (!iso) {
     status.textContent = '未设置自动关闭';
@@ -1454,7 +1471,7 @@ function setCampaignCloseTimeUi(type, iso) {
   }
   var d = new Date(iso);
   var expired = Date.now() >= d.getTime();
-  status.textContent = (expired ? '⛔ 已到期：' : '⏰ 将自动关闭：') + d.toLocaleString() + '（UTC ' + d.toISOString().replace('.000Z', 'Z') + '）';
+  status.textContent = (expired ? '⛔ 已到期：' : '⏰ 将自动关闭：') + toCampaignTimezoneValue(iso).replace('T', ' ') + '（UTC-7） · UTC ' + d.toISOString().replace('.000Z', 'Z');
   status.style.color = expired ? '#c62828' : '#6d4c00';
 }
 
@@ -1462,8 +1479,8 @@ async function saveCampaignCloseTime(type) {
   var period = document.getElementById('cfg-period').value;
   var input = document.getElementById('cfg-' + type + '-close-at');
   if (!input || !input.value) { showToast('请先选择自动关闭日期和时间', 'error'); return; }
-  var date = new Date(input.value);
-  if (isNaN(date.getTime())) { showToast('自动关闭时间无效', 'error'); return; }
+  var date = parseCampaignTimezoneValue(input.value);
+  if (!date) { showToast('自动关闭时间无效', 'error'); return; }
   var field = type + '_close_at';
   var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?period=eq.' + encodeURIComponent(period), {
     method: 'PATCH',
