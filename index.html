@@ -714,6 +714,13 @@ var currentPeriod = getSettlementPeriod();
 let currentUser = null;
 let redemptionOpen = false;
 
+function formatPeriodLabel(period) {
+  var match = /^(\d{4})-(\d{2})$/.exec(String(period || ''));
+  if (!match) return String(period || '');
+  var monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  return monthNames[parseInt(match[2], 10) - 1] + ' ' + match[1];
+}
+
 function isFeatureWindowOpen(manualOpen, closeAt) {
   return manualOpen === true && (!closeAt || Date.now() < new Date(closeAt).getTime());
 }
@@ -953,7 +960,7 @@ function initSubmitTab() {
       submitCard.appendChild(periodLabel);
     }
   }
-  if (periodLabel) periodLabel.textContent = '📅 ' + currentPeriod.replace('-', '') + '';
+  if (periodLabel) periodLabel.textContent = '📅 ' + formatPeriodLabel(currentPeriod);
   // Check if already at max submissions (2) and lock form
   (async function() {
     try {
