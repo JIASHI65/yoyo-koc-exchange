@@ -907,13 +907,13 @@ Elite: 连续 6 个月达到 5 分</textarea>
 
     <div style="font-size:13px;font-weight:600;margin:4px 0 4px;">✉️ 条件私信（按条件筛选 → 预览编辑 → 确认发送）</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px;">
-      <button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;text-align:left;" onclick="previewBroadcast('welcome')">🆕 ① 新人欢迎 — 发送注册链接</button>
-      <button class="btn btn-sm" style="background:#fff3e0;color:#e65100;text-align:left;" onclick="previewBroadcast('reminder')">📥 ② 催交链接 — 收集作品提醒</button>
-      <button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;text-align:left;" onclick="previewBroadcast('scored')">✅ ③ 算分完成 — 当前月已评分 KOC</button>
-      <button class="btn btn-sm" style="background:#f3e5f5;color:#6a1b9a;text-align:left;" onclick="previewBroadcast('tier_upgrade')">⭐ ④ 等级变动 — 晋升通知</button>
+      <button class="btn btn-sm" style="background:#e8f5e9;color:#2e7d32;text-align:left;" onclick="previewBroadcast('welcome')">🆕 ② 条件新人欢迎 — 手动补发</button>
+      <button class="btn btn-sm" style="background:#fff3e0;color:#e65100;text-align:left;" onclick="previewBroadcast('reminder')">📥 ④ 催交作品 — UTC-7 截止</button>
+      <button class="btn btn-sm" style="background:#eef4ff;color:#3347a8;text-align:left;" onclick="previewMochiTemplateOnly('registration_approved')">✅ ③ 审核通过 — 查看自动通知模板</button>
+      <button class="btn btn-sm" style="background:#f3e5f5;color:#6a1b9a;text-align:left;" onclick="previewBroadcast('tier_upgrade')">⭐ ⑥ 等级变动 — 手动名单</button>
     </div>
 
-    <div style="font-size:13px;font-weight:600;margin:8px 0 4px;">📄 算分完成 · CSV 个性化通知（推荐）</div>
+    <div style="font-size:13px;font-weight:600;margin:8px 0 4px;">📄 ⑤ CSV 个性化结算通知（推荐）</div>
     <div style="background:#f8f9ff;border:1px solid #dfe3ff;border-radius:10px;padding:8px;margin-bottom:8px;">
       <div style="font-size:11px;color:var(--text-light);line-height:1.5;margin-bottom:6px;">仅用于月度算分结果：每位创作者收到自己的得分表现和兑换入口。格式：Discord昵称, Game UID 或 Account ID, 个性化话术全文。首行可留表头；话术含逗号/换行请用双引号包裹。</div>
       <textarea id="mochi-csv-input" style="width:100%;min-height:74px;border:1px solid #ccd3ff;border-radius:6px;padding:6px;font-size:12px;margin-bottom:6px;" placeholder="Discord昵称,Game UID,个性化话术全文\nKuro,PeJhjGkSftQF,Hi Kuro..."></textarea>
@@ -2799,10 +2799,52 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function mochiSupportFooter(message) {
   var oldFooterText = '---\nPlease do not reply to MochiBot directly. Check the FAQ first, then post in #town-service-station if you still need help.';
-  var footerText = '---\n**Reminder:** MochiBot only sends system notifications and cannot reply to messages. If you need help, please check the FAQ first, then post in **#town-service-station**. Human support is provided by **YoYo assistant💗Mochi**.';
-  var base = String(message || '').replace(oldFooterText, '').replace(/\n+$/, '');
+  var previousFooterText = '---\n**Reminder:** MochiBot only sends system notifications and cannot reply to messages. If you need help, please check the FAQ first, then post in **#town-service-station**. Human support is provided by **YoYo assistant💗Mochi**.';
+  var footerText = '---\nWe look forward to seeing your creations! We hope you make new friends, share ideas, and have fun together in YoYo Town! 💛\n\n**Reminder:** MochiBot only sends system notifications. Please do not reply directly, as your reply will not be seen by our staff.\n\nIf you need help, please post in **#town-service-station**. Human support is provided by **YoYo assistant Mochi — look for the red butterfly profile picture.**';
+  var base = String(message || '').replace(oldFooterText, '').replace(previousFooterText, '').replace(/\n+$/, '');
   if (base.indexOf(footerText) >= 0) return base;
   return base ? (base + '\n' + footerText) : footerText;
+}
+
+function getMochiSubmissionDeadline() {
+  var closeAt = window._cfgSwitches && window._cfgSwitches.submissions_close_at;
+  if (!closeAt) return '{Full Deadline Date} at 11:59 PM (UTC-7)';
+  var date = new Date(closeAt);
+  if (isNaN(date.getTime())) return '{Full Deadline Date} at 11:59 PM (UTC-7)';
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Etc/GMT+7',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  }).format(date) + ' (UTC-7)';
+}
+
+function getMochiMessageTemplates() {
+  var portalUrl = 'https://yoyo-creative-studio.github.io/yoyo-koc-exchange/index.html';
+  return {
+    welcome: '🎉 **Welcome to the MLT Creator Program!**\n\nYour **Newcomer Month** is the first full calendar month after your registration is approved. Earn at least **5 base points** during that month to receive **+2 bonus points**. We believe you can do it! ✨\n\nIf submissions are still open after your approval, you may also submit during the current month. Your Newcomer Bonus will be calculated in the following full month.\n\nSubmit your registration application here:\n' + portalUrl + '\n\nThe Creator Portal includes a searchable **FAQ**. After submitting, please wait for administrator approval. MochiBot will notify you once your application has been approved.\n\nMochi will announce in Discord whenever monthly submission and reward redemption periods open.\n\n🎁 Once approved, you will receive a physical New Creator Welcome Gift.\n💡 Visit **💡｜official-inspirations** for monthly content ideas and creator resources.',
+    registration_approved: '✅ **Your Creator Registration Has Been Approved!**\n\nWelcome to the MLT Creator Program! 🎉\n\nYou can now log in to the Creator Portal using the **Game UID and Account ID** provided in your application:\n' + portalUrl + '\n\nMonthly submissions and reward redemption are only available during designated periods. Please wait for Mochi to announce in Discord when each period opens.\n\n🎁 A physical New Creator Welcome Gift has been registered for you.\n💡 Visit **💡｜official-inspirations** for monthly content ideas, trends, the Creator Playbook, and creator tools. This content is for certified creators only—please do not share it outside the community.',
+    reminder: '⏰ **Monthly Submission Reminder**\n\nThis month’s submission period is now open.\n\nPlease log in to the Creator Portal and submit all of your content links before:\n\n**' + getMochiSubmissionDeadline() + '**\n\nCreator Portal:\n' + portalUrl + '\n\nOnly links successfully submitted through the Creator Portal will be included in this month’s point calculation.\n\nAfter submitting, please open **My Submissions** and confirm that all of your links have been saved correctly.',
+    tier_upgrade: '⭐ **Congratulations—Your Creator Tier Has Been Upgraded!**\n\nBased on your recent creative contributions and point performance, you have officially been upgraded to:\n\n**{Gold Creator / Platinum Creator}**\n\nWe have assigned your new creator role in both the **My Leisure Time** and **YoYo Creative Studio** Discord communities. You can visit either community to see your new role and updated name display.\n\nDifferent creator tiers include different exclusive benefits. Please visit **⭐｜creator-tier-system** for the complete tier requirements, role details, and benefits.\n\nThank you for your continued creativity and contribution to the MLT Creator Program!'
+  };
+}
+
+function previewMochiTemplateOnly(type) {
+  var templates = getMochiMessageTemplates();
+  var editor = document.getElementById('broadcast-msg-editor');
+  var area = document.getElementById('broadcast-preview-area');
+  var list = document.getElementById('broadcast-target-list');
+  var count = document.getElementById('broadcast-target-count');
+  mochiBroadcastTargets = [];
+  window._bcTargets = [];
+  mochiBroadcastType = 'template_only';
+  if (editor) editor.value = templates[type] || '';
+  if (list) list.innerHTML = '<div style="padding:8px;color:#3347a8;line-height:1.5;">Template saved for the registration approval flow. No recipient is selected and this preview cannot send a DM.</div>';
+  if (count) count.textContent = '0 人（仅查看模板）';
+  if (area) area.style.display = 'block';
 }
 // ===== MOCHI BROADCAST MODAL =====
 // ===== MOCHI DM PRESETS =====
@@ -2861,7 +2903,7 @@ function buildMochiCsvTargets(text) {
     var dedupe = ((k && k.uid) || key || sendName).toLowerCase();
     if (seen[dedupe]) return; seen[dedupe] = true;
     var reason = !k ? '未匹配 KOC' : hasCurrentScored ? currentPeriod + ' 已评分' : currentPeriod + ' 无已评分记录';
-    out.push({ discord_name: sendName, csv_name: name, uid: (k && k.uid) || key, account_id: (k && k.account_id) || '', message: msg, matched: !!k, eligible: hasCurrentScored, checked: hasCurrentScored, reason: reason });
+    out.push({ discord_name: sendName, csv_name: name, uid: (k && k.uid) || key, account_id: (k && k.account_id) || '', message: msg, matched: !!k, eligible: hasCurrentScored, checked: false, reason: reason });
   });
   return out;
 }
@@ -2880,7 +2922,7 @@ function previewMochiCsvBroadcast() {
   if (count) count.textContent = mochiCsvTargets.length + ' 行（逐条文案）';
   if (list) list.innerHTML = mochiCsvTargets.map(function(t, i) {
     var prev = (t.message || '').slice(0, 80) + ((t.message || '').length > 80 ? '…' : '');
-    return '<div style="display:grid;grid-template-columns:24px 1fr auto;gap:5px;padding:3px 4px;font-size:12px;align-items:start;' + (t.eligible ? '' : 'opacity:.55;') + '"><input type="checkbox" class="mochi-csv-cb" data-index="' + i + '"' + (t.eligible ? ' checked' : ' disabled') + '><span><b>' + esc(t.discord_name || t.csv_name || '(空)') + '</b> <span style="color:#999;">' + esc(t.uid || '') + '</span><br><span style="font-size:11px;color:#666;">' + esc(prev) + '</span></span><span style="font-size:11px;color:' + (t.eligible ? '#2e7d32' : '#c62828') + ';">' + esc(t.reason) + '</span></div>';
+    return '<div style="display:grid;grid-template-columns:24px 1fr auto;gap:5px;padding:3px 4px;font-size:12px;align-items:start;' + (t.eligible ? '' : 'opacity:.55;') + '"><input type="checkbox" class="mochi-csv-cb" data-index="' + i + '"' + (t.eligible ? '' : ' disabled') + '><span><b>' + esc(t.discord_name || t.csv_name || '(空)') + '</b> <span style="color:#999;">' + esc(t.uid || '') + '</span><br><span style="font-size:11px;color:#666;">' + esc(prev) + '</span></span><span style="font-size:11px;color:' + (t.eligible ? '#2e7d32' : '#c62828') + ';">' + esc(t.reason) + '</span></div>';
   }).join('') || '<div style="padding:6px;color:#999;">没有可发送行</div>';
   var editor = document.getElementById('broadcast-msg-editor');
   if (editor) editor.value = mochiCsvTargets[0] ? mochiCsvTargets[0].message : '';
@@ -2958,12 +3000,7 @@ async function previewBroadcast(type) {
     var msg = '';
 
     // Type-specific messages
-    var msgs = {
-      'welcome': '🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\n📅 下个月将是你首个新人活动月！\n在下个月内投稿满 5 积分，即可额外获得 +2 积分 🎯\n\n📝 请先完成注册：\n👉 https://yoyo-creative-studio.github.io/yoyo-koc-exchange/index.html\n点击 "I\'m a New Creator" 填写信息\n\n完成注册后即可开始投稿！',
-      'reminder': '📥 Reminder! 作品收集已开启\n\n请在 **下个月5号前** 提交所有作品链接：\n👉 https://yoyo-creative-studio.github.io/yoyo-koc-exchange/index.html\n\n只有通过表单提交的链接才计入积分！',
-      'scored': '✅ Your monthly creator score is ready!\n\nYour submitted works have been reviewed and your points have been added to the KOC Creator Portal. Log in to view your score summary and redeem your rewards:\n👉 https://yoyo-creative-studio.github.io/yoyo-koc-exchange/index.html\n\nReward options:\n• 1 Point = 450 Diamonds\n• 2 Points = $10 Google Play Gift Card\n• 5 Points = 3 Random Merchandise Items',
-      'tier_upgrade': '⭐ 恭喜晋升！\n\n你的创作者等级已提升！查看最新等级和权益：\n👉 https://yoyo-creative-studio.github.io/yoyo-koc-exchange/index.html\n\n继续创作，冲击下一级！💎'
-    };
+    var msgs = getMochiMessageTemplates();
     msg = msgs[type] || msgs['welcome'];
 
     allMembers.forEach(function(m) {
@@ -3157,6 +3194,10 @@ function removeBroadcastTarget() {
 }
 
 async function confirmBroadcast() {
+  if (mochiBroadcastType === 'template_only') {
+    showToast('审核通过通知模板仅供查看，不能从广播窗口发送', 'info');
+    return;
+  }
   if (!MOCHI_TOKEN && !document.getElementById('mochi-token-input').value) {
     showToast('请先填写 Bot Token', 'error'); return;
   }
@@ -3402,10 +3443,7 @@ async function checkNewMembers() {
       if (!discordId) {
         failed++;
       } else {
-        var now = new Date();
-        var nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-        var newbieMonthLabel = nextMonth.getFullYear() + '年' + (nextMonth.getMonth() + 1) + '月';
-        var welcomeMsg = mochiSupportFooter('🎀 Welcome to Yoyo Town! You\'re now an official Certified Creator! 🎉\n\n📅 **' + newbieMonthLabel + ' 将是你首个新人活动月！**\n在 ' + newbieMonthLabel + ' 内投稿满 5 积分，即可额外获得 **+2 积分** 🎯\n\n📝 **现在请先完成注册：**\n1️⃣ 打开 https://yoyo-creative-studio.github.io/yoyo-koc-exchange/index.html\n2️⃣ 点击 "I\'m a New Creator"\n3️⃣ 填写信息：Account ID / Game UID / 姓名 / 服务器(正式服/灯塔服) / 完整收货地址+电话\n\n完成注册后即可开始投稿。\n\n📌 **投稿提醒：**\n• 把作品链接粘贴到 Submit Works\n• 每条链接一行，确保公开可见并带上 #myleisuretime\n• ' + newbieMonthLabel + ' 整月投稿达到 5 分，额外 +2 分！');
+        var welcomeMsg = mochiSupportFooter(getMochiMessageTemplates().welcome);
         var dmData = await discordProxyFetch('send_dm', { user_id: discordId, message: welcomeMsg }, MOCHI_TOKEN);
         if (dmData.ok) sent++; else failed++;
       }
