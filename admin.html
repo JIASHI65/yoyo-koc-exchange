@@ -1161,20 +1161,55 @@ function getTierBadge(tier) {
   return `<span class='tier-badge ${cls[tier]||"tier-certified"}'>${map[tier]||"✅ 认证创作官"}</span>`;
 }
 
+function normalizeTierHistory(history) {
+  var byMonth = {};
+  (Array.isArray(history) ? history : []).forEach(function(entry) {
+    if (!entry || !/^\d{4}-\d{2}$/.test(String(entry.month || ''))) return;
+    byMonth[entry.month] = {
+      month: entry.month,
+      tier: entry.tier || 'certified',
+      monthly_points: Number(entry.monthly_points) || 0
+    };
+  });
+  return Object.keys(byMonth).sort().map(function(month) { return byMonth[month]; }).slice(-12);
+}
+
+function previousPeriod(period) {
+  var parts = String(period || '').split('-');
+  var year = parseInt(parts[0], 10);
+  var month = parseInt(parts[1], 10) - 1;
+  if (month < 1) { month = 12; year--; }
+  return year + '-' + String(month).padStart(2, '0');
+}
+
+function countConsecutiveQualifiedMonths(history, threshold) {
+  var normalized = normalizeTierHistory(history);
+  var consecutive = 0;
+  var expectedMonth = normalized.length ? normalized[normalized.length - 1].month : '';
+  for (var i = normalized.length - 1; i >= 0; i--) {
+    var entry = normalized[i];
+    if (entry.month !== expectedMonth || Number(entry.monthly_points || 0) < threshold) break;
+    consecutive++;
+    expectedMonth = previousPeriod(expectedMonth);
+  }
+  return consecutive;
+}
+
+function getTierRank(tier) {
+  return { certified: 0, gold: 1, platinum: 2 }[tier] || 0;
+}
+
 async function renderTiersTable() {
   var container = document.getElementById('tiers-table');
   if (!container) return;
   var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=*&order=discord_name.asc');
   if (!res.ok) return;
   var kocs = await res.json();
-  var month = '2026-07';
-  var plRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?select=uid,change,period,created_at&order=created_at.desc');
+  var plRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?period=eq.' + encodeURIComponent(currentPeriod) + '&select=uid,change,source');
   var logs = plRes.ok ? await plRes.json() : [];
   var currentMonthPoints = {};
   logs.forEach(function(l) {
-    if ((l.period || '').indexOf('2026-07') >= 0 || (!l.period && new Date(l.created_at).getMonth() === 6)) {
-      if (l.change > 0) currentMonthPoints[l.uid] = (currentMonthPoints[l.uid] || 0) + l.change;
-    }
+    if (Number(l.change) > 0 && l.source !== 'redemption') currentMonthPoints[l.uid] = (currentMonthPoints[l.uid] || 0) + Number(l.change || 0);
   });
   var stats = {platinum:0, gold:0, newbie:0};
   var html = kocs.filter(function(k) { return k.uid !== '__config__'; }).map(function(k) {
@@ -1183,7 +1218,8 @@ async function renderTiersTable() {
     var thisMonth = currentMonthPoints[k.uid] || 0;
     var history = [];
     try { history = JSON.parse(k.tier_history || '[]'); } catch(e) {}
-    var consecutiveMonths = history.length;
+    history = normalizeTierHistory(history);
+    var consecutiveMonths = countConsecutiveQualifiedMonths(history, 5);
     return '<tr>' +
       '<td><strong ondblclick="inlineEdit(this,\'discord_name\',\'' + k.uid + '\')" title="Double-click to edit">' + esc(k.discord_name) + '</strong></td>' +
       '<td>' + esc(k.uid) + '</td>' +
@@ -1193,7 +1229,7 @@ async function renderTiersTable() {
       '<td>' + consecutiveMonths + 'm</td>' +
       '<td>' +
         '<select id=\'tier-select-' + k.uid + '\' style=\'width:100px;margin-bottom:2px;\'>' +
-          '<option value=\'new\'' + (tier==='certified'?' selected':'') + '>✅ 认证创作官</option>' +
+          '<option value=\'certified\'' + (tier==='certified'?' selected':'') + '>✅ 认证创作官</option>' +
           '<option value=\'gold\'' + (tier==='gold'?' selected':'') + '>🟡 金级创作官</option>' +
           '<option value=\'platinum\'' + (tier==='platinum'?' selected':'') + '>💎 铂金创作官</option>' +
           
@@ -1224,28 +1260,29 @@ async function updateKocTier(uid) {
 async function autoUpgradeTiers() {
   if (!confirm('Run auto tier upgrade for all active KOCs?')) return;
   var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=*');
-  if (!res.ok) return;
+  if (!res.ok) { showToast('读取创作者失败', 'error'); return; }
   var kocs = await res.json();
-  var subRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?order=created_at.desc&select=*');
-  var subs = subRes.ok ? await subRes.json() : [];
+  var logRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?period=eq.' + encodeURIComponent(currentPeriod) + '&select=uid,change,source');
+  if (!logRes.ok) { showToast('读取当月积分失败', 'error'); return; }
+  var logs = await logRes.json() || [];
+  var monthlyPointsByUid = {};
+  logs.forEach(function(log) {
+    if (Number(log.change) > 0 && log.source !== 'redemption') monthlyPointsByUid[log.uid] = (monthlyPointsByUid[log.uid] || 0) + Number(log.change || 0);
+  });
   var upgraded = 0, failed = 0;
   for (var k of kocs) {
     if (k.uid === '__config__') continue;
-    var monthlyPoints = subs.filter(function(s) { return s.uid === k.uid && s.status === 'scored' && ((s.period || (s.created_at || '').substring(0, 7)) === currentPeriod); })
-      .reduce(function(sum, s) { return sum + (s.points_earned || 0); }, 0);
+    var monthlyPoints = monthlyPointsByUid[k.uid] || 0;
     var history = [];
     try { history = JSON.parse(k.tier_history || '[]'); } catch(e) {}
-    history.push({month: currentPeriod, tier: k.tier || 'certified', monthly_points: monthlyPoints});
-    if (history.length > 12) history = history.slice(-12);
-    var consecutive = 0;
-    for (var i = history.length - 1; i >= 0; i--) {
-      if (history[i].monthly_points >= 5) consecutive++; else break;
-    }
-    var newTier = 'certified';
-    if (consecutive >= 6) newTier = "platinum";
-    else if (consecutive >= 3) newTier = 'platinum';
-    else if (consecutive >= 2) newTier = 'gold';
-    if (newTier !== k.tier) {
+    history = normalizeTierHistory(history).filter(function(entry) { return entry.month !== currentPeriod; });
+    history.push({ month: currentPeriod, tier: k.tier || 'certified', monthly_points: monthlyPoints });
+    history = normalizeTierHistory(history);
+    var consecutive = countConsecutiveQualifiedMonths(history, 5);
+    var calculatedTier = consecutive >= 3 ? 'platinum' : (consecutive >= 2 ? 'gold' : 'certified');
+    var currentTier = k.tier || 'certified';
+    var newTier = getTierRank(calculatedTier) > getTierRank(currentTier) ? calculatedTier : currentTier;
+    if (newTier !== currentTier) {
       var tierResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.' + k.uid, {
         method: 'PATCH',
         body: JSON.stringify({ tier: newTier, tier_history: JSON.stringify(history), tier_updated_at: new Date().toISOString() })
@@ -3648,16 +3685,8 @@ function hasCC(notes) {
 
 function toggleCC(uid, notes) {
   const tag = 'CC:' + currentPeriod;
-  let updated = notes || '';
   var wasChecked = hasCC(notes);
-  
-  if (wasChecked) {
-    updated = updated.replace(new RegExp(',?\\s*' + tag.replace(':', '\\:'), 'g'), '');
-    updated = updated.replace(/^,\s*/, '').replace(/,\s*$/, '');
-  } else {
-    updated = updated ? updated + ', ' + tag : tag;
-  }
-  updated = updated.replace(/^,\s*/, '').replace(/,\s*$/, '');
+  var updated = wasChecked ? removeKocNoteTag(notes, tag) : appendKocNoteTag(notes, tag);
   
   var koc = allKocs.find(function(k) { return k.uid === uid; });
   var discordName = koc ? koc.discord_name || koc.name || 'Unknown' : 'Unknown';
@@ -4778,6 +4807,18 @@ function appendKocNoteTag(notes, tag) {
     return JSON.stringify(notesObj);
   } catch(e) {
     return rawNotes ? rawNotes + ', ' + tag : tag;
+  }
+}
+
+function removeKocNoteTag(notes, tag) {
+  var rawNotes = String(notes || '');
+  try {
+    var notesObj = JSON.parse(rawNotes || '{}');
+    delete notesObj[tag];
+    return JSON.stringify(notesObj);
+  } catch(e) {
+    var escapedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return rawNotes.replace(new RegExp('(?:^|,\\s*)' + escapedTag + '(?=,|$)', 'g'), '').replace(/^,\s*/, '').replace(/,\s*$/, '').trim();
   }
 }
 

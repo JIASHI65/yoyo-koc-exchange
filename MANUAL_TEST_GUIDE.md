@@ -359,7 +359,7 @@ SELECT SUM(change) FROM point_logs WHERE uid = 'MANUALTEST001';
 
 ---
 
-## 💬 第三阶段：CSV 广播测试（30分钟）
+## 💬 第三阶段：CSV 解析预览测试（禁止发送，15分钟）
 
 ### 测试 3.1: 准备 CSV
 
@@ -394,33 +394,7 @@ ManualTest-Gold,MANUALTEST003,You earned 40 points (capped). You're amazing!
 
 ---
 
-### 测试 3.3: Mochi Token 配置
-
-**⚠️ 重要**: 如果你没有真实的 MochiBot Token，跳过发送测试，只验证解析功能
-
-**如果有 Token**:
-1. 在 "Mochi Bot Token" 输入框输入真实 Token
-2. Token 会保存到 `localStorage`
-
----
-
-### 测试 3.4: 发送测试（仅当有真实 Token）
-
-**操作**:
-1. 只勾选第一行（ManualTest-Newbie）
-2. 点击 "Send to Selected (1)"
-3. 观察发送状态
-
-**预期结果**:
-- ✅ 显示进度 "Sending 1/1..."
-- ✅ 如果 Discord 成员匹配成功：显示 "✅ Sent to ManualTest-Newbie"
-- ✅ 如果匹配失败：显示 "❌ Member not found"（因为是测试账号，不在真实 Discord 服务器）
-
-**注意**: 测试账号不在你的 Discord 服务器里，所以会显示"未找到成员"，这是正常的。真实创作者的昵称才能匹配。
-
----
-
-### 测试 3.5: CSV 状态清除
+### 测试 3.3: CSV 状态清除
 
 **操作**:
 1. 点击任意一个预设按钮（如 "Send Welcome"）
@@ -750,7 +724,7 @@ fetch('https://rryzofimrehmkijkckrm.supabase.co/rest/v1/campaign_config?period=e
 - [ ] 管理端可以导入积分，防重复导入
 - [ ] 新人奖 +2 自动触发
 - [ ] Showcase 审核通过 +1
-- [ ] CSV 广播可以解析（发送看实际 Token）
+- [ ] CSV 可以解析并预览，未配置 Token、未点击确认发送
 - [ ] 兑换功能正常，余额预留正确
 - [ ] 最多选2种奖励限制生效
 - [ ] 发货扣分正确，防重复扣分
@@ -785,7 +759,7 @@ SELECT SUM(points_spent) FROM redemption_orders WHERE uid = 'MANUALTEST001' AND 
 
 ---
 
-### 问题3: CSV 广播匹配失败
+### 问题3: CSV 解析匹配失败
 **检查**:
 - CSV 格式是否正确（逗号分隔，3列）
 - Discord 昵称是否和 `kocs.discord_name` 一致
@@ -832,7 +806,7 @@ DELETE FROM kocs WHERE uid LIKE 'MANUALTEST%';
 | 2.6 Showcase 审核 | ✅ / ❌ |  |  |  |
 | 3.1 CSV 准备 | ✅ / ❌ |  |  |  |
 | 3.2 CSV 解析 | ✅ / ❌ |  |  |  |
-| 3.4 CSV 发送 | ✅ / ❌ / N/A |  |  |  |
+| 3.3 CSV 状态清除 | ✅ / ❌ |  |  |  |
 | 4.1 查看余额 | ✅ / ❌ |  |  |  |
 | 4.2 选择奖励 | ✅ / ❌ |  |  |  |
 | 4.3 2种限制 | ✅ / ❌ |  |  |  |

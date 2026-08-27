@@ -70,8 +70,8 @@ Address: 123 Test St, Test City, TS, 12345, USA, +1234567890
 
 **预期结果**:
 - [ ] 批准成功提示
-- [ ] `koc_creators` 表新增记录
-- [ ] 自动创建欢迎周边订单 (检查 `orders` 表)
+- [ ] `kocs` 表新增记录
+- [ ] 自动创建欢迎周边订单（检查 `redemption_orders` 表）
 - [ ] 申请从待审核列表消失
 
 ---
@@ -106,7 +106,7 @@ Address: 123 Test St, Test City, TS, 12345, USA, +1234567890
 
 **预期结果**:
 - [ ] 提交成功提示
-- [ ] `work_submissions` 表新增记录
+- [ ] `submissions` 表新增记录
 - [ ] 记录包含正确的 `uid`, `period`, `links_views`
 
 ---
@@ -239,7 +239,7 @@ Address: 123 Test St, Test City, TS, 12345, USA, +1234567890
 
 **预期结果**:
 - [ ] 兑换成功提示
-- [ ] `orders` 表新增记录 (`reward_type: 'diamonds'`, `quantity: 1`)
+- [ ] `redemption_orders` 表新增记录（`option_type: 'diamonds'`）
 - [ ] 剩余积分变为 11 (12-1)
 - [ ] 订单状态为 `pending`
 - [ ] "My Orders" 显示新订单
@@ -416,7 +416,7 @@ Address: 123 Test St, Test City, TS, 12345, USA, +1234567890
 3. [ ] 批量删除
 
 **验证**:
-- [ ] `work_submissions` 表无测试数据
+- [ ] `submissions` 表无测试数据
 
 ---
 
@@ -426,7 +426,7 @@ Address: 123 Test St, Test City, TS, 12345, USA, +1234567890
 2. [ ] 删除所有测试订单
 
 **验证**:
-- [ ] `orders` 表无 `E2E-LAUNCH-*` 相关订单
+- [ ] `redemption_orders` 表无 `E2E-LAUNCH-*` 相关订单
 
 ---
 
@@ -446,7 +446,7 @@ Address: 123 Test St, Test City, TS, 12345, USA, +1234567890
 3. [ ] 删除该创作者
 
 **验证**:
-- [ ] `koc_creators` 表无测试数据
+- [ ] `kocs` 表无测试数据
 - [ ] 创作者无法登录
 
 ---

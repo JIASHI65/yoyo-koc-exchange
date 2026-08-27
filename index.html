@@ -1507,7 +1507,7 @@ async function registerCreator() {
     }
 
     var notesObj = {
-      registered_at: new Date().toISOString(),
+      application_submitted_at: new Date().toISOString(),
       account_id: accountId,
       game_uid: gameUid,
       fullname: fullname,
@@ -1516,8 +1516,7 @@ async function registerCreator() {
       state: state,
       zip: zip,
       country: country,
-      phone: phone,
-      newbie_month: getNextMonthPeriod()
+      phone: phone
     };
 
     var payload = {
@@ -1835,7 +1834,14 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
   var subs = byMonth[ym] || [];
   var workSubs = subs.filter(function(s) { return s.submission_type !== 'showcase'; });
   var showcaseSubs = subs.filter(function(s) { return s.submission_type === 'showcase'; });
-  var totalLinks = workSubs.reduce(function(su, s) { return su + (s.links_engagement || '').split('\n').filter(Boolean).length; }, 0);
+  var monthlyLinkKeys = {};
+  workSubs.forEach(function(submission) {
+    splitLinks(submission.links_engagement).concat(splitLinks(submission.links_views)).forEach(function(link) {
+      var key = normalizeLinkKey(link);
+      if (key) monthlyLinkKeys[key] = true;
+    });
+  });
+  var totalLinks = Object.keys(monthlyLinkKeys).length;
   var pendingCount = subs.filter(function(s) { return s.status === 'pending'; }).length;
   var scoredCount = subs.filter(function(s) { return s.status === 'scored'; }).length;
   var ccRemaining = Math.max(0, 15 - totalLinks);

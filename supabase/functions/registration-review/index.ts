@@ -14,6 +14,42 @@ function json(body: unknown, status = 200) {
   });
 }
 
+function getBusinessPeriod(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value || "";
+  const month = parts.find((part) => part.type === "month")?.value || "";
+  return `${year}-${month}`;
+}
+
+function getNextPeriod(period: string) {
+  const [yearText, monthText] = period.split("-");
+  let year = Number(yearText);
+  let month = Number(monthText) + 1;
+  if (month > 12) {
+    year += 1;
+    month = 1;
+  }
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+function buildApprovedNotes(rawNotes: string, approvedAt: string, newbieMonth: string) {
+  let notes: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(rawNotes || "{}");
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) notes = parsed;
+  } catch {
+    if (rawNotes.trim()) notes.legacy_notes = rawNotes.trim();
+  }
+  notes.registered_at = approvedAt;
+  notes.approved_at = approvedAt;
+  notes.newbie_month = newbieMonth;
+  return JSON.stringify(notes);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders });
   if (req.method !== "POST") return json({ ok: false, error: "Method not allowed" }, 405);
@@ -84,6 +120,19 @@ serve(async (req) => {
       if (loadError || !application) return json({ ok: false, error: "Application not found" }, 404);
       if (application.status !== "pending") return json({ ok: false, error: "Application has already been reviewed" }, 409);
 
+      const approvedAt = new Date();
+      const approvedAtIso = approvedAt.toISOString();
+      const approvalPeriod = getBusinessPeriod(approvedAt);
+      const newbieMonth = getNextPeriod(approvalPeriod);
+      const approvedNotes = buildApprovedNotes(String(application.notes || ""), approvedAtIso, newbieMonth);
+      const { data: currentCampaign } = await db.from("campaign_config")
+        .select("period")
+        .eq("is_current_period", true)
+        .order("period", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const orderPeriod = currentCampaign?.period || approvalPeriod;
+
       const { error: insertError } = await db.from("kocs").insert({
         uid: application.uid,
         discord_name: application.discord_name,
@@ -96,14 +145,13 @@ serve(async (req) => {
         postal_code: application.postal_code,
         country: application.country,
         phone: application.phone,
-        notes: application.notes,
+        notes: approvedNotes,
         status: "active",
-        created_at: new Date().toISOString(),
+        created_at: approvedAtIso,
       });
       if (insertError) return json({ ok: false, error: `Unable to create creator account: ${insertError.message}` }, 400);
 
-      const period = new Date().toISOString().slice(0, 7);
-      const { error: giftError } = await db.from("redemption_orders").insert({
+      const { data: giftOrder, error: giftError } = await db.from("redemption_orders").insert({
         uid: application.uid,
         discord_name: application.discord_name,
         koc_name: application.name,
@@ -114,9 +162,9 @@ serve(async (req) => {
         contact_info: "",
         status: "pending",
         admin_notes: "Welcome gift - created automatically on registration approval",
-        period,
-        created_at: new Date().toISOString(),
-      });
+        period: orderPeriod,
+        created_at: approvedAtIso,
+      }).select("id").single();
       if (giftError) {
         await db.from("kocs").delete().eq("uid", application.uid);
         return json({ ok: false, error: `Unable to create mandatory welcome gift: ${giftError.message}` }, 400);
@@ -124,11 +172,15 @@ serve(async (req) => {
 
       const { error: updateError } = await db.from("registration_applications").update({
         status: "approved",
-        reviewed_at: new Date().toISOString(),
+        reviewed_at: approvedAtIso,
         reviewed_by: "admin",
         review_notes: String(data.review_notes || ""),
       }).eq("id", applicationId);
-      if (updateError) return json({ ok: false, error: updateError.message }, 400);
+      if (updateError) {
+        if (giftOrder?.id) await db.from("redemption_orders").delete().eq("id", giftOrder.id);
+        await db.from("kocs").delete().eq("uid", application.uid);
+        return json({ ok: false, error: updateError.message }, 400);
+      }
       return json({ ok: true });
     }
 
