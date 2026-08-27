@@ -165,24 +165,31 @@ async function loadReport() {
   document.getElementById('header-subtitle').textContent = period.replace('-','年') + ' · 数据报告中...';
   document.getElementById('report-content').innerHTML = '<div class="loading"><div class="spinner"></div><p>正在加载 ' + period.replace('-','年') + ' 数据...</p></div>';
   try {
-    var [kocRes, subRes, ordRes, plRes] = await Promise.all([
+    var [kocRes, subRes, ordRes, plRes, snapshotRes] = await Promise.all([
       sf('/rest/v1/kocs?select=*'),
       sf('/rest/v1/submissions?order=created_at.desc&select=*'),
       sf('/rest/v1/redemption_orders?order=created_at.desc&select=*'),
-      sf('/rest/v1/point_logs?select=change')
+      sf('/rest/v1/point_logs?select=change'),
+      sf('/rest/v1/monthly_report_snapshots?period=eq.' + encodeURIComponent(period) + '&select=payload&limit=1')
     ]);
     kocs = kocRes.ok ? (await kocRes.json()).filter(function(k){return k.uid!=='__config__'}) : [];
     var allSubs = subRes.ok ? await subRes.json() : [];
+    var snapshotRows = snapshotRes.ok ? await snapshotRes.json() : [];
+    reportSnapshot = snapshotRows.length ? snapshotRows[0].payload : null;
+    if (reportSnapshot) {
+      subs = snapshotToReportSubmissions(reportSnapshot);
+    } else {
     var _mset = {};
-    allSubs.forEach(function(s){ var m=(s.created_at||'').substring(0,7); if(m) _mset[m]=true; });
+    allSubs.forEach(function(s){ var m=s.period||(s.created_at||'').substring(0,7); if(m) _mset[m]=true; });
     var _mkeys = Object.keys(_mset).sort();
     var _latest = _mkeys.length ? _mkeys[_mkeys.length-1] : null;
-    var _hasCur = allSubs.some(function(s){ return (s.created_at||'').substring(0,7) === period; });
+    var _hasCur = allSubs.some(function(s){ return (s.period||(s.created_at||'').substring(0,7)) === period; });
     if (_latest && !_hasCur) {
       document.getElementById('month-select').value = _latest;
       return loadReport();
     }
-    subs = allSubs.filter(function(s){ return (s.created_at||'').substring(0,7) === period; });
+    subs = allSubs.filter(function(s){ return (s.period||(s.created_at||'').substring(0,7)) === period; });
+    }
     points = [];
     orders = ordRes.ok ? await ordRes.json() : [];
     var plogs = plRes.ok ? await plRes.json() : [];
@@ -192,6 +199,27 @@ async function loadReport() {
   } catch(e) {
     document.getElementById('report-content').innerHTML = '<div class="error"><div class="icon">😵</div><p>数据加载失败: ' + e.message + '</p><button class="btn-retry" onclick="loadReport()">重新加载</button></div>';
   }
+}
+
+var reportSnapshot = null;
+function snapshotToReportSubmissions(snapshot) {
+  var domains = {fb:'facebook.com',ig:'instagram.com',tt:'tiktok.com',rd:'reddit.com',yt:'youtube.com'};
+  return (snapshot.creators||[]).map(function(creator, creatorIndex) {
+    var engagement = [], views = [];
+    Object.keys(domains).forEach(function(code) {
+      var platform = (creator.platforms||{})[code]||{};
+      for (var index=0; index<(platform.count||0); index++) {
+        var link = 'https://' + domains[code] + '/historical/' + creatorIndex + '-' + index;
+        (code==='tt'||code==='yt' ? views : engagement).push(link);
+      }
+    });
+    return {
+      uid:creator.uid, discord_name:creator.name, status:'scored', submission_type:'historical_snapshot',
+      period:snapshot.period, created_at:snapshot.period+'-28T12:00:00Z', points_earned:creator.points||0,
+      links_engagement:engagement.join('\n'), links_views:views.join('\n'),
+      score_details:JSON.stringify(creator.platforms||{})
+    };
+  });
 }
 
 function getPeriodOrder(period) {
@@ -214,8 +242,9 @@ function getTotalScore(uid, period) {
 
 // ==== RENDER ====
 function renderReport(period) {
-  var totalKocs = kocs.length;
-  var activeKocs = kocs.filter(function(k){return k.status==='active'}).length;
+  var snapshotSummary = reportSnapshot && reportSnapshot.summary ? reportSnapshot.summary : null;
+  var totalKocs = snapshotSummary ? snapshotSummary.koc_pool : kocs.length;
+  var activeKocs = snapshotSummary ? snapshotSummary.koc_pool : kocs.filter(function(k){return k.status==='active'}).length;
   var subbed = subs.length;
   var scored = subs.filter(function(s){return s.status==='scored'}).length;
   var pending = subs.filter(function(s){return s.status==='pending'}).length;
@@ -227,8 +256,12 @@ function renderReport(period) {
     return p===period;
   }).reduce(function(s,o){return s+(o.points_spent||0)},0);
   var periodOrders = getPeriodOrder(period);
-  var redeemed = periodOrders.length;
-  var shipped = periodOrders.filter(function(o){return o.status==='shipped'}).length;
+  var redeemed = snapshotSummary ? snapshotSummary.redemption_creators : periodOrders.length;
+  var shipped = snapshotSummary ? snapshotSummary.redemption_creators : periodOrders.filter(function(o){return o.status==='shipped'}).length;
+  if (snapshotSummary) {
+    currentBalance = snapshotSummary.recorded_balance_after_redemption;
+    redeemedTotal = snapshotSummary.merch_quantity*5 + snapshotSummary.gplay_quantity*2 + snapshotSummary.diamond_quantity;
+  }
 
   // Tier distribution
   var tierDist = {};

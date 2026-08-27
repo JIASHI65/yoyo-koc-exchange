@@ -3731,6 +3731,26 @@ function toggleCC(uid, notes) {
 
 // ===== DASHBOARD =====
 
+function snapshotToDashboardSubmissions(snapshot) {
+  var domains = {fb:'facebook.com',ig:'instagram.com',tt:'tiktok.com',rd:'reddit.com',yt:'youtube.com'};
+  return (snapshot.creators||[]).map(function(creator, creatorIndex) {
+    var engagement = [], views = [];
+    Object.keys(domains).forEach(function(code) {
+      var platform = (creator.platforms||{})[code]||{};
+      for (var index=0; index<(platform.count||0); index++) {
+        var link = 'https://' + domains[code] + '/historical/' + creatorIndex + '-' + index;
+        (code==='tt'||code==='yt' ? views : engagement).push(link);
+      }
+    });
+    return {
+      uid:creator.uid, discord_name:creator.name, status:'scored', submission_type:'historical_snapshot',
+      period:snapshot.period, created_at:snapshot.period+'-28T12:00:00Z', points_earned:creator.points||0,
+      links_engagement:engagement.join('\n'), links_views:views.join('\n'),
+      score_details:JSON.stringify(creator.platforms||{})
+    };
+  });
+}
+
 // ===== DASHBOARD =====
 async function loadDashboard() {
   var label = document.getElementById('dash-period-label');
@@ -3767,18 +3787,22 @@ async function loadDashboard() {
   try {
     // ========== 并行拉取数据 (Promise.all) ==========
     var startTime = Date.now();
-    var [kocRes, subRes, ordRes, plRes] = await Promise.all([
+    var [kocRes, subRes, ordRes, plRes, snapshotRes] = await Promise.all([
       supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=uid,discord_name,tier,name,created_at,notes'),
       supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?select=uid,discord_name,status,points_earned,links_engagement,links_views,score_details,submission_type,created_at&order=created_at.desc'),
       supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?select=uid,points_spent,status,created_at&order=created_at.desc&limit=500'),
-      supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?select=change')
+      supabaseFetch(SUPABASE_URL + '/rest/v1/point_logs?select=change'),
+      supabaseFetch(SUPABASE_URL + '/rest/v1/monthly_report_snapshots?period=eq.' + encodeURIComponent(currentPeriod) + '&select=payload&limit=1')
     ]);
-    var [kocs, subs, orders, plogs] = await Promise.all([
+    var [kocs, subs, orders, plogs, snapshotRows] = await Promise.all([
       kocRes.ok ? kocRes.json() : Promise.resolve([]),
       subRes.ok ? subRes.json() : Promise.resolve([]),
       ordRes.ok ? ordRes.json() : Promise.resolve([]),
-      plRes.ok ? plRes.json() : Promise.resolve([])
+      plRes.ok ? plRes.json() : Promise.resolve([]),
+      snapshotRes.ok ? snapshotRes.json() : Promise.resolve([])
     ]);
+    var dashboardSnapshot = snapshotRows.length ? snapshotRows[0].payload : null;
+    if (dashboardSnapshot) subs = subs.concat(snapshotToDashboardSubmissions(dashboardSnapshot));
     // ========== 清除 skeleton ==========
     document.getElementById('dash-kpi').innerHTML = '';
     ['chart-tier','chart-platform','chart-points','chart-trend','chart-top10'].forEach(function(id) {
@@ -3796,7 +3820,7 @@ async function loadDashboard() {
     // ========== 指标 ==========
     var activeKocs = {}; monthSubs.forEach(function(s) { activeKocs[s.uid] = true; });
     var activeCount = Object.keys(activeKocs).length;
-    var totalCreators = kocs.length;
+    var totalCreators = dashboardSnapshot ? dashboardSnapshot.summary.koc_pool : kocs.length;
     var totalLinks = 0, pendingLinks = 0;
     monthSubs.forEach(function(s) {
       var eng = (s.links_engagement||'').split('\n').filter(Boolean).length;
@@ -3812,7 +3836,7 @@ async function loadDashboard() {
     var redeemedTotal = shippedOrders.reduce(function(acc, o) { return acc + (o.points_spent||0); }, 0);
     var tierStats = {}; kocs.forEach(function(k) { var t = k.tier||'certified'; tierStats[t] = (tierStats[t]||0) + 1; });
     var plat = tierStats['platinum']||0, gold = tierStats['gold']||0, cert = tierStats['certified']||0;
-    var ccCount = kocs.filter(function(k) { return (k.notes||'').indexOf('CC:' + currentPeriod) >= 0; }).length;
+    var ccCount = dashboardSnapshot ? dashboardSnapshot.summary.continuous_creator_count : kocs.filter(function(k) { return (k.notes||'').indexOf('CC:' + currentPeriod) >= 0; }).length;
     var newC = 0, oldC = 0;
     monthSubs.forEach(function(s) {
       var _sd = {}; try { _sd = JSON.parse(s.score_details||'{}'); } catch(e) {}
