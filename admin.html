@@ -281,7 +281,7 @@
       <h1>🌟🎀 Admin · KOC Redemption</h1>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:6px;background:#fce4ec;padding:6px 14px;border-radius:10px;border:2px solid var(--pink);">
-          <span style="font-size:13px;font-weight:600;color:var(--pink-dark);">📅 结算月份</span>
+          <span style="font-size:13px;font-weight:600;color:var(--pink-dark);">📅 工作月份</span>
           <select id="settle-month" style="width:140px;padding:4px 8px;border:1.5px solid var(--pink);border-radius:6px;font-size:13px;font-weight:600;background:white;cursor:pointer;" onchange="changeSettlePeriod()">
             <!-- 动态加载期号 -->
           </select>
@@ -569,7 +569,7 @@
         <div class="card-title">📐 积分规则配置</div>
         <div class="row">
           <label>活动周期</label>
-          <select id="cfg-period" onchange="loadCampaignConfig()" style="width:200px;">
+          <select id="cfg-period" onchange="changeConfigPeriod()" style="width:200px;">
             <!-- 自动加载上个月到未来12个月 -->
           </select>
         </div>
@@ -1136,9 +1136,9 @@ window.adminLogin = function adminLogin() {
     localStorage.setItem('admin_session', 'logged_in');
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('admin-panel').classList.remove('hidden');
-    setTimeout(function() {
-      loadSettleMonthDropdown();
-      loadData();
+    setTimeout(async function() {
+      await loadSettleMonthDropdown();
+      await loadData();
     }, 100);
   } else {
     alert('Wrong password (hint: ' + ADMIN_PASSWORD + ')');
@@ -1322,10 +1322,10 @@ async function loadSettleMonthDropdown() {
       }
     }
 
-    // 如果没有找到 is_current_period=true，默认选第一个
+    // 如果没有找到 is_current_period=true，回退到最新配置月份
     if (!sel.value && filteredData.length > 0) {
-      sel.value = filteredData[0].period;
-      currentPeriod = filteredData[0].period;
+      sel.value = filteredData[filteredData.length - 1].period;
+      currentPeriod = filteredData[filteredData.length - 1].period;
     }
 
     // Update display label
@@ -1361,16 +1361,29 @@ async function loadAllPeriods() {
       sel.appendChild(opt);
     });
 
-    // 默认选中当前期
-    var currentRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/campaign_config?is_current_period=eq.true&select=period');
-    if (currentRes.ok) {
-      var currentData = await currentRes.json();
-      if (currentData && currentData.length > 0 && currentData[0].period >= '2026-08') {
-        sel.value = currentData[0].period;
-      }
-    }
+    // 与顶部“工作月份”保持一致
+    if (filteredData.some(function(row) { return row.period === currentPeriod; })) sel.value = currentPeriod;
+    else if (filteredData.length > 0) sel.value = filteredData[0].period;
     await loadCampaignConfig();
   } catch(e) { console.error('loadAllPeriods:', e); }
+}
+
+function syncAdminPeriodSelectors(period) {
+  if (!period) return;
+  currentPeriod = period;
+  var settleSelect = document.getElementById('settle-month');
+  var configSelect = document.getElementById('cfg-period');
+  if (settleSelect && Array.from(settleSelect.options).some(function(option) { return option.value === period; })) settleSelect.value = period;
+  if (configSelect && Array.from(configSelect.options).some(function(option) { return option.value === period; })) configSelect.value = period;
+  var label = document.getElementById('settle-label');
+  if (label) label.textContent = '📅 ' + period.replace('-', '年') + '月';
+}
+
+function changeConfigPeriod() {
+  var select = document.getElementById('cfg-period');
+  if (!select || !select.value) return;
+  syncAdminPeriodSelectors(select.value);
+  loadCampaignConfig();
 }
 
 async function loadCampaignConfig() {
@@ -1548,6 +1561,8 @@ async function saveCampaignConfig() {
       method: 'PATCH',
       body: JSON.stringify({ is_current_period: false })
     });
+
+    syncAdminPeriodSelectors(period);
 
     document.getElementById('cfg-status').textContent = '✅ Saved!';
     document.getElementById('cfg-status').style.color = '#4caf50';
@@ -2792,7 +2807,10 @@ document.addEventListener('DOMContentLoaded', function() {
   if (localStorage.getItem('admin_session') === 'logged_in') {
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('admin-panel').classList.remove('hidden');
-    setTimeout(function() { loadData(); }, 100);
+    setTimeout(async function() {
+      await loadSettleMonthDropdown();
+      await loadData();
+    }, 100);
   }
 });
 
@@ -3616,59 +3634,24 @@ function initSettleSelect() {
   if (lbl) lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
 }
 function shiftSettleMonth(delta) {
-  // Parse current period
-  var parts = currentPeriod.split('-');
-  var y = parseInt(parts[0]), m = parseInt(parts[1]);
-  m += delta;
-  if (m < 1) { m = 12; y--; }
-  if (m > 12) { m = 1; y++; }
-  currentPeriod = y + '-' + String(m).padStart(2, '0');
-  // Sync select value AND selected attribute
   var sel = document.getElementById('settle-month');
-  if (sel) {
-    sel.value = currentPeriod;
-    // Also update the selected option's attribute
-    for (var i = 0; i < sel.options.length; i++) {
-      sel.options[i].selected = (sel.options[i].value === currentPeriod);
-    }
-  }
-  // Update display
-  var disp = document.getElementById('settle-month-display');
-  if (disp) disp.textContent = currentPeriod.replace('-', '年') + '月';
-  var lbl = document.getElementById('settle-label');
-  if (lbl) lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
-  // Refresh current active tab
-  var activeId = null;
-  var tabIds = ['dashboard','community','koc-ledger','scoring','submissions','diamond','gplay','tiers','rules','audit'];
-  tabIds.forEach(function(id) {
-    var el = document.getElementById('tab-'+id);
-    if (el && getComputedStyle(el).display !== 'none') activeId = id;
-  });
-  if (activeId === 'dashboard') loadDashboard();
-  else if (activeId === 'koc-ledger') renderKocTable();
-  else if (activeId === 'scoring') renderScoringTable();
-  else if (activeId === 'submissions') loadSubmissions();
-  else if (activeId === 'diamond') renderDiamondTab();
-  else if (activeId === 'gplay') renderGplayTab();
-  else if (activeId === 'tiers') renderTiersTable();
-  else if (activeId === 'rules') loadCampaignConfig();
-  else if (activeId === 'audit') loadAuditLog();
-  showToast('📅 切换到 ' + currentPeriod.replace('-', '年') + '月', 'success');
+  if (!sel || !sel.options.length) return;
+  var nextIndex = Math.max(0, Math.min(sel.options.length - 1, sel.selectedIndex + delta));
+  if (nextIndex === sel.selectedIndex) return;
+  sel.selectedIndex = nextIndex;
+  changeSettlePeriod();
 }
 function changeSettlePeriod() {
   var sel = document.getElementById('settle-month');
-  currentPeriod = sel.value;
+  if (!sel || !sel.value) return;
+  syncAdminPeriodSelectors(sel.value);
   // Mark this option as selected
   for (var i = 0; i < sel.options.length; i++) {
     sel.options[i].selected = (sel.options[i].value === currentPeriod);
   }
-  var lbl = document.getElementById('settle-label');
-  if (lbl && currentPeriod) {
-    var parts = currentPeriod.split('-');
-    var year = parts[0];
-    var month = parseInt(parts[1]);
-    lbl.textContent = '📅 ' + year + '年' + month + '月';
-  }
+  var parts = currentPeriod.split('-');
+  var year = parts[0];
+  var month = parseInt(parts[1]);
   // Refresh current active tab
   var activeId = null;
   var tabIds = ['dashboard','community','koc-ledger','scoring','submissions','diamond','gplay','tiers','rules','audit'];
@@ -3820,27 +3803,6 @@ async function loadDashboard() {
       ordRes.ok ? ordRes.json() : Promise.resolve([]),
       plRes.ok ? plRes.json() : Promise.resolve([])
     ]);
-    // ========== 自动跳转到最近有数据的月份 ==========
-    if (subs.length > 0) {
-      var _nowReal = new Date();
-      var _realPeriod = _nowReal.getFullYear() + '-' + String(_nowReal.getMonth() + 1).padStart(2, '0');
-      var _mset = {};
-      subs.forEach(function(s) { var m = (s.created_at || '').substring(0, 7); if (m) _mset[m] = true; });
-      var _mkeys = Object.keys(_mset).sort();
-      var _latest = _mkeys.length ? _mkeys[_mkeys.length - 1] : null;
-      var _hasCurrent = subs.some(function(s) { return (s.created_at || '').substring(0, 7) === currentPeriod; });
-      if (_latest && currentPeriod === _realPeriod && !_hasCurrent && _latest !== currentPeriod) {
-        currentPeriod = _latest;
-        var _sel = document.getElementById('settle-month');
-        if (_sel) {
-          _sel.value = currentPeriod;
-          for (var _i = 0; _i < _sel.options.length; _i++) _sel.options[_i].selected = (_sel.options[_i].value === currentPeriod);
-        }
-        var _lbl = document.getElementById('settle-label');
-        if (_lbl) _lbl.textContent = '📅 ' + currentPeriod.replace('-', '年') + '月';
-        return loadDashboard();
-      }
-    }
     // ========== 清除 skeleton ==========
     document.getElementById('dash-kpi').innerHTML = '';
     ['chart-tier','chart-platform','chart-points','chart-trend','chart-top10'].forEach(function(id) {
@@ -6238,7 +6200,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loginScreen.classList.add('hidden');
         adminPanel.classList.remove('hidden');
         setTimeout(function() {
-          loadData().then(function() {
+          loadSettleMonthDropdown().then(function() { return loadData(); }).then(function() {
             var savedTab = localStorage.getItem('admin_active_tab');
             if (savedTab && ['dashboard','koc-ledger','scoring','submissions','diamond','gplay','rules','audit'].indexOf(savedTab) >= 0) {
               switchTab(savedTab);

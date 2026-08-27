@@ -154,11 +154,13 @@ input[type="text"]:focus,textarea:focus,select:focus,#input-uid:focus,#input-acc
 #creator-tab-faq .category-header h2{color:#fff!important;font-family:var(--ui)!important;font-size:14px!important;font-weight:900!important;line-height:1.35!important;text-shadow:2px 2px 0 #a72d65!important}
 #creator-tab-faq .category-header .icon{background:var(--cream)!important;border:2px solid var(--line)!important;box-shadow:3px 3px 0 #b82c6c!important}
 #creator-tab-faq .category-header .count{background:#fff!important;border:2px solid var(--line)!important;border-radius:0!important;color:var(--hot)!important;font-family:var(--ui)!important;font-size:10px!important;font-weight:900!important;box-shadow:3px 3px 0 #b82c6c!important}
+#creator-tab-faq .category-header .count{display:none!important}
 #creator-tab-faq .item{margin-bottom:9px!important;background:var(--paper)!important;border:3px solid var(--line)!important;border-radius:0!important;box-shadow:4px 4px 0 var(--light)!important}
 #creator-tab-faq .item-header{padding:12px 10px!important;gap:9px!important}
 #creator-tab-faq .item-header:hover{background:var(--paper-2)!important}
 #creator-tab-faq .q-num{min-width:40px!important;padding:4px 6px!important;background:var(--cream)!important;border:2px solid var(--line)!important;color:var(--hot)!important;font-family:var(--ui)!important;font-size:13px!important;font-weight:900!important;box-shadow:2px 2px 0 var(--light)!important}
 #creator-tab-faq .q-text{color:var(--text)!important;font-size:13px!important}.rarity-tag{border:2px solid var(--line)!important;border-radius:0!important}
+#creator-tab-faq .rarity-tag{display:none!important}
 #creator-tab-faq .item-body{padding:13px!important;background:linear-gradient(180deg,#fffafd,#fff1f8)!important;border-top:3px dashed var(--pink)!important}
 #creator-tab-faq .item-body strong{color:var(--hot)!important;background:#ffe0ef!important;padding:1px 3px!important}
 #creator-tab-faq .footer{padding:15px!important;background:var(--paper)!important;border:3px solid var(--line)!important;box-shadow:4px 4px 0 var(--pink-dark)!important;color:var(--text-light)!important;font-family:var(--ui)!important;font-size:11px!important;font-weight:700!important}
@@ -383,7 +385,11 @@ a{color:var(--pink-dark)}
     <div id="creator-tab-history" class="tab-content">
       <div class="nav-bar"><button class="nav-back" onclick="logout()">‹ Back</button><span class="nav-title">📋 My Submissions</span></div>
       <div class="card">
-        <div class="card-title">📋 My Submissions · 📅 <span id="sub-period-label"></span></div><div id="submission-count" style="font-size:11px;color:var(--text-light);"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+          <div class="card-title" style="margin-bottom:0;">📋 My Submissions</div>
+          <select id="submission-month-select" onchange="switchSubMonth(this.value)" style="min-width:150px;padding:8px 10px;border:1.5px solid var(--pink);border-radius:10px;background:white;color:var(--text);font-size:13px;font-weight:700;"></select>
+        </div>
+        <div id="submission-count" style="font-size:11px;color:var(--text-light);"></div>
         <div style="background:#faf5f7;border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0 12px;font-size:12px;line-height:1.55;color:var(--text-light);">
           <div style="font-weight:700;color:var(--text);margin-bottom:4px;">Status guide</div>
           <div><strong>pending</strong> = submitted, waiting for scoring.</div>
@@ -1767,6 +1773,7 @@ async function loadMySubmissions() {
     window._mySubsByMonth = byMonth;
     window._myPtLogs = ptLogs;
 
+    if (months.indexOf(window._subViewMonth) < 0) window._subViewMonth = months.indexOf(currentPeriod) >= 0 ? currentPeriod : (months[months.length - 1] || currentPeriod);
     renderMonthView(window._subViewMonth, months, byMonth, ptLogs, container, countEl, periodLabel);
   } catch(e) {
     console.error('loadMySubmissions error:', e);
@@ -1821,15 +1828,16 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
     if (p.period === ym && p.change > 0) monthPts += p.change;
   });
 
-  // Nav
-  var html = '<div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap;">';
-  months.forEach(function(m) {
-    var data = byMonth[m] || [];
-    var active = m === ym ? ' style="background:var(--pink-dark);color:white;border-color:var(--pink-dark);font-weight:700;"' : ' style="background:white;border:1px solid var(--border);"' ;
-    var badge = data.length > 0 ? ' <span style="font-weight:400;">(' + data.length + ')</span>' : '';
-    html += '<button class="btn btn-sm" onclick="switchSubMonth(\'' + m + '\')"' + active + '>' + m.replace('-', '/') + badge + '</button>';
-  });
-  html += '</div>';
+  var monthSelect = document.getElementById('submission-month-select');
+  if (monthSelect) {
+    monthSelect.innerHTML = months.slice().sort().reverse().map(function(m) {
+      var data = byMonth[m] || [];
+      var label = m.replace('-', '/') + (m === currentPeriod ? ' · Current' : '') + (data.length ? ' (' + data.length + ')' : '');
+      return '<option value="' + esc(m) + '"' + (m === ym ? ' selected' : '') + '>' + esc(label) + '</option>';
+    }).join('');
+  }
+
+  var html = '';
 
   // Hero card
   if (subs.length === 0) {
