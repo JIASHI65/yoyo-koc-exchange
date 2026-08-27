@@ -550,7 +550,7 @@ function renderFAQ(data) {
       let sid = item.id.slice(1);
       let rc = item.rarity === 'ssr' ? 'ssr' : '';
       let qe = esc(item.q);
-      let searchText = esc((item.q + ' ' + item.a).toLowerCase());
+      let searchText = esc(item.q.toLowerCase());
       html += '<div class="item" data-id="' + esc(item.id) + '" data-question="' + qe + '" data-search="' + searchText + '"><div class="item-header" onclick="toggleBody(this)"><span class="q-num">#' + sid + '</span><span class="q-text">' + qe + '</span><span class="rarity-tag ' + rc + '">' + item.rarity.toUpperCase() + '</span></div><div class="item-body">' + fmtAnswer(item.a) + '</div></div>';
     });
     html += '</div>';
