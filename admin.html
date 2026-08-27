@@ -4806,7 +4806,24 @@ var _ccEligibilityCheckedAt = 0;
 var _ccEligibilityPromise = null;
 
 function normalizeSubmissionLink(link) {
-  return String(link || '').trim().toLowerCase().replace(/[#?].*$/, '').replace(/\/+$/, '');
+  var raw = String(link || '').trim();
+  if (!raw) return '';
+  try {
+    var parsed = new URL(raw);
+    parsed.hash = '';
+    var host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    var params = new URLSearchParams();
+    parsed.searchParams.forEach(function(value, key) {
+      var lowerKey = key.toLowerCase();
+      var isTracking = lowerKey.indexOf('utm_') === 0 || ['fbclid', 'gclid', 'igshid', 'si', 'feature', 'share_id'].indexOf(lowerKey) >= 0;
+      if (!isTracking) params.append(key, value);
+    });
+    var path = parsed.pathname.replace(/\/+$/, '') || '/';
+    var query = params.toString();
+    return parsed.protocol.toLowerCase() + '//' + host + path.toLowerCase() + (query ? '?' + query : '');
+  } catch(e) {
+    return raw.toLowerCase().replace(/#.*$/, '').replace(/\/+$/, '');
+  }
 }
 
 function appendKocNoteTag(notes, tag) {

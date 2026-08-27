@@ -734,7 +734,24 @@ function splitLinks(text) {
   return (text || '').split(/\n+/).map(function(x) { return x.trim(); }).filter(Boolean);
 }
 function normalizeLinkKey(url) {
-  return String(url || '').trim().toLowerCase().replace(/[#?].*$/, '').replace(/\/+$/, '');
+  var raw = String(url || '').trim();
+  if (!raw) return '';
+  try {
+    var parsed = new URL(raw);
+    parsed.hash = '';
+    var host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+    var params = new URLSearchParams();
+    parsed.searchParams.forEach(function(value, key) {
+      var lowerKey = key.toLowerCase();
+      var isTracking = lowerKey.indexOf('utm_') === 0 || ['fbclid', 'gclid', 'igshid', 'si', 'feature', 'share_id'].indexOf(lowerKey) >= 0;
+      if (!isTracking) params.append(key, value);
+    });
+    var path = parsed.pathname.replace(/\/+$/, '') || '/';
+    var query = params.toString();
+    return parsed.protocol.toLowerCase() + '//' + host + path.toLowerCase() + (query ? '?' + query : '');
+  } catch(e) {
+    return raw.toLowerCase().replace(/#.*$/, '').replace(/\/+$/, '');
+  }
 }
 function normalizeSubmittedLinks(text) {
   var seen = {};
@@ -786,7 +803,7 @@ function countUniqueLinks(items) {
   var seen = {};
   (items || []).forEach(function(item) {
     splitLinks(item.links_engagement).concat(splitLinks(item.links_views)).forEach(function(url) {
-      var key = url.toLowerCase().replace(/[#?].*$/, '').replace(/\/$/, '');
+      var key = normalizeLinkKey(url);
       if (key) seen[key] = true;
     });
   });
@@ -920,6 +937,18 @@ async function getPendingRedemptionTotal(uid) {
     const d = r.ok ? await r.json() : [];
     return (d || []).reduce(function(sum, row) { return sum + (Number(row.points_spent) || 0); }, 0);
   } catch(e) { return 0; }
+}
+async function refreshAvailableBalance() {
+  if (!currentUser || !currentUser.uid) return 0;
+  var freshBalance = await getBalance(currentUser.uid);
+  var pendingTotal = await getPendingRedemptionTotal(currentUser.uid);
+  currentUser.points = Math.max(0, freshBalance - pendingTotal);
+  var pointsEl = document.getElementById('display-points');
+  if (pointsEl) pointsEl.textContent = currentUser.points;
+  var redeemDisplay = document.getElementById('display-user-redeem');
+  if (redeemDisplay) redeemDisplay.textContent = 'Available: ' + currentUser.points + ' pts';
+  renderOptions();
+  return currentUser.points;
 }
 async function login() {
   // Load current period from config before login
@@ -1115,24 +1144,7 @@ function showDashboard() {
     if (!redemptionOpen) selections = {};
     renderOptions();
   })();
-  // Always fetch fresh balance from API on dashboard show
-  (async function() {
-    if (!currentUser || !currentUser.uid) return;
-    try {
-      var freshPts = await getBalance(currentUser.uid);
-      var pendingRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(currentUser.uid) + '&status=eq.pending&select=points_spent');
-      var pendingOrders = pendingRes.ok ? await pendingRes.json() : [];
-      var pendingTotal = pendingOrders.reduce(function(s, o) { return s + (o.points_spent || 0); }, 0);
-      currentUser.points = Math.max(0, freshPts - pendingTotal);
-    } catch(e) { console.error('Fresh balance fetch failed:', e); }
-    document.getElementById('display-points').textContent = Math.max(0, currentUser.points);
-    var redeemDisplay = document.getElementById('display-user-redeem');
-    if (redeemDisplay) {
-      var dn = currentUser.discord_name;
-      if (typeof dn === 'object' && dn !== null) dn = dn.discord_name || 'Unknown';
-      redeemDisplay.textContent = 'Available: ' + currentUser.points + ' pts';
-    }
-  })();
+  refreshAvailableBalance().catch(function(error) { console.error('Fresh balance fetch failed:', error); });
   document.getElementById('step-login').classList.add('hidden');
   document.getElementById('step-dashboard').classList.remove('hidden');
   document.getElementById('display-points').textContent = Math.max(0, currentUser.points);
@@ -1297,41 +1309,26 @@ async function redeem() {
       return;
     }
 
+    var requestId = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : (currentUser.uid + '-' + Date.now() + '-' + Math.random().toString(16).slice(2));
     var rpcResp = await supabaseFetch(SUPABASE_URL + '/rest/v1/rpc/redeem_points', {
       method: 'POST',
       body: JSON.stringify({
         p_uid: currentUser.uid,
         p_period: currentPeriod,
         p_items: items,
-        p_contact_info: contact
+        p_contact_info: contact,
+        p_request_id: requestId
       })
     });
 
     if (!rpcResp.ok) {
       var rpcText = await rpcResp.text().catch(function() { return ''; });
-      var fallback = rpcResp.status === 404 || rpcText.indexOf('function redeem_points') >= 0 || rpcText.indexOf('Could not find the function') >= 0;
-      if (!fallback) throw new Error(rpcText || ('Redeem RPC failed: ' + rpcResp.status));
-      for (const opt of chosen) {
-        const qty = selections[opt.id];
-        const resp = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders', {
-          method: 'POST',
-          body: JSON.stringify({
-            uid: currentUser.uid, discord_name: currentUser.discord_name, koc_name: currentUser.name || '',
-            option_type: opt.id, option_name: opt.name + ' ×' + qty,
-            points_spent: opt.cost * qty, reward_amount: qty + 'x ' + opt.amount,
-            contact_info: (opt.id === 'merch') ? contact : '',
-            status: 'pending', period: currentPeriod, created_at: new Date().toISOString() 
-          })
-        });
-        if (!resp.ok) throw new Error('Order failed for ' + opt.name);
-      }
+      throw new Error(rpcText || ('Redeem RPC failed: ' + rpcResp.status));
     }
 
     // Points reserved until admin ships the order
-    currentUser.points = Math.max(0, available - totalCost);
-    document.getElementById('display-points').textContent = Math.max(0, currentUser.points);
     initSelections();
-    renderOptions();
+    await refreshAvailableBalance();
     // Load orders independently so errors don't override success toast
     try { await loadOrders(); } catch(e) { console.error('loadOrders:', e); }
     if (statusEl) {
@@ -1417,7 +1414,10 @@ function switchCreatorTab(name) {
   }
   if (name === 'submit') { initSubmitTab(); loadMySubmissions(); }
   if (name === 'history') loadMySubmissions();
-  if (name === 'redeem') { renderOptions(); loadOrders(); }
+  if (name === 'redeem') {
+    refreshAvailableBalance().catch(function(error) { console.error('Balance refresh failed:', error); });
+    loadOrders();
+  }
 }
 
 // ===== SUBMIT WORKS =====

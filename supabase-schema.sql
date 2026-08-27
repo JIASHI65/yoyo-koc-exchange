@@ -48,6 +48,8 @@ CREATE TABLE redemption_orders (
   contact_info TEXT DEFAULT '',       -- JSON 收货信息
   status TEXT DEFAULT 'pending' CHECK(status IN ('pending','shipped','cancelled')),
   admin_notes TEXT DEFAULT '',
+  period TEXT DEFAULT '',
+  request_id TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   processed_at TIMESTAMPTZ,
   processed_by TEXT DEFAULT ''
@@ -75,6 +77,9 @@ CREATE INDEX idx_point_logs_created ON point_logs(created_at DESC);
 CREATE INDEX idx_redemption_orders_uid ON redemption_orders(uid);
 CREATE INDEX idx_redemption_orders_status ON redemption_orders(status);
 CREATE INDEX idx_redemption_orders_created ON redemption_orders(created_at DESC);
+CREATE UNIQUE INDEX idx_redemption_orders_uid_request_type_unique
+  ON redemption_orders(uid, request_id, option_type)
+  WHERE request_id IS NOT NULL AND request_id <> '';
 
 -- 当前积分视图
 DROP VIEW IF EXISTS koc_balances;
@@ -98,7 +103,8 @@ CREATE OR REPLACE FUNCTION redeem_points(
   p_uid TEXT,
   p_period TEXT,
   p_items JSONB,
-  p_contact_info TEXT DEFAULT ''
+  p_contact_info TEXT DEFAULT '',
+  p_request_id TEXT DEFAULT ''
 )
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -109,7 +115,8 @@ DECLARE
   v_total_cost INTEGER := 0;
   v_item JSONB;
   v_order_count INTEGER := 0;
-  v_count INTEGER;
+  v_existing_count INTEGER := 0;
+  v_existing_cost INTEGER := 0;
 BEGIN
   IF p_uid IS NULL OR btrim(p_uid) = '' THEN
     RAISE EXCEPTION 'p_uid is required';
@@ -117,11 +124,38 @@ BEGIN
   IF p_period IS NULL OR btrim(p_period) = '' THEN
     RAISE EXCEPTION 'p_period is required';
   END IF;
+  IF p_request_id IS NULL OR btrim(p_request_id) = '' THEN
+    p_request_id := gen_random_uuid()::TEXT;
+  END IF;
   IF p_items IS NULL OR jsonb_typeof(p_items) <> 'array' OR jsonb_array_length(p_items) = 0 THEN
     RAISE EXCEPTION 'p_items must be a non-empty array';
   END IF;
 
   PERFORM pg_advisory_xact_lock(hashtext(p_uid));
+
+  SELECT COUNT(*), COALESCE(SUM(points_spent), 0)::INTEGER
+  INTO v_existing_count, v_existing_cost
+  FROM redemption_orders
+  WHERE uid = p_uid AND request_id = p_request_id;
+
+  IF v_existing_count > 0 THEN
+    SELECT COALESCE(SUM(change), 0)::INTEGER INTO v_available
+    FROM point_logs
+    WHERE uid = p_uid;
+
+    SELECT COALESCE(SUM(points_spent), 0)::INTEGER INTO v_pending
+    FROM redemption_orders
+    WHERE uid = p_uid AND status = 'pending';
+
+    RETURN jsonb_build_object(
+      'ok', true,
+      'idempotent', true,
+      'order_count', v_existing_count,
+      'available_before', v_available - v_pending + v_existing_cost,
+      'total_cost', v_existing_cost,
+      'available_after', v_available - v_pending
+    );
+  END IF;
 
   SELECT COALESCE(SUM(change), 0)::INTEGER INTO v_available
   FROM point_logs
@@ -156,7 +190,7 @@ BEGIN
     INSERT INTO redemption_orders (
       uid, discord_name, koc_name,
       option_type, option_name, points_spent, reward_amount,
-      contact_info, status, period, created_at
+      contact_info, status, period, request_id, created_at
     ) VALUES (
       p_uid,
       COALESCE(v_item->>'discord_name', ''),
@@ -168,6 +202,7 @@ BEGIN
       COALESCE(NULLIF(v_item->>'contact_info', ''), p_contact_info),
       'pending',
       p_period,
+      p_request_id,
       NOW()
     );
     v_order_count := v_order_count + 1;
@@ -175,6 +210,7 @@ BEGIN
 
   RETURN jsonb_build_object(
     'ok', true,
+    'idempotent', false,
     'order_count', v_order_count,
     'available_before', v_available,
     'total_cost', v_total_cost,
@@ -182,6 +218,8 @@ BEGIN
   );
 END;
 $$;
+
+GRANT EXECUTE ON FUNCTION redeem_points(TEXT, TEXT, JSONB, TEXT, TEXT) TO anon, authenticated;
 
 
 -- 约定式 UID helper：生成下一个可用 KOC UID
