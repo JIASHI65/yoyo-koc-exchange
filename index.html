@@ -1717,6 +1717,7 @@ async function submitShowcase() {
       method: 'POST',
       body: JSON.stringify({
         p_uid: currentUser.uid,
+        p_account_id: currentUser.account_id,
         p_period: currentPeriod,
         p_discord_name: currentUser.discord_name || '',
         p_server: (currentUser && currentUser.server) || '',
