@@ -185,7 +185,7 @@
 .koc-table-wrap th, .koc-table-wrap td { text-align: center; }
 .koc-table-wrap td[style*="pre-wrap"] { text-align: left; }
 /* Larger checkboxes for KOC table */
-.koc-select, #koc-select-all, .scoring-select, #scoring-select-all {
+.koc-select, #koc-select-all, .scoring-select, #scoring-select-all, .submission-select, #submission-select-all {
   width: 18px;
   height: 18px;
   cursor: pointer;
@@ -736,11 +736,22 @@
             <option value="scored">✅ 已评分</option>
             <option value="all">📋 全部</option>
           </select>
-          <span id="submission-stat" style="font-size:12px;color:var(--text-light);"></span>
+          <select id="submission-link-filter" onchange="renderSubmissions()" style="width:145px;">
+            <option value="all">🔗 全部链接数</option>
+            <option value="1-4">1–4 条</option>
+            <option value="5-14">5–14 条</option>
+            <option value="15-19">15–19 条</option>
+            <option value="20-39">20–39 条</option>
+            <option value="40+">40 条及以上</option>
+          </select>
+          <span id="submission-stat" style="font-size:12px;color:var(--text-light);font-weight:600;"></span>
+          <span id="submission-selected-stat" style="font-size:12px;color:#ad1457;font-weight:700;">☑ 已选 0 人</span>
+          <button class="btn btn-sm" style="background:#fce4ec;color:#c62828;border:1px solid #ef9a9a;margin-left:auto;" onclick="batchDeleteSelectedSubmissions()">🗑 删除所选投稿</button>
         </div>
         <div style="overflow-x:auto;">
           <table class="submission-table">
             <thead><tr>
+              <th style="width:36px;"><input type="checkbox" id="submission-select-all" onchange="toggleAllSubmissions()" title="全选当前筛选结果"></th>
               <th style="width:30px;">#</th>
               <th style="width:90px;">Discord</th>
               <th style="width:60px;">UID</th>
@@ -1699,6 +1710,8 @@ async function loadSubmissions() {
 function renderSubmissions() {
   var q = (document.getElementById('submission-search').value || '').toLowerCase().trim();
   var filter = document.getElementById('submission-filter').value;
+  var linkFilterEl = document.getElementById('submission-link-filter');
+  var linkFilter = linkFilterEl ? linkFilterEl.value : 'all';
   var container = document.getElementById('submissions-table');
   if (!container) return;
   // Filter by currentPeriod, exclude showcase submissions (separate panel below)
@@ -1712,13 +1725,14 @@ function renderSubmissions() {
   list.forEach(function(s) {
     var key = s.uid ? ('uid:' + String(s.uid).toLowerCase().trim()) : ('discord:' + String(s.discord_name || ('row-' + s.id)).toLowerCase().trim());
     if (!merged[key]) {
-      merged[key] = { discord_name: s.discord_name, uid: s.uid, links_engagement: '', links_views: '', points_earned: 0, status: 'pending', created_at: s.created_at, id: s.id, _count: 0, _pending: 0, _scored: 0 };
+      merged[key] = { discord_name: s.discord_name, uid: s.uid, links_engagement: '', links_views: '', points_earned: 0, status: 'pending', created_at: s.created_at, id: s.id, _ids: [], _count: 0, _pending: 0, _scored: 0 };
     }
     var m = merged[key];
     // Keep non-empty latest identity fields in case Discord name was changed between submissions.
     if (s.discord_name) m.discord_name = s.discord_name;
     if (s.uid) m.uid = s.uid;
     m._count++;
+    m._ids.push(s.id);
     if (s.status === 'pending') m._pending++;
     if (s.status === 'scored') m._scored++;
     m.status = m._pending > 0 ? 'pending' : m._scored > 0 ? 'scored' : m.status;
@@ -1736,6 +1750,9 @@ function renderSubmissions() {
     if (s.created_at && s.created_at < m.created_at) m.created_at = s.created_at;
   });
   var mergedList = Object.values(merged);
+  mergedList.forEach(function(s) {
+    s._link_count = splitSubmissionLinks(s.links_engagement).length + splitSubmissionLinks(s.links_views).length;
+  });
   var filtered = mergedList.filter(function(s) {
     if (filter !== 'all') {
       if (filter === 'pending' && s._scored === s._count) return false;
@@ -1743,14 +1760,26 @@ function renderSubmissions() {
     }
     if (q && (s.discord_name || '').toLowerCase().indexOf(q) === -1 &&
         (s.uid || '').toLowerCase().indexOf(q) === -1) return false;
+    var linkCount = s._link_count || 0;
+    if (linkFilter === '1-4' && (linkCount < 1 || linkCount > 4)) return false;
+    if (linkFilter === '5-14' && (linkCount < 5 || linkCount > 14)) return false;
+    if (linkFilter === '15-19' && (linkCount < 15 || linkCount > 19)) return false;
+    if (linkFilter === '20-39' && (linkCount < 20 || linkCount > 39)) return false;
+    if (linkFilter === '40+' && linkCount < 40) return false;
     return true;
   });
+  window._visibleSubmissionRows = filtered;
   var stats = document.getElementById('submission-stat');
   if (stats) {
-    stats.textContent = filtered.length + '/' + mergedList.length + ' 人';
+    var filteredLinks = filtered.reduce(function(sum, row) { return sum + (row._link_count || 0); }, 0);
+    var totalLinks = mergedList.reduce(function(sum, row) { return sum + (row._link_count || 0); }, 0);
+    stats.textContent = '👥 ' + filtered.length + '/' + mergedList.length + ' 人 · 🔗 ' + filteredLinks + '/' + totalLinks + ' 条链接';
   }
+  var selectAll = document.getElementById('submission-select-all');
+  if (selectAll) selectAll.checked = false;
   if (filtered.length === 0) {
-    container.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:20px;color:var(--text-light);">暂无数据</td></tr>';
+    container.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--text-light);">暂无数据</td></tr>';
+    updateSubmissionSelectionStats();
     return;
   }
   container.innerHTML = filtered.map(function(s, i) {
@@ -1769,6 +1798,7 @@ function renderSubmissions() {
     var dateStr = new Date(s.created_at).toLocaleDateString();
     var pts = s.points_earned || 0;
     return '<tr>' +
+      '<td style="text-align:center;"><input type="checkbox" class="submission-select" value="' + escAttr((s._ids || []).join(',')) + '" data-uid="' + escAttr(s.uid || '') + '" data-discord="' + escAttr(s.discord_name || '') + '" data-links="' + totalLinks + '" onchange="updateSubmissionSelectionStats()"></td>' +
       '<td>' + (i + 1) + '</td>' +
       '<td><strong>' + esc(s.discord_name) + '</strong></td>' +
       '<td style="font-family:monospace;font-size:12px;">' + esc(s.uid) + '</td>' +
@@ -1784,8 +1814,69 @@ function renderSubmissions() {
       '</td>' +
       '</tr>';
   }).join('');
+  updateSubmissionSelectionStats();
   // Load balances (single aggregated query instead of one per KOC)
   updateBalanceCells((allKocs || []).map(function(k) { return k.uid; }));
+}
+function toggleAllSubmissions() {
+  var selectAll = document.getElementById('submission-select-all');
+  document.querySelectorAll('.submission-select').forEach(function(checkbox) {
+    checkbox.checked = !!(selectAll && selectAll.checked);
+  });
+  updateSubmissionSelectionStats();
+}
+
+function getSelectedSubmissionRows() {
+  return Array.from(document.querySelectorAll('.submission-select:checked')).map(function(checkbox) {
+    return {
+      ids: String(checkbox.value || '').split(',').map(Number).filter(Boolean),
+      uid: checkbox.dataset.uid || '',
+      discord: checkbox.dataset.discord || '',
+      links: Number(checkbox.dataset.links) || 0
+    };
+  });
+}
+
+function updateSubmissionSelectionStats() {
+  var selected = getSelectedSubmissionRows();
+  var selectedLinks = selected.reduce(function(sum, row) { return sum + row.links; }, 0);
+  var stat = document.getElementById('submission-selected-stat');
+  if (stat) stat.textContent = '☑ 已选 ' + selected.length + ' 人 · ' + selectedLinks + ' 条链接';
+  var all = document.querySelectorAll('.submission-select');
+  var checked = document.querySelectorAll('.submission-select:checked');
+  var selectAll = document.getElementById('submission-select-all');
+  if (selectAll) {
+    selectAll.checked = all.length > 0 && checked.length === all.length;
+    selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+  }
+}
+
+async function batchDeleteSelectedSubmissions() {
+  var selected = getSelectedSubmissionRows();
+  if (!selected.length) { showToast('请先勾选要删除的投稿', 'error'); return; }
+  var ids = [];
+  selected.forEach(function(row) { ids = ids.concat(row.ids); });
+  var linkCount = selected.reduce(function(sum, row) { return sum + row.links; }, 0);
+  if (!confirmDanger('删除所选普通投稿？', [
+    '工作月份: ' + currentPeriod,
+    '创作者: ' + selected.length + ' 人',
+    '投稿批次: ' + ids.length + ' 批',
+    '链接: ' + linkCount + ' 条',
+    '只删除所选普通投稿；不会删除周边晒图、KOC、积分或兑换订单。',
+    '该操作不可撤销。'
+  ])) return;
+
+  var deleted = 0;
+  var failed = 0;
+  for (var index = 0; index < ids.length; index++) {
+    try {
+      var response = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?id=eq.' + ids[index] + '&period=eq.' + encodeURIComponent(currentPeriod) + '&submission_type=neq.showcase', { method: 'DELETE' });
+      if (response.ok) deleted++; else failed++;
+    } catch(error) { failed++; }
+  }
+  writeAuditLog('score', '删除普通投稿 ' + deleted + ' 批 / ' + selected.length + ' 人 / ' + linkCount + ' 条链接，月份 ' + currentPeriod + (failed ? '，失败 ' + failed + ' 批' : ''));
+  showToast((failed ? '⚠️ ' : '✅ ') + '已删除 ' + deleted + ' 批投稿' + (failed ? '，失败 ' + failed + ' 批' : ''), failed ? 'error' : 'success');
+  await loadSubmissions();
 }
 function viewSubmission(id) {
   var s = allSubmissions.find(function(x) { return x.id === id; });
