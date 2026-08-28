@@ -721,6 +721,14 @@
         </div>
         <div id="reconcile-result" style="display:none;margin-bottom:12px;border:1.5px solid #ffcc80;background:#fff8e1;border-radius:12px;padding:12px;font-size:12px;line-height:1.6;"></div>
 
+        <div style="background:#f1fff4;border:2px solid #81c784;border-radius:14px;padding:14px;margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+            <div style="font-size:14px;font-weight:800;color:#2e7d32;">📸 周边晒图审核 <span id="showcase-sub-count" style="font-size:12px;font-weight:600;color:#558b2f;"></span></div>
+            <div style="font-size:11px;color:#558b2f;">通过后为该创作者本月增加 +1 分</div>
+          </div>
+          <div id="showcase-sub-list"><div style="color:var(--text-light);font-size:12px;padding:6px 0;">加载中...</div></div>
+        </div>
+
         <div class="row" style="margin-bottom:8px;gap:8px;flex-wrap:wrap;">
           <input type="text" id="submission-search" placeholder="🔍 搜索 Discord 名字..." style="width:200px;" oninput="renderSubmissions()">
           <select id="submission-filter" onchange="renderSubmissions()" style="width:110px;">
