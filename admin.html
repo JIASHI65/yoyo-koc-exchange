@@ -1681,6 +1681,12 @@ function getRowPeriod(row) {
   if (row && row.created_at) return String(row.created_at).substring(0, 7);
   return currentPeriod;
 }
+function splitSubmissionLinks(text) {
+  return String(text || '')
+    .split(/(?=https?:\/\/)/gi)
+    .map(function(link) { return link.trim(); })
+    .filter(function(link) { return /^https?:\/\//i.test(link); });
+}
 async function loadSubmissions() {
   try {
     var res = await supabaseFetch(SUPABASE_URL + '/rest/v1/submissions?order=created_at.desc&select=*');
@@ -1719,11 +1725,11 @@ function renderSubmissions() {
     m.points_earned = (m.points_earned || 0) + (s.points_earned || 0);
     // Merge links
     if (s.links_engagement) {
-      var lines = s.links_engagement.split('\n').filter(Boolean);
+      var lines = splitSubmissionLinks(s.links_engagement);
       lines.forEach(function(l) { if (m.links_engagement.indexOf(l) === -1) m.links_engagement += (m.links_engagement ? '\n' : '') + l; });
     }
     if (s.links_views) {
-      var vlines = s.links_views.split('\n').filter(Boolean);
+      var vlines = splitSubmissionLinks(s.links_views);
       vlines.forEach(function(l) { if (m.links_views.indexOf(l) === -1) m.links_views += (m.links_views ? '\n' : '') + l; });
     }
     // Keep earliest created_at
@@ -1754,8 +1760,8 @@ function renderSubmissions() {
     // Preview results might have engagement_links/view_links as arrays
     if (s.engagement_links && Array.isArray(s.engagement_links)) rawEng = s.engagement_links.join('\n');
     if (s.view_links && Array.isArray(s.view_links)) rawView = s.view_links.join('\n');
-    var engList = rawEng.split('\n').filter(Boolean);
-    var viewList = rawView.split('\n').filter(Boolean);
+    var engList = splitSubmissionLinks(rawEng);
+    var viewList = splitSubmissionLinks(rawView);
     var totalLinks = engList.length + viewList.length;
     var statusBadge = s.status === 'scored' ? '<span class="badge badge-shipped">\u2705 \u5df2\u8bc4\u5206</span>' 
                      : s.status === 'pending' ? '<span class="badge badge-pending">\u23F3 \u5f85\u5ba1\u6838</span>' 
@@ -1768,8 +1774,8 @@ function renderSubmissions() {
       '<td style="font-family:monospace;font-size:12px;">' + esc(s.uid) + '</td>' +
       '<td>' + totalLinks + '</td>' +
       '<td>' + statusBadge + '</td>' +
-      '<td class="link-cell" style="max-width:350px;white-space:pre-wrap;font-size:11px;word-break:break-all;line-height:1.5;">' + esc(rawEng) + '</td>' +
-      '<td class="link-cell" style="max-width:350px;white-space:pre-wrap;font-size:11px;word-break:break-all;line-height:1.5;">' + esc(rawView) + '</td>' +
+      '<td class="link-cell" style="max-width:350px;white-space:pre-wrap;font-size:11px;word-break:break-all;line-height:1.5;">' + esc(engList.join('\n')) + '</td>' +
+      '<td class="link-cell" style="max-width:350px;white-space:pre-wrap;font-size:11px;word-break:break-all;line-height:1.5;">' + esc(viewList.join('\n')) + '</td>' +
       '<td style="font-weight:700;color:' + (pts > 0 ? 'var(--pink-dark)' : 'inherit') + ';">' + pts + '</td>' +
       '<td style="font-size:10px;color:var(--text-light);white-space:nowrap;">' + dateStr + '</td>' +
       '<td>' +
@@ -1784,8 +1790,8 @@ function renderSubmissions() {
 function viewSubmission(id) {
   var s = allSubmissions.find(function(x) { return x.id === id; });
   if (!s) return;
-  var engLinks = (s.links_engagement || '').split('\n').filter(Boolean);
-  var viewLinks = (s.links_views || '').split('\n').filter(Boolean);
+  var engLinks = splitSubmissionLinks(s.links_engagement);
+  var viewLinks = splitSubmissionLinks(s.links_views);
   var msg = '=== Submission #' + s.id + ' ===\n' +
     'Discord: ' + s.discord_name + ' (UID: ' + s.uid + ')\n' +
     'Server: ' + s.server + '\n' +
@@ -1832,7 +1838,7 @@ function renderShowcaseSubmissions() {
     return;
   }
   listEl.innerHTML = list.map(function(s) {
-    var link = (s.links_engagement || '').split('\n').filter(Boolean)[0] || '';
+    var link = splitSubmissionLinks(s.links_engagement)[0] || '';
     var statusBadge = s.status === 'scored' ? '<span class="badge badge-shipped">✅ 已+1</span>'
                     : s.status === 'rejected' ? '<span class="badge badge-cancelled">❌ 已拒绝</span>'
                     : '<span class="badge badge-pending">⏳ 待审核</span>';
@@ -2053,8 +2059,8 @@ function generateAgentTemplate() {
   ];
 
   pending.forEach(function(s, i) {
-    var engLinks = (s.links_engagement || '').split('\n').filter(Boolean);
-    var viewLinks = (s.links_views || '').split('\n').filter(Boolean);
+    var engLinks = splitSubmissionLinks(s.links_engagement);
+    var viewLinks = splitSubmissionLinks(s.links_views);
     lines.push('--- Submission #' + s.id + ' | ' + s.discord_name + ' (UID: ' + s.uid + ') ---');
     lines.push('');
     if (engLinks.length > 0) {
@@ -2123,8 +2129,8 @@ async function exportCSV() {
     var csv = '﻿'; // BOM for Excel
     csv += 'Discord,UID,Type,Status,Points,E Links,V Links,Created At\n';
     subs.forEach(function(s) {
-      var el = (s.links_engagement||'').split('\n').filter(Boolean).length;
-      var vl = (s.links_views||'').split('\n').filter(Boolean).length;
+      var el = splitSubmissionLinks(s.links_engagement).length;
+      var vl = splitSubmissionLinks(s.links_views).length;
       csv += [s.discord_name||'', s.uid||'', s.submission_type || 'work', s.status||'', s.points_earned||0, el, vl, s.created_at||''].map(csvCell).join(',') + '\n';
     });
 
@@ -2150,8 +2156,8 @@ function exportCurrentTable() {
     var rawView = s.links_views || '';
     if (s.engagement_links && Array.isArray(s.engagement_links)) rawEng = s.engagement_links.join('\n');
     if (s.view_links && Array.isArray(s.view_links)) rawView = s.view_links.join('\n');
-    var engList = rawEng.split('\n').filter(Boolean);
-    var viewList = rawView.split('\n').filter(Boolean);
+    var engList = splitSubmissionLinks(rawEng);
+    var viewList = splitSubmissionLinks(rawView);
     var status = s.status === 'scored' ? '\u5df2\u8bc4\u5206' : s.status === 'pending' ? '\u5f85\u5ba1\u6838' : '\u5df2\u62d2\u7edd';
     // Escape tabs and newlines for TSV format
     var engTsv = rawEng.replace(/\t/g, ' ').replace(/\n/g, ' | ');
@@ -2179,8 +2185,8 @@ function exportSubmissionsFile() {
     batch: currentPeriod,
     rules: SCORING_RULES_TEXT,
     submissions: pending.map(function(s) {
-      var engagementLinks = (s.links_engagement || '').split('\n').map(function(x) { return x.trim(); }).filter(Boolean);
-      var viewLinks = (s.links_views || '').split('\n').map(function(x) { return x.trim(); }).filter(Boolean);
+      var engagementLinks = splitSubmissionLinks(s.links_engagement);
+      var viewLinks = splitSubmissionLinks(s.links_views);
       return {
         id: s.id,
         discord_name: s.discord_name,
@@ -2356,7 +2362,7 @@ function previewScoreResult(text) {
     }
     // Track link count
     if (!mergedMap[key]._link_count) mergedMap[key]._link_count = 0;
-    mergedMap[key]._link_count += (sub.links_engagement || '').split('\n').filter(Boolean).length;
+    mergedMap[key]._link_count += splitSubmissionLinks(sub.links_engagement).length;
   });
   
   var mergedSubs = Object.values(mergedMap);
@@ -3837,8 +3843,8 @@ async function loadDashboard() {
     var totalCreators = dashboardSnapshot ? dashboardSnapshot.summary.koc_pool : kocs.length;
     var totalLinks = 0, pendingLinks = 0;
     monthSubs.forEach(function(s) {
-      var eng = (s.links_engagement||'').split('\n').filter(Boolean).length;
-      var vws = (s.links_views||'').split('\n').filter(Boolean).length;
+      var eng = splitSubmissionLinks(s.links_engagement).length;
+      var vws = splitSubmissionLinks(s.links_views).length;
       totalLinks += eng + vws;
       if (s.status === 'pending') pendingLinks += eng + vws;
     });
@@ -3861,7 +3867,7 @@ async function loadDashboard() {
     var pfs = {'TikTok':0,'YouTube':0,'Facebook':0,'Instagram':0,'X(Twitter)':0,'Reddit':0,'Pinterest':0,'其他':0};
     var pfKeys = Object.keys(pfs);
     monthSubs.forEach(function(s) {
-      ((s.links_engagement||'')+'\n'+(s.links_views||'')).split('\n').filter(Boolean).forEach(function(l) {
+      splitSubmissionLinks((s.links_engagement||'')+'\n'+(s.links_views||'')).forEach(function(l) {
         var found = false;
         pfKeys.forEach(function(p) { if (l.toLowerCase().indexOf(p.toLowerCase().replace('(twitter)','')) >= 0) { pfs[p]++; found = true; } });
         if (!found) pfs['其他']++;
@@ -3883,7 +3889,7 @@ async function loadDashboard() {
     var prevP = py + '-' + String(pm).padStart(2,'0');
     var pSubs = subs.filter(function(s) { return (s.created_at||'').substring(0,7) === prevP; });
     var pActive = {}; pSubs.forEach(function(s) { pActive[s.uid] = true; });
-    var pLinks = 0; pSubs.forEach(function(s) { pLinks += (s.links_engagement||'').split('\n').filter(Boolean).length + (s.links_views||'').split('\n').filter(Boolean).length; });
+    var pLinks = 0; pSubs.forEach(function(s) { pLinks += splitSubmissionLinks(s.links_engagement).length + splitSubmissionLinks(s.links_views).length; });
     var pPts = pSubs.reduce(function(su, s) { return su + (s.points_earned||0); }, 0);
     // ========== 如果没有真实上月数据，使用模拟数据 ==========
     var useMock = (Object.keys(pActive).length === 0);
@@ -3929,7 +3935,7 @@ async function loadDashboard() {
     document.getElementById('dash-kpi').innerHTML = kpiHtml;
     try { localStorage.setItem('dash_cache_' + currentPeriod, document.getElementById('dash-kpi').outerHTML); } catch(e){}
     // ========== 用户链接统计（前置定义，供 renderCharts 使用） ==========
-    var userLinks = {}; monthSubs.forEach(function(s) { userLinks[s.uid] = (userLinks[s.uid]||0) + (s.links_engagement||"").split("\n").filter(Boolean).length + (s.links_views||"").split("\n").filter(Boolean).length; });
+    var userLinks = {}; monthSubs.forEach(function(s) { userLinks[s.uid] = (userLinks[s.uid]||0) + splitSubmissionLinks(s.links_engagement).length + splitSubmissionLinks(s.links_views).length; });
     // ========== ECharts 快速渲染 ==========
     var renderCharts = function() {
       // 关键：innerHTML 清空会残留旧的 ECharts 实例，必须先 dispose 再 init，否则图表画布不生成
@@ -4023,7 +4029,7 @@ async function loadDashboard() {
       trendMonths.forEach(function(m, idx) {
         var mSubs = subs.filter(function(s) { return (s.created_at||'').substring(0,7) === m; });
         var mActive = {}; mSubs.forEach(function(s) { mActive[s.uid] = true; });
-        var mLinks = 0; mSubs.forEach(function(s) { mLinks += (s.links_engagement||'').split('\n').filter(Boolean).length + (s.links_views||'').split('\n').filter(Boolean).length; });
+        var mLinks = 0; mSubs.forEach(function(s) { mLinks += splitSubmissionLinks(s.links_engagement).length + splitSubmissionLinks(s.links_views).length; });
         var mPts = mSubs.reduce(function(su, s) { return su + (s.points_earned||0); }, 0);
         if (Object.keys(mActive).length > 0) {
           trendData.creators.push(Object.keys(mActive).length);
@@ -4292,8 +4298,8 @@ async function loadCommunityReport() {
 
     var totalLinks = 0, totalPts = 0, pendingCount = 0;
     monthSubs.forEach(function(s) {
-      var eng = (s.links_engagement||'').split('\n').filter(Boolean).length;
-      var vws = (s.links_views||'').split('\n').filter(Boolean).length;
+      var eng = splitSubmissionLinks(s.links_engagement).length;
+      var vws = splitSubmissionLinks(s.links_views).length;
       totalLinks += eng + vws;
       totalPts += (s.points_earned||0);
       if (s.status === 'pending') pendingCount++;
@@ -4399,7 +4405,7 @@ async function loadCommunityReport() {
     var pfs = {'TikTok':0,'YouTube':0,'Facebook':0,'Instagram':0,'X(Twitter)':0,'Reddit':0,'Pinterest':0,'其他':0};
     var pfKeys = Object.keys(pfs);
     monthSubs.forEach(function(s) {
-      ((s.links_engagement||'')+'\n'+(s.links_views||'')).split('\n').filter(Boolean).forEach(function(l) {
+      splitSubmissionLinks((s.links_engagement||'')+'\n'+(s.links_views||'')).forEach(function(l) {
         var found = false;
         pfKeys.forEach(function(p) { if (l.toLowerCase().indexOf(p.toLowerCase().replace('(twitter)','')) >= 0) { pfs[p]++; found = true; } });
         if (!found) pfs['其他']++;
@@ -4892,8 +4898,8 @@ function countMonthlyWorkLinksByUid(submissions) {
   (submissions || []).forEach(function(submission) {
     if (!submission || !submission.uid || submission.submission_type === 'showcase' || submission.status === 'rejected') return;
     if (!linksByUid[submission.uid]) linksByUid[submission.uid] = {};
-    String(submission.links_engagement || '').split('\n')
-      .concat(String(submission.links_views || '').split('\n'))
+    splitSubmissionLinks(submission.links_engagement)
+      .concat(splitSubmissionLinks(submission.links_views))
       .forEach(function(link) {
         var key = normalizeSubmissionLink(link);
         if (key) linksByUid[submission.uid][key] = true;

@@ -731,7 +731,10 @@ function isCreatorNewbieForPeriod(creator, period) {
   return !isOldCreator(creator) && getCreatorNewbieMonth(creator) === period;
 }
 function splitLinks(text) {
-  return (text || '').split(/\n+/).map(function(x) { return x.trim(); }).filter(Boolean);
+  return String(text || '')
+    .split(/(?=https?:\/\/)/gi)
+    .map(function(x) { return x.trim(); })
+    .filter(function(x) { return /^https?:\/\//i.test(x); });
 }
 function normalizeLinkKey(url) {
   var raw = String(url || '').trim();
