@@ -116,6 +116,7 @@
   .tab .count { font-size: 11px; opacity: 0.7; margin-left: 2px; }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
+  body:has(#login-screen:not(.hidden)) .tab-content { display: none !important; }
 
   /* Toggle switch for CC */
   .toggle-wrap { display: flex; align-items: center; gap: 6px; justify-content: center; }
@@ -1714,10 +1715,26 @@ window.adminLogin = function adminLogin() {
 window.adminLogout = function adminLogout() {
   localStorage.removeItem('admin_session');
   localStorage.removeItem('admin_active_tab');
+  document.querySelectorAll('.tab-content').forEach(function(tab) { tab.classList.remove('active'); });
+  document.querySelectorAll('#tab-nav .tab').forEach(function(tab) { tab.classList.remove('active'); });
+  var dashboardTab = document.getElementById('tab-dashboard');
+  var dashboardButton = document.querySelector('#tab-nav .tab[onclick*="dashboard"]');
+  if (dashboardTab) dashboardTab.classList.add('active');
+  if (dashboardButton) dashboardButton.classList.add('active');
   document.getElementById('login-screen').classList.remove('hidden');
   document.getElementById('admin-panel').classList.add('hidden');
   document.getElementById('admin-pw').value = '';
 }
+
+function repairAdminTabContainment() {
+  var adminPanel = document.getElementById('admin-panel');
+  if (!adminPanel) return;
+  document.querySelectorAll('.tab-content').forEach(function(tab) {
+    if (!adminPanel.contains(tab)) adminPanel.appendChild(tab);
+  });
+}
+
+repairAdminTabContainment();
 
 // ===== TABS =====
 
