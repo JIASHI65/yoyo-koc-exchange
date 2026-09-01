@@ -219,3 +219,8 @@
   .seraphina-card-name { font-size: 23px; }
   .seraphina-card-hero { width: 100%; margin-top: 30px; }
 }
+.creator-account-credit {
+  width: min(430px, calc(100% - 16px));
+  margin: 34px auto 18px;
+}
+.creator-account-credit::before { top: -24px; }

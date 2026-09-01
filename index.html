@@ -110,13 +110,12 @@ body:before,body:after{content:"";position:fixed;z-index:-1;pointer-events:none;
 body:before{left:4vw;top:18vh;width:24px;height:24px;background:var(--hot);box-shadow:24px 0 var(--hot),0 24px var(--hot),48px 24px var(--hot),12px 12px var(--hot),36px 12px var(--hot),12px 36px var(--hot),36px 36px var(--hot);opacity:.1}
 body:after{right:8vw;bottom:14vh;width:18px;height:18px;background:var(--purple);box-shadow:18px 0 var(--purple),36px 0 var(--purple),0 18px var(--purple),36px 18px var(--purple),18px 36px var(--purple);opacity:.08}
 .container{max-width:620px!important;width:100%!important;padding:24px 18px 58px!important;position:relative;z-index:1}
-.header{position:relative!important;top:auto!important;display:grid!important;grid-template-columns:minmax(0,1fr) 285px!important;align-items:center!important;gap:22px!important;margin:8px 0 25px!important;padding:48px 18px 17px!important;background:linear-gradient(90deg,var(--hot),#ff78ae)!important;border:4px solid var(--line)!important;border-radius:0!important;box-shadow:7px 7px 0 rgba(185,47,114,.72)!important;backdrop-filter:none!important;text-align:left!important}
+.header{position:relative!important;top:auto!important;display:block!important;margin:8px 0 25px!important;padding:51px 20px 22px!important;background:linear-gradient(105deg,#ff4f9a,#ff78ae 58%,#ef8fbd)!important;border:4px solid var(--line)!important;border-radius:0!important;box-shadow:7px 7px 0 rgba(185,47,114,.72)!important;backdrop-filter:none!important;text-align:left!important;overflow:hidden!important}
 .header:before{content:"♥  ✦  CREATOR PORTAL  ✦  ♥";position:absolute;left:-4px;right:-4px;top:-4px;display:block;padding:10px 16px 9px;color:#fff5bd;background:#c82d73;border:4px solid var(--line);font-family:var(--ui);font-size:14px;font-weight:900;letter-spacing:1.8px;text-align:left;text-shadow:2px 2px 0 #8e2457;box-shadow:0 4px 0 rgba(142,36,87,.32)}
-.creator-header-copy{min-width:0}
-.header h1{font-family:var(--display)!important;font-size:18px!important;line-height:1.65!important;color:#fff!important;letter-spacing:0!important;text-shadow:3px 3px 0 #a72d65!important}
-.header p{margin-top:6px!important;color:#fff5fa!important;font-size:13px!important;font-weight:800!important;letter-spacing:.2px!important}
-.header .seraphina-card{justify-self:end;width:285px;margin:0!important;box-shadow:5px 5px 0 rgba(112,28,70,.45)}
-.header .seraphina-card::before{content:"SYSTEM CREATOR"}
+.header:after{content:"🎀";position:absolute;right:18px;bottom:-24px;font-size:92px;opacity:.16;transform:rotate(10deg);filter:drop-shadow(4px 4px 0 #a72d65)}
+.creator-header-copy{position:relative;z-index:1;min-width:0}
+.header h1{font-family:var(--display)!important;font-size:22px!important;line-height:1.6!important;color:#fff!important;letter-spacing:0!important;text-shadow:3px 3px 0 #a72d65!important}
+.header p{display:inline-block!important;margin-top:8px!important;padding:6px 9px!important;color:#6b294a!important;background:#fff5bd!important;border:2px solid var(--line)!important;font-size:12px!important;font-weight:900!important;letter-spacing:.25px!important;box-shadow:3px 3px 0 #c33d78!important}
 #step-login{max-width:560px!important;margin:18px auto 0!important;padding:36px 30px 30px!important;background:rgba(255,250,253,.94)!important;border:4px solid var(--line)!important;border-radius:0!important;box-shadow:9px 9px 0 rgba(185,47,114,.68)!important;overflow:visible!important}
 #step-login:before{content:"WELCOME, CREATOR!";display:block;width:max-content;max-width:90%;margin:-54px auto 24px;padding:7px 12px;background:var(--cream);border:3px solid var(--line);box-shadow:4px 4px 0 var(--hot);color:var(--text);font-family:var(--ui);font-size:11px;font-weight:900;letter-spacing:.8px}
 #step-login>div[style*="font-size:80px"]{font-size:65px!important;margin-bottom:8px!important;filter:drop-shadow(4px 4px 0 var(--light))!important}
@@ -194,7 +193,7 @@ a{color:var(--pink-dark)}
 .submission-status{flex:none;padding:5px 8px;border:2px solid currentColor;font-size:10px;font-weight:900;white-space:nowrap}
 .submission-status-pending{color:#e65100;background:#fff3e0}.submission-status-scored{color:#2e7d32;background:#e8f5e9}.submission-status-rejected{color:#777;background:#f3f3f3}
 @media(max-width:680px){
-  .container{padding:15px 10px 42px!important}.header{grid-template-columns:1fr!important;gap:14px!important;margin-top:4px!important;padding:48px 12px 14px!important}.header:before{padding:9px 10px 8px!important;font-size:11px!important;letter-spacing:1px!important}.header h1{font-size:14px!important}.header p{font-size:11px!important}.header .seraphina-card{justify-self:stretch;width:100%;margin-top:20px!important}
+  .container{padding:15px 10px 42px!important}.header{margin-top:4px!important;padding:47px 12px 17px!important}.header:before{padding:9px 10px 8px!important;font-size:11px!important;letter-spacing:1px!important}.header h1{font-size:16px!important}.header p{font-size:10px!important}.header:after{right:4px!important;font-size:70px!important}
   #step-login{padding:31px 14px 23px!important;box-shadow:6px 6px 0 rgba(185,47,114,.68)!important}#step-login:before{margin-top:-47px!important;font-size:9px!important}#step-login>div[style*="font-size:48px"]{font-size:19px!important}#step-login>div[style*="font-size:80px"]{font-size:54px!important}
   .card{padding:14px!important}.card-title,.level-1-title{font-size:12px!important}.submit-period-badge{font-size:14px!important;padding:7px 9px!important}.tabs{grid-template-columns:1fr 1fr!important;gap:9px!important;margin-top:33px!important;padding:10px!important}.tabs:before{font-size:10px!important;top:-23px!important}.tab{min-height:76px!important;font-size:15px!important;padding:16px 8px!important;line-height:1.4!important}.tab.active:after{font-size:7px!important}.nav-title{font-size:11px!important}
   #creator-tab-faq .suggestions{justify-content:flex-start!important;overflow-x:auto!important;flex-wrap:nowrap!important;padding-bottom:6px!important}#creator-tab-faq .suggestions .chip{flex:none!important;max-width:250px!important}
@@ -215,14 +214,6 @@ a{color:var(--pink-dark)}
       <h1>💗🎀 Yoyo Town</h1>
       <p>Check your points &amp; redeem rewards</p>
     </div>
-    <aside class="seraphina-card seraphina-card-hero" aria-label="System creator Seraphina, known to creators as YoYo assistant Mochi">
-      <span class="seraphina-card-avatar" role="img" aria-label="Blonde woman">🙎🏼‍♀️</span>
-      <span class="seraphina-card-copy">
-        <span class="seraphina-card-label">DESIGNED &amp; DEVELOPED BY</span>
-        <strong class="seraphina-card-name">Seraphina</strong>
-        <span class="seraphina-card-meta"><strong>Full-Stack Developer</strong><span>YoYo assistant 💗 Mochi</span></span>
-      </span>
-    </aside>
   </div>
 
 
@@ -698,14 +689,19 @@ renderFAQ(EN_DATA);
     </div>
 
 <button class="btn" style="width:100%;border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--card);font-size:14px;color:var(--text-light);cursor:pointer;" onclick="logout()">← Switch Account</button>
+    <aside class="seraphina-card creator-account-credit" aria-label="System creator Seraphina, known to creators as YoYo assistant Mochi">
+      <span class="seraphina-card-avatar" role="img" aria-label="Blonde woman">🙎🏼‍♀️</span>
+      <span class="seraphina-card-copy">
+        <span class="seraphina-card-label">SYSTEM CREATOR</span>
+        <strong class="seraphina-card-name">Seraphina</strong>
+        <span class="seraphina-card-meta"><strong>Full-Stack Developer</strong><span>YoYo assistant 💗 Mochi</span><span>Yoyo Creative Studio</span></span>
+      </span>
+    </aside>
     <div style="margin-top:14px;font-size:12px;color:var(--text-light);text-align:center;line-height:1.6;">
       Questions or issues? Create a thread in <strong>｜town-service-station</strong> — we reply in submission order.
     </div>
   </div>
 
-  <div class="footer">
-    Developed by Yoyo Assistant 💗 Mochi · Yoyo Creative Studio
-  </div>
 </div>
 <div id="toast" class="toast"></div>
 
