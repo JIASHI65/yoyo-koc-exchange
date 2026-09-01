@@ -459,6 +459,10 @@ body::before {
 }
 
 #admin-panel > .header {
+  display: grid;
+  grid-template-columns: minmax(250px,1fr) auto minmax(390px,1fr);
+  align-items: center;
+  gap: 18px;
   top: 8px;
   padding: 14px 16px;
   background: linear-gradient(90deg,#ff5a9d,#ff78ae);
@@ -472,6 +476,68 @@ body::before {
 #admin-panel > .header h1 {
   color: #fff;
   text-shadow: 2px 2px 0 #a72d65;
+}
+
+.admin-header-credit {
+  display: grid;
+  grid-template-columns: 40px auto;
+  align-items: center;
+  gap: 9px;
+  min-width: 218px;
+  padding: 6px 11px 6px 7px;
+  color: #61233f;
+  background: #fffafd;
+  border: 2px solid var(--pixel-line);
+  border-radius: 3px;
+  box-shadow: 4px 4px 0 #c13d79;
+}
+
+.admin-header-avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  background: #ffd7e8;
+  border: 2px solid var(--pixel-line);
+  box-shadow: 2px 2px 0 #f0a5c4;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.admin-header-credit-copy { min-width: 0; line-height: 1.1; }
+.admin-header-credit-copy small {
+  display: block;
+  margin-bottom: 2px;
+  color: #a05c7b;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: .11em;
+}
+.admin-header-credit-copy strong {
+  display: block;
+  color: #b22c69;
+  font-family: "Snell Roundhand", "Segoe Script", "Bradley Hand", "Brush Script MT", cursive;
+  font-size: 19px;
+  font-style: italic;
+  line-height: 1;
+  text-shadow: 1px 1px 0 #fff, 2px 2px 0 #efb2cc;
+}
+.admin-header-credit-copy span {
+  display: block;
+  margin-top: 4px;
+  color: #70475b;
+  font-size: 7px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.admin-header-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 #admin-panel > .header > div > div:first-child {
@@ -580,13 +646,19 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
 }
 
 @media (max-width: 900px) {
-  #admin-panel > .header { border-radius: 4px; }
+  #admin-panel > .header { grid-template-columns: 1fr auto; border-radius: 4px; }
+  .admin-header-credit { justify-self: end; }
+  .admin-header-tools { grid-column: 1 / -1; justify-content: space-between; width: 100%; }
   .tabs { top: 112px; border-radius: 4px; }
   .card { border-radius: 4px; }
 }
 
 @media (max-width: 560px) {
   .tabs { top: 6px; }
+  #admin-panel > .header { grid-template-columns: 1fr; gap: 11px; }
+  .admin-header-credit { justify-self: stretch; width: 100%; }
+  .admin-header-tools { grid-column: auto; align-items: stretch; }
+  .admin-header-tools > div:first-child { flex: 1 1 100%; justify-content: center; }
   #login-screen { border-width: 3px !important; box-shadow: 5px 5px 0 rgba(185,47,114,.40) !important; }
 }
 </style>
@@ -669,7 +741,15 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
   <div id="admin-panel" class="hidden">
     <div class="header">
       <h1>🌟🎀 KOC Management System</h1>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div class="admin-header-credit" aria-label="System creator Seraphina, YoYo assistant Mochi">
+        <span class="admin-header-avatar" role="img" aria-label="Blonde woman">🙎🏼‍♀️</span>
+        <span class="admin-header-credit-copy">
+          <small>SYSTEM CREATOR</small>
+          <strong>Seraphina</strong>
+          <span>YoYo assistant 💗 Mochi</span>
+        </span>
+      </div>
+      <div class="admin-header-tools">
         <div style="display:flex;align-items:center;gap:6px;background:#fce4ec;padding:6px 14px;border-radius:10px;border:2px solid var(--pink);">
           <span style="font-size:13px;font-weight:600;color:var(--pink-dark);">📅 工作月份</span>
           <select id="settle-month" style="width:140px;padding:4px 8px;border:1.5px solid var(--pink);border-radius:6px;font-size:13px;font-weight:600;background:white;cursor:pointer;" onchange="changeSettlePeriod()">
