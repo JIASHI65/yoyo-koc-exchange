@@ -319,20 +319,23 @@
       5px 5px 0 #df78aa,
       7px 7px 0 rgba(116, 34, 79, .18);
   }
-  }
 
   .pixel-credit-role {
-    display: inline-block;
-    margin-top: 9px;
-    padding: 5px 7px;
-    color: #fff;
-    background: #744093;
-    border: 2px solid #4f275f;
-    box-shadow: 3px 3px 0 #d6a6e2;
-    font-size: 9px;
-    font-weight: 900;
-    letter-spacing: .06em;
+    display: block;
+    width: fit-content;
+    margin-top: 17px;
+    padding-top: 6px;
+    color: #775263;
+    border-top: 2px solid #e6a1c1;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 11px;
+    font-style: italic;
+    font-weight: 700;
+    letter-spacing: .04em;
+    white-space: nowrap;
   }
+
+  .pixel-credit-role::before { content: "✦ "; color: #c84a83; font-style: normal; }
 
   .pixel-identity-panel {
     padding: 10px;
@@ -725,7 +728,7 @@
     .pixel-avatar { font-size: 34px; border-width: 2px; }
     .pixel-heart { right: -9px; bottom: -9px; width: 24px; height: 24px; border-width: 2px; font-size: 11px; }
     .pixel-credit-name { font-size: 24px; text-shadow: 1px 1px 0 #fff7fb, 2px 2px 0 #f3b5d1, 4px 4px 0 #df78aa, 6px 6px 0 rgba(116, 34, 79, .16); }
-    .pixel-credit-role { font-size: 8px; }
+    .pixel-credit-role { margin-top: 13px; padding-top: 5px; font-size: 10px; }
     .pixel-identity-panel { grid-column: 1 / -1; margin-top: 2px; }
   }
 
@@ -890,7 +893,7 @@
     <div class="pixel-credit-copy">
       <span class="pixel-credit-label">SYSTEM CREATOR</span>
       <strong class="pixel-credit-name">Seraphina</strong>
-      <span class="pixel-credit-role">PRODUCT · DESIGN · ENGINEERING</span>
+      <span class="pixel-credit-role">Full-Stack Developer</span>
     </div>
     <div class="pixel-identity-panel">
       <span class="pixel-stat-label">CREATOR-FACING IDENTITY</span>
