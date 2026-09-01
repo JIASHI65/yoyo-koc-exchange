@@ -184,6 +184,8 @@ a{color:var(--pink-dark)}
 .submission-progress-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;font-weight:800}
 .submission-progress-track{height:10px;margin-top:9px;background:#fff;border:2px solid var(--line);overflow:hidden}
 .submission-progress-fill{height:100%;background:linear-gradient(90deg,var(--hot),var(--purple))}
+.submission-progress-track.cc-snail-track{position:relative;margin-top:25px;overflow:visible}
+.cc-snail-marker{position:absolute;z-index:2;top:50%;width:42px;height:40px;object-fit:contain;pointer-events:none;filter:drop-shadow(2px 2px 0 rgba(80,36,63,.28));transform:translate(-50%,-72%);transition:left .35s ease}
 .submission-records{display:grid;gap:10px;margin-top:14px}
 .submission-record-card{padding:13px;background:var(--paper);border:3px solid var(--line);box-shadow:4px 4px 0 rgba(185,47,114,.32)}
 .submission-record-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
@@ -1954,7 +1956,7 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
 
   var ccPercent = Math.min(100, Math.round(totalLinks / 15 * 100));
   html += '<div class="submission-progress-card"><div class="submission-progress-row"><span>🎮 Continuous Creation</span><span>' + totalLinks + ' / 15 links</span></div>';
-  html += '<div class="submission-progress-track"><div class="submission-progress-fill" style="width:' + ccPercent + '%;"></div></div>';
+  html += '<div class="submission-progress-track cc-snail-track"><div class="submission-progress-fill" style="width:' + ccPercent + '%;"></div><img class="cc-snail-marker" src="assets/yoyo-snail-logo.webp" alt="Yoyo Town snail" style="left:clamp(21px,' + ccPercent + '%,calc(100% - 21px));"></div>';
   html += '<div class="submission-stat-note">' + (totalLinks >= 15 ? 'Goal reached. Reward awaits admin confirmation.' : (15 - totalLinks) + ' more valid links needed.') + '</div></div>';
 
   if (isCurrent && currentUser.notes && isCreatorNewbieForPeriod(currentUser, ym)) {
