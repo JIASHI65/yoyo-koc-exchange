@@ -205,6 +205,226 @@
 .sk-summary{height:80px;border-radius:10px;background:#fce4ec;overflow:hidden;position:relative;}
 .sk-summary::after{content:"";position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.5),transparent);animation:skShimmer 1.5s infinite;}
 @media(max-width:850px){.fulfillment-import-grid{grid-template-columns:1fr!important;}}
+
+/* ===== Creator Portal-inspired admin theme ===== */
+:root {
+  --pink: #efa2c1;
+  --pink-light: #fde9f1;
+  --pink-dark: #c95f8c;
+  --bg: #fff8fb;
+  --card: rgba(255,255,255,.96);
+  --text: #432f39;
+  --text-light: #8b7580;
+  --border: #f1d8e4;
+  --shadow: 0 10px 30px rgba(191, 91, 133, .10), 0 2px 8px rgba(88, 48, 67, .04);
+  --radius: 18px;
+  --admin-accent: linear-gradient(135deg, #efa2c1 0%, #db7fa5 58%, #c56c99 100%);
+}
+
+body {
+  min-height: 100vh;
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 8% 4%, rgba(239,162,193,.20), transparent 24%),
+    radial-gradient(circle at 92% 8%, rgba(205,153,221,.14), transparent 22%),
+    linear-gradient(180deg, #fff9fc 0%, #fef6f9 46%, #fffafd 100%);
+  background-attachment: fixed;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .34;
+  background-image: radial-gradient(circle, rgba(212,116,154,.18) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(to bottom, #000, transparent 72%);
+}
+
+.container { max-width: 1440px; padding: 22px clamp(14px, 2.2vw, 32px) 56px; }
+
+#admin-panel > .header {
+  position: sticky;
+  top: 10px;
+  z-index: 45;
+  margin-bottom: 14px;
+  padding: 15px 18px;
+  background: rgba(255,255,255,.88);
+  border: 1px solid rgba(239,190,211,.85);
+  border-radius: 20px;
+  box-shadow: 0 14px 38px rgba(164,76,116,.13);
+  backdrop-filter: blur(16px) saturate(1.25);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+}
+
+#admin-panel > .header h1 {
+  color: #aa3f70;
+  font-size: clamp(19px, 2vw, 25px);
+  letter-spacing: -.035em;
+}
+
+#admin-panel > .header > div > div:first-child {
+  background: linear-gradient(135deg,#fff6fa,#fde5ef) !important;
+  border: 1px solid #efbfd3 !important;
+  border-radius: 14px !important;
+  box-shadow: inset 0 1px 0 #fff;
+}
+
+.tabs {
+  position: sticky;
+  top: 92px;
+  z-index: 40;
+  flex-wrap: nowrap;
+  gap: 7px;
+  margin-bottom: 20px;
+  padding: 7px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #e6a5c1 transparent;
+  background: rgba(255,255,255,.90);
+  border: 1px solid rgba(239,190,211,.85);
+  border-radius: 18px;
+  box-shadow: 0 9px 26px rgba(171,80,121,.10);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.tab {
+  flex: 0 0 auto;
+  min-width: max-content;
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: #846d78;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tab:hover { color: #a03d6d; background: #fff2f7; border-color: #f4cedd; transform: translateY(-1px); }
+.tab.active { color: white; background: var(--admin-accent); border-color: #d77ba3; box-shadow: 0 6px 15px rgba(203,89,139,.24); }
+
+.tab-content.active { animation: adminPanelIn .22s ease-out; }
+@keyframes adminPanelIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+
+.card {
+  border: 1px solid rgba(240,216,228,.96);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(4px);
+}
+
+.card:hover { border-color: #edc8d9; }
+
+.card-title {
+  color: #613d50;
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -.01em;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f2dbe5;
+}
+
+.btn {
+  min-height: 34px;
+  padding: 7px 13px;
+  border-radius: 11px;
+  box-shadow: 0 2px 6px rgba(82,44,62,.06);
+}
+
+.btn:hover:not(:disabled) { transform: translateY(-1px); filter: saturate(1.04); box-shadow: 0 6px 14px rgba(143,64,101,.13); }
+.btn:active:not(:disabled) { transform: translateY(0); }
+.btn-primary { background: var(--admin-accent); }
+.btn-outline { color: #865a70; background: #fff; border-color: #e9c4d5; }
+.btn-outline:hover { color: #a23669; background: #fff5f9; border-color: #df9fbb; }
+.btn-success { background: linear-gradient(135deg,#62bd88,#3c9f69); }
+.btn-danger { background: linear-gradient(135deg,#ef7777,#d94b59); }
+.btn-warning { background: linear-gradient(135deg,#ffb85c,#ee9133); }
+
+input, select, textarea {
+  color: var(--text);
+  background: #fffafd;
+  border-color: #ecd2de;
+  border-radius: 10px;
+  transition: border-color .18s, box-shadow .18s, background .18s;
+}
+
+input:hover, select:hover, textarea:hover { border-color: #e1b1c7; }
+input:focus, select:focus, textarea:focus { background: #fff; border-color: #df8fb2; box-shadow: 0 0 0 4px rgba(239,162,193,.16); }
+
+table { border-spacing: 0; }
+th {
+  padding: 10px 8px;
+  color: #806875;
+  background: #fff5f9;
+  border-bottom-color: #eccfdd;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: none;
+}
+td { padding: 9px 8px; border-bottom-color: #f2dee7; }
+tbody tr:nth-child(even) td { background: rgba(255,248,251,.62); }
+tr:hover td { background: #fff0f6 !important; }
+
+.koc-table-wrap,
+[style*="overflow-x:auto"],
+[style*="overflow-x: auto"] {
+  scrollbar-width: thin;
+  scrollbar-color: #e8abc5 #fff5f9;
+}
+
+.koc-table-wrap {
+  border: 1px solid #efd7e2;
+  border-radius: 14px;
+  background: #fff;
+}
+.koc-table-wrap thead th { top: 0; background: #fff2f7; box-shadow: 0 1px 0 #eccfdd; }
+
+.month-section { margin-bottom: 18px; }
+.month-header {
+  background: linear-gradient(135deg,#fff1f7,#fffafd);
+  border-color: #eccddd;
+  border-radius: 16px 16px 0 0;
+}
+.month-table { border-color: #eccddd; border-radius: 0 0 16px 16px; }
+.month-table th { background: #fff5f9; }
+
+.stats-bar { gap: 8px; }
+.stats-bar span { padding: 6px 11px; color: #8e4b6b; background: #fff0f6; border: 1px solid #f0cbdc; }
+.badge { padding: 4px 9px; border: 1px solid rgba(0,0,0,.04); }
+.toggle-label { box-shadow: inset 0 1px 3px rgba(67,37,51,.15); }
+.toggle-cb:checked + .toggle-label { background: linear-gradient(135deg,#f0a0c0,#d66f9c); }
+
+.modal-overlay { background: rgba(78,40,60,.34); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); }
+.modal { border: 1px solid #efd2df; border-radius: 22px; box-shadow: 0 24px 70px rgba(91,42,66,.24); }
+.toast { border-radius: 12px; box-shadow: 0 12px 30px rgba(51,25,38,.20); }
+
+.insight { color: #806c76; background: #fff7fa; border: 1px solid #f2dbe5; border-radius: 10px; }
+.empty-state { padding: 52px 20px; color: #a08794; }
+.developer-credit-admin-footer { margin-top: 34px; }
+body:has(#login-screen:not(.hidden)) > .developer-credit-admin-footer { display: none; }
+
+@media (max-width: 900px) {
+  .container { padding: 12px 10px 40px; }
+  #admin-panel > .header { top: 6px; padding: 12px; border-radius: 16px; }
+  #admin-panel > .header > div { width: 100%; }
+  .tabs { top: 116px; margin-inline: -2px; border-radius: 15px; }
+  .tab { padding: 9px 12px; font-size: 11px; }
+  .card { padding: 15px; border-radius: 17px; }
+  .card-title { align-items: flex-start; }
+  .btn { min-height: 36px; }
+}
+
+@media (max-width: 560px) {
+  #admin-panel > .header { position: relative; top: auto; }
+  #admin-panel > .header h1 { width: 100%; }
+  .tabs { top: 6px; }
+  .row > input, .row > select { max-width: 100%; }
+  .modal { padding: 18px; border-radius: 18px; }
+}
 </style>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -284,7 +504,7 @@
   <!-- ===== ADMIN PANEL ===== -->
   <div id="admin-panel" class="hidden">
     <div class="header">
-      <h1>🌟🎀 Admin · KOC Redemption</h1>
+      <h1>🌟🎀 KOC Management System</h1>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:6px;background:#fce4ec;padding:6px 14px;border-radius:10px;border:2px solid var(--pink);">
           <span style="font-size:13px;font-weight:600;color:var(--pink-dark);">📅 工作月份</span>
@@ -6692,7 +6912,7 @@ document.addEventListener('visibilitychange', function() {
 
 
 
-<div class="developer-credit" aria-label="Full-Stack Developer Seraphina">
+<div class="developer-credit developer-credit-admin-footer" aria-label="Full-Stack Developer Seraphina">
   <span class="developer-credit-icon" aria-hidden="true">&lt;/&gt;</span>
   <span class="developer-credit-copy">
     <span class="developer-credit-role">全栈开发者 · Full-Stack Developer</span>
