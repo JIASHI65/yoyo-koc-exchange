@@ -1290,6 +1290,17 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
             <option value="20-39">20–39 条</option>
             <option value="40+">40 条及以上</option>
           </select>
+          <select id="submission-platform-filter" onchange="renderSubmissions()" style="width:145px;">
+            <option value="all">📱 全部平台</option>
+            <option value="tiktok">TikTok</option>
+            <option value="youtube">YouTube</option>
+            <option value="instagram">Instagram</option>
+            <option value="facebook">Facebook</option>
+            <option value="reddit">Reddit</option>
+            <option value="pinterest">Pinterest</option>
+            <option value="x">X / Twitter</option>
+            <option value="other">其他平台</option>
+          </select>
           <span id="submission-stat" style="font-size:12px;color:var(--text-light);font-weight:600;"></span>
           <span id="submission-selected-stat" style="font-size:12px;color:#ad1457;font-weight:700;">☑ 已选 0 人</span>
           <button class="btn btn-sm" style="background:#fce4ec;color:#c62828;border:1px solid #ef9a9a;margin-left:auto;" onclick="batchDeleteSelectedSubmissions()">🗑 删除所选投稿</button>
@@ -2322,11 +2333,33 @@ async function loadSubmissions() {
   } catch(e) { console.error('loadSubmissions:', e); }
 }
 
+function submissionLinkPlatform(link) {
+  var value = String(link || '').trim().toLowerCase();
+  var hostname = '';
+  try { hostname = new URL(/^https?:\/\//i.test(value) ? value : 'https://' + value).hostname.replace(/^www\./, ''); }
+  catch(e) { hostname = value.split('/')[0].replace(/^www\./, ''); }
+  function isDomain(domain) { return hostname === domain || hostname.slice(-(domain.length + 1)) === '.' + domain; }
+  if (isDomain('tiktok.com')) return 'tiktok';
+  if (isDomain('youtube.com') || isDomain('youtu.be')) return 'youtube';
+  if (isDomain('instagram.com')) return 'instagram';
+  if (isDomain('facebook.com') || isDomain('fb.com') || isDomain('fb.watch')) return 'facebook';
+  if (isDomain('reddit.com') || isDomain('redd.it')) return 'reddit';
+  if (isDomain('pinterest.com') || isDomain('pinterest.co.uk') || isDomain('pin.it')) return 'pinterest';
+  if (isDomain('twitter.com') || isDomain('x.com')) return 'x';
+  return 'other';
+}
+
+function submissionLinkMatchesPlatform(link, platform) {
+  return platform === 'all' || submissionLinkPlatform(link) === platform;
+}
+
 function renderSubmissions() {
   var q = (document.getElementById('submission-search').value || '').toLowerCase().trim();
   var filter = document.getElementById('submission-filter').value;
   var linkFilterEl = document.getElementById('submission-link-filter');
   var linkFilter = linkFilterEl ? linkFilterEl.value : 'all';
+  var platformFilterEl = document.getElementById('submission-platform-filter');
+  var platformFilter = platformFilterEl ? platformFilterEl.value : 'all';
   var container = document.getElementById('submissions-table');
   if (!container) return;
   // Filter by currentPeriod, exclude showcase submissions (separate panel below)
@@ -2366,7 +2399,11 @@ function renderSubmissions() {
   });
   var mergedList = Object.values(merged);
   mergedList.forEach(function(s) {
-    s._link_count = splitSubmissionLinks(s.links_engagement).length + splitSubmissionLinks(s.links_views).length;
+    var engagementLinks = splitSubmissionLinks(s.links_engagement);
+    var viewLinks = splitSubmissionLinks(s.links_views);
+    s._display_engagement = platformFilter === 'all' ? engagementLinks : engagementLinks.filter(function(link) { return submissionLinkMatchesPlatform(link, platformFilter); });
+    s._display_views = platformFilter === 'all' ? viewLinks : viewLinks.filter(function(link) { return submissionLinkMatchesPlatform(link, platformFilter); });
+    s._link_count = s._display_engagement.length + s._display_views.length;
   });
   var filtered = mergedList.filter(function(s) {
     if (filter !== 'all') {
@@ -2376,6 +2413,7 @@ function renderSubmissions() {
     if (q && (s.discord_name || '').toLowerCase().indexOf(q) === -1 &&
         (s.uid || '').toLowerCase().indexOf(q) === -1) return false;
     var linkCount = s._link_count || 0;
+    if (platformFilter !== 'all' && linkCount === 0) return false;
     if (linkFilter === '1-4' && (linkCount < 1 || linkCount > 4)) return false;
     if (linkFilter === '5-14' && (linkCount < 5 || linkCount > 14)) return false;
     if (linkFilter === '15-19' && (linkCount < 15 || linkCount > 19)) return false;
@@ -2399,8 +2437,8 @@ function renderSubmissions() {
   }
   container.innerHTML = filtered.map(function(s, i) {
     // Support both raw submissions and preview results
-    var rawEng = s.links_engagement || '';
-    var rawView = s.links_views || '';
+    var rawEng = (s._display_engagement || []).join('\n');
+    var rawView = (s._display_views || []).join('\n');
     // Preview results might have engagement_links/view_links as arrays
     if (s.engagement_links && Array.isArray(s.engagement_links)) rawEng = s.engagement_links.join('\n');
     if (s.view_links && Array.isArray(s.view_links)) rawView = s.view_links.join('\n');
