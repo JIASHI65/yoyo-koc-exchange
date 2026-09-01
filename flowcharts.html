@@ -266,19 +266,13 @@
   }
 
   .pixel-avatar {
-    display: grid;
-    place-items: center;
+    display: block;
     width: 100%;
     height: 100%;
-    color: #fff;
-    background: linear-gradient(135deg, #ff79af 0 50%, #a64bb0 50% 100%);
+    object-fit: cover;
+    background: #f7a8cb;
     border: 3px solid #fff6fa;
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 43px;
-    font-style: italic;
-    font-weight: 900;
-    line-height: 1;
-    text-shadow: 3px 3px 0 #74224f;
+    image-rendering: pixelated;
   }
 
   .pixel-heart {
@@ -880,7 +874,7 @@
   </div>
   <div class="pixel-credit-body">
     <div class="pixel-avatar-frame" aria-hidden="true">
-      <span class="pixel-avatar">S</span>
+      <img class="pixel-avatar" src="assets/seraphina-pixel-avatar.svg" alt="Blonde pixel portrait of Seraphina">
       <span class="pixel-heart">♥</span>
     </div>
     <div class="pixel-credit-copy">
