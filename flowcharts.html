@@ -182,6 +182,188 @@
     letter-spacing: .04em;
   }
 
+  .pixel-credit {
+    display: block;
+    width: min(680px, calc(100% - 28px));
+    padding: 0;
+    overflow: visible;
+    color: #4a1535;
+    background: #fff7fb;
+    border: 4px solid #74224f;
+    border-radius: 0;
+    box-shadow: 8px 8px 0 #e7a0c3, 12px 12px 0 rgba(116, 34, 79, .16);
+    font-family: "SFMono-Regular", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+    image-rendering: pixelated;
+  }
+
+  .pixel-credit::before {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    width: auto;
+    height: auto;
+    z-index: -1;
+    background: none;
+    border: 2px solid #f7c4da;
+  }
+
+  .pixel-credit::after { content: none; }
+
+  .pixel-credit-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 34px;
+    padding: 6px 9px 6px 12px;
+    color: #fff;
+    background-color: #c83278;
+    background-image: linear-gradient(45deg, rgba(255,255,255,.12) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.12) 75%), linear-gradient(45deg, rgba(255,255,255,.12) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.12) 75%);
+    background-position: 0 0, 6px 6px;
+    background-size: 12px 12px;
+    border-bottom: 4px solid #74224f;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .14em;
+    text-shadow: 2px 2px 0 #74224f;
+  }
+
+  .pixel-credit-controls {
+    display: flex;
+    gap: 5px;
+  }
+
+  .pixel-credit-controls i {
+    display: block;
+    width: 12px;
+    height: 12px;
+    background: #ffd3e5;
+    border: 2px solid #74224f;
+    box-shadow: 2px 2px 0 rgba(74, 21, 53, .35);
+  }
+
+  .pixel-credit-controls i:nth-child(2) { background: #ff90bd; }
+  .pixel-credit-controls i:nth-child(3) { background: #fff09b; }
+
+  .pixel-credit-body {
+    position: relative;
+    display: grid;
+    grid-template-columns: 92px minmax(0, 1fr) 205px;
+    align-items: center;
+    gap: 16px;
+    padding: 18px;
+    background-image: linear-gradient(90deg, rgba(224, 98, 155, .07) 1px, transparent 1px), linear-gradient(rgba(224, 98, 155, .07) 1px, transparent 1px);
+    background-size: 12px 12px;
+  }
+
+  .pixel-avatar-frame {
+    position: relative;
+    width: 82px;
+    height: 82px;
+    padding: 6px;
+    background: #ffd8e9;
+    border: 4px solid #74224f;
+    box-shadow: 5px 5px 0 #e789b5;
+  }
+
+  .pixel-avatar {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    color: #fff;
+    background: linear-gradient(135deg, #ff79af 0 50%, #a64bb0 50% 100%);
+    border: 3px solid #fff6fa;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 43px;
+    font-style: italic;
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 3px 3px 0 #74224f;
+  }
+
+  .pixel-heart {
+    position: absolute;
+    right: -10px;
+    bottom: -10px;
+    display: grid;
+    place-items: center;
+    width: 29px;
+    height: 29px;
+    color: #c83278;
+    background: #fff6fa;
+    border: 3px solid #74224f;
+    font-size: 14px;
+    box-shadow: 3px 3px 0 #e789b5;
+  }
+
+  .pixel-credit-copy { min-width: 0; }
+
+  .pixel-credit-label {
+    display: block;
+    margin-bottom: 5px;
+    color: #9b4c73;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: .12em;
+  }
+
+  .pixel-credit-name {
+    display: block;
+    color: #b12266;
+    font-size: clamp(24px, 4vw, 36px);
+    font-weight: 1000;
+    letter-spacing: .04em;
+    line-height: 1;
+    text-shadow: 3px 3px 0 #f3b5d1;
+  }
+
+  .pixel-credit-role {
+    display: inline-block;
+    margin-top: 9px;
+    padding: 5px 7px;
+    color: #fff;
+    background: #744093;
+    border: 2px solid #4f275f;
+    box-shadow: 3px 3px 0 #d6a6e2;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: .06em;
+  }
+
+  .pixel-identity-panel {
+    padding: 10px;
+    background: #fff;
+    border: 3px solid #a34272;
+    box-shadow: 4px 4px 0 #f0b6d1;
+  }
+
+  .pixel-stat-label {
+    display: block;
+    color: #a15c7d;
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: .1em;
+  }
+
+  .pixel-alias {
+    display: block;
+    margin: 5px 0 8px;
+    color: #99245d;
+    font-size: 12px;
+    font-weight: 1000;
+    line-height: 1.35;
+  }
+
+  .pixel-studio {
+    display: block;
+    padding-top: 7px;
+    color: #684354;
+    border-top: 2px dashed #edb6ce;
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: .04em;
+  }
+
   .hero {
     position: relative;
     overflow: hidden;
@@ -533,6 +715,14 @@
     .signature-kicker { letter-spacing: .08em; }
     .signature-identity { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: space-between; padding: 10px 2px 0; border-top: 1px solid #efd2df; border-left: 0; text-align: left; }
     .signature-identity-label { display: none; }
+    .pixel-credit { display: block; width: calc(100% - 24px); margin-bottom: 32px; box-shadow: 5px 5px 0 #e7a0c3, 8px 8px 0 rgba(116, 34, 79, .16); }
+    .pixel-credit-body { grid-template-columns: 70px minmax(0, 1fr); gap: 13px; padding: 14px; }
+    .pixel-avatar-frame { width: 64px; height: 64px; padding: 4px; border-width: 3px; box-shadow: 4px 4px 0 #e789b5; }
+    .pixel-avatar { font-size: 34px; border-width: 2px; }
+    .pixel-heart { right: -9px; bottom: -9px; width: 24px; height: 24px; border-width: 2px; font-size: 11px; }
+    .pixel-credit-name { font-size: 24px; text-shadow: 2px 2px 0 #f3b5d1; }
+    .pixel-credit-role { font-size: 8px; }
+    .pixel-identity-panel { grid-column: 1 / -1; margin-top: 2px; }
   }
 
   @media print {
@@ -683,17 +873,27 @@
   </footer>
 </main>
 
-<aside class="signature-card" aria-label="Designed and developed by Seraphina, known to creators as YoYo assistant Mochi">
-  <span class="signature-mark" aria-hidden="true">S<small>💗</small></span>
-  <span class="signature-main">
-    <span class="signature-kicker">独立设计与全栈开发 · Designed &amp; Developed by</span>
-    <strong class="signature-name">Seraphina</strong>
-  </span>
-  <span class="signature-identity">
-    <span class="signature-identity-label">官方对外身份 · Creator-facing identity</span>
-    <span class="signature-alias">YoYo assistant 💗 Mochi</span>
-    <span class="signature-studio">Yoyo Creative Studio</span>
-  </span>
+<aside class="signature-card pixel-credit" aria-label="Designed and developed by Seraphina, known to creators as YoYo assistant Mochi">
+  <div class="pixel-credit-bar">
+    <span>DEVELOPER_PROFILE.EXE</span>
+    <span class="pixel-credit-controls" aria-hidden="true"><i></i><i></i><i></i></span>
+  </div>
+  <div class="pixel-credit-body">
+    <div class="pixel-avatar-frame" aria-hidden="true">
+      <span class="pixel-avatar">S</span>
+      <span class="pixel-heart">♥</span>
+    </div>
+    <div class="pixel-credit-copy">
+      <span class="pixel-credit-label">DESIGNED &amp; DEVELOPED BY</span>
+      <strong class="pixel-credit-name">SERAPHINA</strong>
+      <span class="pixel-credit-role">FULL-STACK DEVELOPER</span>
+    </div>
+    <div class="pixel-identity-panel">
+      <span class="pixel-stat-label">CREATOR-FACING IDENTITY</span>
+      <strong class="pixel-alias">YoYo assistant 💗 Mochi</strong>
+      <span class="pixel-studio">YOYO CREATIVE STUDIO</span>
+    </div>
+  </div>
 </aside>
 
 </body>
