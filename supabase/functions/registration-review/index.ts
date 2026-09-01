@@ -63,6 +63,19 @@ serve(async (req) => {
     const db = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
     const { action, data = {}, admin_password = "" } = await req.json();
 
+    if (action === "creator_reward_status") {
+      const uid = String(data.uid || "").trim();
+      const accountId = String(data.account_id || "").trim();
+      if (!uid || !/^\d{19}$/.test(accountId)) return json({ ok: false, error: "Valid creator credentials are required" }, 400);
+      const { data: creator } = await db.from("kocs").select("uid").eq("uid", uid).eq("account_id", accountId).eq("status", "active").maybeSingle();
+      if (!creator) return json({ ok: false, error: "Creator credentials do not match" }, 403);
+      const { data: fulfillments, error } = await db.from("reward_fulfillments")
+        .select("order_id,period,reward_type,fulfillment_status,gift_codes,carrier,tracking_number,reward_note,published_at")
+        .eq("uid", uid).eq("is_published", true).order("published_at", { ascending: false });
+      if (error) return json({ ok: false, error: error.message }, 400);
+      return json({ ok: true, fulfillments: fulfillments || [] });
+    }
+
     if (action === "submit") {
       const application = {
         discord_name: String(data.discord_name || "").trim(),
@@ -126,6 +139,96 @@ serve(async (req) => {
       const { data: rpcResult, error: rpcError } = await db.rpc(rpcName, data.params || {});
       if (rpcError) return json({ ok: false, error: rpcError.message }, 400);
       return json({ ok: true, result: rpcResult });
+    }
+
+    if (action === "list_reward_fulfillments") {
+      const period = String(data.period || "").trim();
+      let query = db.from("reward_fulfillments").select("*").order("updated_at", { ascending: false });
+      if (period) query = query.eq("period", period);
+      const { data: rows, error } = await query;
+      if (error) return json({ ok: false, error: error.message }, 400);
+      return json({ ok: true, fulfillments: rows || [] });
+    }
+
+    if (action === "save_reward_fulfillments") {
+      const rows = Array.isArray(data.rows) ? data.rows : [];
+      if (!rows.length) return json({ ok: false, error: "No fulfillment rows supplied" }, 400);
+      const orderIds = rows.map((row: Record<string, unknown>) => Number(row.order_id)).filter(Boolean);
+      const { data: orders, error: orderError } = await db.from("redemption_orders")
+        .select("id,uid,period,option_type,option_name,reward_amount,points_spent").in("id", orderIds);
+      if (orderError) return json({ ok: false, error: orderError.message }, 400);
+      const orderMap = new Map((orders || []).map((order) => [Number(order.id), order]));
+      const { data: publishedRows, error: publishedError } = await db.from("reward_fulfillments")
+        .select("order_id").in("order_id", orderIds).eq("is_published", true);
+      if (publishedError) return json({ ok: false, error: publishedError.message }, 400);
+      if (publishedRows?.length) return json({ ok: false, error: "Published fulfillment records cannot be overwritten" }, 409);
+      const incomingCodeOwners = new Map<string, number>();
+      const incomingCodes = new Set<string>();
+      for (const row of rows) {
+        const orderId = Number(row.order_id);
+        const codes = Array.isArray(row.gift_codes) ? row.gift_codes.map((code: unknown) => String(code || "").trim()).filter(Boolean) : [];
+        for (const code of codes) {
+          const normalized = code.toUpperCase();
+          if (incomingCodeOwners.has(normalized)) return json({ ok: false, error: `Duplicate gift code detected: ${code}` }, 409);
+          incomingCodeOwners.set(normalized, orderId);
+          incomingCodes.add(normalized);
+        }
+      }
+      if (incomingCodes.size) {
+        const { data: existingCodeRows, error: existingCodeError } = await db.from("reward_fulfillments")
+          .select("order_id,gift_codes").not("order_id", "in", `(${orderIds.join(",")})`);
+        if (existingCodeError) return json({ ok: false, error: existingCodeError.message }, 400);
+        for (const existingRow of existingCodeRows || []) {
+          for (const existingCode of Array.isArray(existingRow.gift_codes) ? existingRow.gift_codes : []) {
+            if (incomingCodes.has(String(existingCode || "").trim().toUpperCase())) {
+              return json({ ok: false, error: `Gift code already belongs to order #${existingRow.order_id}` }, 409);
+            }
+          }
+        }
+      }
+      const payload = [];
+      for (const row of rows) {
+        const order = orderMap.get(Number(row.order_id));
+        if (!order) return json({ ok: false, error: `Order #${row.order_id} not found` }, 404);
+        const codes = Array.isArray(row.gift_codes) ? row.gift_codes.map((code: unknown) => String(code || "").trim()).filter(Boolean) : [];
+        if (order.option_type === "gplay") {
+          const quantityText = `${order.option_name || ""} ${order.reward_amount || ""}`;
+          const quantityMatch = quantityText.match(/[×xX]\s*(\d+)/);
+          const expectedCodes = quantityMatch ? Number(quantityMatch[1]) : Math.max(1, Math.round((Number(order.points_spent) || 0) / 2));
+          if (codes.length !== expectedCodes) return json({ ok: false, error: `Order #${order.id} requires ${expectedCodes} gift codes` }, 400);
+        } else if (codes.length) {
+          return json({ ok: false, error: `Order #${order.id} does not accept gift codes` }, 400);
+        }
+        if (order.option_type === "merch" && !String(row.tracking_number || "").trim()) {
+          return json({ ok: false, error: `Order #${order.id} requires a tracking number` }, 400);
+        }
+        payload.push({
+          order_id: order.id,
+          uid: order.uid,
+          period: String(order.period || row.period || ""),
+          reward_type: order.option_type,
+          fulfillment_status: String(row.fulfillment_status || "preparing"),
+          gift_codes: codes,
+          carrier: String(row.carrier || "").trim(),
+          tracking_number: String(row.tracking_number || "").trim(),
+          reward_note: String(row.reward_note || "").trim(),
+          is_published: false,
+          published_at: null,
+          updated_at: new Date().toISOString(),
+          updated_by: "admin",
+        });
+      }
+      const { data: saved, error } = await db.from("reward_fulfillments").upsert(payload, { onConflict: "order_id" }).select("*");
+      if (error) return json({ ok: false, error: error.message }, 400);
+      return json({ ok: true, fulfillments: saved || [] });
+    }
+
+    if (action === "publish_reward_fulfillments") {
+      const ids = (Array.isArray(data.ids) ? data.ids : []).map(Number).filter(Boolean);
+      if (!ids.length) return json({ ok: false, error: "No fulfillment records selected" }, 400);
+      const { data: result, error } = await db.rpc("publish_reward_fulfillments", { p_ids: ids });
+      if (error) return json({ ok: false, error: error.message }, 400);
+      return json({ ok: true, result });
     }
 
     if (action === "list") {

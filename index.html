@@ -40,6 +40,13 @@
   .order-item { padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
   .order-item:last-child { border-bottom: none; }
   .order-meta { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+  .reward-status-card { margin-top: 9px; padding: 12px; border: 1.5px solid var(--border); border-radius: 12px; background: #fff9fc; }
+  .reward-status-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 7px; color: var(--pink-dark); font-size: 13px; font-weight: 800; }
+  .reward-status-note { color: var(--text-light); font-size: 11px; line-height: 1.6; }
+  .reward-code-row { display: flex; align-items: center; gap: 7px; margin-top: 6px; padding: 8px 9px; border: 1px dashed #ce93d8; border-radius: 9px; background: white; }
+  .reward-code { flex: 1; min-width: 0; color: #5e2d79; font-family: "SFMono-Regular", Consolas, monospace; font-size: 12px; font-weight: 800; word-break: break-all; }
+  .reward-copy-btn { flex: none; padding: 5px 9px; border: 0; border-radius: 8px; color: white; background: #ab6ac4; cursor: pointer; font-size: 10px; font-weight: 800; }
+  .tracking-box { margin-top: 7px; padding: 9px; border-radius: 9px; background: #e3f2fd; color: #0d47a1; font-size: 11px; line-height: 1.6; word-break: break-all; }
   .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
   .badge-pending { background: #fff3e0; color: #e65100; }
   .badge-shipped { background: #e8f5e9; color: #2e7d32; }
@@ -1378,28 +1385,39 @@ async function loadOrders() {
     const res = await supabaseFetch(SUPABASE_URL + '/rest/v1/redemption_orders?uid=eq.' + encodeURIComponent(currentUser.uid) + '&order=created_at.desc&select=id,option_type,option_name,points_spent,status,reward_amount,period,created_at');
     if (!res.ok) return;
     var allOrders = await res.json();
+    var fulfillmentMap = {};
+    try {
+      var fulfillmentResponse = await supabaseFetch(SUPABASE_URL + '/functions/v1/registration-review', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + SUPABASE_KEY },
+        body: JSON.stringify({ action: 'creator_reward_status', data: { uid: currentUser.uid, account_id: currentUser.account_id } })
+      });
+      var fulfillmentResult = await fulfillmentResponse.json();
+      if (fulfillmentResponse.ok && fulfillmentResult.ok) {
+        (fulfillmentResult.fulfillments || []).forEach(function(row) { fulfillmentMap[String(row.order_id)] = row; });
+      }
+    } catch(error) { console.error('reward status fetch:', error); }
     const container = document.getElementById('orders-list');
     const card = document.getElementById('orders-card');
     if (!container) return;
-    // Filter to current month only
+    // Keep reward history across months so tracking numbers and gift codes do not disappear when the campaign period changes.
     var currentMonth = currentPeriod || (new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0'));
-    var orders = allOrders.filter(function(o) {
-      var ym = o.period || String(o.created_at || '').slice(0, 7);
-      return ym === currentMonth;
-    });
+    var orders = allOrders;
     if (!orders || orders.length === 0) {
-      container.innerHTML = '<div style="color:var(--text-light);font-size:13px;">📅 ' + currentMonth.replace('-', '') + ' No orders this month</div>';
+      container.innerHTML = '<div style="color:var(--text-light);font-size:13px;">No reward orders yet</div>';
       if (card) card.style.display = 'none';
       return;
     }
     if (card) card.style.display = 'block';
-    container.innerHTML = '<div style="font-size:12px;color:var(--text-light);margin-bottom:6px;">📅 ' + currentMonth.replace('-', '') + ' Order History</div>' +
+    container.innerHTML = '<div style="font-size:12px;color:var(--text-light);margin-bottom:6px;">📅 Reward History · current campaign ' + currentMonth.replace('-', '/') + '</div>' +
     orders.map(function(o) {
       var statusClass = o.status === 'shipped' ? 'badge-shipped' : o.status === 'pending' ? 'badge-pending' : 'badge-cancelled';
       var displayName = o.option_name || o.option_type;
       if (displayName === '🎁 新人入职周边') displayName = '🎁 New Creator Welcome Gift';
       var displayAmount = o.reward_amount || '';
+      var orderMonth = o.period || String(o.created_at || '').slice(0, 7);
       if (displayAmount === '随机周边 × 1') displayAmount = 'Random Merchandise × 1';
+      var fulfillment = fulfillmentMap[String(o.id)];
       return '<div class="order-item">' +
         '<div style="display:flex;justify-content:space-between;">' +
         '<span>' + esc(displayName) + (displayAmount ? '<br><small style="color:var(--text-light);">' + esc(displayAmount) + '</small>' : '') + '</span>' +
@@ -1407,12 +1425,45 @@ async function loadOrders() {
         '</div>' +
         '<div class="order-meta">' +
         '<span class="badge ' + statusClass + '">' + o.status + '</span>' +
-        ' · ' + new Date(o.created_at).toLocaleDateString() +
-        '</div></div>';
+        ' · ' + esc(orderMonth || '') + ' · ' + new Date(o.created_at).toLocaleDateString() +
+        '</div>' + renderCreatorFulfillment(fulfillment, o) + '</div>';
     }).join('');
   } catch(e) {
     console.error('loadOrders error:', e);
   }
+}
+
+function copyRewardValue(value, button) {
+  var text = String(value || '');
+  var done = function() {
+    if (button) { var old = button.textContent; button.textContent = 'Copied!'; setTimeout(function() { button.textContent = old; }, 1500); }
+    showToast('✅ Copied', 'success');
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done).catch(function() {});
+  else {
+    var input = document.createElement('textarea'); input.value = text; document.body.appendChild(input); input.select(); document.execCommand('copy'); document.body.removeChild(input); done();
+  }
+}
+
+function renderCreatorFulfillment(row, order) {
+  if (!row) {
+    var waiting = order.status === 'shipped' ? 'Your reward was processed. Please contact support only if it has not arrived after the announced delivery time.' : 'Your request has been received. Fulfillment details will appear here after the admin publishes them.';
+    return '<div class="reward-status-card"><div class="reward-status-title"><span>⏳ Reward Status</span><span>Processing</span></div><div class="reward-status-note">' + esc(waiting) + '</div></div>';
+  }
+  if (row.reward_type === 'gplay') {
+    var codes = Array.isArray(row.gift_codes) ? row.gift_codes : [];
+    return '<div class="reward-status-card"><div class="reward-status-title"><span>🎮 Google Play Code Ready</span><span>Ready</span></div>' +
+      '<div class="reward-status-note">Redeem each code in a Google Play account matching the card region. Keep these codes private.</div>' +
+      codes.map(function(code) { return '<div class="reward-code-row"><span class="reward-code">' + esc(code) + '</span><button class="reward-copy-btn" data-copy-value="' + escAttr(code) + '" onclick="copyRewardValue(this.dataset.copyValue,this)">Copy</button></div>'; }).join('') + '</div>';
+  }
+  if (row.reward_type === 'merch') {
+    return '<div class="reward-status-card"><div class="reward-status-title"><span>📦 Package Shipped</span><span>Shipped</span></div>' +
+      '<div class="tracking-box"><strong>Carrier:</strong> ' + esc(row.carrier || 'International Shipping') + '<br><strong>Tracking number:</strong> ' + esc(row.tracking_number || '—') +
+      (row.tracking_number ? ' <button class="reward-copy-btn" data-copy-value="' + escAttr(row.tracking_number) + '" onclick="copyRewardValue(this.dataset.copyValue,this)">Copy</button>' : '') + '</div>' +
+      '<div class="reward-status-note" style="margin-top:7px;">International tracking may take several days to update. ' + esc(row.reward_note || '') + '</div></div>';
+  }
+  return '<div class="reward-status-card"><div class="reward-status-title"><span>💎 Delivered In-Game</span><span>Delivered</span></div>' +
+    '<div class="reward-status-note">' + esc(row.reward_note || 'Your in-game reward has been sent. Please open the game and check your in-game mailbox.') + '</div></div>';
 }
 
 // ===== CREATOR TAB SWITCHING =====

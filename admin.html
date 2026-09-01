@@ -204,6 +204,7 @@
 @keyframes skShimmer{to{left:100%;}}
 .sk-summary{height:80px;border-radius:10px;background:#fce4ec;overflow:hidden;position:relative;}
 .sk-summary::after{content:"";position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.5),transparent);animation:skShimmer 1.5s infinite;}
+@media(max-width:850px){.fulfillment-import-grid{grid-template-columns:1fr!important;}}
 </style>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
@@ -309,11 +310,59 @@
       <button class="tab" onclick="switchTab('scoring')">🧮 积分计算</button>
       <button class="tab" onclick="switchTab('submissions')">📋 作品审核</button>
       <button class="tab" onclick="switchTab('feedback')">💬 反馈收集</button>
+      <button class="tab" onclick="switchTab('fulfillment')">🎁 奖励发放中心</button>
       <button class="tab" onclick="switchTab('diamond')">💎 端内奖励</button>
       <button class="tab" onclick="switchTab('gplay')">🎮 谷歌卡</button>
       <button class="tab" onclick="switchTab('merch')">📦 周边发货</button>
       <button class="tab" onclick="switchTab('rules')">📐 规则配置</button>
       <button class="tab" onclick="switchTab('audit')">📜 操作日志</button>
+    </div>
+
+    <!-- ======== TAB: 奖励发放中心 ======== -->
+    <div id="tab-fulfillment" class="tab-content">
+      <div class="card">
+        <div class="card-title">🎁 奖励发放中心 <span id="fulfillment-period-label" style="font-size:12px;color:var(--text-light);"></span></div>
+        <div style="font-size:12px;color:var(--text-light);line-height:1.7;margin-bottom:14px;">上传只保存为草稿，创作者看不到。检查匹配结果后，再勾选记录并点击“发布给创作者”；发布时才会同步完成原订单发货与积分扣除。</div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;" class="fulfillment-import-grid">
+          <div style="border:2px solid #d1c4e9;background:#faf7ff;border-radius:14px;padding:14px;">
+            <div style="font-weight:800;color:#6a1b9a;margin-bottom:6px;">🎮 Google Play 兑换码</div>
+            <div style="font-size:11px;color:#777;line-height:1.5;margin-bottom:10px;">CSV 两列：Discord名字、兑换码。一个人多个码可放在同一单元格内换行。</div>
+            <input type="file" id="fulfillment-gplay-file" accept=".csv,text/csv,text/plain" style="width:100%;font-size:11px;margin-bottom:8px;">
+            <button class="btn btn-sm" style="width:100%;background:#7e57c2;color:white;" onclick="previewGplayFulfillmentFile()">📋 解析预览</button>
+          </div>
+          <div style="border:2px solid #bbdefb;background:#f5fbff;border-radius:14px;padding:14px;">
+            <div style="font-weight:800;color:#1565c0;margin-bottom:6px;">📦 周边物流信息</div>
+            <div style="font-size:11px;color:#777;line-height:1.5;margin-bottom:10px;">支持现有仓储 Excel，或 CSV：Discord名字、物流公司、物流单号、备注。</div>
+            <input type="file" id="fulfillment-merch-file" accept=".xlsx,.xls,.csv,text/csv" style="width:100%;font-size:11px;margin-bottom:8px;">
+            <button class="btn btn-sm" style="width:100%;background:#1976d2;color:white;" onclick="previewMerchFulfillmentFile()">📋 解析预览</button>
+          </div>
+          <div style="border:2px solid #a5d6a7;background:#f4fff6;border-radius:14px;padding:14px;">
+            <div style="font-weight:800;color:#2e7d32;margin-bottom:6px;">💎 端内奖励</div>
+            <div style="font-size:11px;color:#777;line-height:1.5;margin-bottom:10px;">从当月待处理端内奖励中勾选，运营回复已发放后批量创建“请查看游戏邮箱”记录。</div>
+            <button class="btn btn-sm" style="width:100%;background:#43a047;color:white;margin-top:28px;" onclick="previewInGameFulfillments()">📋 选择待发放人员</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="fulfillment-preview-card" style="display:none;">
+        <div class="card-title">📋 导入预览 <span id="fulfillment-preview-summary" style="font-size:12px;color:var(--text-light);"></span></div>
+        <div id="fulfillment-preview-list" style="max-height:360px;overflow:auto;"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+          <button class="btn btn-outline btn-sm" onclick="clearFulfillmentPreview()">取消</button>
+          <button class="btn btn-primary btn-sm" id="fulfillment-save-btn" onclick="saveFulfillmentPreview()">💾 保存为草稿</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span>📚 当前月份发放记录 <span id="fulfillment-count" style="font-size:12px;color:var(--text-light);"></span></span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-outline btn-sm" onclick="loadRewardFulfillments()">🔄 刷新</button>
+            <button class="btn btn-success btn-sm" onclick="publishSelectedFulfillments()">🚀 发布所选给创作者</button>
+          </div>
+        </div>
+        <div id="fulfillment-table" style="overflow-x:auto;"><div style="padding:20px;color:var(--text-light);">请选择该模块加载记录</div></div>
+      </div>
     </div>
 
     <!-- ======== TAB: KOC投稿月报 ======== -->
@@ -2867,6 +2916,7 @@ function switchTab(name) {
   if (name === 'community') { return; }
   if (name === 'koc-ledger') renderKocTable();
   if (name === 'scoring') renderScoringTable();
+  if (name === 'fulfillment') loadRewardFulfillments();
   if (name === 'diamond') renderDiamondTab();
   if (name === 'gplay') renderGplayTab();
   if (name === 'merch') renderMerchTab();
@@ -2875,6 +2925,271 @@ function switchTab(name) {
   if (name === 'tiers') renderTiersTable();
   if (name === 'rules') loadAllPeriods();
   if (name === 'audit') loadAuditLog();
+}
+
+// ===== REWARD FULFILLMENT CENTER =====
+var fulfillmentPreviewRows = [];
+var rewardFulfillments = [];
+
+function normalizeFulfillmentName(value) {
+  return String(value || '').normalize('NFKC').toLowerCase().replace(/[^a-z0-9\u00c0-\u024f\u4e00-\u9fff]+/g, '');
+}
+
+function findKocByDiscordName(name) {
+  var needle = normalizeFulfillmentName(name);
+  if (!needle) return null;
+  var matches = (allKocs || []).filter(function(k) { return normalizeFulfillmentName(k.discord_name) === needle; });
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function getFulfillmentOrder(koc, type) {
+  if (!koc) return null;
+  var rows = (allOrders || []).filter(function(order) {
+    return String(order.uid || '') === String(koc.uid || '') && order.option_type === type && getRowPeriod(order) === currentPeriod && order.status !== 'cancelled';
+  }).sort(function(a, b) { return Number(b.id) - Number(a.id); });
+  return rows.length === 1 ? rows[0] : null;
+}
+
+function parseRewardQuantity(order) {
+  if (!order) return 0;
+  var text = String(order.option_name || '') + ' ' + String(order.reward_amount || '');
+  var match = text.match(/[×xX]\s*(\d+)/);
+  if (match) return Number(match[1]) || 0;
+  if (order.option_type === 'gplay') return Math.max(1, Math.round((Number(order.points_spent) || 0) / 2));
+  if (order.option_type === 'diamonds') return Math.max(1, Number(String(order.reward_amount || '').match(/(\d+)/)?.[1]) || Number(order.points_spent) || 1);
+  return 1;
+}
+
+function splitGiftCodes(value) {
+  return String(value || '').replace(/\r/g, '\n').split(/[\n,，;；\t ]+/).map(function(code) { return code.trim(); }).filter(Boolean);
+}
+
+function buildGplayFulfillmentPreview(text) {
+  var rows = parseMochiCsv(text || '');
+  var codeOwners = {};
+  var output = [];
+  rows.forEach(function(row, index) {
+    var joined = row.join(' ').toLowerCase();
+    if (index === 0 && joined.indexOf('discord') >= 0 && (joined.indexOf('兑换') >= 0 || joined.indexOf('code') >= 0)) return;
+    var discord = String(row[0] || '').trim();
+    var codes = splitGiftCodes(row.slice(1).join('\n'));
+    if (!discord && !codes.length) return;
+    var koc = findKocByDiscordName(discord);
+    var order = getFulfillmentOrder(koc, 'gplay');
+    var expected = parseRewardQuantity(order);
+    var problems = [];
+    if (!koc) problems.push('未唯一匹配 KOC');
+    if (koc && !order) problems.push('未唯一匹配 ' + currentPeriod + ' 谷歌卡订单');
+    if (!codes.length) problems.push('没有兑换码');
+    if (order && codes.length !== expected) problems.push('兑换码 ' + codes.length + ' 个，订单需要 ' + expected + ' 个');
+    var rowCodes = {};
+    codes.forEach(function(code) {
+      var key = code.toUpperCase();
+      if (rowCodes[key]) problems.push('本行存在重复兑换码：' + code);
+      rowCodes[key] = true;
+      if (codeOwners[key] && codeOwners[key] !== discord) problems.push('兑换码与 ' + codeOwners[key] + ' 重复');
+      else codeOwners[key] = discord;
+    });
+    output.push({
+      discord_name: (koc && koc.discord_name) || discord,
+      uid: (koc && koc.uid) || '',
+      order_id: order ? order.id : 0,
+      reward_type: 'gplay',
+      fulfillment_status: 'ready',
+      gift_codes: codes,
+      carrier: '', tracking_number: '', reward_note: '',
+      expected: expected,
+      problems: problems,
+      valid: problems.length === 0,
+      checked: problems.length === 0
+    });
+  });
+  return output;
+}
+
+function previewGplayFulfillmentFile() {
+  var input = document.getElementById('fulfillment-gplay-file');
+  if (!input || !input.files || !input.files[0]) { showToast('请先选择谷歌卡 CSV', 'error'); return; }
+  var reader = new FileReader();
+  reader.onload = function() {
+    fulfillmentPreviewRows = buildGplayFulfillmentPreview(reader.result || '');
+    renderFulfillmentPreview('🎮 Google Play');
+  };
+  reader.readAsText(input.files[0], 'UTF-8');
+}
+
+function loadSheetJs() {
+  if (window.XLSX) return Promise.resolve();
+  return new Promise(function(resolve, reject) {
+    var script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    script.onload = resolve;
+    script.onerror = function() { reject(new Error('Excel 解析组件加载失败')); };
+    document.head.appendChild(script);
+  });
+}
+
+function firstObjectValue(row, candidates) {
+  var keys = Object.keys(row || {});
+  for (var i = 0; i < candidates.length; i++) {
+    for (var j = 0; j < keys.length; j++) {
+      if (keys[j].toLowerCase().indexOf(candidates[i].toLowerCase()) >= 0) return String(row[keys[j]] || '').trim();
+    }
+  }
+  return '';
+}
+
+function buildMerchPreviewFromObjects(rows) {
+  var groups = [];
+  var active = null;
+  (rows || []).forEach(function(row) {
+    var discord = firstObjectValue(row, ['discord']);
+    var tracking = firstObjectValue(row, ['物流单号', 'tracking']);
+    var carrier = firstObjectValue(row, ['物流公司', 'carrier']);
+    var item = firstObjectValue(row, ['实体奖励奖品', '奖品', 'item']);
+    var note = firstObjectValue(row, ['备注', 'note']);
+    if (discord) {
+      active = { discord_name: discord, tracking_number: tracking, carrier: carrier, items: [], notes: [] };
+      groups.push(active);
+    }
+    if (!active) return;
+    if (tracking && !active.tracking_number) active.tracking_number = tracking;
+    if (carrier && !active.carrier) active.carrier = carrier;
+    if (item) active.items.push(item);
+    if (note) active.notes.push(note);
+  });
+  return groups.map(function(group) {
+    var koc = findKocByDiscordName(group.discord_name);
+    var order = getFulfillmentOrder(koc, 'merch');
+    var problems = [];
+    if (!koc) problems.push('未唯一匹配 KOC');
+    if (koc && !order) problems.push('未唯一匹配 ' + currentPeriod + ' 周边订单');
+    if (!group.tracking_number) problems.push('缺少物流单号');
+    return {
+      discord_name: (koc && koc.discord_name) || group.discord_name,
+      uid: (koc && koc.uid) || '', order_id: order ? order.id : 0,
+      reward_type: 'merch', fulfillment_status: 'shipped', gift_codes: [],
+      carrier: group.carrier || 'International Shipping',
+      tracking_number: group.tracking_number,
+      reward_note: group.notes.join('；') || (group.items.length ? 'Package: ' + group.items.join(' / ') : ''),
+      problems: problems, valid: problems.length === 0, checked: problems.length === 0
+    };
+  });
+}
+
+async function previewMerchFulfillmentFile() {
+  var input = document.getElementById('fulfillment-merch-file');
+  if (!input || !input.files || !input.files[0]) { showToast('请先选择物流 Excel/CSV', 'error'); return; }
+  try {
+    await loadSheetJs();
+    var buffer = await input.files[0].arrayBuffer();
+    var workbook = XLSX.read(buffer, { type: 'array' });
+    var sheet = workbook.Sheets[workbook.SheetNames[0]];
+    var rows = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+    fulfillmentPreviewRows = buildMerchPreviewFromObjects(rows);
+    renderFulfillmentPreview('📦 周边物流');
+  } catch(error) { showToast(error.message, 'error'); }
+}
+
+function previewInGameFulfillments() {
+  fulfillmentPreviewRows = (allOrders || []).filter(function(order) {
+    return order.option_type === 'diamonds' && getRowPeriod(order) === currentPeriod && order.status === 'pending';
+  }).map(function(order) {
+    var koc = (allKocs || []).find(function(row) { return String(row.uid) === String(order.uid); });
+    return {
+      discord_name: (koc && koc.discord_name) || order.discord_name || '', uid: order.uid,
+      order_id: order.id, reward_type: 'diamonds', fulfillment_status: 'delivered', gift_codes: [],
+      carrier: '', tracking_number: '', reward_note: 'Your in-game reward has been sent. Please open the game and check your in-game mailbox.',
+      problems: [], valid: true, checked: false
+    };
+  });
+  renderFulfillmentPreview('💎 端内奖励');
+}
+
+function renderFulfillmentPreview(label) {
+  var card = document.getElementById('fulfillment-preview-card');
+  var list = document.getElementById('fulfillment-preview-list');
+  var summary = document.getElementById('fulfillment-preview-summary');
+  if (!card || !list) return;
+  card.style.display = 'block';
+  var valid = fulfillmentPreviewRows.filter(function(row) { return row.valid; }).length;
+  if (summary) summary.textContent = label + ' · 共 ' + fulfillmentPreviewRows.length + ' 行 · 可保存 ' + valid + ' 行 · 异常 ' + (fulfillmentPreviewRows.length - valid) + ' 行';
+  if (!fulfillmentPreviewRows.length) {
+    list.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text-light);">没有解析到可用记录</div>';
+    return;
+  }
+  list.innerHTML = fulfillmentPreviewRows.map(function(row, index) {
+    var detail = row.reward_type === 'gplay' ? (row.gift_codes.length + ' codes / expected ' + row.expected) : row.reward_type === 'merch' ? ((row.carrier || '') + ' · ' + (row.tracking_number || 'No tracking')) : 'Check in-game mailbox';
+    return '<label style="display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:start;padding:9px;border-bottom:1px solid #eee;background:' + (row.valid ? '#fff' : '#fff3f3') + ';">' +
+      '<input type="checkbox" class="fulfillment-preview-check" data-index="' + index + '" ' + (row.checked ? 'checked' : '') + (row.valid ? '' : ' disabled') + '>' +
+      '<span><strong>' + esc(row.discord_name || '(Unknown)') + '</strong> <span style="font-size:11px;color:#999;">' + esc(row.uid || '') + '</span><br><span style="font-size:11px;color:#666;">' + esc(detail) + '</span></span>' +
+      '<span style="font-size:11px;color:' + (row.valid ? '#2e7d32' : '#c62828') + ';text-align:right;">' + esc(row.problems.length ? row.problems.join('；') : '匹配成功') + '</span></label>';
+  }).join('');
+}
+
+function clearFulfillmentPreview() {
+  fulfillmentPreviewRows = [];
+  var card = document.getElementById('fulfillment-preview-card');
+  if (card) card.style.display = 'none';
+}
+
+async function saveFulfillmentPreview() {
+  var selected = [];
+  document.querySelectorAll('.fulfillment-preview-check:checked').forEach(function(checkbox) {
+    var row = fulfillmentPreviewRows[Number(checkbox.dataset.index)];
+    if (row && row.valid) selected.push(row);
+  });
+  if (!selected.length) { showToast('没有勾选可保存的记录', 'error'); return; }
+  if (!confirmDanger('保存奖励发放草稿？', ['月份: ' + currentPeriod, '记录: ' + selected.length + ' 条', '保存后创作者仍看不到，必须稍后手动发布。'])) return;
+  try {
+    await registrationReviewFetch('save_reward_fulfillments', { rows: selected });
+    showToast('✅ 已保存 ' + selected.length + ' 条草稿，尚未发布', 'success');
+    writeAuditLog('reward', '保存奖励发放草稿 ' + selected.length + ' 条，月份 ' + currentPeriod);
+    clearFulfillmentPreview();
+    await loadRewardFulfillments();
+  } catch(error) { showToast('保存失败: ' + error.message, 'error'); }
+}
+
+async function loadRewardFulfillments() {
+  var root = document.getElementById('fulfillment-table');
+  var count = document.getElementById('fulfillment-count');
+  var label = document.getElementById('fulfillment-period-label');
+  if (label) label.textContent = '· ' + currentPeriod;
+  if (!root) return;
+  root.innerHTML = '<div style="padding:20px;color:var(--text-light);">加载中…</div>';
+  try {
+    var result = await registrationReviewFetch('list_reward_fulfillments', { period: currentPeriod });
+    rewardFulfillments = result.fulfillments || [];
+    if (count) count.textContent = '(' + rewardFulfillments.length + ' 条)';
+    if (!rewardFulfillments.length) { root.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-light);">本月暂无发放记录</div>'; return; }
+    root.innerHTML = '<table class="submission-table"><thead><tr><th><input type="checkbox" onchange="toggleAllFulfillments(this.checked)"></th><th>Discord</th><th>奖励</th><th>发放内容</th><th>状态</th><th>更新时间</th></tr></thead><tbody>' + rewardFulfillments.map(function(row) {
+      var order = (allOrders || []).find(function(o) { return Number(o.id) === Number(row.order_id); });
+      var koc = (allKocs || []).find(function(k) { return String(k.uid) === String(row.uid); });
+      var detail = row.reward_type === 'gplay' ? ((row.gift_codes || []).length + ' 个兑换码') : row.reward_type === 'merch' ? ((row.carrier || '') + ' · ' + (row.tracking_number || '无物流单号')) : '游戏邮箱领取';
+      var status = row.is_published ? '✅ 已发布' : '📝 草稿';
+      return '<tr><td><input type="checkbox" class="fulfillment-record-check" value="' + row.id + '" ' + (row.is_published ? 'disabled' : '') + '></td>' +
+        '<td><strong>' + esc((koc && koc.discord_name) || (order && order.discord_name) || row.uid) + '</strong><br><small>' + esc(row.uid) + '</small></td>' +
+        '<td>' + esc((order && (order.option_name || order.reward_amount)) || row.reward_type) + '</td><td>' + esc(detail) + '</td>' +
+        '<td>' + status + '</td><td style="font-size:11px;">' + new Date(row.updated_at).toLocaleString('zh-CN') + '</td></tr>';
+    }).join('') + '</tbody></table>';
+  } catch(error) { root.innerHTML = '<div style="padding:20px;color:#c62828;">加载失败: ' + esc(error.message) + '</div>'; }
+}
+
+function toggleAllFulfillments(checked) {
+  document.querySelectorAll('.fulfillment-record-check:not(:disabled)').forEach(function(box) { box.checked = checked; });
+}
+
+async function publishSelectedFulfillments() {
+  var ids = Array.from(document.querySelectorAll('.fulfillment-record-check:checked')).map(function(box) { return Number(box.value); }).filter(Boolean);
+  if (!ids.length) { showToast('请先勾选要发布的草稿', 'error'); return; }
+  if (!confirmDanger('发布奖励信息给创作者？', ['月份: ' + currentPeriod, '记录: ' + ids.length + ' 条', '发布后创作者登录即可查看。', '同时会将对应订单标记发货并按原逻辑扣除积分。'])) return;
+  try {
+    await registrationReviewFetch('publish_reward_fulfillments', { ids: ids });
+    showToast('✅ 已发布 ' + ids.length + ' 条奖励信息', 'success');
+    writeAuditLog('reward', '发布奖励发放信息 ' + ids.length + ' 条，月份 ' + currentPeriod);
+    await loadData();
+    await loadRewardFulfillments();
+  } catch(error) { showToast('发布失败: ' + error.message, 'error'); }
 }
 
 // ===== 反馈收集 =====
@@ -3633,7 +3948,7 @@ async function loadData() {
     allOrders = await ordRes.json();
     await Promise.all([loadRegistrationApplications(), loadSubmissions()]);
     // Re-render current active tab
-    var tabIds = ['dashboard','koc-ledger','scoring','submissions','diamond','gplay','merch','tiers','rules','audit'];
+    var tabIds = ['dashboard','koc-ledger','scoring','submissions','fulfillment','diamond','gplay','merch','tiers','rules','audit'];
     var activeId = null;
     tabIds.forEach(function(id) {
       var el = document.getElementById('tab-'+id);
@@ -3643,6 +3958,7 @@ async function loadData() {
       if (activeId === 'dashboard') loadDashboard();
       else if (activeId === 'koc-ledger') renderKocTable();
       else if (activeId === 'scoring') renderScoringTable();
+      else if (activeId === 'fulfillment') loadRewardFulfillments();
       else if (activeId === 'diamond') renderDiamondTab();
       else if (activeId === 'gplay') renderGplayTab();
       else if (activeId === 'merch') renderMerchTab();
@@ -3754,7 +4070,7 @@ function changeSettlePeriod() {
   var month = parseInt(parts[1]);
   // Refresh current active tab
   var activeId = null;
-  var tabIds = ['dashboard','community','koc-ledger','scoring','submissions','diamond','gplay','tiers','rules','audit'];
+  var tabIds = ['dashboard','community','koc-ledger','scoring','submissions','fulfillment','diamond','gplay','merch','tiers','rules','audit'];
   tabIds.forEach(function(id) {
     var el = document.getElementById('tab-'+id);
     if (el && getComputedStyle(el).display !== 'none') activeId = id;
@@ -3763,8 +4079,10 @@ function changeSettlePeriod() {
   else if (activeId === 'koc-ledger') renderKocTable();
   else if (activeId === 'scoring') renderScoringTable();
   else if (activeId === 'submissions') loadSubmissions();
+  else if (activeId === 'fulfillment') loadRewardFulfillments();
   else if (activeId === 'diamond') renderDiamondTab();
   else if (activeId === 'gplay') renderGplayTab();
+  else if (activeId === 'merch') renderMerchTab();
   else if (activeId === 'tiers') renderTiersTable();
   else if (activeId === 'rules') loadCampaignConfig();
   else if (activeId === 'audit') loadAuditLog();
