@@ -191,7 +191,7 @@
 .koc-table-wrap th, .koc-table-wrap td { text-align: center; }
 .koc-table-wrap td[style*="pre-wrap"] { text-align: left; }
 /* Larger checkboxes for KOC table */
-.koc-select, #koc-select-all, .scoring-select, #scoring-select-all, .submission-select, #submission-select-all {
+.koc-select, #koc-select-all, .scoring-select, #scoring-select-all, .submission-select, #submission-select-all, .reward-ledger-check, .fulfillment-record-check {
   width: 18px;
   height: 18px;
   cursor: pointer;
@@ -847,6 +847,7 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
           <select id="fulfillment-status-filter" onchange="renderRewardFulfillmentTable()"><option value="all">全部状态</option><option value="draft">仅草稿</option><option value="published">仅已发布</option></select>
           <button class="btn btn-outline btn-sm" onclick="toggleAllFulfillments(true)">☑ 全选结果</button>
           <button class="btn btn-danger btn-sm" onclick="deleteSelectedFulfillments()">🗑 删除草稿</button>
+          <span class="selection-count" id="fulfillment-selection-count">☑ 已选 0 条</span>
         </div>
         <div id="fulfillment-table" style="overflow-x:auto;"><div style="padding:20px;color:var(--text-light);">请选择该模块加载记录</div></div>
       </div>
@@ -3772,7 +3773,7 @@ function renderRewardFulfillmentTable() {
       var koc = (allKocs || []).find(function(k) { return String(k.uid) === String(row.uid); });
       var detail = row.reward_type === 'gplay' ? ((row.gift_codes || []).length + ' 个兑换码') : row.reward_type === 'merch' ? ((row.carrier || '') + ' · ' + (row.tracking_number || '无物流单号')) : '游戏邮箱领取';
       var status = row.is_published ? '✅ 已发布' : '📝 草稿';
-      return '<tr><td><input type="checkbox" class="fulfillment-record-check" value="' + row.id + '" ' + (row.is_published ? 'disabled' : '') + '></td>' +
+      return '<tr><td><input type="checkbox" class="fulfillment-record-check" value="' + row.id + '" data-published="' + (row.is_published ? 'true' : 'false') + '" onchange="updateFulfillmentSelection()"></td>' +
         '<td><strong>' + esc((koc && koc.discord_name) || (order && order.discord_name) || row.uid) + '</strong><br><small>' + esc(row.uid) + '</small></td>' +
         '<td>' + esc((order && (order.option_name || order.reward_amount)) || row.reward_type) + '</td><td>' + esc(detail) + '</td>' +
         '<td>' + status + '</td><td style="font-size:11px;">' + new Date(row.updated_at).toLocaleString('zh-CN') + '</td></tr>';
@@ -3780,12 +3781,22 @@ function renderRewardFulfillmentTable() {
 }
 
 function toggleAllFulfillments(checked) {
-  document.querySelectorAll('.fulfillment-record-check:not(:disabled)').forEach(function(box) { box.checked = checked; });
+  document.querySelectorAll('#fulfillment-table .fulfillment-record-check').forEach(function(box) { box.checked = checked; });
+  updateFulfillmentSelection();
+}
+
+function updateFulfillmentSelection() {
+  var selected = document.querySelectorAll('#fulfillment-table .fulfillment-record-check:checked').length;
+  var draftSelected = document.querySelectorAll('#fulfillment-table .fulfillment-record-check:checked[data-published="false"]').length;
+  var el = document.getElementById('fulfillment-selection-count');
+  if (el) el.textContent = '☑ 已选 ' + selected + ' 条' + (selected !== draftSelected ? ' · 草稿 ' + draftSelected + ' 条' : '');
 }
 
 async function publishSelectedFulfillments() {
-  var ids = Array.from(document.querySelectorAll('.fulfillment-record-check:checked')).map(function(box) { return Number(box.value); }).filter(Boolean);
-  if (!ids.length) { showToast('请先勾选要发布的草稿', 'error'); return; }
+  var allSelected = document.querySelectorAll('.fulfillment-record-check:checked').length;
+  var ids = Array.from(document.querySelectorAll('.fulfillment-record-check:checked[data-published="false"]')).map(function(box) { return Number(box.value); }).filter(Boolean);
+  if (!allSelected) { showToast('请先勾选记录', 'error'); return; }
+  if (!ids.length) { showToast('所选记录都已经发布，无需重复发布', 'error'); return; }
   if (!confirmDanger('发布奖励信息给创作者？', ['月份: ' + currentPeriod, '记录: ' + ids.length + ' 条', '发布后创作者登录即可查看。', '同时会将对应订单标记发货并按原逻辑扣除积分。'])) return;
   try {
     await registrationReviewFetch('publish_reward_fulfillments', { ids: ids });
@@ -3797,8 +3808,10 @@ async function publishSelectedFulfillments() {
 }
 
 async function deleteSelectedFulfillments() {
-  var ids = Array.from(document.querySelectorAll('.fulfillment-record-check:checked')).map(function(box) { return Number(box.value); }).filter(Boolean);
-  if (!ids.length) { showToast('请先勾选要删除的草稿', 'error'); return; }
+  var allSelected = document.querySelectorAll('.fulfillment-record-check:checked').length;
+  var ids = Array.from(document.querySelectorAll('.fulfillment-record-check:checked[data-published="false"]')).map(function(box) { return Number(box.value); }).filter(Boolean);
+  if (!allSelected) { showToast('请先勾选记录', 'error'); return; }
+  if (!ids.length) { showToast('所选记录都已发布，不能删除', 'error'); return; }
   if (!confirmDanger('删除所选奖励草稿？', ['记录: ' + ids.length + ' 条', '只允许删除尚未发布的草稿。', '已发布给创作者的记录不会被删除。'])) return;
   try {
     await registrationReviewFetch('delete_reward_fulfillments', { ids: ids });
@@ -6953,7 +6966,7 @@ function renderInGameRewardTable(rows, type, period) {
   if (!rows.length) return '';
   var body = rows.map(function(r) {
     return '<tr draggable="true" data-order-id="' + escAttr(r.id) + '">' +
-      '<td><input type="checkbox" class="reward-ledger-check" value="' + (r.order ? escAttr(r.order.id) : '') + '" ' + (r.order && Number(r.order.points_spent) === 0 ? '' : 'disabled title="系统奖励或积分兑换订单不可删除"') + '></td>' +
+      '<td><input type="checkbox" class="reward-ledger-check" value="' + (r.order ? escAttr(r.order.id) : '') + '" data-deletable="' + (r.order && Number(r.order.points_spent) === 0 ? 'true' : 'false') + '" onchange="updateRewardLedgerSelection()"></td>' +
       '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
       '<td><strong>' + esc(r.name) + '</strong></td>' +
       '<td>' + esc(r.server) + '</td>' +
@@ -7052,6 +7065,7 @@ function renderRewardLedgerToolbar(type, rows) {
     '<select onchange="setRewardLedgerFilter(\'' + type + '\',\'period\',this.value)"><option value="all">全部月份</option>' + Object.keys(periods).sort(comparePeriodDesc).map(function(period) { return '<option value="' + escAttr(period) + '" ' + (period === selectedPeriod ? 'selected' : '') + '>' + esc(period) + '</option>'; }).join('') + '</select>' +
     '<button class="btn btn-outline btn-sm" onclick="toggleAllRewardLedger(true)">☑ 全选结果</button>' +
     '<button class="btn btn-outline btn-sm" onclick="toggleAllRewardLedger(false)">取消全选</button>' +
+    '<span class="selection-count" id="' + type + '-selection-count">☑ 已选 0 条</span>' +
     '<span class="toolbar-spacer"></span><button class="btn btn-primary btn-sm" onclick="openManualRewardModal(\'' + type + '\')">➕ 手动添加</button>' +
     '<button class="btn btn-danger btn-sm" onclick="deleteSelectedRewardOrders(\'' + type + '\')">🗑 删除所选</button>' +
   '</div><div style="font-size:11px;color:var(--text-light);margin:-6px 0 10px;">删除仅适用于管理员手动添加、未扣积分且未发布给创作者的记录；正式兑换和系统计算奖励受保护。</div>';
@@ -7079,7 +7093,18 @@ function filterRewardLedgerRows(type, rows) {
 }
 
 function toggleAllRewardLedger(checked) {
-  document.querySelectorAll('.tab-content.active .reward-ledger-check:not(:disabled)').forEach(function(box) { box.checked = checked; });
+  document.querySelectorAll('.tab-content.active .reward-ledger-check').forEach(function(box) { box.checked = checked; });
+  updateRewardLedgerSelection();
+}
+
+function updateRewardLedgerSelection() {
+  var active = document.querySelector('.tab-content.active');
+  if (!active) return;
+  var selected = active.querySelectorAll('.reward-ledger-check:checked').length;
+  var deletable = active.querySelectorAll('.reward-ledger-check:checked[data-deletable="true"]').length;
+  var toolbar = active.querySelector('[id$="-toolbar"]');
+  var el = toolbar && toolbar.querySelector('.selection-count');
+  if (el) el.textContent = '☑ 已选 ' + selected + ' 条' + (selected !== deletable ? ' · 可删 ' + deletable + ' 条' : '');
 }
 
 var manualRewardType = '';
@@ -7156,8 +7181,10 @@ async function submitManualReward() {
 }
 
 async function deleteSelectedRewardOrders(type) {
-  var ids = Array.from(document.querySelectorAll('.tab-content.active .reward-ledger-check:checked')).map(function(box) { return Number(box.value); }).filter(Boolean);
-  if (!ids.length) { showToast('请先勾选可删除记录', 'error'); return; }
+  var allSelected = Array.from(document.querySelectorAll('.tab-content.active .reward-ledger-check:checked'));
+  var ids = allSelected.filter(function(box) { return box.dataset.deletable === 'true'; }).map(function(box) { return Number(box.value); }).filter(Boolean);
+  if (!allSelected.length) { showToast('请先勾选记录', 'error'); return; }
+  if (!ids.length) { showToast('所选记录都是正式兑换或系统奖励，不能删除', 'error'); return; }
   if (!confirmDanger('删除所选奖励记录？', ['记录: ' + ids.length + ' 条', '系统只会删除管理员手动添加、0 积分、未发布的记录。', '兑换订单、已扣积分或已发布记录不会被删除。'])) return;
   try {
     var result = await registrationReviewFetch('delete_reward_orders', { ids: ids });
@@ -7195,7 +7222,7 @@ function renderMerchTab(keepToolbar) {
         var addr = koc ? (koc.address || '') : '';
         var phone = koc ? (koc.phone || '') : '';
         return '<tr draggable="true" data-order-id="' + o.id + '">' +
-          '<td><input type="checkbox" class="reward-ledger-check" value="' + o.id + '" ' + (Number(o.points_spent) === 0 ? '' : 'disabled title="积分兑换订单不可删除"') + '></td>' +
+          '<td><input type="checkbox" class="reward-ledger-check" value="' + o.id + '" data-deletable="' + (Number(o.points_spent) === 0 ? 'true' : 'false') + '" onchange="updateRewardLedgerSelection()"></td>' +
           '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
           '<td ondblclick="editOrderInline(this,\'discord_name\',' + o.id + ')"><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
           '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="editOrderInline(this,\'uid\',' + o.id + ')">' + esc(o.uid) + '</td>' +
@@ -7279,7 +7306,7 @@ function renderGplayTab(keepToolbar) {
       groups[period].map(function(o) {
         var koc = kmap[o.uid];
         return '<tr draggable="true" data-order-id="' + o.id + '">' +
-          '<td><input type="checkbox" class="reward-ledger-check" value="' + o.id + '" ' + (Number(o.points_spent) === 0 ? '' : 'disabled title="积分兑换订单不可删除"') + '></td>' +
+          '<td><input type="checkbox" class="reward-ledger-check" value="' + o.id + '" data-deletable="' + (Number(o.points_spent) === 0 ? 'true' : 'false') + '" onchange="updateRewardLedgerSelection()"></td>' +
           '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
           '<td>' + esc(getBatchLabelFromPeriod(period)) + '</td>' +
           '<td><strong ondblclick="event.stopPropagation();editOrderInline(this,\'discord_name\',' + o.id + ')">' + esc(getDisplayName(koc, o)) + '</strong></td>' +
