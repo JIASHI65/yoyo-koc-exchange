@@ -187,6 +187,8 @@ a{color:var(--pink-dark)}
 .submission-stat-label{font-size:10px;font-weight:900;color:var(--text-light);letter-spacing:.3px;text-transform:uppercase}
 .submission-stat-value{margin-top:5px;font-size:24px;font-weight:900;color:var(--pink-dark);line-height:1.1}
 .submission-stat-note{margin-top:4px;font-size:10px;color:var(--text-light);line-height:1.4}
+.submission-platforms{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 14px}
+.submission-platform-chip{padding:5px 8px;background:#fff;border:2px solid var(--line);box-shadow:2px 2px 0 var(--light);font-size:10px;font-weight:800;color:var(--text)}
 .submission-progress-card{margin:12px 0;padding:13px;background:var(--paper-2);border:3px solid var(--line);box-shadow:4px 4px 0 var(--purple)}
 .submission-progress-row{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;font-weight:800}
 .submission-progress-track{height:10px;margin-top:9px;background:#fff;border:2px solid var(--line);overflow:hidden}
@@ -1993,13 +1995,23 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
   }).reduce(function(total, submission) {
     return total + Number(submission.points_earned || 0);
   }, 0);
-  var totalAdded = (ptLogs || []).reduce(function(total, log) {
-    return log.period === ym && Number(log.change) > 0 ? total + Number(log.change) : total;
-  }, 0);
-  var bonusPoints = Math.max(0, totalAdded - baseContentScore);
   var pendingCount = subs.filter(function(submission) { return submission.status === 'pending'; }).length;
   var scoredCount = subs.filter(function(submission) { return submission.status === 'scored'; }).length;
   var rejectedCount = subs.filter(function(submission) { return submission.status === 'rejected'; }).length;
+  var pendingWorkCount = validWorkSubs.filter(function(submission) { return submission.status === 'pending'; }).length;
+  var scoredWorkCount = validWorkSubs.filter(function(submission) { return submission.status === 'scored'; }).length;
+  var platformCounts = {};
+  Object.keys(monthlyLinkKeys).forEach(function(link) {
+    var normalized = String(link).toLowerCase();
+    var platform = normalized.indexOf('tiktok.com') >= 0 ? 'TikTok' :
+      (normalized.indexOf('youtube.com') >= 0 || normalized.indexOf('youtu.be') >= 0 ? 'YouTube' :
+      (normalized.indexOf('instagram.com') >= 0 ? 'Instagram' :
+      (normalized.indexOf('facebook.com') >= 0 || normalized.indexOf('fb.com') >= 0 ? 'Facebook' :
+      (normalized.indexOf('reddit.com') >= 0 ? 'Reddit' :
+      (normalized.indexOf('pinterest.') >= 0 || normalized.indexOf('pin.it') >= 0 ? 'Pinterest' :
+      (normalized.indexOf('twitter.com') >= 0 || normalized.indexOf('x.com') >= 0 ? 'X' : 'Other'))))));
+    platformCounts[platform] = (platformCounts[platform] || 0) + 1;
+  });
   var currentTier = currentUser.tier || 'certified';
   var isCurrent = ym === currentPeriod;
   var monthDate = new Date(Number(ym.substring(0, 4)), Number(ym.substring(5, 7)) - 1, 1);
@@ -2018,16 +2030,22 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
   }
 
   var html = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-top:10px;">';
-  html += '<div><div style="font-size:19px;font-weight:900;color:var(--pink-dark);">' + esc(monthLabel) + '</div>';
+  html += '<div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-size:19px;font-weight:900;color:var(--pink-dark);">' + esc(monthLabel) + '</span><span class="submission-platform-chip">Base score · ' + baseContentScore + '</span></div>';
   html += '<div style="margin-top:4px;font-size:11px;color:var(--text-light);">' + scoredCount + ' scored · ' + pendingCount + ' pending' + (rejectedCount ? ' · ' + rejectedCount + ' rejected' : '') + '</div></div>';
   html += '<div style="font-size:11px;color:var(--text-light);text-align:right;">Base score comes from scored work only.<br>Bonuses and carry-over do not affect creator tiers.</div></div>';
 
   html += '<div class="submission-summary-grid">';
-  html += '<div class="submission-stat-card"><div class="submission-stat-label">Base Content Score</div><div class="submission-stat-value">' + baseContentScore + '</div><div class="submission-stat-note">Scored work only</div></div>';
-  html += '<div class="submission-stat-card"><div class="submission-stat-label">Bonus Points</div><div class="submission-stat-value">+' + bonusPoints + '</div><div class="submission-stat-note">Newbie, showcase, or manual bonus</div></div>';
-  html += '<div class="submission-stat-card"><div class="submission-stat-label">Total Added This Month</div><div class="submission-stat-value">+' + totalAdded + '</div><div class="submission-stat-note">All positive point entries</div></div>';
   html += '<div class="submission-stat-card"><div class="submission-stat-label">Valid Work Links</div><div class="submission-stat-value">' + totalLinks + '</div><div class="submission-stat-note">Unique links from non-rejected work</div></div>';
+  html += '<div class="submission-stat-card"><div class="submission-stat-label">Submission Batches</div><div class="submission-stat-value">' + validWorkSubs.length + '</div><div class="submission-stat-note">Work entries submitted this month</div></div>';
+  html += '<div class="submission-stat-card"><div class="submission-stat-label">Pending Review</div><div class="submission-stat-value">' + pendingWorkCount + '</div><div class="submission-stat-note">Waiting for admin review</div></div>';
+  html += '<div class="submission-stat-card"><div class="submission-stat-label">Scored Submissions</div><div class="submission-stat-value">' + scoredWorkCount + '</div><div class="submission-stat-note">Reviewed work entries</div></div>';
   html += '</div>';
+
+  var platformOrder = ['Facebook', 'Instagram', 'TikTok', 'YouTube', 'Reddit', 'Pinterest', 'X', 'Other'];
+  var platformHtml = platformOrder.filter(function(platform) { return platformCounts[platform]; }).map(function(platform) {
+    return '<span class="submission-platform-chip">' + platform + ' · ' + platformCounts[platform] + '</span>';
+  }).join('');
+  if (platformHtml) html += '<div class="submission-platforms" aria-label="Submitted links by platform">' + platformHtml + '</div>';
 
   var ccPercent = Math.min(100, Math.round(totalLinks / 15 * 100));
   html += '<div class="submission-progress-card"><div class="submission-progress-row"><span>🎮 Continuous Creation</span><span>' + totalLinks + ' / 15 links</span></div>';
