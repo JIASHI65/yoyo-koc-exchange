@@ -150,6 +150,46 @@ serve(async (req) => {
       return json({ ok: true, fulfillments: rows || [] });
     }
 
+    if (action === "delete_reward_fulfillments") {
+      const ids = (Array.isArray(data.ids) ? data.ids : []).map(Number).filter(Boolean);
+      if (!ids.length) return json({ ok: false, error: "No fulfillment records selected" }, 400);
+      const { data: rows, error: loadError } = await db.from("reward_fulfillments")
+        .select("id,is_published").in("id", ids);
+      if (loadError) return json({ ok: false, error: loadError.message }, 400);
+      if ((rows || []).length !== ids.length) return json({ ok: false, error: "Some fulfillment records were not found" }, 404);
+      if ((rows || []).some((row) => row.is_published)) {
+        return json({ ok: false, error: "Published fulfillment records cannot be deleted" }, 409);
+      }
+      const { error } = await db.from("reward_fulfillments").delete().in("id", ids).eq("is_published", false);
+      if (error) return json({ ok: false, error: error.message }, 400);
+      return json({ ok: true, deleted: ids.length });
+    }
+
+    if (action === "delete_reward_orders") {
+      const ids = (Array.isArray(data.ids) ? data.ids : []).map(Number).filter(Boolean);
+      if (!ids.length) return json({ ok: false, error: "No reward orders selected" }, 400);
+      const { data: orders, error: loadError } = await db.from("redemption_orders")
+        .select("id,points_spent,status").in("id", ids);
+      if (loadError) return json({ ok: false, error: loadError.message }, 400);
+      if ((orders || []).length !== ids.length) return json({ ok: false, error: "Some reward orders were not found" }, 404);
+      if ((orders || []).some((order) => Number(order.points_spent) !== 0 || order.status !== "shipped")) {
+        return json({ ok: false, error: "Only zero-point administrator rewards can be deleted" }, 409);
+      }
+      const { data: fulfillmentRows, error: fulfillmentError } = await db.from("reward_fulfillments")
+        .select("order_id,is_published").in("order_id", ids);
+      if (fulfillmentError) return json({ ok: false, error: fulfillmentError.message }, 400);
+      if ((fulfillmentRows || []).some((row) => row.is_published)) {
+        return json({ ok: false, error: "Published rewards cannot be deleted" }, 409);
+      }
+      if ((fulfillmentRows || []).length) {
+        const { error: deleteFulfillmentError } = await db.from("reward_fulfillments").delete().in("order_id", ids).eq("is_published", false);
+        if (deleteFulfillmentError) return json({ ok: false, error: deleteFulfillmentError.message }, 400);
+      }
+      const { error } = await db.from("redemption_orders").delete().in("id", ids).eq("points_spent", 0).eq("status", "shipped");
+      if (error) return json({ ok: false, error: error.message }, 400);
+      return json({ ok: true, deleted: ids.length });
+    }
+
     if (action === "save_reward_fulfillments") {
       const rows = Array.isArray(data.rows) ? data.rows : [];
       if (!rows.length) return json({ ok: false, error: "No fulfillment rows supplied" }, 400);

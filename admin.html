@@ -98,6 +98,11 @@
   .order-row { font-size: 12px; color: var(--text-light); padding: 3px 0; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .stats-bar { display: flex; gap: 16px; font-size: 13px; color: var(--text-light); margin-bottom: 12px; flex-wrap: wrap; }
   .stats-bar span { background: var(--pink-light); padding: 4px 12px; border-radius: 20px; font-weight: 500; }
+  .list-toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:10px 0 12px; padding:10px; background:#fff7fb; border:1px solid var(--border); border-radius:12px; }
+  .list-toolbar input[type="search"] { flex:1; min-width:190px; background:#fff; }
+  .list-toolbar select { min-width:130px; background:#fff; }
+  .list-toolbar .toolbar-spacer { flex:1; }
+  .list-toolbar .selection-count { font-size:11px; color:var(--text-light); white-space:nowrap; }
 
   /* Tabs */
   .tabs { display: flex; gap: 2px; margin-bottom: 16px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px; flex-wrap: wrap; }
@@ -815,6 +820,12 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
 
       <div class="card" id="fulfillment-preview-card" style="display:none;">
         <div class="card-title">📋 导入预览 <span id="fulfillment-preview-summary" style="font-size:12px;color:var(--text-light);"></span></div>
+        <div class="list-toolbar">
+          <input type="search" id="fulfillment-preview-search" placeholder="🔍 搜索 Discord / UID / 内容" oninput="renderFulfillmentPreview()">
+          <button class="btn btn-outline btn-sm" onclick="toggleAllFulfillmentPreview(true)">☑ 全选结果</button>
+          <button class="btn btn-outline btn-sm" onclick="toggleAllFulfillmentPreview(false)">取消全选</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSelectedFulfillmentPreview()">🗑 删除所选</button>
+        </div>
         <div id="fulfillment-preview-list" style="max-height:360px;overflow:auto;"></div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
           <button class="btn btn-outline btn-sm" onclick="clearFulfillmentPreview()">取消</button>
@@ -829,6 +840,12 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
             <button class="btn btn-outline btn-sm" onclick="loadRewardFulfillments()">🔄 刷新</button>
             <button class="btn btn-success btn-sm" onclick="publishSelectedFulfillments()">🚀 发布所选给创作者</button>
           </div>
+        </div>
+        <div class="list-toolbar">
+          <input type="search" id="fulfillment-search" placeholder="🔍 搜索 Discord / UID / 奖励" oninput="renderRewardFulfillmentTable()">
+          <select id="fulfillment-status-filter" onchange="renderRewardFulfillmentTable()"><option value="all">全部状态</option><option value="draft">仅草稿</option><option value="published">仅已发布</option></select>
+          <button class="btn btn-outline btn-sm" onclick="toggleAllFulfillments(true)">☑ 全选结果</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSelectedFulfillments()">🗑 删除草稿</button>
         </div>
         <div id="fulfillment-table" style="overflow-x:auto;"><div style="padding:20px;color:var(--text-light);">请选择该模块加载记录</div></div>
       </div>
@@ -1022,6 +1039,7 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
           <span>💎 端内奖励清单 <span id="diamond-count" style="font-size:12px;color:var(--text-light);"></span></span>
           <button class="btn btn-primary btn-sm" style="border-radius:20px;padding:6px 16px;" onclick="openBatchRewardModal('diamonds')">➕ 批量发奖</button>
         </div>
+        <div id="diamond-toolbar"></div>
        <div style="overflow-x:auto;">
          <div id="diamond-table"></div>
        </div>
@@ -1035,6 +1053,7 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
           <span>🎮 Google Play 礼品卡清单 <span id="gplay-count" style="font-size:12px;color:var(--text-light);"></span></span>
           <button class="btn btn-primary btn-sm" style="border-radius:20px;padding:6px 16px;" onclick="openBatchRewardModal('gplay')">➕ 批量发奖</button>
         </div>
+        <div id="gplay-toolbar"></div>
        <div style="overflow-x:auto;">
          <div id="gplay-table"></div>
        </div>
@@ -1048,6 +1067,7 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
           <span>📦 周边发货清单 <span id="merch-count" style="font-size:12px;color:var(--text-light);"></span></span>
           <button class="btn btn-primary btn-sm" style="border-radius:20px;padding:6px 16px;" onclick="openBatchRewardModal('merch')">➕ 批量发奖</button>
         </div>
+        <div id="merch-toolbar"></div>
        <div style="overflow-x:auto;">
          <div id="merch-table"></div>
        </div>
@@ -3399,6 +3419,7 @@ function switchTab(name) {
 // ===== REWARD FULFILLMENT CENTER =====
 var fulfillmentPreviewRows = [];
 var rewardFulfillments = [];
+var fulfillmentPreviewLabel = '';
 
 function normalizeFulfillmentName(value) {
   return String(value || '').normalize('NFKC').toLowerCase().replace(/[^a-z0-9\u00c0-\u024f\u4e00-\u9fff]+/g, '');
@@ -3576,24 +3597,51 @@ function previewInGameFulfillments() {
 }
 
 function renderFulfillmentPreview(label) {
+  if (label) fulfillmentPreviewLabel = label;
   var card = document.getElementById('fulfillment-preview-card');
   var list = document.getElementById('fulfillment-preview-list');
   var summary = document.getElementById('fulfillment-preview-summary');
   if (!card || !list) return;
   card.style.display = 'block';
   var valid = fulfillmentPreviewRows.filter(function(row) { return row.valid; }).length;
-  if (summary) summary.textContent = label + ' · 共 ' + fulfillmentPreviewRows.length + ' 行 · 可保存 ' + valid + ' 行 · 异常 ' + (fulfillmentPreviewRows.length - valid) + ' 行';
+  if (summary) summary.textContent = fulfillmentPreviewLabel + ' · 共 ' + fulfillmentPreviewRows.length + ' 行 · 可保存 ' + valid + ' 行 · 异常 ' + (fulfillmentPreviewRows.length - valid) + ' 行';
   if (!fulfillmentPreviewRows.length) {
     list.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text-light);">没有解析到可用记录</div>';
     return;
   }
-  list.innerHTML = fulfillmentPreviewRows.map(function(row, index) {
+  var query = ((document.getElementById('fulfillment-preview-search') || {}).value || '').trim().toLowerCase();
+  var visibleRows = fulfillmentPreviewRows.map(function(row, index) { return { row: row, index: index }; }).filter(function(item) {
+    if (!query) return true;
+    var row = item.row;
+    return [row.discord_name, row.uid, row.carrier, row.tracking_number, row.reward_note, (row.gift_codes || []).join(' ')].join(' ').toLowerCase().indexOf(query) >= 0;
+  });
+  if (!visibleRows.length) { list.innerHTML = '<div style="padding:18px;text-align:center;color:var(--text-light);">没有匹配记录</div>'; return; }
+  list.innerHTML = visibleRows.map(function(item) {
+    var row = item.row, index = item.index;
     var detail = row.reward_type === 'gplay' ? (row.gift_codes.length + ' codes / expected ' + row.expected) : row.reward_type === 'merch' ? ((row.carrier || '') + ' · ' + (row.tracking_number || 'No tracking')) : 'Check in-game mailbox';
     return '<label style="display:grid;grid-template-columns:28px 1fr auto;gap:8px;align-items:start;padding:9px;border-bottom:1px solid #eee;background:' + (row.valid ? '#fff' : '#fff3f3') + ';">' +
       '<input type="checkbox" class="fulfillment-preview-check" data-index="' + index + '" ' + (row.checked ? 'checked' : '') + (row.valid ? '' : ' disabled') + '>' +
       '<span><strong>' + esc(row.discord_name || '(Unknown)') + '</strong> <span style="font-size:11px;color:#999;">' + esc(row.uid || '') + '</span><br><span style="font-size:11px;color:#666;">' + esc(detail) + '</span></span>' +
       '<span style="font-size:11px;color:' + (row.valid ? '#2e7d32' : '#c62828') + ';text-align:right;">' + esc(row.problems.length ? row.problems.join('；') : '匹配成功') + '</span></label>';
   }).join('');
+}
+
+function toggleAllFulfillmentPreview(checked) {
+  document.querySelectorAll('.fulfillment-preview-check:not(:disabled)').forEach(function(box) {
+    box.checked = checked;
+    var row = fulfillmentPreviewRows[Number(box.dataset.index)];
+    if (row) row.checked = checked;
+  });
+}
+
+function deleteSelectedFulfillmentPreview() {
+  var indexes = Array.from(document.querySelectorAll('.fulfillment-preview-check:checked')).map(function(box) { return Number(box.dataset.index); });
+  if (!indexes.length) { showToast('请先勾选预览记录', 'error'); return; }
+  var remove = {};
+  indexes.forEach(function(index) { remove[index] = true; });
+  fulfillmentPreviewRows = fulfillmentPreviewRows.filter(function(row, index) { return !remove[index]; });
+  renderFulfillmentPreview();
+  showToast('已从本次导入预览移除 ' + indexes.length + ' 条', 'success');
 }
 
 function clearFulfillmentPreview() {
@@ -3629,9 +3677,26 @@ async function loadRewardFulfillments() {
   try {
     var result = await registrationReviewFetch('list_reward_fulfillments', { period: currentPeriod });
     rewardFulfillments = result.fulfillments || [];
-    if (count) count.textContent = '(' + rewardFulfillments.length + ' 条)';
-    if (!rewardFulfillments.length) { root.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-light);">本月暂无发放记录</div>'; return; }
-    root.innerHTML = '<table class="submission-table"><thead><tr><th><input type="checkbox" onchange="toggleAllFulfillments(this.checked)"></th><th>Discord</th><th>奖励</th><th>发放内容</th><th>状态</th><th>更新时间</th></tr></thead><tbody>' + rewardFulfillments.map(function(row) {
+    renderRewardFulfillmentTable();
+  } catch(error) { root.innerHTML = '<div style="padding:20px;color:#c62828;">加载失败: ' + esc(error.message) + '</div>'; }
+}
+
+function renderRewardFulfillmentTable() {
+  var root = document.getElementById('fulfillment-table');
+  var count = document.getElementById('fulfillment-count');
+  if (!root) return;
+  var query = ((document.getElementById('fulfillment-search') || {}).value || '').trim().toLowerCase();
+  var statusFilter = ((document.getElementById('fulfillment-status-filter') || {}).value || 'all');
+  var rows = rewardFulfillments.filter(function(row) {
+    if (statusFilter === 'draft' && row.is_published) return false;
+    if (statusFilter === 'published' && !row.is_published) return false;
+    var order = (allOrders || []).find(function(o) { return Number(o.id) === Number(row.order_id); });
+    var koc = (allKocs || []).find(function(k) { return String(k.uid) === String(row.uid); });
+    return !query || [row.uid, row.reward_type, row.carrier, row.tracking_number, (koc && koc.discord_name), (order && order.discord_name), (order && order.option_name)].join(' ').toLowerCase().indexOf(query) >= 0;
+  });
+  if (count) count.textContent = '(' + rows.length + '/' + rewardFulfillments.length + ' 条)';
+  if (!rows.length) { root.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-light);">没有匹配的发放记录</div>'; return; }
+  root.innerHTML = '<table class="submission-table"><thead><tr><th><input type="checkbox" onchange="toggleAllFulfillments(this.checked)"></th><th>Discord</th><th>奖励</th><th>发放内容</th><th>状态</th><th>更新时间</th></tr></thead><tbody>' + rows.map(function(row) {
       var order = (allOrders || []).find(function(o) { return Number(o.id) === Number(row.order_id); });
       var koc = (allKocs || []).find(function(k) { return String(k.uid) === String(row.uid); });
       var detail = row.reward_type === 'gplay' ? ((row.gift_codes || []).length + ' 个兑换码') : row.reward_type === 'merch' ? ((row.carrier || '') + ' · ' + (row.tracking_number || '无物流单号')) : '游戏邮箱领取';
@@ -3641,7 +3706,6 @@ async function loadRewardFulfillments() {
         '<td>' + esc((order && (order.option_name || order.reward_amount)) || row.reward_type) + '</td><td>' + esc(detail) + '</td>' +
         '<td>' + status + '</td><td style="font-size:11px;">' + new Date(row.updated_at).toLocaleString('zh-CN') + '</td></tr>';
     }).join('') + '</tbody></table>';
-  } catch(error) { root.innerHTML = '<div style="padding:20px;color:#c62828;">加载失败: ' + esc(error.message) + '</div>'; }
 }
 
 function toggleAllFulfillments(checked) {
@@ -3659,6 +3723,18 @@ async function publishSelectedFulfillments() {
     await loadData();
     await loadRewardFulfillments();
   } catch(error) { showToast('发布失败: ' + error.message, 'error'); }
+}
+
+async function deleteSelectedFulfillments() {
+  var ids = Array.from(document.querySelectorAll('.fulfillment-record-check:checked')).map(function(box) { return Number(box.value); }).filter(Boolean);
+  if (!ids.length) { showToast('请先勾选要删除的草稿', 'error'); return; }
+  if (!confirmDanger('删除所选奖励草稿？', ['记录: ' + ids.length + ' 条', '只允许删除尚未发布的草稿。', '已发布给创作者的记录不会被删除。'])) return;
+  try {
+    await registrationReviewFetch('delete_reward_fulfillments', { ids: ids });
+    showToast('✅ 已删除 ' + ids.length + ' 条草稿', 'success');
+    writeAuditLog('reward', '删除奖励发放草稿 ' + ids.length + ' 条，月份 ' + currentPeriod);
+    await loadRewardFulfillments();
+  } catch(error) { showToast('删除失败: ' + error.message, 'error'); }
 }
 
 // ===== 反馈收集 =====
@@ -6770,6 +6846,7 @@ function renderInGameRewardTable(rows, type, period) {
   if (!rows.length) return '';
   var body = rows.map(function(r) {
     return '<tr draggable="true" data-order-id="' + escAttr(r.id) + '">' +
+      '<td><input type="checkbox" class="reward-ledger-check" value="' + (r.order ? escAttr(r.order.id) : '') + '" ' + (r.order && Number(r.order.points_spent) === 0 ? '' : 'disabled title="系统奖励或积分兑换订单不可删除"') + '></td>' +
       '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
       '<td><strong>' + esc(r.name) + '</strong></td>' +
       '<td>' + esc(r.server) + '</td>' +
@@ -6779,7 +6856,7 @@ function renderInGameRewardTable(rows, type, period) {
     '</tr>';
   }).join('');
   return '<table class="month-table"><thead><tr>' +
-    '<th style="width:30px;"></th><th>姓名</th><th>区服</th><th>UID</th><th>ID</th><th>奖励内容</th>' +
+    '<th style="width:30px;"></th><th style="width:30px;"></th><th>姓名</th><th>区服</th><th>UID</th><th>ID</th><th>奖励内容</th>' +
     '</tr></thead><tbody data-sort-type="diamonds-' + type + '" data-sort-month="' + period + '">' + body + '</tbody></table>';
 }
 function getRewardQty(order, defaultCost) {
@@ -6856,9 +6933,73 @@ function toggleLedgerSection(id) {
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
+function renderRewardLedgerToolbar(type, rows) {
+  var root = document.getElementById(type === 'diamonds' ? 'diamond-toolbar' : type + '-toolbar');
+  if (!root) return;
+  var periods = {};
+  (rows || []).forEach(function(row) { periods[row.period || (row.created_at || '').substring(0, 7) || currentPeriod] = true; });
+  var selectedPeriod = root.dataset.period || 'all';
+  var query = root.dataset.query || '';
+  root.innerHTML = '<div class="list-toolbar">' +
+    '<input type="search" value="' + escAttr(query) + '" placeholder="🔍 搜索 Discord / UID / 姓名 / 奖励" oninput="setRewardLedgerFilter(\'' + type + '\',\'query\',this.value)">' +
+    '<select onchange="setRewardLedgerFilter(\'' + type + '\',\'period\',this.value)"><option value="all">全部月份</option>' + Object.keys(periods).sort(comparePeriodDesc).map(function(period) { return '<option value="' + escAttr(period) + '" ' + (period === selectedPeriod ? 'selected' : '') + '>' + esc(period) + '</option>'; }).join('') + '</select>' +
+    '<button class="btn btn-outline btn-sm" onclick="toggleAllRewardLedger(true)">☑ 全选结果</button>' +
+    '<button class="btn btn-outline btn-sm" onclick="toggleAllRewardLedger(false)">取消全选</button>' +
+    '<span class="toolbar-spacer"></span><button class="btn btn-danger btn-sm" onclick="deleteSelectedRewardOrders(\'' + type + '\')">🗑 删除所选</button>' +
+  '</div><div style="font-size:11px;color:var(--text-light);margin:-6px 0 10px;">删除仅适用于管理员手动添加、未扣积分且未发布给创作者的记录；正式兑换和系统计算奖励受保护。</div>';
+}
+
+function setRewardLedgerFilter(type, key, value) {
+  var root = document.getElementById(type === 'diamonds' ? 'diamond-toolbar' : type + '-toolbar');
+  if (root) root.dataset[key] = value || (key === 'period' ? 'all' : '');
+  if (type === 'diamonds') renderDiamondTab();
+  else if (type === 'gplay') renderGplayTab();
+  else renderMerchTab();
+  if (key === 'query') {
+    var refreshedRoot = document.getElementById(type === 'diamonds' ? 'diamond-toolbar' : type + '-toolbar');
+    var searchInput = refreshedRoot && refreshedRoot.querySelector('input[type="search"]');
+    if (searchInput) {
+      searchInput.focus();
+      searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
+    }
+  }
+}
+
+function filterRewardLedgerRows(type, rows) {
+  var root = document.getElementById(type === 'diamonds' ? 'diamond-toolbar' : type + '-toolbar');
+  var query = ((root && root.dataset.query) || '').trim().toLowerCase();
+  var period = (root && root.dataset.period) || 'all';
+  return (rows || []).filter(function(row) {
+    var order = row.order || row;
+    var koc = row.koc || getKocMap()[order.uid] || {};
+    var rowPeriod = row.period || order.period || (order.created_at || '').substring(0, 7) || currentPeriod;
+    if (period !== 'all' && rowPeriod !== period) return false;
+    return !query || [row.name, row.uid, row.accountId, row.reward, order.discord_name, order.option_name, order.reward_amount, koc.discord_name, koc.name].join(' ').toLowerCase().indexOf(query) >= 0;
+  });
+}
+
+function toggleAllRewardLedger(checked) {
+  document.querySelectorAll('.tab-content.active .reward-ledger-check:not(:disabled)').forEach(function(box) { box.checked = checked; });
+}
+
+async function deleteSelectedRewardOrders(type) {
+  var ids = Array.from(document.querySelectorAll('.tab-content.active .reward-ledger-check:checked')).map(function(box) { return Number(box.value); }).filter(Boolean);
+  if (!ids.length) { showToast('请先勾选可删除记录', 'error'); return; }
+  if (!confirmDanger('删除所选奖励记录？', ['记录: ' + ids.length + ' 条', '系统只会删除管理员手动添加、0 积分、未发布的记录。', '兑换订单、已扣积分或已发布记录不会被删除。'])) return;
+  try {
+    var result = await registrationReviewFetch('delete_reward_orders', { ids: ids });
+    showToast('✅ 已删除 ' + (result.deleted || 0) + ' 条', 'success');
+    writeAuditLog('reward', '删除手工奖励记录 ' + (result.deleted || 0) + ' 条');
+    await loadData();
+    if (type === 'diamonds') renderDiamondTab(); else if (type === 'gplay') renderGplayTab(); else renderMerchTab();
+  } catch(error) { showToast('删除失败: ' + error.message, 'error'); }
+}
+
 function renderMerchTab() {
   var kmap = getKocMap();
-  var orders = allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }).sort(function(a, b) { return String((b.period || (b.created_at || '').substring(0, 7)) || '').localeCompare(String((a.period || (a.created_at || '').substring(0, 7)) || '')); });
+  var sourceOrders = allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }).sort(function(a, b) { return String((b.period || (b.created_at || '').substring(0, 7)) || '').localeCompare(String((a.period || (a.created_at || '').substring(0, 7)) || '')); });
+  renderRewardLedgerToolbar('merch', sourceOrders);
+  var orders = filterRewardLedgerRows('merch', sourceOrders);
   document.getElementById('merch-count').textContent = '📅 长期台账 (' + orders.length + ' orders)';
   var container = document.getElementById('merch-table');
   if (!orders.length) {
@@ -6874,13 +7015,14 @@ function renderMerchTab() {
   var html = '';
   Object.keys(groups).sort(comparePeriodDesc).forEach(function(period) {
     var body = '<table class="month-table"><thead><tr>' +
-      '<th style="width:30px;"></th><th>Discord</th><th>UID</th><th>Address</th><th>Phone</th><th>Reward</th><th>Notes</th>' +
+      '<th style="width:30px;"></th><th style="width:30px;"></th><th>Discord</th><th>UID</th><th>Address</th><th>Phone</th><th>Reward</th><th>Notes</th>' +
       '</tr></thead><tbody data-sort-type="merch" data-sort-month="' + period + '">' +
       groups[period].map(function(o) {
         var koc = kmap[o.uid];
         var addr = koc ? (koc.address || '') : '';
         var phone = koc ? (koc.phone || '') : '';
         return '<tr draggable="true" data-order-id="' + o.id + '">' +
+          '<td><input type="checkbox" class="reward-ledger-check" value="' + o.id + '" ' + (Number(o.points_spent) === 0 ? '' : 'disabled title="积分兑换订单不可删除"') + '></td>' +
           '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
           '<td ondblclick="editOrderInline(this,\'discord_name\',' + o.id + ')"><strong>' + esc(koc ? koc.discord_name : o.discord_name) + '</strong></td>' +
           '<td style="font-family:monospace;font-size:12px;color:var(--text-light);" ondblclick="editOrderInline(this,\'uid\',' + o.id + ')">' + esc(o.uid) + '</td>' +
@@ -6907,6 +7049,15 @@ function renderDiamondTab() {
     g.ccOnly.forEach(function(r) { allRows.push(r); });
     g.diamondOnly.forEach(function(r) { allRows.push(r); });
   });
+  renderRewardLedgerToolbar('diamonds', allRows);
+  allRows = filterRewardLedgerRows('diamonds', allRows);
+  var allowed = {};
+  allRows.forEach(function(row) { allowed[String(row.id)] = true; });
+  Object.keys(history).forEach(function(period) {
+    history[period].both = history[period].both.filter(function(row) { return allowed[String(row.id)]; });
+    history[period].ccOnly = history[period].ccOnly.filter(function(row) { return allowed[String(row.id)]; });
+    history[period].diamondOnly = history[period].diamondOnly.filter(function(row) { return allowed[String(row.id)]; });
+  });
   document.getElementById('diamond-count').textContent = '📅 长期台账 (' + allRows.length + ' 条)';
   var container = document.getElementById('diamond-table');
   if (!allRows.length) {
@@ -6932,7 +7083,9 @@ function renderDiamondTab() {
 
 function renderGplayTab() {
   var kmap = getKocMap();
-  var orders = allOrders.filter(function(o) { return o.option_type === 'gplay' && o.status === 'shipped'; }).sort(function(a, b) { return String((b.period || (b.created_at || '').substring(0, 7)) || '').localeCompare(String((a.period || (a.created_at || '').substring(0, 7)) || '')); });
+  var sourceOrders = allOrders.filter(function(o) { return o.option_type === 'gplay' && o.status === 'shipped'; }).sort(function(a, b) { return String((b.period || (b.created_at || '').substring(0, 7)) || '').localeCompare(String((a.period || (a.created_at || '').substring(0, 7)) || '')); });
+  renderRewardLedgerToolbar('gplay', sourceOrders);
+  var orders = filterRewardLedgerRows('gplay', sourceOrders);
   document.getElementById('gplay-count').textContent = '📅 长期台账 (' + orders.length + ' orders)';
   var container = document.getElementById('gplay-table');
   if (!orders.length) {
@@ -6948,11 +7101,12 @@ function renderGplayTab() {
   var html = '';
   Object.keys(groups).sort(comparePeriodDesc).forEach(function(period) {
     var body = '<table class="month-table"><thead><tr>' +
-      '<th style="width:30px;"></th><th>批次</th><th>姓名</th><th>国家</th><th>奖励</th>' +
+      '<th style="width:30px;"></th><th style="width:30px;"></th><th>批次</th><th>姓名</th><th>国家</th><th>奖励</th>' +
       '</tr></thead><tbody data-sort-type="gplay" data-sort-month="' + period + '">' +
       groups[period].map(function(o) {
         var koc = kmap[o.uid];
         return '<tr draggable="true" data-order-id="' + o.id + '">' +
+          '<td><input type="checkbox" class="reward-ledger-check" value="' + o.id + '" ' + (Number(o.points_spent) === 0 ? '' : 'disabled title="积分兑换订单不可删除"') + '></td>' +
           '<td style="text-align:center;cursor:grab;font-size:16px;color:var(--text-light);user-select:none;" class="drag-handle">⠇</td>' +
           '<td>' + esc(getBatchLabelFromPeriod(period)) + '</td>' +
           '<td><strong ondblclick="event.stopPropagation();editOrderInline(this,\'discord_name\',' + o.id + ')">' + esc(getDisplayName(koc, o)) + '</strong></td>' +
