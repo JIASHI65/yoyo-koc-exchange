@@ -952,6 +952,7 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
         </div>
         <div class="row" style="margin-bottom:8px;gap:6px;">
           <input type="text" id="search-input" placeholder="🔍 Search Discord or UID..." style="width:280px;font-size:13px;" oninput="renderKocTable()">
+          <button class="btn btn-primary btn-sm" onclick="openManualKocModal()">➕ 手动添加 KOC</button>
           <button class="btn btn-sm" style="background:#fff3e0;color:#e65100;border:1px solid #ffcc80;" onclick="batchMarkSelected('old_creator')">📋 标记老创作者</button>
           <button class="btn btn-sm" style="background:#e3f2fd;color:#1565c0;border:1px solid #90caf9;" onclick="batchMarkSelected('new_creator')">🆕 标记新创作者</button>
           <button class="btn btn-sm" style="background:#fce4ec;color:#c62828;border:1px solid #ef9a9a;" onclick="batchDeleteSelected()">🗑 删除所选</button>
@@ -1342,6 +1343,31 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
     </div>
 
 <!-- ===== MODAL: Edit KOC ===== -->
+<div id="manual-koc-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeManualKocModal()">
+  <div class="modal" style="max-width:680px;">
+    <h3>➕ 手动添加 KOC</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div><label>Discord Name *</label><input id="new-koc-discord" type="text"></div>
+      <div><label>Game UID *</label><input id="new-koc-uid" type="text"></div>
+      <div><label>Account ID *</label><input id="new-koc-account" type="text" inputmode="numeric"></div>
+      <div><label>Full Legal Name *</label><input id="new-koc-name" type="text"></div>
+      <div><label>Region</label><input id="new-koc-region" type="text"></div>
+      <div><label>Server *</label><input id="new-koc-server" type="text" placeholder="正式服 / 灯塔服"></div>
+      <div><label>City</label><input id="new-koc-city" type="text"></div>
+      <div><label>State / Province</label><input id="new-koc-state" type="text"></div>
+      <div><label>Postal Code</label><input id="new-koc-postal" type="text"></div>
+      <div><label>Country</label><input id="new-koc-country" type="text"></div>
+      <div><label>Phone</label><input id="new-koc-phone" type="text"></div>
+      <div><label>Creator Tier</label><select id="new-koc-tier"><option value="certified">✅ Certified</option><option value="gold">⭐ Gold</option><option value="platinum">💎 Platinum</option></select></div>
+    </div>
+    <label>Street Address</label><textarea id="new-koc-address" style="min-height:68px;"></textarea>
+    <label>Notes</label><textarea id="new-koc-notes" style="min-height:58px;"></textarea>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px;"><input id="new-koc-welcome-gift" type="checkbox" checked style="width:auto;"> 新 KOC 必送欢迎周边（默认勾选）</label>
+    <div class="row" style="margin-top:12px;justify-content:flex-end;"><button class="btn btn-outline" onclick="closeManualKocModal()">取消</button><button class="btn btn-primary" id="manual-koc-save" onclick="submitManualKoc()">💾 添加到信息库</button></div>
+  </div>
+</div>
+
+<!-- ===== MODAL: Edit KOC ===== -->
 <div id="edit-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeEditModal()">
   <div class="modal">
     <h3>✏️ Edit KOC</h3>
@@ -1439,6 +1465,34 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
     <div class="row" style="gap:6px;">
       <button class="btn btn-primary" onclick="submitBatchReward()" style="flex:1;font-size:14px;padding:10px;">✔ 确认发放</button>
       <button class="btn btn-outline" onclick="closeBatchRewardModal()" style="flex:1;">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== MODAL: 手动添加单条奖励 ===== -->
+<div id="manual-reward-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeManualRewardModal()">
+  <div class="modal" style="max-width:620px;">
+    <h3 id="manual-reward-title">➕ 手动添加奖励记录</h3>
+    <div style="font-size:11px;color:var(--text-light);margin-bottom:10px;line-height:1.5;">选择现有 KOC 后会自动带出名单字段；如资料需要修正，可在此处修改后一起保存。</div>
+    <label>选择 KOC *</label>
+    <select id="manual-reward-koc" onchange="fillManualRewardCreator()"></select>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div><label>月份 *</label><input id="manual-reward-period" type="month"></div>
+      <div><label>Discord 名字 *</label><input id="manual-reward-discord" type="text"></div>
+      <div><label>Game UID *</label><input id="manual-reward-uid" type="text" readonly style="background:#f4edf1;"></div>
+      <div class="manual-field manual-field-account"><label>Account ID</label><input id="manual-reward-account" type="text" inputmode="numeric"></div>
+      <div class="manual-field manual-field-server"><label>区服</label><input id="manual-reward-server" type="text" placeholder="正式服 / 灯塔服"></div>
+      <div class="manual-field manual-field-country"><label>国家</label><input id="manual-reward-country" type="text"></div>
+      <div class="manual-field manual-field-phone"><label>电话</label><input id="manual-reward-phone" type="text"></div>
+    </div>
+    <div class="manual-field manual-field-address"><label>地址</label><textarea id="manual-reward-address" style="min-height:68px;"></textarea></div>
+    <label id="manual-reward-content-label">奖励内容 *</label>
+    <input id="manual-reward-content" type="text" placeholder="请输入表格中要显示的奖励内容">
+    <label>备注</label>
+    <textarea id="manual-reward-notes" style="min-height:62px;" placeholder="可选"></textarea>
+    <div class="row" style="margin-top:12px;justify-content:flex-end;">
+      <button class="btn btn-outline" onclick="closeManualRewardModal()">取消</button>
+      <button class="btn btn-primary" id="manual-reward-save" onclick="submitManualReward()">💾 添加到名单</button>
     </div>
   </div>
 </div>
@@ -5434,6 +5488,8 @@ function getActiveStatusBadge(uid, counts) {
 }
 
 function renderKocTable() {
+  var selectAll = document.getElementById('koc-select-all');
+  if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
   var q = document.getElementById('search-input').value.toLowerCase();
   var filtered = allKocs.filter(function(k) {
     return (k.discord_name || '').toLowerCase().includes(q) || (k.uid || '').toLowerCase().includes(q);
@@ -5996,6 +6052,8 @@ function ensureCCEligibilityForCurrentPeriod(force) {
 }
 
 function renderScoringTable() {
+  var selectAll = document.getElementById('scoring-select-all');
+  if (selectAll) { selectAll.checked = false; selectAll.indeterminate = false; }
   // Load redemption state from campaign_config (single source of truth)
   (async function() {
     try {
@@ -6147,6 +6205,38 @@ function toggleOrders(uid) {
 }
 
 // ===== ADD KOC =====
+function openManualKocModal() {
+  ['discord','uid','account','name','region','server','city','state','postal','country','phone','address','notes'].forEach(function(field) {
+    var el = document.getElementById('new-koc-' + field); if (el) el.value = '';
+  });
+  document.getElementById('new-koc-tier').value = 'certified';
+  document.getElementById('new-koc-welcome-gift').checked = true;
+  document.getElementById('manual-koc-modal').classList.remove('hidden');
+}
+
+function closeManualKocModal() { document.getElementById('manual-koc-modal').classList.add('hidden'); }
+
+async function submitManualKoc() {
+  var payload = {};
+  ['discord','uid','account','name','region','server','city','state','postal','country','phone','address','notes','tier'].forEach(function(field) {
+    var el = document.getElementById('new-koc-' + field); payload[field] = el ? String(el.value || '').trim() : '';
+  });
+  payload.welcome_gift = document.getElementById('new-koc-welcome-gift').checked;
+  payload.period = currentPeriod;
+  if (!payload.discord || !payload.uid || !payload.account || !payload.name || !payload.server) { showToast('请填写 Discord、Game UID、Account ID、真实姓名和区服', 'error'); return; }
+  if (!/^\d{19}$/.test(payload.account)) { showToast('Account ID 必须是 19 位数字', 'error'); return; }
+  if (!confirmDanger('手动添加 KOC？', ['Discord: ' + payload.discord, 'Game UID: ' + payload.uid, 'Account ID: ' + payload.account, payload.welcome_gift ? '同时创建新人欢迎周边订单。' : '不创建欢迎周边订单。'])) return;
+  var button = document.getElementById('manual-koc-save'); button.disabled = true;
+  try {
+    await registrationReviewFetch('create_manual_koc', payload);
+    showToast('✅ 已添加 KOC' + (payload.welcome_gift ? '并创建欢迎周边' : ''), 'success');
+    writeAuditLog('koc', '手动添加 KOC ' + payload.uid + ' (' + payload.discord + ')' + (payload.welcome_gift ? ' + welcome gift' : ''));
+    closeManualKocModal();
+    await loadData(); renderKocTable(); renderScoringTable();
+  } catch(error) { showToast('添加失败: ' + error.message, 'error'); }
+  finally { button.disabled = false; }
+}
+
 async function batchMarkOldCreator() {
   var names = prompt('\u8f93\u5165\u8981\u6807\u8bb0\u4e3a\u8001\u521b\u4f5c\u8005\u7684 Discord \u540d\u79f0\uff08\u6bcf\u884c\u4e00\u4e2a\uff09:', 'Rowdy-Bones\nAchiru\nadalia\nClarySage8611\nDatuzu\ndiana\nEma\u2661\nJanie\nkanansai\nlaarakln\n\ud835\udd76\ud835\udd90\ud835\udd8d\nLondon\nMaia\nmaished\nPrimroseku\nSusanne (user: susannepandawhale)\ntaylor\nMia');
   if (!names) return;
@@ -6962,24 +7052,17 @@ function renderRewardLedgerToolbar(type, rows) {
     '<select onchange="setRewardLedgerFilter(\'' + type + '\',\'period\',this.value)"><option value="all">全部月份</option>' + Object.keys(periods).sort(comparePeriodDesc).map(function(period) { return '<option value="' + escAttr(period) + '" ' + (period === selectedPeriod ? 'selected' : '') + '>' + esc(period) + '</option>'; }).join('') + '</select>' +
     '<button class="btn btn-outline btn-sm" onclick="toggleAllRewardLedger(true)">☑ 全选结果</button>' +
     '<button class="btn btn-outline btn-sm" onclick="toggleAllRewardLedger(false)">取消全选</button>' +
-    '<span class="toolbar-spacer"></span><button class="btn btn-danger btn-sm" onclick="deleteSelectedRewardOrders(\'' + type + '\')">🗑 删除所选</button>' +
+    '<span class="toolbar-spacer"></span><button class="btn btn-primary btn-sm" onclick="openManualRewardModal(\'' + type + '\')">➕ 手动添加</button>' +
+    '<button class="btn btn-danger btn-sm" onclick="deleteSelectedRewardOrders(\'' + type + '\')">🗑 删除所选</button>' +
   '</div><div style="font-size:11px;color:var(--text-light);margin:-6px 0 10px;">删除仅适用于管理员手动添加、未扣积分且未发布给创作者的记录；正式兑换和系统计算奖励受保护。</div>';
 }
 
 function setRewardLedgerFilter(type, key, value) {
   var root = document.getElementById(type === 'diamonds' ? 'diamond-toolbar' : type + '-toolbar');
   if (root) root.dataset[key] = value || (key === 'period' ? 'all' : '');
-  if (type === 'diamonds') renderDiamondTab();
-  else if (type === 'gplay') renderGplayTab();
-  else renderMerchTab();
-  if (key === 'query') {
-    var refreshedRoot = document.getElementById(type === 'diamonds' ? 'diamond-toolbar' : type + '-toolbar');
-    var searchInput = refreshedRoot && refreshedRoot.querySelector('input[type="search"]');
-    if (searchInput) {
-      searchInput.focus();
-      searchInput.setSelectionRange(searchInput.value.length, searchInput.value.length);
-    }
-  }
+  if (type === 'diamonds') renderDiamondTab(true);
+  else if (type === 'gplay') renderGplayTab(true);
+  else renderMerchTab(true);
 }
 
 function filterRewardLedgerRows(type, rows) {
@@ -6999,6 +7082,79 @@ function toggleAllRewardLedger(checked) {
   document.querySelectorAll('.tab-content.active .reward-ledger-check:not(:disabled)').forEach(function(box) { box.checked = checked; });
 }
 
+var manualRewardType = '';
+function openManualRewardModal(type) {
+  manualRewardType = type;
+  var titles = { diamonds: '💎 手动添加端内奖励', gplay: '🎮 手动添加谷歌卡记录', merch: '📦 手动添加周边发货记录' };
+  var contentLabels = { diamonds: '奖励内容 *', gplay: '谷歌卡奖励 *', merch: '周边奖励 *' };
+  var contentPlaceholders = { diamonds: '例如：豪华月卡1，蜗壳币500，金币1000，450钻石*5', gplay: '例如：$10谷歌卡*2', merch: '例如：随机周边礼包 × 1' };
+  document.getElementById('manual-reward-title').textContent = titles[type] || '➕ 手动添加奖励记录';
+  document.getElementById('manual-reward-content-label').textContent = contentLabels[type] || '奖励内容 *';
+  document.getElementById('manual-reward-content').placeholder = contentPlaceholders[type] || '';
+  document.getElementById('manual-reward-period').value = currentPeriod;
+  document.getElementById('manual-reward-content').value = '';
+  document.getElementById('manual-reward-notes').value = '';
+  var select = document.getElementById('manual-reward-koc');
+  var creators = (allKocs || []).filter(function(k) { return k.uid && k.uid !== '__config__' && k.status === 'active'; }).sort(function(a,b) { return String(a.discord_name || '').localeCompare(String(b.discord_name || '')); });
+  select.innerHTML = '<option value="">请选择创作者</option>' + creators.map(function(k) { return '<option value="' + escAttr(k.uid) + '">' + esc(k.discord_name || k.name || k.uid) + ' · ' + esc(k.uid) + '</option>'; }).join('');
+  document.querySelectorAll('.manual-field-address,.manual-field-phone').forEach(function(el) { el.style.display = type === 'merch' ? 'block' : 'none'; });
+  document.querySelectorAll('.manual-field-country').forEach(function(el) { el.style.display = (type === 'gplay' || type === 'merch') ? 'block' : 'none'; });
+  document.querySelectorAll('.manual-field-account,.manual-field-server').forEach(function(el) { el.style.display = type === 'diamonds' ? 'block' : 'none'; });
+  ['discord','uid','account','server','country','phone','address'].forEach(function(field) { var el = document.getElementById('manual-reward-' + field); if (el) el.value = ''; });
+  document.getElementById('manual-reward-modal').classList.remove('hidden');
+}
+
+function closeManualRewardModal() {
+  document.getElementById('manual-reward-modal').classList.add('hidden');
+  manualRewardType = '';
+}
+
+function fillManualRewardCreator() {
+  var uid = document.getElementById('manual-reward-koc').value;
+  var koc = (allKocs || []).find(function(row) { return String(row.uid) === String(uid); });
+  if (!koc) return;
+  document.getElementById('manual-reward-discord').value = koc.discord_name || koc.name || '';
+  document.getElementById('manual-reward-uid').value = koc.uid || '';
+  document.getElementById('manual-reward-account').value = koc.account_id || '';
+  document.getElementById('manual-reward-server').value = koc.server || '';
+  document.getElementById('manual-reward-country').value = koc.country || koc.region || '';
+  document.getElementById('manual-reward-phone').value = koc.phone || '';
+  document.getElementById('manual-reward-address').value = [koc.address, koc.city, koc.state, koc.postal_code, koc.country].filter(Boolean).join(', ');
+}
+
+async function submitManualReward() {
+  var type = manualRewardType;
+  var payload = {
+    type: type,
+    period: document.getElementById('manual-reward-period').value,
+    uid: document.getElementById('manual-reward-uid').value.trim(),
+    discord_name: document.getElementById('manual-reward-discord').value.trim(),
+    account_id: document.getElementById('manual-reward-account').value.trim(),
+    server: document.getElementById('manual-reward-server').value.trim(),
+    country: document.getElementById('manual-reward-country').value.trim(),
+    phone: document.getElementById('manual-reward-phone').value.trim(),
+    address: document.getElementById('manual-reward-address').value.trim(),
+    reward_content: document.getElementById('manual-reward-content').value.trim(),
+    notes: document.getElementById('manual-reward-notes').value.trim()
+  };
+  if (!payload.uid || !payload.discord_name || !payload.period || !payload.reward_content) { showToast('请完整填写创作者、月份和奖励内容', 'error'); return; }
+  if (type === 'diamonds' && (!payload.account_id || !payload.server)) { showToast('端内奖励需要 Account ID 和区服', 'error'); return; }
+  if (type === 'gplay' && !payload.country) { showToast('谷歌卡记录需要国家', 'error'); return; }
+  if (type === 'merch' && (!payload.address || !payload.phone)) { showToast('周边记录需要地址和电话', 'error'); return; }
+  if (!confirmDanger('添加手动奖励记录？', ['创作者: ' + payload.discord_name, '月份: ' + payload.period, '奖励: ' + payload.reward_content, '该记录为管理员 0 积分奖励，可在未发布前删除。'])) return;
+  var button = document.getElementById('manual-reward-save');
+  button.disabled = true;
+  try {
+    await registrationReviewFetch('create_manual_reward_order', payload);
+    showToast('✅ 已添加到奖励名单', 'success');
+    writeAuditLog('reward', '手动添加 ' + type + ' 奖励：' + payload.discord_name + ' · ' + payload.reward_content);
+    closeManualRewardModal();
+    await loadData();
+    if (type === 'diamonds') renderDiamondTab(); else if (type === 'gplay') renderGplayTab(); else renderMerchTab();
+  } catch(error) { showToast('添加失败: ' + error.message, 'error'); }
+  finally { button.disabled = false; }
+}
+
 async function deleteSelectedRewardOrders(type) {
   var ids = Array.from(document.querySelectorAll('.tab-content.active .reward-ledger-check:checked')).map(function(box) { return Number(box.value); }).filter(Boolean);
   if (!ids.length) { showToast('请先勾选可删除记录', 'error'); return; }
@@ -7012,10 +7168,10 @@ async function deleteSelectedRewardOrders(type) {
   } catch(error) { showToast('删除失败: ' + error.message, 'error'); }
 }
 
-function renderMerchTab() {
+function renderMerchTab(keepToolbar) {
   var kmap = getKocMap();
   var sourceOrders = allOrders.filter(function(o) { return o.option_type === 'merch' && o.status === 'shipped'; }).sort(function(a, b) { return String((b.period || (b.created_at || '').substring(0, 7)) || '').localeCompare(String((a.period || (a.created_at || '').substring(0, 7)) || '')); });
-  renderRewardLedgerToolbar('merch', sourceOrders);
+  if (!keepToolbar) renderRewardLedgerToolbar('merch', sourceOrders);
   var orders = filterRewardLedgerRows('merch', sourceOrders);
   document.getElementById('merch-count').textContent = '📅 长期台账 (' + orders.length + ' orders)';
   var container = document.getElementById('merch-table');
@@ -7055,7 +7211,7 @@ function renderMerchTab() {
   setTimeout(function() { initSortable('merch'); }, 100);
 }
 
-function renderDiamondTab() {
+function renderDiamondTab(keepToolbar) {
   var label = currentPeriod.replace('-', '年') + '月';
   var history = buildInGameRewardRows(allOrders);
   var groups = Object.keys(history).sort(comparePeriodDesc);
@@ -7066,7 +7222,7 @@ function renderDiamondTab() {
     g.ccOnly.forEach(function(r) { allRows.push(r); });
     g.diamondOnly.forEach(function(r) { allRows.push(r); });
   });
-  renderRewardLedgerToolbar('diamonds', allRows);
+  if (!keepToolbar) renderRewardLedgerToolbar('diamonds', allRows);
   allRows = filterRewardLedgerRows('diamonds', allRows);
   var allowed = {};
   allRows.forEach(function(row) { allowed[String(row.id)] = true; });
@@ -7098,10 +7254,10 @@ function renderDiamondTab() {
   setTimeout(function() { initSortable('diamonds-both'); initSortable('diamonds-cc-only'); initSortable('diamonds-only'); }, 100);
 }
 
-function renderGplayTab() {
+function renderGplayTab(keepToolbar) {
   var kmap = getKocMap();
   var sourceOrders = allOrders.filter(function(o) { return o.option_type === 'gplay' && o.status === 'shipped'; }).sort(function(a, b) { return String((b.period || (b.created_at || '').substring(0, 7)) || '').localeCompare(String((a.period || (a.created_at || '').substring(0, 7)) || '')); });
-  renderRewardLedgerToolbar('gplay', sourceOrders);
+  if (!keepToolbar) renderRewardLedgerToolbar('gplay', sourceOrders);
   var orders = filterRewardLedgerRows('gplay', sourceOrders);
   document.getElementById('gplay-count').textContent = '📅 长期台账 (' + orders.length + ' orders)';
   var container = document.getElementById('gplay-table');

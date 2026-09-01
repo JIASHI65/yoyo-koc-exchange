@@ -190,6 +190,107 @@ serve(async (req) => {
       return json({ ok: true, deleted: ids.length });
     }
 
+    if (action === "create_manual_reward_order") {
+      const type = String(data.type || "").trim();
+      const period = String(data.period || "").trim();
+      const uid = String(data.uid || "").trim();
+      const discordName = String(data.discord_name || "").trim();
+      const rewardContent = String(data.reward_content || "").trim();
+      if (!["diamonds", "gplay", "merch"].includes(type)) return json({ ok: false, error: "Unsupported reward type" }, 400);
+      if (!/^\d{4}-\d{2}$/.test(period) || !uid || !discordName || !rewardContent) return json({ ok: false, error: "Required reward information is incomplete" }, 400);
+      const { data: creator, error: creatorError } = await db.from("kocs").select("uid,status").eq("uid", uid).maybeSingle();
+      if (creatorError) return json({ ok: false, error: creatorError.message }, 400);
+      if (!creator || creator.status !== "active") return json({ ok: false, error: "Active creator not found" }, 404);
+      const accountId = String(data.account_id || "").trim();
+      const server = String(data.server || "").trim();
+      const country = String(data.country || "").trim();
+      const phone = String(data.phone || "").trim();
+      const address = String(data.address || "").trim();
+      if (type === "diamonds" && (!accountId || !server)) return json({ ok: false, error: "In-game rewards require Account ID and server" }, 400);
+      if (type === "gplay" && !country) return json({ ok: false, error: "Google Play records require country" }, 400);
+      if (type === "merch" && (!address || !phone)) return json({ ok: false, error: "Merchandise records require address and phone" }, 400);
+      const kocUpdate: Record<string, string> = { discord_name: discordName };
+      if (accountId) kocUpdate.account_id = accountId;
+      if (server) kocUpdate.server = server;
+      if (country) kocUpdate.country = country;
+      if (phone) kocUpdate.phone = phone;
+      if (address) kocUpdate.address = address;
+      const { error: updateError } = await db.from("kocs").update(kocUpdate).eq("uid", uid);
+      if (updateError) return json({ ok: false, error: updateError.message }, 400);
+      const optionName = type === "diamonds" ? "💎 手动端内奖励" : type === "gplay" ? rewardContent : "📦 " + rewardContent;
+      const { data: order, error } = await db.from("redemption_orders").insert({
+        uid,
+        discord_name: discordName,
+        koc_name: discordName,
+        option_type: type,
+        option_name: optionName,
+        points_spent: 0,
+        reward_amount: rewardContent,
+        contact_info: type === "merch" ? address : "",
+        status: "shipped",
+        admin_notes: String(data.notes || "").trim() || "Manual reward entry by admin",
+        period,
+        processed_at: new Date().toISOString(),
+        processed_by: "admin",
+      }).select("*").single();
+      if (error) return json({ ok: false, error: error.message }, 400);
+      return json({ ok: true, order });
+    }
+
+    if (action === "create_manual_koc") {
+      const uid = String(data.uid || "").trim();
+      const discordName = String(data.discord || "").trim();
+      const accountId = String(data.account || "").trim();
+      const name = String(data.name || "").trim();
+      const server = String(data.server || "").trim();
+      if (!uid || !discordName || !/^\d{19}$/.test(accountId) || !name || !server) return json({ ok: false, error: "Required creator information is incomplete" }, 400);
+      const { data: duplicates, error: duplicateError } = await db.from("kocs").select("uid,account_id").or(`uid.eq.${uid},account_id.eq.${accountId}`).limit(1);
+      if (duplicateError) return json({ ok: false, error: duplicateError.message }, 400);
+      if (duplicates?.length) return json({ ok: false, error: "Game UID or Account ID already exists" }, 409);
+      const tier = ["certified", "gold", "platinum"].includes(String(data.tier || "")) ? String(data.tier) : "certified";
+      const { data: creator, error } = await db.from("kocs").insert({
+        uid,
+        discord_name: discordName,
+        account_id: accountId,
+        name,
+        region: String(data.region || "").trim(),
+        server,
+        address: String(data.address || "").trim(),
+        city: String(data.city || "").trim(),
+        state: String(data.state || "").trim(),
+        postal_code: String(data.postal || "").trim(),
+        country: String(data.country || "").trim(),
+        phone: String(data.phone || "").trim(),
+        notes: String(data.notes || "").trim(),
+        tier,
+        status: "active",
+        created_at: new Date().toISOString(),
+      }).select("*").single();
+      if (error) return json({ ok: false, error: error.message }, 400);
+      let welcomeGift = null;
+      if (data.welcome_gift !== false) {
+        const { data: gift, error: giftError } = await db.from("redemption_orders").insert({
+          uid,
+          discord_name: discordName,
+          koc_name: discordName,
+          option_type: "merch",
+          option_name: "🎁 新人入职周边",
+          points_spent: 0,
+          reward_amount: "随机周边 × 1",
+          contact_info: String(data.address || "").trim(),
+          status: "pending",
+          admin_notes: "Welcome gift - manual creator entry",
+          period: String(data.period || "").trim() || null,
+        }).select("*").single();
+        if (giftError) {
+          await db.from("kocs").delete().eq("uid", uid);
+          return json({ ok: false, error: `Welcome gift creation failed: ${giftError.message}` }, 400);
+        }
+        welcomeGift = gift;
+      }
+      return json({ ok: true, creator, welcome_gift: welcomeGift });
+    }
+
     if (action === "save_reward_fulfillments") {
       const rows = Array.isArray(data.rows) ? data.rows : [];
       if (!rows.length) return json({ ok: false, error: "No fulfillment rows supplied" }, 400);
