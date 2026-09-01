@@ -373,6 +373,10 @@
 
   .hero {
     position: relative;
+    display: grid;
+    grid-template-columns: minmax(0,1fr) 300px;
+    align-items: center;
+    gap: 30px;
     overflow: hidden;
     padding: 28px 34px;
     color: white;
@@ -390,6 +394,9 @@
     opacity: .15;
     transform: rotate(12deg);
   }
+
+  .hero-copy { position: relative; z-index: 1; min-width: 0; }
+  .hero .seraphina-card { position: relative; z-index: 2; }
 
   .eyebrow {
     margin-bottom: 8px;
@@ -700,6 +707,8 @@
   }
 
   @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; }
+    .hero .seraphina-card { justify-self: start; }
     .overview { grid-template-columns: repeat(2, 1fr); }
     .bottom-grid { grid-template-columns: 1fr; }
     .board-head { align-items: flex-start; flex-direction: column; }
@@ -758,16 +767,26 @@
 <body>
 <main class="page">
   <header class="hero">
-    <div class="eyebrow">♥ YOYO CREATIVE STUDIO · KOC OPERATIONS ♥</div>
-    <h1>🎀 KOC 创作者管理系统 · 全流程图</h1>
-    <p>一页看懂创作者如何注册、投稿、查看积分和兑换奖励，以及管理员如何审核、结算、发奖和运营通知。创作者端与管理端通过 Supabase 实时连接，所有月份均由管理端的“当前活动月”统一控制。</p>
-    <div class="hero-meta">
-      <span>创作者门户 index.html</span>
-      <span>管理后台 admin.html</span>
-      <span>Supabase 数据中心</span>
-      <span>MochiBot 通知</span>
-      <span>更新：2026.08</span>
+    <div class="hero-copy">
+      <div class="eyebrow">♥ YOYO CREATIVE STUDIO · KOC OPERATIONS ♥</div>
+      <h1>🎀 KOC 创作者管理系统 · 全流程图</h1>
+      <p>一页看懂创作者如何注册、投稿、查看积分和兑换奖励，以及管理员如何审核、结算、发奖和运营通知。创作者端与管理端通过 Supabase 实时连接，所有月份均由管理端的“当前活动月”统一控制。</p>
+      <div class="hero-meta">
+        <span>创作者门户 index.html</span>
+        <span>管理后台 admin.html</span>
+        <span>Supabase 数据中心</span>
+        <span>MochiBot 通知</span>
+        <span>更新：2026.08</span>
+      </div>
     </div>
+    <aside class="seraphina-card seraphina-card-hero" aria-label="System creator Seraphina, known to creators as YoYo assistant Mochi">
+      <span class="seraphina-card-avatar" role="img" aria-label="Blonde woman">🙎🏼‍♀️</span>
+      <span class="seraphina-card-copy">
+        <span class="seraphina-card-label">DESIGNED &amp; DEVELOPED BY</span>
+        <strong class="seraphina-card-name">Seraphina</strong>
+        <span class="seraphina-card-meta"><strong>Full-Stack Developer</strong><span>YoYo assistant 💗 Mochi</span></span>
+      </span>
+    </aside>
   </header>
 
   <section class="overview" aria-label="系统组成">
@@ -879,29 +898,6 @@
     本图用于团队介绍、内部培训与全流程测试。实际月度运营顺序：设置活动月与窗口 → 收集投稿 → 审核与算分 → 导入积分 → 开放兑换 → 发奖扣分 → 数据复盘。
   </footer>
 </main>
-
-<aside class="signature-card pixel-credit" aria-label="Designed and developed by Seraphina, known to creators as YoYo assistant Mochi">
-  <div class="pixel-credit-bar">
-    <span>DEVELOPER_PROFILE.EXE</span>
-    <span class="pixel-credit-controls" aria-hidden="true"><i></i><i></i><i></i></span>
-  </div>
-  <div class="pixel-credit-body">
-    <div class="pixel-avatar-frame" aria-hidden="true">
-      <span class="pixel-avatar" role="img" aria-label="Blonde woman">🙎🏼‍♀️</span>
-      <span class="pixel-heart">♥</span>
-    </div>
-    <div class="pixel-credit-copy">
-      <span class="pixel-credit-label">SYSTEM CREATOR</span>
-      <strong class="pixel-credit-name">Seraphina</strong>
-      <span class="pixel-credit-role">Full-Stack Developer</span>
-    </div>
-    <div class="pixel-identity-panel">
-      <span class="pixel-stat-label">CREATOR-FACING IDENTITY</span>
-      <strong class="pixel-alias">YoYo assistant 💗 Mochi</strong>
-      <span class="pixel-studio">YOYO CREATIVE STUDIO</span>
-    </div>
-  </div>
-</aside>
 
 </body>
 </html>

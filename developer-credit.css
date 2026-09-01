@@ -121,3 +121,101 @@
     break-inside: avoid;
   }
 }
+
+/* Shared Seraphina profile card */
+.seraphina-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 54px minmax(0,1fr);
+  align-items: center;
+  gap: 12px;
+  width: min(470px, calc(100% - 24px));
+  margin: 30px auto 36px;
+  padding: 12px 14px 12px 10px;
+  color: #54223d;
+  background: #fffafd;
+  border: 3px solid #8d4069;
+  border-radius: 3px;
+  box-shadow: 6px 6px 0 rgba(185,47,114,.42);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  isolation: isolate;
+}
+.seraphina-card::before {
+  content: "DEVELOPER_PROFILE.EXE";
+  position: absolute;
+  left: -3px;
+  top: -25px;
+  padding: 5px 9px;
+  color: #fff;
+  background: #c83278;
+  border: 3px solid #8d4069;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  box-shadow: 3px 3px 0 rgba(185,47,114,.30);
+}
+.seraphina-card-avatar {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  background: #ffd7e8;
+  border: 3px solid #8d4069;
+  box-shadow: 3px 3px 0 #efabc8;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+  font-size: 30px;
+  line-height: 1;
+}
+.seraphina-card-copy { min-width: 0; }
+.seraphina-card-label {
+  display: block;
+  color: #a05b7b;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+.seraphina-card-name {
+  display: block;
+  margin-top: 2px;
+  color: #b12266;
+  font-family: "Snell Roundhand", "Segoe Script", "Bradley Hand", "Brush Script MT", cursive;
+  font-size: 27px;
+  font-style: italic;
+  line-height: 1;
+  text-shadow: 1px 1px 0 #fff, 3px 3px 0 #f0b2cd, 5px 5px 0 rgba(185,47,114,.16);
+}
+.seraphina-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  margin-top: 9px;
+  padding-top: 7px;
+  color: #70475b;
+  border-top: 2px dashed #edb6ce;
+  font-size: 8px;
+  font-weight: 800;
+}
+.seraphina-card-meta strong { color: #9d2c62; }
+.seraphina-card-hero {
+  grid-template-columns: 44px minmax(0,1fr);
+  width: 300px;
+  max-width: 100%;
+  margin: 0;
+  padding: 10px 11px 10px 8px;
+  color: #54223d;
+  background: rgba(255,250,253,.96);
+  border-color: #7c2855;
+  box-shadow: 5px 5px 0 rgba(112,28,70,.42);
+}
+.seraphina-card-hero::before { content: "SYSTEM CREATOR"; top: -21px; padding: 4px 7px; font-size: 7px; }
+.seraphina-card-hero .seraphina-card-avatar { width: 42px; height: 42px; border-width: 2px; font-size: 25px; box-shadow: 2px 2px 0 #efabc8; }
+.seraphina-card-hero .seraphina-card-label { font-size: 7px; }
+.seraphina-card-hero .seraphina-card-name { font-size: 21px; text-shadow: 1px 1px 0 #fff, 2px 2px 0 #f0b2cd; }
+.seraphina-card-hero .seraphina-card-meta { margin-top: 6px; padding-top: 5px; font-size: 7px; }
+@media (max-width: 680px) {
+  .seraphina-card { width: calc(100% - 16px); grid-template-columns: 48px minmax(0,1fr); gap: 10px; }
+  .seraphina-card-avatar { width: 46px; height: 46px; font-size: 27px; }
+  .seraphina-card-name { font-size: 23px; }
+  .seraphina-card-hero { width: 100%; margin-top: 30px; }
+}
