@@ -1,0 +1,123 @@
+.developer-credit {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  width: fit-content;
+  max-width: calc(100% - 24px);
+  margin: 28px auto 34px;
+  padding: 10px 16px 10px 11px;
+  color: #6d2448;
+  background:
+    linear-gradient(#fffafd, #fffafd) padding-box,
+    linear-gradient(120deg, #f7aac8, #d4749a 48%, #a56bc5) border-box;
+  border: 2px solid transparent;
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(190, 72, 125, 0.14);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  line-height: 1.15;
+  isolation: isolate;
+}
+
+.developer-credit::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  z-index: -1;
+  border: 1px solid rgba(244, 184, 209, 0.55);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.developer-credit-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  color: #fff;
+  background: linear-gradient(135deg, #ff6fa8, #c84783 58%, #8d62b4);
+  border: 2px solid rgba(255, 255, 255, 0.86);
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(200, 45, 115, 0.24);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: -1px;
+}
+
+.developer-credit-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  text-align: left;
+}
+
+.developer-credit-role {
+  color: #a15b7c;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.developer-credit-copy strong {
+  margin-top: 3px;
+  color: #b62f70;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 18px;
+  font-style: italic;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.developer-credit-sparkle {
+  color: #d58aac;
+  font-size: 13px;
+}
+
+#step-login .developer-credit,
+#login-screen .developer-credit {
+  margin-top: 24px;
+  margin-bottom: 0;
+}
+
+.developer-credit-login {
+  z-index: 2;
+  margin-top: 0 !important;
+  margin-bottom: 28px !important;
+}
+
+@media (max-width: 520px) {
+  .developer-credit {
+    gap: 8px;
+    margin-top: 22px;
+    padding: 8px 13px 8px 8px;
+  }
+
+  .developer-credit-icon {
+    flex-basis: 34px;
+    width: 34px;
+    height: 34px;
+    font-size: 11px;
+  }
+
+  .developer-credit-role {
+    font-size: 8px;
+    letter-spacing: 0.04em;
+  }
+
+  .developer-credit-copy strong {
+    font-size: 16px;
+  }
+}
+
+@media print {
+  .developer-credit {
+    margin: 12px auto 0;
+    box-shadow: none;
+    break-inside: avoid;
+  }
+}
