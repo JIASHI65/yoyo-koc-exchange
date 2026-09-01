@@ -81,9 +81,8 @@
   .redeem-balance-primary{margin-top:5px;text-align:center}.redeem-balance-primary .points-number{font-size:44px;line-height:1}.redeem-balance-primary .points-label{margin-top:5px;font-size:12px;font-weight:900;color:var(--pink-dark)}
   .redeem-balance-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:15px}
   .redeem-balance-item{padding:10px 7px;background:#fff;border:2px solid var(--line);box-shadow:3px 3px 0 var(--light);text-align:center}.redeem-balance-item strong{display:block;color:var(--pink-dark);font-size:21px;line-height:1.1}.redeem-balance-item span{display:block;margin-top:5px;color:var(--text-light);font-size:9px;font-weight:800;line-height:1.25}.redeem-balance-item.pending{background:#fff8e1;box-shadow:3px 3px 0 #ffd27f}
-  .tier-path{margin-top:18px;padding:14px 12px;background:#fff;border:3px solid var(--line);box-shadow:5px 5px 0 rgba(80,36,63,.2)}
-  .tier-path-title{text-align:left;color:var(--text-light);font-size:9px;font-weight:900;letter-spacing:.1em}.tier-path-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:10px}
-  .tier-step{position:relative;min-height:88px;padding:11px 7px 9px;border:2px solid #d8bdd0;background:#f8edf3;color:#97788a;text-align:center;opacity:.64}.tier-step-icon{display:block;font-size:22px}.tier-step-name{display:block;margin-top:4px;font-size:10px;font-weight:900;line-height:1.25}.tier-step-rule{display:block;margin-top:4px;font-size:8px;font-weight:700;line-height:1.3}.tier-step.current{opacity:1;border:3px solid var(--line);transform:translateY(-3px);box-shadow:4px 4px 0 rgba(185,47,114,.3)}.tier-step.current:before{content:'CURRENT';position:absolute;top:-10px;left:50%;transform:translateX(-50%);padding:2px 5px;background:var(--hot);color:#fff;border:2px solid var(--line);font-size:6px;font-weight:900;letter-spacing:.08em}.tier-step.reached{opacity:1}.tier-step-certified.reached{background:#e8f5e9}.tier-step-gold.reached{background:#fff8d8}.tier-step-platinum.reached{background:#eee7fa}
+  .tier-path{margin-top:13px;padding:10px;background:#fff;border:3px solid var(--line);box-shadow:4px 4px 0 rgba(80,36,63,.18)}
+  .tier-path-title{text-align:center;color:var(--text-light);font-size:8px;font-weight:900;letter-spacing:.08em}.tier-path-list{display:flex;align-items:center;gap:5px;margin-top:9px}.tier-path-arrow{flex:none;color:#c28aa5;font-size:12px;font-weight:900}.tier-step{position:relative;display:flex;align-items:center;justify-content:center;gap:4px;flex:1;min-width:0;padding:7px 4px;border:2px solid #d8bdd0;background:#f8edf3;color:#97788a;text-align:center;opacity:.58}.tier-step-icon{font-size:15px}.tier-step-name{font-size:8px;font-weight:900;line-height:1.15}.tier-step.current{opacity:1;border:3px solid var(--line);box-shadow:3px 3px 0 rgba(185,47,114,.28)}.tier-step.current:before{content:'CURRENT';position:absolute;top:-9px;left:50%;transform:translateX(-50%);padding:1px 4px;background:var(--hot);color:#fff;border:2px solid var(--line);font-size:5px;font-weight:900;letter-spacing:.06em}.tier-step.reached{opacity:1}.tier-step-certified.reached{background:#e8f5e9}.tier-step-gold.reached{background:#fff8d8}.tier-step-platinum.reached{background:#eee7fa}.tier-path-rule{margin-top:8px;color:var(--text-light);font-size:8px;font-weight:700;line-height:1.4;text-align:center}
   @keyframes tierGlow { 0%,100% { box-shadow: 0 0 30px rgba(106,61,232,0.5), 0 0 60px rgba(106,61,232,0.2), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); } 50% { box-shadow: 0 0 40px rgba(106,61,232,0.7), 0 0 80px rgba(106,61,232,0.3), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); } }
   @keyframes sparkleFloat { 0%,100% { opacity:0.3; transform:translateY(0); } 50% { opacity:0.8; transform:translateY(-2px); } }
   @keyframes sparkleBounce { 0%,100% { transform:scale(1) rotate(0deg); } 25% { transform:scale(1.2) rotate(-5deg); } 75% { transform:scale(1.1) rotate(5deg); } }
@@ -207,7 +206,7 @@ a{color:var(--pink-dark)}
   #step-login{padding:31px 14px 23px!important;box-shadow:6px 6px 0 rgba(185,47,114,.68)!important}#step-login:before{margin-top:-47px!important;font-size:9px!important}#step-login>div[style*="font-size:48px"]{font-size:19px!important}#step-login>div[style*="font-size:80px"]{font-size:54px!important}
   .card{padding:14px!important}.card-title,.level-1-title{font-size:12px!important}.submit-period-badge{font-size:14px!important;padding:7px 9px!important}.tabs{grid-template-columns:1fr 1fr!important;gap:9px!important;margin-top:33px!important;padding:10px!important}.tabs:before{font-size:10px!important;top:-23px!important}.tab{min-height:76px!important;font-size:15px!important;padding:16px 8px!important;line-height:1.4!important}.tab.active:after{font-size:7px!important}.nav-title{font-size:11px!important}
   #creator-tab-faq .suggestions{justify-content:flex-start!important;overflow-x:auto!important;flex-wrap:nowrap!important;padding-bottom:6px!important}#creator-tab-faq .suggestions .chip{flex:none!important;max-width:250px!important}
-  .reward-row{align-items:flex-start!important;gap:8px!important}.qty-selector{gap:6px!important}.tier-badge{font-size:13px!important;padding:11px 17px!important}.redeem-balance-grid{grid-template-columns:1fr 1fr}.redeem-balance-item:first-child{grid-column:1/-1}.tier-path-list{gap:5px}.tier-step{min-height:92px;padding-left:4px;padding-right:4px}.tier-step-name{font-size:9px}.tier-step-rule{font-size:7px}
+  .reward-row{align-items:flex-start!important;gap:8px!important}.qty-selector{gap:6px!important}.tier-badge{font-size:13px!important;padding:11px 17px!important}.redeem-balance-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.redeem-balance-item{padding:8px 3px}.redeem-balance-item strong{font-size:18px}.redeem-balance-item span{font-size:7px}.tier-path-list{gap:3px}.tier-path-arrow{font-size:9px}.tier-step{padding:7px 2px;gap:2px}.tier-step-icon{font-size:13px}.tier-step-name{font-size:7px}
   .submission-summary-grid{grid-template-columns:1fr 1fr;gap:8px}.submission-stat-card{padding:11px}.submission-stat-value{font-size:20px}.submission-record-head{flex-direction:column}.submission-status{align-self:flex-start}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
@@ -354,8 +353,8 @@ a{color:var(--pink-dark)}
           </div>
           <div class="redeem-balance-grid">
             <div class="redeem-balance-item"><strong id="display-month-points">--</strong><span id="display-month-points-label">Earned This Month</span></div>
-            <div class="redeem-balance-item"><strong id="display-total-balance">--</strong><span>Total Point Balance</span></div>
-            <div class="redeem-balance-item pending"><strong id="display-pending-points">--</strong><span>Reserved by Pending Orders</span></div>
+            <div class="redeem-balance-item"><strong id="display-carryover-balance">--</strong><span>Carry-over Balance</span></div>
+            <div class="redeem-balance-item"><strong id="display-redeemed-month">--</strong><span id="display-redeemed-month-label">Redeemed This Month</span></div>
           </div>
         </div>
         <div style="font-size:13px;text-align:center;color:var(--text-light);margin-top:14px;" id="display-user-redeem"></div>
@@ -985,33 +984,53 @@ async function getMonthEarnedPoints(uid, period) {
     return (d || []).reduce(function(sum, row) { return sum + (Number(row.change) || 0); }, 0);
   } catch(e) { return 0; }
 }
+async function getCarryoverBalance(uid, period) {
+  try {
+    const r = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/point_logs?uid=eq.${encodeURIComponent(uid)}&period=lt.${encodeURIComponent(period)}&select=change`);
+    const d = r.ok ? await r.json() : [];
+    return (d || []).reduce(function(sum, row) { return sum + (Number(row.change) || 0); }, 0);
+  } catch(e) { return 0; }
+}
+async function getMonthRedeemedPoints(uid, period) {
+  try {
+    const r = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/redemption_orders?uid=eq.${encodeURIComponent(uid)}&period=eq.${encodeURIComponent(period)}&status=neq.cancelled&select=points_spent`);
+    const d = r.ok ? await r.json() : [];
+    return (d || []).reduce(function(sum, row) { return sum + (Number(row.points_spent) || 0); }, 0);
+  } catch(e) { return 0; }
+}
 async function refreshAvailableBalance() {
   if (!currentUser || !currentUser.uid) return 0;
   var balanceData = await Promise.all([
     getBalance(currentUser.uid),
     getPendingRedemptionTotal(currentUser.uid),
-    getMonthEarnedPoints(currentUser.uid, currentPeriod)
+    getMonthEarnedPoints(currentUser.uid, currentPeriod),
+    getCarryoverBalance(currentUser.uid, currentPeriod),
+    getMonthRedeemedPoints(currentUser.uid, currentPeriod)
   ]);
   var freshBalance = balanceData[0];
   var pendingTotal = balanceData[1];
   var monthEarned = balanceData[2];
+  var carryoverBalance = balanceData[3];
+  var monthRedeemed = balanceData[4];
   currentUser.points = Math.max(0, freshBalance - pendingTotal);
   var pointsEl = document.getElementById('display-points');
   if (pointsEl) pointsEl.textContent = currentUser.points;
-  var totalEl = document.getElementById('display-total-balance');
-  if (totalEl) totalEl.textContent = freshBalance;
-  var pendingEl = document.getElementById('display-pending-points');
-  if (pendingEl) pendingEl.textContent = pendingTotal;
+  var carryoverEl = document.getElementById('display-carryover-balance');
+  if (carryoverEl) carryoverEl.textContent = carryoverBalance;
+  var redeemedEl = document.getElementById('display-redeemed-month');
+  if (redeemedEl) redeemedEl.textContent = monthRedeemed;
   var monthEl = document.getElementById('display-month-points');
   if (monthEl) monthEl.textContent = '+' + monthEarned;
   var periodTitle = document.getElementById('redeem-period-title');
   var monthLabel = document.getElementById('display-month-points-label');
-  if (periodTitle || monthLabel) {
+  var redeemedLabel = document.getElementById('display-redeemed-month-label');
+  if (periodTitle || monthLabel || redeemedLabel) {
     var parts = String(currentPeriod || '').split('-');
     var names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     var readablePeriod = (names[(Number(parts[1]) || 1) - 1] || parts[1] || '') + ' ' + (parts[0] || '');
     if (periodTitle) periodTitle.textContent = readablePeriod + ' Reward Balance';
     if (monthLabel) monthLabel.textContent = 'Earned in ' + readablePeriod;
+    if (redeemedLabel) redeemedLabel.textContent = 'Redeemed in ' + readablePeriod;
   }
   var redeemDisplay = document.getElementById('display-user-redeem');
   if (redeemDisplay) redeemDisplay.textContent = pendingTotal > 0 ? pendingTotal + ' pts are temporarily reserved until pending orders are processed.' : 'No points are currently reserved by pending orders.';
@@ -1026,15 +1045,16 @@ function renderCreatorTierPath(tier) {
   var rank = { certified: 0, gold: 1, platinum: 2 };
   var currentRank = rank[normalized];
   var steps = [
-    { key:'certified', icon:'✅', name:'Certified Creator', rule:'Approved creator status' },
-    { key:'gold', icon:'⭐', name:'Gold Creator', rule:'5+ base pts for 2 consecutive months' },
-    { key:'platinum', icon:'💎', name:'Platinum Creator', rule:'5+ base pts for 3 consecutive months' }
+    { key:'certified', icon:'✅', name:'Certified' },
+    { key:'gold', icon:'⭐', name:'Gold' },
+    { key:'platinum', icon:'💎', name:'Platinum' }
   ];
   root.innerHTML = '<div class="tier-path"><div class="tier-path-title">YOUR CREATOR TIER · TIERS ONLY MOVE UP</div><div class="tier-path-list">' + steps.map(function(step, index) {
     var state = index <= currentRank ? ' reached' : '';
     if (step.key === normalized) state += ' current';
-    return '<div class="tier-step tier-step-' + step.key + state + '"><span class="tier-step-icon">' + step.icon + '</span><strong class="tier-step-name">' + step.name + '</strong><span class="tier-step-rule">' + step.rule + '</span></div>';
-  }).join('') + '</div></div>';
+    var arrow = index < steps.length - 1 ? '<span class="tier-path-arrow">›</span>' : '';
+    return '<div class="tier-step tier-step-' + step.key + state + '"><span class="tier-step-icon">' + step.icon + '</span><strong class="tier-step-name">' + step.name + '</strong></div>' + arrow;
+  }).join('') + '</div><div class="tier-path-rule">Gold: 2 consecutive months · Platinum: 3 consecutive months · 5+ base points each month</div></div>';
 }
 async function login() {
   // Load current period from config before login
