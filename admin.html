@@ -4475,8 +4475,8 @@ async function startAutoWelcome(skipConfirmation) {
   }
   if (autoWelcomeInterval) clearInterval(autoWelcomeInterval);
   autoWelcomeInterval = setInterval(checkNewMembers, 5 * 60 * 1000);
-  localStorage.removeItem('mochi_auto_welcome');
-  updateAutoWelcomeUi('已开启 · 时间截面已记录，等待新成员');
+  localStorage.setItem('mochi_auto_welcome', 'enabled');
+  updateAutoWelcomeUi(skipConfirmation ? '已恢复 · 每 5 分钟检查一次' : '已开启 · 时间截面已记录，等待新成员');
 }
 
 async function toggleAutoWelcome() {
@@ -4570,9 +4570,18 @@ async function checkNewMembers() {
   }
 }
 
-function restoreAutoWelcome() {
-  localStorage.removeItem('mochi_auto_welcome');
-  updateAutoWelcomeUi();
+async function restoreAutoWelcome() {
+  if (localStorage.getItem('mochi_auto_welcome') !== 'enabled') {
+    updateAutoWelcomeUi();
+    return;
+  }
+  if (!MOCHI_TOKEN) {
+    localStorage.removeItem('mochi_auto_welcome');
+    updateAutoWelcomeUi('已关闭 · 保存 Bot Token 后请重新开启');
+    return;
+  }
+  await loadLastCheckedJoinId();
+  await startAutoWelcome(true);
 }
 
 function openMochiBroadcast() {
