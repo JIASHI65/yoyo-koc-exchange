@@ -2030,7 +2030,8 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
   }
 
   var html = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-top:10px;">';
-  html += '<div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-size:19px;font-weight:900;color:var(--pink-dark);">' + esc(monthLabel) + '</span><span class="submission-platform-chip">Base score · ' + baseContentScore + '</span></div>';
+  var availableBalance = currentUser && Number.isFinite(Number(currentUser.points)) ? Number(currentUser.points) : 0;
+  html += '<div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><span style="font-size:19px;font-weight:900;color:var(--pink-dark);">' + esc(monthLabel) + '</span><span class="submission-platform-chip">Scored base points · ' + baseContentScore + '</span><span class="submission-platform-chip" style="background:#fff8e1;box-shadow:2px 2px 0 #ffd27f;">Available balance · ' + availableBalance + '</span></div>';
   html += '<div style="margin-top:4px;font-size:11px;color:var(--text-light);">' + scoredCount + ' scored · ' + pendingCount + ' pending' + (rejectedCount ? ' · ' + rejectedCount + ' rejected' : '') + '</div></div>';
   html += '<div style="font-size:11px;color:var(--text-light);text-align:right;">Base score comes from scored work only.<br>Bonuses and carry-over do not affect creator tiers.</div></div>';
 
@@ -2060,9 +2061,9 @@ function renderMonthView(ym, months, byMonth, ptLogs, container, countEl, period
   }
 
   if (currentTier === 'certified') {
-    html += '<div class="submission-progress-card"><div class="submission-progress-row"><span>⭐ Gold Creator Progress</span><span>' + baseContentScore + ' base pts</span></div><div class="submission-stat-note">Earn at least 5 base content points for 2 consecutive months.</div></div>';
+    html += '<div class="submission-progress-card"><div class="submission-progress-row"><span>⭐ Gold Creator Progress</span><span>' + baseContentScore + ' scored base pts</span></div><div class="submission-stat-note">Pending submissions show 0 until monthly review is completed. This does not remove or reset your available point balance. Gold requires 5+ scored base points for 2 consecutive months.</div></div>';
   } else if (currentTier === 'gold') {
-    html += '<div class="submission-progress-card"><div class="submission-progress-row"><span>💎 Platinum Creator Progress</span><span>' + baseContentScore + ' base pts</span></div><div class="submission-stat-note">Earn at least 5 base content points for 3 consecutive months.</div></div>';
+    html += '<div class="submission-progress-card"><div class="submission-progress-row"><span>💎 Platinum Creator Progress</span><span>' + baseContentScore + ' scored base pts</span></div><div class="submission-stat-note">Pending submissions show 0 until monthly review is completed. This does not remove or reset your available point balance. Platinum requires 5+ scored base points for 3 consecutive months.</div></div>';
   }
 
   if (!subs.length) {
