@@ -2271,9 +2271,9 @@ async function sendMochiDM(discordUsername, message, discordId, guildId) {
     var member = discordId ? { id: discordId } : null;
     if (!member) {
       // 兼容手动添加和 CSV：没有 Discord ID 时才按昵称查找
-      var memberData = await discordProxyFetch('list_all_members', {}, MOCHI_TOKEN);
+      var memberData = await discordProxyFetch('list_members', { guild_id: guildId || DISCORD_GUILD_ID }, MOCHI_TOKEN);
       if (!memberData.ok) return { ok: false, reason: memberData.error || '获取成员失败' };
-      var members = (memberData.data && memberData.data.members) || [];
+      var members = Array.isArray(memberData.data) ? memberData.data : ((memberData.data && memberData.data.members) || []);
 
       // Normalize: strip emoji/special chars, lowercase, trim
       function norm(n) {
@@ -4019,7 +4019,7 @@ function buildMochiCsvTargets(text) {
     var dedupe = ((k && k.uid) || key || sendName).toLowerCase();
     if (seen[dedupe]) return; seen[dedupe] = true;
     var reason = !k ? '未匹配 KOC' : hasCurrentScored ? currentPeriod + ' 已评分' : currentPeriod + ' 无已评分记录';
-    out.push({ discord_name: sendName, csv_name: name, uid: (k && k.uid) || key, account_id: (k && k.account_id) || '', message: msg, matched: !!k, eligible: hasCurrentScored, checked: false, reason: reason });
+    out.push({ discord_name: sendName, csv_name: name, uid: (k && k.uid) || key, account_id: (k && k.account_id) || '', message: msg, matched: !!k, eligible: hasCurrentScored, checked: false, reason: reason, username: '', global_name: '', discord_id: '', guild_id: DISCORD_GUILD_ID });
   });
   return out;
 }
@@ -4092,7 +4092,7 @@ async function previewBroadcast(type) {
     // Step 2: 从 KOC 信息库获取已有创作者数据
     var kocData = [];
     try {
-      var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=discord_name,uid,tier,notes,created_at&status=eq.active');
+      var kocRes = await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?select=discord_name,uid,account_id,tier,notes,created_at&status=eq.active');
       if (kocRes.ok) kocData = await kocRes.json() || [];
     } catch(e) {
       console.warn('KOC fetch failed, continuing without KOC data:', e);
@@ -4143,11 +4143,13 @@ async function previewBroadcast(type) {
         targets.push({
           discord_name: displayName,
           uid: koc.uid,
+          account_id: koc.account_id || '',
           discord_id: member.id,
           guild_id: DISCORD_GUILD_ID,
           checked: false,
           reason: '当前月未提交普通作品',
-          username: member.username || ''
+          username: member.username || '',
+          global_name: member.global_name || ''
         });
       });
       mochiBroadcastTargets = targets;
@@ -4214,11 +4216,13 @@ async function previewBroadcast(type) {
         targets.push({
           discord_name: displayName,
           uid: uid,
+          account_id: koc ? (koc.account_id || '') : '',
           discord_id: m.id,
           guild_id: DISCORD_GUILD_ID,
           checked: checked,
           reason: reason,
-          username: name
+          username: name,
+          global_name: m.global_name || ''
         });
       }
     });
@@ -4271,14 +4275,17 @@ function filterBroadcastList() {
   var totalChecked = 0;
   targets.forEach(function(t) { if (t.checked) totalChecked++; });
   targets.forEach(function(t, i) {
-    var match = !q || (t.discord_name||'').toLowerCase().indexOf(q) >= 0 || (t.uid||'').toLowerCase().indexOf(q) >= 0;
+    var searchable = [t.discord_name, t.username, t.global_name, t.uid, t.account_id, t.discord_id].map(function(value) { return String(value || '').toLowerCase(); });
+    var match = !q || searchable.some(function(value) { return value.indexOf(q) >= 0; });
     if (!match) return;
     if (mode === 'checked_only' && !t.checked) return;
     if (mode === 'unchecked_only' && t.checked) return;
     filteredCount++;
     html += '<div class="bc-target-row" data-index="' + i + '" style="display:grid;grid-template-columns:24px 1fr auto;gap:4px;align-items:center;padding:5px 4px;font-size:12px;' + (t.checked ? '' : 'opacity:0.5;') + '">';
     html += '<input type="checkbox" class="bc-target-cb" data-index="' + i + '" onchange="setBroadcastTargetChecked(' + i + ', this.checked)" ' + (t.checked ? 'checked' : '') + '>';
-    html += '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(t.discord_name) + (t.uid ? ' <span style="color:#999;">(' + esc(t.uid) + ')</span>' : '') + '</span>';
+    var identity = t.discord_name || t.username || t.global_name || '(unknown)';
+    var secondary = [t.username && t.username !== identity ? '@' + t.username : '', t.global_name && t.global_name !== identity ? t.global_name : '', t.uid, t.discord_id].filter(Boolean).join(' · ');
+    html += '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(identity) + (secondary ? ' <span style="color:#999;">(' + esc(secondary) + ')</span>' : '') + '</span>';
     html += t.reason ? '<span style="color:#e65100;font-size:11px;text-align:right;white-space:nowrap;">' + esc(t.reason) + '</span>' : '<span></span>';
     html += '</div>';
   });
