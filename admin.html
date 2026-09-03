@@ -1522,7 +1522,7 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
         <div>
           <div style="font-size:13px;font-weight:700;color:#3347a8;">📬 Discord 新人自动欢迎</div>
-          <div style="font-size:11px;color:var(--text-light);margin-top:2px;">开启时记录一个时间截面；之后每 5 分钟检查 join-leave-log，所有新入群账号都会收到欢迎私信。</div>
+          <div style="font-size:11px;color:var(--text-light);margin-top:2px;">每次打开时，从上次成功检查的位置开始检查 join-leave-log；之后每 5 分钟继续检查。</div>
         </div>
         <button class="btn btn-sm" onclick="toggleAutoWelcome()" id="btn-auto-welcome" style="font-weight:700;min-width:112px;">⚪ 已关闭</button>
       </div>
@@ -4441,15 +4441,15 @@ async function startAutoWelcome(skipConfirmation) {
   }
   if (!skipConfirmation && !confirmDanger('开启 Discord 新人自动欢迎？', [
     'MochiBot 每 5 分钟检查一次新人入群记录。',
-    '从本次开启的时间截面开始，之后所有新入群账号都会收到私信。',
-    '开启前已经在群里的成员和管理员不会补发。',
+    '会检查上次成功检查到本次打开之间的新入群账号。',
+    '首次使用才建立起点；首次使用前已经入群的人不会补发。',
     '只有管理后台页面保持打开时才会运行。'
   ])) return;
 
   if (!skipConfirmation) {
     var baselineData = await discordProxyFetch('list_channel_messages', {
       channel_id: DISCORD_JOIN_LOG_CHANNEL_ID,
-      limit: 20
+      limit: 100
     }, MOCHI_TOKEN);
     if (!baselineData.ok) {
       updateAutoWelcomeUi('开启失败：' + (baselineData.error || '读取入群频道失败'));
@@ -4470,13 +4470,23 @@ async function startAutoWelcome(skipConfirmation) {
       showToast('无法建立时间截面：未找到 Member joined 记录', 'error');
       return;
     }
-    lastCheckedJoinId = latestJoinId;
-    await saveLastCheckedJoinId();
+    if (!lastCheckedJoinId) {
+      lastCheckedJoinId = latestJoinId;
+      await saveLastCheckedJoinId();
+    }
   }
   if (autoWelcomeInterval) clearInterval(autoWelcomeInterval);
   autoWelcomeInterval = setInterval(checkNewMembers, 5 * 60 * 1000);
   localStorage.setItem('mochi_auto_welcome', 'enabled');
-  updateAutoWelcomeUi(skipConfirmation ? '已恢复 · 每 5 分钟检查一次' : '已开启 · 时间截面已记录，等待新成员');
+  if (skipConfirmation) {
+    updateAutoWelcomeUi('已恢复 · 正在检查上次以来的新成员');
+    await checkNewMembers();
+  } else if (lastCheckedJoinId === latestJoinId) {
+    updateAutoWelcomeUi('已开启 · 首次起点已记录，等待新成员');
+  } else {
+    updateAutoWelcomeUi('已开启 · 正在检查上次以来的新成员');
+    await checkNewMembers();
+  }
 }
 
 async function toggleAutoWelcome() {
@@ -4500,7 +4510,7 @@ async function checkLatestNewMember() {
     return;
   }
   if (!autoWelcomeInterval) {
-    updateAutoWelcomeUi('请先开启自动欢迎，建立时间截面');
+      updateAutoWelcomeUi('请先开启自动欢迎');
     showToast('请先开启自动欢迎', 'error');
     return;
   }
@@ -4513,7 +4523,7 @@ async function checkNewMembers() {
   try {
     var messageData = await discordProxyFetch('list_channel_messages', {
       channel_id: DISCORD_JOIN_LOG_CHANNEL_ID,
-      limit: 20
+      limit: 100
     }, MOCHI_TOKEN);
     if (!messageData.ok) throw new Error(messageData.error || '读取入群频道失败');
 
