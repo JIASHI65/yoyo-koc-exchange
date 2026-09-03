@@ -4110,6 +4110,42 @@ async function previewBroadcast(type) {
     var msgs = getMochiMessageTemplates();
     msg = msgs[type] || msgs['welcome'];
 
+    if (type === 'reminder') {
+      var submittedUids = {};
+      var submittedNames = {};
+      (subs || []).forEach(function(s) {
+        if (!s || getRowPeriod(s) !== currentPeriod || s.submission_type === 'showcase') return;
+        if (s.uid) submittedUids[String(s.uid).toLowerCase().trim()] = true;
+        if (s.discord_name) submittedNames[String(s.discord_name).toLowerCase().trim()] = true;
+      });
+      var membersByName = {};
+      allMembers.forEach(function(m) {
+        var memberName = m.nick || m.global_name || m.username || '';
+        [memberName, m.username, m.global_name, m.nick].forEach(function(value) {
+          if (value) membersByName[String(value).toLowerCase().trim()] = m;
+        });
+      });
+      kocData.forEach(function(koc) {
+        if (!koc || !koc.uid || submittedUids[String(koc.uid).toLowerCase().trim()]) return;
+        if (koc.discord_name && submittedNames[String(koc.discord_name).toLowerCase().trim()]) return;
+        var member = membersByName[String(koc.discord_name || '').toLowerCase().trim()];
+        if (!member) return;
+        var displayName = member.nick || member.global_name || member.username || koc.discord_name;
+        targets.push({
+          discord_name: displayName,
+          uid: koc.uid,
+          discord_id: member.id,
+          checked: false,
+          reason: '当前月未提交普通作品',
+          username: member.username || ''
+        });
+      });
+      mochiBroadcastTargets = targets;
+      renderBroadcastPreview(targets, msg);
+      showToast('✅ 已加载 ' + targets.length + ' 位未提交当前月作品的 KOC，请手动勾选收件人', 'success');
+      return;
+    }
+
     allMembers.forEach(function(m) {
       var name = m.username || '';
       var nick = m.nick || m.global_name || '';
@@ -4129,16 +4165,6 @@ async function previewBroadcast(type) {
           } else {
             checked = false;
             reason = '已注册';
-          }
-          break;
-
-        case 'reminder':
-          if (isKoc) {
-            checked = true;
-            reason = '待提交';
-          } else {
-            checked = false;
-            reason = '未注册创作者';
           }
           break;
 
