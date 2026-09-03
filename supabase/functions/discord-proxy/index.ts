@@ -201,7 +201,11 @@ serve(async (req) => {
         });
         const msgBody = await msgRes.text();
         if (!msgRes.ok) {
-          return new Response(JSON.stringify({ ok: false, error: `发送消息失败: ${msgRes.status} ${msgBody}` }), {
+          let diagnostic = '';
+          if (msgRes.status === 403) {
+            diagnostic = ` [诊断: dm_channel=${dm.id}, target_guild=${guild_id || "not_provided"}, user_id=${user_id}]`;
+          }
+          return new Response(JSON.stringify({ ok: false, error: `发送消息失败: ${msgRes.status} ${msgBody}${diagnostic}` }), {
             status: msgRes.status, headers,
           });
         }
