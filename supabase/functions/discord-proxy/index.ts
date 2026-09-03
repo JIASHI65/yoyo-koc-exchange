@@ -176,7 +176,19 @@ serve(async (req) => {
         });
         const dmBody = await dmRes.text();
         if (!dmRes.ok) {
-          return new Response(JSON.stringify({ ok: false, error: `创建DM失败: ${dmRes.status} ${dmBody}` }), {
+          let diagnostic = '';
+          if (guild_id && dmRes.status === 403) {
+            try {
+              const meRes = await fetch(`${DISCORD_API}/users/@me`, { headers: authHeaders });
+              const meBody = await meRes.text();
+              const guildsRes = await fetch(`${DISCORD_API}/users/@me/guilds`, { headers: authHeaders });
+              const guildsBody = await guildsRes.text();
+              const me = meRes.ok ? JSON.parse(meBody) : null;
+              const guilds = guildsRes.ok ? JSON.parse(guildsBody) : [];
+              diagnostic = ` [诊断: Bot=${me?.id || "unknown"}, target_guild=${guild_id}, bot_in_target_guild=${guilds.some((guild: any) => String(guild.id) === String(guild_id))}, bot_guild_count=${guilds.length}]`;
+            } catch (_) {}
+          }
+          return new Response(JSON.stringify({ ok: false, error: `创建DM失败: ${dmRes.status} ${dmBody}${diagnostic}` }), {
             status: dmRes.status, headers,
           });
         }
