@@ -2264,7 +2264,7 @@ function updateAgentRulesFromConfig() {
 
 // ===== MOCHI DISCORD BOT FUNCTIONS =====
 // Send a DM to a user by their Discord username (resolves member first)
-async function sendMochiDM(discordUsername, message, discordId) {
+async function sendMochiDM(discordUsername, message, discordId, guildId) {
   if (!discordUsername && !discordId) return { ok: false, reason: '缺少 Discord 用户' };
   if (!MOCHI_TOKEN) MOCHI_TOKEN = document.getElementById('mochi-token-input').value;
   try {
@@ -2304,8 +2304,11 @@ async function sendMochiDM(discordUsername, message, discordId) {
       return { ok: false, reason: '在服务器中未找到用户: ' + discordUsername };
     }
 
+    // Verify the recipient is still in the target server before sending.
+    var verifyData = await discordProxyFetch('check_member', { guild_id: guildId || DISCORD_GUILD_ID, user_id: member.id }, MOCHI_TOKEN);
+    if (!verifyData.ok || !verifyData.member) return { ok: false, reason: verifyData.error || '用户不在目标 Discord 服务器中' };
     // Step 2: 通过 Edge Function 发送私信
-    var dmData = await discordProxyFetch('send_dm', { user_id: member.id, message: message }, MOCHI_TOKEN);
+    var dmData = await discordProxyFetch('send_dm', { user_id: member.id, message: message, guild_id: guildId || DISCORD_GUILD_ID }, MOCHI_TOKEN);
     if (!dmData.ok) return { ok: false, reason: dmData.error || '发送失败' };
     return { ok: true, reason: '' };
     // Audit log for DMs is handled by confirmBroadcast
@@ -4140,6 +4143,7 @@ async function previewBroadcast(type) {
           discord_name: displayName,
           uid: koc.uid,
           discord_id: member.id,
+          guild_id: DISCORD_GUILD_ID,
           checked: false,
           reason: '当前月未提交普通作品',
           username: member.username || ''
@@ -4210,6 +4214,7 @@ async function previewBroadcast(type) {
           discord_name: displayName,
           uid: uid,
           discord_id: m.id,
+          guild_id: DISCORD_GUILD_ID,
           checked: checked,
           reason: reason,
           username: name
@@ -4379,7 +4384,7 @@ async function confirmBroadcast() {
     var statusElCsv = document.getElementById('mochi-status');
     var sentCsv = 0, failedCsv = 0, failedCsvDetails = [];
     for (var j = 0; j < csvTargets.length; j++) {
-      var r = await sendMochiDM(csvTargets[j].discord_name, mochiSupportFooter(csvTargets[j].message));
+      var r = await sendMochiDM(csvTargets[j].discord_name, mochiSupportFooter(csvTargets[j].message), csvTargets[j].discord_id, csvTargets[j].guild_id);
       if (r.ok) sentCsv++; else { failedCsv++; failedCsvDetails.push(csvTargets[j].discord_name + ': ' + r.reason); }
       statusElCsv.textContent = '⏳ CSV进度: ' + (j+1) + '/' + csvTargets.length + ' (成功' + sentCsv + ', 失败' + failedCsv + (r.ok ? '' : '：' + csvTargets[j].discord_name + ' ' + r.reason) + ')';
       if (j < csvTargets.length - 1) await new Promise(function(resolve){ setTimeout(resolve, 15000); });
@@ -4416,7 +4421,7 @@ async function confirmBroadcast() {
   var failed = 0;
   var failedDetails = [];
   for (var i = 0; i < targets.length; i++) {
-    var result = await sendMochiDM(targets[i].discord_name, msg, targets[i].discord_id);
+    var result = await sendMochiDM(targets[i].discord_name, msg, targets[i].discord_id, targets[i].guild_id);
     if (result.ok) { sent++; } else { failed++; failedDetails.push(targets[i].discord_name + ': ' + result.reason); }
     statusEl.textContent = '⏳ 进度: ' + (i+1) + '/' + targets.length + ' (成功' + sent + ', 失败' + failed + ')';
     if (i < targets.length - 1) await new Promise(r => setTimeout(r, 15000));

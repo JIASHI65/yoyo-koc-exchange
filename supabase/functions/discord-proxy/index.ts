@@ -129,8 +129,26 @@ serve(async (req) => {
       }
 
       // 发送私信给用户
+      case "check_member": {
+        const { guild_id, user_id } = data;
+        if (!guild_id || !user_id || !/^\d{17,20}$/.test(String(user_id))) {
+          return new Response(JSON.stringify({ ok: false, error: "服务器 ID 或 Discord 用户 ID 无效" }), { status: 400, headers });
+        }
+        const memberRes = await fetch(`${DISCORD_API}/guilds/${guild_id}/members/${user_id}`, { headers: authHeaders });
+        const memberBody = await memberRes.text();
+        if (!memberRes.ok) {
+          return new Response(JSON.stringify({ ok: false, member: false, error: `目标用户不在该服务器或 Bot 无权读取成员: ${memberRes.status} ${memberBody}` }), {
+            status: memberRes.status, headers,
+          });
+        }
+        const member = JSON.parse(memberBody);
+        result = { ok: true, member: { id: member.user?.id || user_id, username: member.user?.username || "", nick: member.nick || "" } };
+        break;
+      }
+
+      // 发送私信给用户
       case "send_dm": {
-        const { user_id, message } = data;
+        const { user_id, message, guild_id } = data;
         if (!user_id || !/^\d{17,20}$/.test(String(user_id))) {
           return new Response(JSON.stringify({ ok: false, error: "Discord 用户 ID 无效" }), {
             status: 400, headers,
@@ -140,6 +158,15 @@ serve(async (req) => {
           return new Response(JSON.stringify({ ok: false, error: "私信内容不能为空" }), {
             status: 400, headers,
           });
+        }
+        if (guild_id) {
+          const memberRes = await fetch(`${DISCORD_API}/guilds/${guild_id}/members/${user_id}`, { headers: authHeaders });
+          if (!memberRes.ok) {
+            const memberBody = await memberRes.text();
+            return new Response(JSON.stringify({ ok: false, error: `目标用户不在目标服务器，已阻止发送: ${memberRes.status} ${memberBody}` }), {
+              status: memberRes.status, headers,
+            });
+          }
         }
         // 1. 创建 DM 频道
         const dmRes = await fetch(`${DISCORD_API}/users/@me/channels`, {
