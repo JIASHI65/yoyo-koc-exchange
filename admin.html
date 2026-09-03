@@ -2306,7 +2306,8 @@ async function sendMochiDM(discordUsername, message, discordId, guildId) {
 
     // Verify the recipient is still in the target server before sending.
     var verifyData = await discordProxyFetch('check_member', { guild_id: guildId || DISCORD_GUILD_ID, user_id: member.id }, MOCHI_TOKEN);
-    if (!verifyData.ok || !verifyData.member) return { ok: false, reason: verifyData.error || '用户不在目标 Discord 服务器中' };
+    var verifiedMember = verifyData && verifyData.data && verifyData.data.member;
+    if (!verifyData.ok || !verifiedMember) return { ok: false, reason: (verifyData && (verifyData.error || (verifyData.data && verifyData.data.error))) || '用户不在目标 Discord 服务器中' };
     // Step 2: 通过 Edge Function 发送私信
     var dmData = await discordProxyFetch('send_dm', { user_id: member.id, message: message, guild_id: guildId || DISCORD_GUILD_ID }, MOCHI_TOKEN);
     if (!dmData.ok) return { ok: false, reason: dmData.error || '发送失败' };
