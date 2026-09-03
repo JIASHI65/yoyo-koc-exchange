@@ -1581,6 +1581,11 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
         <button class="btn btn-primary" style="flex:1;background:#5865F2;font-weight:700;" onclick="confirmBroadcast()">📤 确认发送</button>
         <button class="btn btn-outline" style="flex:0.4;" onclick="document.getElementById('broadcast-preview-area').style.display='none'">✖ 取消</button>
       </div>
+      <div id="broadcast-send-result" style="display:none;margin-top:10px;padding:9px;background:#f8f9ff;border:1px solid #cbd5ff;border-radius:8px;font-size:11px;line-height:1.5;">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:700;color:#3347a8;"><span>📌 发送结果（保留至手动清除）</span><button class="btn btn-sm" style="font-size:10px;padding:3px 7px;" onclick="clearBroadcastSendResult()">清除</button></div>
+        <div id="broadcast-send-summary" style="margin-top:5px;"></div>
+        <div id="broadcast-send-failures" style="display:none;max-height:180px;overflow-y:auto;margin-top:5px;padding:6px;background:#fff5f5;border:1px solid #ffcdd2;border-radius:6px;color:#b71c1c;white-space:pre-wrap;word-break:break-word;"></div>
+      </div>
     </div>
 
     <div class="row">
@@ -4326,6 +4331,27 @@ function removeBroadcastTarget() {
   renderBroadcastPreview(mochiBroadcastTargets, msg);
 }
 
+function showBroadcastSendResult(summary, failures) {
+  var result = document.getElementById('broadcast-send-result');
+  var summaryEl = document.getElementById('broadcast-send-summary');
+  var failuresEl = document.getElementById('broadcast-send-failures');
+  if (summaryEl) summaryEl.textContent = summary || '';
+  if (failuresEl) {
+    failuresEl.textContent = (failures || []).join('\n');
+    failuresEl.style.display = failures && failures.length ? 'block' : 'none';
+  }
+  if (result) result.style.display = 'block';
+}
+
+function clearBroadcastSendResult() {
+  var result = document.getElementById('broadcast-send-result');
+  if (result) result.style.display = 'none';
+  var summaryEl = document.getElementById('broadcast-send-summary');
+  var failuresEl = document.getElementById('broadcast-send-failures');
+  if (summaryEl) summaryEl.textContent = '';
+  if (failuresEl) failuresEl.textContent = '';
+}
+
 async function confirmBroadcast() {
   if (mochiBroadcastType === 'template_only') {
     showToast('审核通过通知模板仅供查看，不能从广播窗口发送', 'info');
@@ -4359,6 +4385,7 @@ async function confirmBroadcast() {
       if (j < csvTargets.length - 1) await new Promise(function(resolve){ setTimeout(resolve, 15000); });
     }
     statusElCsv.textContent = '✅ CSV完成！成功: ' + sentCsv + ', 失败: ' + failedCsv + (failedCsvDetails.length ? '｜' + failedCsvDetails.join('；') : '');
+    showBroadcastSendResult('CSV 完成 · 成功: ' + sentCsv + ' · 失败: ' + failedCsv, failedCsvDetails);
     showToast('✅ 已发送 ' + sentCsv + '/' + csvTargets.length + ' 条 CSV 私信', sentCsv > 0 ? 'success' : 'error');
     if (sentCsv > 0) writeAuditLog('config', 'Mochi CSV广播发送 ' + sentCsv + '/' + csvTargets.length + ' 条');
     return;
@@ -4395,13 +4422,10 @@ async function confirmBroadcast() {
     if (i < targets.length - 1) await new Promise(r => setTimeout(r, 15000));
   }
   statusEl.textContent = '✅ 完成！成功: ' + sent + ', 失败: ' + failed + (failedDetails.length ? '｜' + failedDetails.join('；') : '');
+  showBroadcastSendResult('完成 · 成功: ' + sent + ' · 失败: ' + failed, failedDetails);
   showToast('✅ 已发送 ' + sent + '/' + targets.length + ' 条私信', sent > 0 ? 'success' : 'error');
   if (sent > 0) writeAuditLog('config', 'Mochi广播: ' + mochiBroadcastType + ' 发送 ' + sent + '/' + targets.length + ' 条');
 
-  setTimeout(function() {
-    document.getElementById('broadcast-preview-area').style.display = 'none';
-    statusEl.textContent = '';
-  }, 5000);
 }
 
 // sendDMPreset kept as stub for backward compat
