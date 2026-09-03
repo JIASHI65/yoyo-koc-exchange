@@ -4060,21 +4060,21 @@ async function previewBroadcast(type) {
   showToast('🔍 正在从 Discord 拉取成员...', 'info');
 
   try {
-    // Step 1: 从 Discord 获取所有成员
-    var memberData = await discordProxyFetch('list_all_members', {}, MOCHI_TOKEN);
+    // Step 1: 只从目标 Discord 服务器获取成员
+    var memberData = await discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN);
     if (!memberData.ok) {
       showToast('API返回错误: ' + JSON.stringify(memberData), 'error');
       console.error('previewBroadcast memberData:', memberData);
       return;
     }
-    var allMembers = (memberData.data && memberData.data.members) || [];
+    var allMembers = Array.isArray(memberData.data) ? memberData.data : ((memberData.data && memberData.data.members) || []);
     // Filter out bots
     allMembers = allMembers.filter(function(m) {
       return m && m.username && !m.username.toLowerCase().includes('bot');
     });
 
     if (allMembers.length === 0) {
-      showToast('Discord 服务器没有找到成员，请检查 Bot Token 和服务器 ID', 'error');
+      showToast('目标 Discord 服务器没有找到成员，请检查 Bot Token 和服务器 ID', 'error');
       var dbg = document.getElementById('mochi-debug');
       if (dbg) { dbg.style.display = 'block'; dbg.textContent = 'No members returned from API - check token/guild'; }
       return;
