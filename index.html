@@ -213,6 +213,12 @@ a{color:var(--pink-dark)}
 .submission-record-score{margin-top:7px;font-size:12px;font-weight:900;color:var(--pink-dark)}
 .submission-status{flex:none;padding:5px 8px;border:2px solid currentColor;font-size:10px;font-weight:900;white-space:nowrap}
 .submission-status-pending{color:#e65100;background:#fff3e0}.submission-status-scored{color:#2e7d32;background:#e8f5e9}.submission-status-rejected{color:#777;background:#f3f3f3}
+.card-title{background:linear-gradient(90deg,var(--hot),#a968d4,var(--hot))!important;background-size:220% 100%!important;animation:portalTitleSweep 6s linear infinite}
+.tab.active{background:linear-gradient(90deg,var(--hot),#a968d4,var(--hot))!important;background-size:220% 100%!important;animation:portalTitleSweep 5s linear infinite}
+.btn-primary:not(:disabled){background:linear-gradient(90deg,#dc4f94,#925ed0,#dc4f94)!important;background-size:220% 100%!important;animation:portalButtonSweep 5s linear infinite}
+.btn:focus-visible,.tab:focus-visible,.btn-qty:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #9b68d0;outline-offset:3px}
+@keyframes portalTitleSweep{0%{background-position:0 0}100%{background-position:220% 0}}
+@keyframes portalButtonSweep{0%{background-position:0 0}100%{background-position:220% 0}}
 #creator-tab-redeem .card-title{position:relative;overflow:hidden;background:linear-gradient(90deg,#d84d91,#9561cf 48%,#e25b9d,#d84d91)!important;background-size:240% 100%!important;animation:rewardTitleSweep 4s linear infinite}
 #creator-tab-redeem .card-title::after{content:"✦  ✧  ✦";position:absolute;right:12px;top:50%;color:#fff;font-size:9px;letter-spacing:4px;text-shadow:0 0 7px #fff;transform:translateY(-50%);pointer-events:none}
 #creator-tab-redeem .reward-row{position:relative;min-height:78px;overflow:hidden;isolation:isolate;transition:border-color .2s ease,box-shadow .2s ease,background .2s ease!important}

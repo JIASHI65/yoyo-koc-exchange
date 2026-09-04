@@ -654,6 +654,26 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
   box-shadow: 8px 8px 0 rgba(185,47,114,.44) !important;
 }
 
+/* Shared visual language: practical admin UI with the creator portal palette */
+#admin-panel > .header {
+  background: linear-gradient(105deg,#ff4f9a,#b66be0 52%,#ef8fbd);
+  background-size: 220% 100%;
+  animation: adminHeaderSweep 8s linear infinite;
+}
+#admin-panel > .header h1 { letter-spacing: .01em; }
+.tabs { border-color: #a04b7a; }
+.tab.active { background: linear-gradient(90deg,#ff5a9d,#a968d4); background-size: 200% 100%; animation: adminActiveTabSweep 4s linear infinite; }
+.card-title { background: linear-gradient(90deg,#ff5a9d,#a968d4,#ff78ae); background-size: 220% 100%; animation: adminTitleSweep 6s linear infinite; }
+.btn-primary { background: linear-gradient(90deg,#e45191,#9c62d0,#e45191); background-size: 220% 100%; animation: adminButtonSweep 5s linear infinite; }
+.badge-pending { border-color: #f2b84b; }
+.badge-shipped { border-color: #68b985; }
+.badge-cancelled { border-color: #df7777; }
+.toast { max-width: min(620px, calc(100vw - 28px)); line-height: 1.5; }
+@keyframes adminHeaderSweep { 0% { background-position: 0 0; } 100% { background-position: 220% 0; } }
+@keyframes adminActiveTabSweep { 0% { background-position: 0 0; } 100% { background-position: 200% 0; } }
+@keyframes adminTitleSweep { 0% { background-position: 0 0; } 100% { background-position: 220% 0; } }
+@keyframes adminButtonSweep { 0% { background-position: 0 0; } 100% { background-position: 220% 0; } }
+
 @media (max-width: 900px) {
   #admin-panel > .header { grid-template-columns: 1fr auto; border-radius: 4px; }
   .admin-header-credit { justify-self: end; }
@@ -671,6 +691,8 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
   .admin-header-tools > div:first-child { flex: 1 1 100%; justify-content: center; }
   .admin-header-logout { grid-column: auto; grid-row: auto; justify-self: stretch; }
   #login-screen { border-width: 3px !important; box-shadow: 5px 5px 0 rgba(185,47,114,.40) !important; }
+  .card-title { padding: 9px 10px; font-size: 13px; }
+  .btn { min-height: 40px; }
 }
 </style>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
