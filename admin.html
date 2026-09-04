@@ -669,12 +669,65 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
 .badge-shipped { border-color: #68b985; }
 .badge-cancelled { border-color: #df7777; }
 .toast { max-width: min(620px, calc(100vw - 28px)); line-height: 1.5; }
+.toast.error { pointer-events: auto; cursor: pointer; }
+.empty-state { border: 2px dashed #e7b8cf; background: linear-gradient(135deg,#fffafd,#fff3f8); }
 @keyframes adminHeaderSweep { 0% { background-position: 0 0; } 100% { background-position: 220% 0; } }
 @keyframes adminActiveTabSweep { 0% { background-position: 0 0; } 100% { background-position: 200% 0; } }
 @keyframes adminTitleSweep { 0% { background-position: 0 0; } 100% { background-position: 220% 0; } }
 @keyframes adminButtonSweep { 0% { background-position: 0 0; } 100% { background-position: 220% 0; } }
 
+@media (min-width: 901px) {
+  #admin-panel {
+    display: grid;
+    grid-template-columns: 188px minmax(0,1fr);
+    align-items: start;
+    gap: 16px 18px;
+  }
+  #admin-panel.hidden { display: none !important; }
+  #admin-panel > .header { grid-column: 1 / -1; width: 100%; }
+  #admin-panel > .tabs {
+    grid-column: 1;
+    grid-row: 2;
+    position: sticky;
+    top: 92px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    width: 100%;
+    max-height: calc(100vh - 108px);
+    margin: 0;
+    padding: 8px;
+    overflow-y: auto;
+  }
+  #admin-panel > .tabs::before {
+    content: "MANAGEMENT MODULES";
+    display: block;
+    padding: 6px 5px 8px;
+    color: #9b5577;
+    border-bottom: 2px dashed #e8b8cf;
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: .09em;
+    text-align: center;
+  }
+  #admin-panel > .tabs .tab {
+    flex: none;
+    width: 100%;
+    min-width: 0;
+    padding: 10px 9px;
+    text-align: left;
+  }
+  #admin-panel > .tab-content {
+    grid-column: 2;
+    grid-row: 2;
+    min-width: 0;
+  }
+}
+
 @media (max-width: 900px) {
+  #admin-panel { display: block; }
+  #admin-panel.hidden { display: none !important; }
   #admin-panel > .header { grid-template-columns: 1fr auto; border-radius: 4px; }
   .admin-header-credit { justify-self: end; }
   .admin-header-tools { grid-column: 1 / -1; justify-content: space-between; width: 100%; }
@@ -693,6 +746,8 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
   #login-screen { border-width: 3px !important; box-shadow: 5px 5px 0 rgba(185,47,114,.40) !important; }
   .card-title { padding: 9px 10px; font-size: 13px; }
   .btn { min-height: 40px; }
+  .koc-table-wrap, .month-table, [style*="overflow-x:auto"], [style*="overflow-x: auto"] { position: relative; }
+  .koc-table-wrap::after, .month-table::after { content: "Swipe horizontally to view more →"; position: sticky; left: 8px; display: block; width: max-content; margin: 5px 0 0; padding: 3px 6px; color: #a05b7b; background: #fff3f8; border: 1px solid #ecc6d8; font-size: 9px; font-weight: 800; pointer-events: none; }
 }
 </style>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -1781,7 +1836,14 @@ function showToast(m, t = '') {
   if (!x) return;
   x.textContent = m; x.className = 'toast ' + t + ' show';
   if (_toastTimer) clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(function() { x.className = 'toast ' + t; }, 2500);
+  if (t === 'error') {
+    x.title = 'Click to dismiss';
+    x.onclick = function() { x.className = 'toast ' + t; };
+  } else {
+    x.title = '';
+    x.onclick = null;
+    _toastTimer = setTimeout(function() { x.className = 'toast ' + t; }, 2500);
+  }
 }
 
 function confirmDanger(title, lines) {
