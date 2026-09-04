@@ -87,6 +87,13 @@
   @keyframes tierGlow { 0%,100% { box-shadow: 0 0 30px rgba(106,61,232,0.5), 0 0 60px rgba(106,61,232,0.2), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); } 50% { box-shadow: 0 0 40px rgba(106,61,232,0.7), 0 0 80px rgba(106,61,232,0.3), 0 8px 30px rgba(106,61,232,0.35), inset 0 2px 0 rgba(255,255,255,0.6); } }
   @keyframes sparkleFloat { 0%,100% { opacity:0.3; transform:translateY(0); } 50% { opacity:0.8; transform:translateY(-2px); } }
   @keyframes sparkleBounce { 0%,100% { transform:scale(1) rotate(0deg); } 25% { transform:scale(1.2) rotate(-5deg); } 75% { transform:scale(1.1) rotate(5deg); } }
+  .tier-path:after{content:'✧  ✦  ✧';position:absolute;left:12px;top:4px;color:#fff;letter-spacing:4px;font-size:8px;text-shadow:0 0 7px #b78af1;opacity:.8;animation:tierSparkle 2.6s ease-in-out infinite .8s}
+  .tier-step.current{animation:tierPulse 2.8s ease-in-out infinite}.tier-step.current:before{background-size:200% 100%;animation:tierRibbon 2.5s linear infinite}.tier-step.current:after{inset:2px;box-shadow:inset 0 0 8px rgba(255,255,255,.75);animation:tierShimmer 2.2s linear infinite}
+  .tier-path-rule:before{content:'◆';margin-right:5px;color:var(--hot);font-size:7px}.tier-path-rule:after{content:'◆';margin-left:5px;color:var(--purple);font-size:7px}
+  @keyframes tierPulse{0%,100%{filter:saturate(1)}50%{filter:saturate(1.3) brightness(1.04)}}
+  @keyframes tierShimmer{0%{opacity:.35;transform:translateX(-5px)}50%{opacity:1}100%{opacity:.35;transform:translateX(5px)}}
+  @keyframes tierRibbon{0%{background-position:0 0}100%{background-position:200% 0}}
+  @keyframes tierSparkle{0%,100%{opacity:.35;transform:translateY(0) scale(.9)}50%{opacity:1;transform:translateY(-2px) scale(1.1)}}
   .tier- { background: linear-gradient(135deg,#e8e0ff,#fff8e1); color: #6a3de8; border: 1.5px solid #ce93d8; }
   .nav-bar { display: flex; align-items: center; gap: 6px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1.5px solid var(--border); }
   .nav-back { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; background: var(--pink-light); color: var(--pink-dark); transition: all 0.15s; }
