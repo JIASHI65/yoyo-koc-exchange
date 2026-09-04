@@ -208,6 +208,18 @@
   line-height: 1;
   text-shadow: 1px 1px 0 #fff, 3px 3px 0 #f0b2cd, 5px 5px 0 rgba(185,47,114,.16), 0 0 9px rgba(232, 117, 177, .25);
 }
+.seraphina-card-name::after {
+  content: "  ·  YoYo assistant Mochi";
+  color: #8e5aa9;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: .30em;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-shadow: none;
+  vertical-align: middle;
+  white-space: nowrap;
+}
 .seraphina-card-meta {
   display: flex;
   flex-wrap: wrap;
@@ -300,7 +312,10 @@
   animation: creatorCreditTwinkle 1.8s ease-in-out infinite;
 }
 .creator-account-credit .seraphina-card-label::before { content: "✦ "; color: #d65792; }
-.creator-account-credit .seraphina-card-name { text-shadow: 1px 1px 0 #fff, 3px 3px 0 #f0b2cd, 5px 5px 0 rgba(185,47,114,.18); }
+.creator-account-credit .seraphina-card-name {
+  color: #b72f78;
+  text-shadow: 1px 1px 0 #fff, 3px 3px 0 #f0b2cd, 5px 5px 0 rgba(185,47,114,.18), 0 0 12px rgba(177, 88, 205, .28);
+}
 .creator-account-credit .seraphina-card-meta { border-top-color: #e6a8c5; }
 @keyframes creatorCreditRibbon { 0% { background-position: 0 0; } 100% { background-position: 200% 0; } }
-@keyframes creatorCreditTwinkle { 0%,100% { opacity: .65; transform: scale(.92); } 50% { opacity: 1; transform: scale(1.08); } }
+@keyframes creatorCreditTwinkle { 0%,100% { opacity: .65; transform: none; } 50% { opacity: 1; transform: none; } }
