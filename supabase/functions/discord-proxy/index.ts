@@ -107,6 +107,7 @@ serve(async (req) => {
           global_name: m.user.global_name || "",
           nick: m.nick || "",
           avatar: m.user.avatar,
+          bot: Boolean(m.user.bot),
         }));
         break;
       }

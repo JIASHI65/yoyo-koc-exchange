@@ -4534,6 +4534,7 @@ function sendDMPreset(type) { /* deprecated - use previewBroadcast */ }
 // ===== AUTO WELCOME (poll join-leave-log channel) =====
 var autoWelcomeInterval = null;
 var lastCheckedJoinId = null;
+var autoWelcomeKnownMemberIds = null;
 const DISCORD_JOIN_LOG_CHANNEL_ID = '1458357258676211762';
 
 function updateAutoWelcomeUi(message) {
@@ -4564,12 +4565,36 @@ function extractDiscordUserIdFromJoinEvent(event) {
     var mention = candidates[i].match(/<@!?(\d{17,20})>/);
     if (mention) return mention[1];
   }
+  for (var j = 0; j < candidates.length; j++) {
+    var rawId = candidates[j].match(/\b(\d{17,20})\b/);
+    if (rawId) return rawId[1];
+  }
   return null;
 }
 
 function isDiscordJoinEvent(message, embed) {
   var text = JSON.stringify({ message: message || {}, embed: embed || {} }).toLowerCase();
-  return text.indexOf('member joined') >= 0 || text.indexOf('member has joined') >= 0 || text.indexOf('joined the server') >= 0;
+  return /member\s+(?:has\s+)?joined|joined\s+(?:the\s+)?server|has\s+joined|new\s+member|member\s+join(?:ed)?/.test(text);
+}
+
+function getJoinEventsFromMessages(messages) {
+  var events = [];
+  (messages || []).forEach(function(message) {
+    var embeds = Array.isArray(message && message.embeds) ? message.embeds : [];
+    var matched = false;
+    embeds.forEach(function(embed) {
+      if (isDiscordJoinEvent(message, embed)) {
+        events.push({ message: message, embed: embed });
+        matched = true;
+      }
+    });
+    if (!matched && isDiscordJoinEvent(message, null)) {
+      events.push({ message: message, embed: null });
+    }
+  });
+  return events.sort(function(a, b) {
+    return String(a.message && a.message.id || '').localeCompare(String(b.message && b.message.id || ''));
+  });
 }
 
 async function loadLastCheckedJoinId() {
@@ -4584,9 +4609,19 @@ async function loadLastCheckedJoinId() {
         lastCheckedJoinId = cfg._last_welcome_id;
         localStorage.setItem('mochi_last_welcome_id', lastCheckedJoinId);
       }
+      if (Array.isArray(cfg._auto_welcome_member_ids)) {
+        autoWelcomeKnownMemberIds = cfg._auto_welcome_member_ids.map(String);
+        localStorage.setItem('mochi_auto_welcome_member_ids', JSON.stringify(autoWelcomeKnownMemberIds));
+      }
     }
   } catch(e) {
     console.error('loadLastCheckedJoinId error:', e);
+  }
+  if (!autoWelcomeKnownMemberIds) {
+    try {
+      var savedMembers = JSON.parse(localStorage.getItem('mochi_auto_welcome_member_ids') || 'null');
+      if (Array.isArray(savedMembers)) autoWelcomeKnownMemberIds = savedMembers.map(String);
+    } catch(e) {}
   }
 }
 
@@ -4601,6 +4636,7 @@ async function saveLastCheckedJoinId() {
       try { notes = JSON.parse(readData[0].notes); } catch(e) {}
     }
     notes._last_welcome_id = lastCheckedJoinId;
+    if (Array.isArray(autoWelcomeKnownMemberIds)) notes._auto_welcome_member_ids = autoWelcomeKnownMemberIds;
     await supabaseFetch(SUPABASE_URL + '/rest/v1/kocs?uid=eq.__config__', {
       method: 'PATCH',
       body: JSON.stringify({ notes: JSON.stringify(notes) })
@@ -4629,23 +4665,26 @@ async function startAutoWelcome(skipConfirmation) {
   if (!lastCheckedJoinId) await loadLastCheckedJoinId();
 
   if (!skipConfirmation) {
-    var baselineData = await discordProxyFetch('list_channel_messages', {
-      channel_id: DISCORD_JOIN_LOG_CHANNEL_ID,
-      limit: 100
-    }, MOCHI_TOKEN);
+    var baselineResults = await Promise.all([
+      discordProxyFetch('list_channel_messages', { channel_id: DISCORD_JOIN_LOG_CHANNEL_ID, limit: 100 }, MOCHI_TOKEN),
+      discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN)
+    ]);
+    var baselineData = baselineResults[0];
+    var baselineMemberData = baselineResults[1];
     if (!baselineData.ok) {
       updateAutoWelcomeUi('开启失败：' + (baselineData.error || '读取入群频道失败'));
       showToast('无法建立新人检查时间截面', 'error');
       return;
     }
+    if (!baselineMemberData.ok) {
+      updateAutoWelcomeUi('开启失败：' + (baselineMemberData.error || '读取服务器成员失败'));
+      showToast('无法读取 Discord 服务器成员', 'error');
+      return;
+    }
     var baselineMessages = baselineData.data || [];
     var latestJoinId = null;
-    baselineMessages.forEach(function(message) {
-      (message.embeds || []).forEach(function(embed) {
-        if (isDiscordJoinEvent(message, embed)) {
-          if (!latestJoinId || message.id > latestJoinId) latestJoinId = message.id;
-        }
-      });
+    getJoinEventsFromMessages(baselineMessages).forEach(function(event) {
+      if (!latestJoinId || String(event.message.id) > String(latestJoinId)) latestJoinId = event.message.id;
     });
     if (!latestJoinId) {
       updateAutoWelcomeUi('开启失败：最近消息中没有入群记录');
@@ -4654,8 +4693,11 @@ async function startAutoWelcome(skipConfirmation) {
     }
     if (!lastCheckedJoinId) {
       lastCheckedJoinId = latestJoinId;
-      await saveLastCheckedJoinId();
     }
+    if (!autoWelcomeKnownMemberIds) {
+      autoWelcomeKnownMemberIds = (baselineMemberData.data || []).filter(function(member) { return !member.bot; }).map(function(member) { return String(member.id); });
+    }
+    await saveLastCheckedJoinId();
   }
   if (autoWelcomeInterval) clearInterval(autoWelcomeInterval);
   autoWelcomeInterval = setInterval(checkNewMembers, 5 * 60 * 1000);
@@ -4704,56 +4746,69 @@ async function checkLatestNewMember() {
 async function checkNewMembers() {
   updateAutoWelcomeUi('正在检查 Discord 新人…');
   try {
-    var messageData = await discordProxyFetch('list_channel_messages', {
-      channel_id: DISCORD_JOIN_LOG_CHANNEL_ID,
-      limit: 100
-    }, MOCHI_TOKEN);
+    var checkResults = await Promise.all([
+      discordProxyFetch('list_channel_messages', { channel_id: DISCORD_JOIN_LOG_CHANNEL_ID, limit: 100 }, MOCHI_TOKEN),
+      discordProxyFetch('list_members', { guild_id: DISCORD_GUILD_ID }, MOCHI_TOKEN)
+    ]);
+    var messageData = checkResults[0];
+    var memberData = checkResults[1];
     if (!messageData.ok) throw new Error(messageData.error || '读取入群频道失败');
+    if (!memberData.ok) throw new Error(memberData.error || '读取服务器成员失败');
 
-    var joinEvents = [];
-    var msgs = messageData.data || [];
-    for (var i = msgs.length - 1; i >= 0; i--) {
-      var embeds = msgs[i].embeds || [];
-      for (var j = 0; j < embeds.length; j++) {
-        if (isDiscordJoinEvent(msgs[i], embeds[j])) {
-          joinEvents.push({ message: msgs[i], embed: embeds[j] });
-        }
-      }
-    }
-    if (!joinEvents.length) throw new Error('频道最近 100 条消息里没有找到 “Member joined” 记录');
+    var joinEvents = getJoinEventsFromMessages(messageData.data || []);
+    var currentMembers = (memberData.data || []).filter(function(member) { return !member.bot; });
+    var currentMemberIds = currentMembers.map(function(member) { return String(member.id); });
+    var currentMemberSet = new Set(currentMemberIds);
 
-    if (!lastCheckedJoinId) {
-      lastCheckedJoinId = joinEvents[joinEvents.length - 1].message.id;
+    if (!lastCheckedJoinId || !Array.isArray(autoWelcomeKnownMemberIds)) {
+      if (joinEvents.length) lastCheckedJoinId = joinEvents[joinEvents.length - 1].message.id;
+      autoWelcomeKnownMemberIds = currentMemberIds;
+      localStorage.setItem('mochi_auto_welcome_member_ids', JSON.stringify(autoWelcomeKnownMemberIds));
       await saveLastCheckedJoinId();
-      updateAutoWelcomeUi('时间截面已建立 · 等待下一位新人');
+      updateAutoWelcomeUi('安全基线已建立 · 等待下一位新人');
       return;
     }
 
     var sent = 0;
     var failed = 0;
-    var candidates = joinEvents;
-
-    for (var eventIndex = 0; eventIndex < candidates.length; eventIndex++) {
-      var event = candidates[eventIndex];
-      var msgId = event.message.id;
-      if (lastCheckedJoinId && msgId <= lastCheckedJoinId) continue;
-
-      var discordId = extractDiscordUserIdFromJoinEvent(event);
-      if (!discordId) {
-        failed++;
-        console.warn('新人入群记录缺少 Discord 用户 ID:', event.message && event.message.id);
-        break;
-      } else {
-        var welcomeMsg = mochiSupportFooter(getMochiMessageTemplates().welcome);
-        var dmData = await discordProxyFetch('send_dm', { user_id: discordId, message: welcomeMsg }, MOCHI_TOKEN);
-        if (dmData.ok) sent++; else { failed++; console.warn('新人欢迎发送失败:', discordId, dmData.error || dmData.reason || dmData); break; }
-        if (eventIndex < candidates.length - 1 && dmData.ok) await new Promise(function(resolve) { setTimeout(resolve, 15000); });
+    var failedDetails = [];
+    var candidateIds = new Set();
+    var knownMemberSet = new Set((autoWelcomeKnownMemberIds || []).map(String));
+    currentMemberIds.forEach(function(memberId) {
+      if (!knownMemberSet.has(memberId)) candidateIds.add(memberId);
+    });
+    joinEvents.forEach(function(event) {
+      var msgId = String(event.message && event.message.id || '');
+      if (!lastCheckedJoinId || msgId > String(lastCheckedJoinId)) {
+        var eventUserId = extractDiscordUserIdFromJoinEvent(event);
+        if (eventUserId && currentMemberSet.has(String(eventUserId))) candidateIds.add(String(eventUserId));
       }
-      if (sent > 0 && (!lastCheckedJoinId || msgId > lastCheckedJoinId)) lastCheckedJoinId = msgId;
+    });
+
+    var candidates = Array.from(candidateIds);
+    for (var candidateIndex = 0; candidateIndex < candidates.length; candidateIndex++) {
+      var discordId = candidates[candidateIndex];
+      var welcomeMsg = mochiSupportFooter(getMochiMessageTemplates().welcome);
+      var dmData = await discordProxyFetch('send_dm', { user_id: discordId, guild_id: DISCORD_GUILD_ID, message: welcomeMsg }, MOCHI_TOKEN);
+      if (dmData.ok) sent++;
+      else {
+        failed++;
+        failedDetails.push(discordId + ': ' + (dmData.error || dmData.reason || '发送失败'));
+        console.warn('新人欢迎发送失败:', discordId, dmData.error || dmData.reason || dmData);
+      }
+      if (candidateIndex < candidates.length - 1) await new Promise(function(resolve) { setTimeout(resolve, 15000); });
     }
 
+    if (joinEvents.length) lastCheckedJoinId = joinEvents[joinEvents.length - 1].message.id;
+    var successfulIds = new Set(candidates.filter(function(candidateId) {
+      return failedDetails.every(function(detail) { return detail.indexOf(candidateId + ':') !== 0; });
+    }));
+    autoWelcomeKnownMemberIds = currentMemberIds.filter(function(memberId) {
+      return knownMemberSet.has(memberId) || successfulIds.has(memberId);
+    });
+    localStorage.setItem('mochi_auto_welcome_member_ids', JSON.stringify(autoWelcomeKnownMemberIds));
     await saveLastCheckedJoinId();
-    var resultText = '检查完成：新入群 ' + (sent + failed) + '，发送 ' + sent + '，失败 ' + failed + (failed ? '（请查看控制台中的失败原因）' : '');
+    var resultText = '检查完成：新入群 ' + candidates.length + '，发送 ' + sent + '，失败 ' + failed + (failedDetails.length ? '｜' + failedDetails.join('；') : '');
     updateAutoWelcomeUi(resultText);
     showToast((failed ? '⚠️ ' : '✅ ') + resultText, failed ? 'error' : 'success');
   } catch(e) {
