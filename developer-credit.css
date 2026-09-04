@@ -222,5 +222,46 @@
 .creator-account-credit {
   width: min(430px, calc(100% - 16px));
   margin: 34px auto 18px;
+  background: linear-gradient(135deg, #fffafd 0%, #fff1f8 52%, #f7efff 100%);
+  border-color: #a43d73;
+  box-shadow: 6px 6px 0 rgba(185,47,114,.34), 0 0 22px rgba(255,111,170,.18);
+  overflow: visible;
 }
 .creator-account-credit::before { top: -24px; }
+.creator-account-credit::after {
+  content: "✦  ✧  ✦  ✧  ✦";
+  position: absolute;
+  right: 10px;
+  top: -20px;
+  padding: 3px 7px;
+  color: #fff;
+  background: linear-gradient(90deg, #e15a9b, #a978e8, #e15a9b);
+  background-size: 200% 100%;
+  border: 2px solid #8d4069;
+  font-size: 8px;
+  letter-spacing: 3px;
+  text-shadow: 0 0 5px rgba(255,255,255,.95);
+  box-shadow: 3px 3px 0 rgba(185,47,114,.24);
+  animation: creatorCreditRibbon 3s linear infinite, creatorCreditTwinkle 2.3s ease-in-out infinite;
+}
+.creator-account-credit .seraphina-card-avatar {
+  position: relative;
+  background: radial-gradient(circle at 35% 25%, #fff7fc 0 12%, transparent 13%), linear-gradient(145deg, #ffe9f3, #f6d8ff);
+  border-color: #a43d73;
+  box-shadow: 3px 3px 0 #e5a4c4, 0 0 13px rgba(226,92,157,.35);
+}
+.creator-account-credit .seraphina-card-avatar::after {
+  content: "✧";
+  position: absolute;
+  right: -8px;
+  top: -10px;
+  color: #e3a21a;
+  font-size: 14px;
+  text-shadow: 0 0 5px #fff1a8;
+  animation: creatorCreditTwinkle 1.8s ease-in-out infinite;
+}
+.creator-account-credit .seraphina-card-label::before { content: "✦ "; color: #d65792; }
+.creator-account-credit .seraphina-card-name { text-shadow: 1px 1px 0 #fff, 3px 3px 0 #f0b2cd, 5px 5px 0 rgba(185,47,114,.18); }
+.creator-account-credit .seraphina-card-meta { border-top-color: #e6a8c5; }
+@keyframes creatorCreditRibbon { 0% { background-position: 0 0; } 100% { background-position: 200% 0; } }
+@keyframes creatorCreditTwinkle { 0%,100% { opacity: .65; transform: scale(.92); } 50% { opacity: 1; transform: scale(1.08); } }
