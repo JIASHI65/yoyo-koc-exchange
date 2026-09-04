@@ -394,13 +394,6 @@ a{color:var(--pink-dark)}
       <div class="card">
         <div class="card-title">🎁 Select Your Reward</div>
         <div id="options-container"></div>
-        <div style="background:#e3f2fd;border:1px solid #90caf9;border-radius:12px;padding:11px;margin-bottom:10px;font-size:12px;line-height:1.55;color:#0d47a1;">
-          💡 Pending rewards reserve your available balance until admin processes them. Redemption windows are opened by admins after scoring and announced by Mochi/admin. Please do not reply to MochiBot; check FAQ or post in #town-service-station if you need help.
-        </div>
-        <div id="reward-fields" class="hidden" style="margin-top:8px;">
-          <label>Shipping Info (Full Legal Name / Address / City / State / Postal Code / Country / Phone Number)</label>
-          <input type="text" id="input-contact" placeholder="Full Legal Name / Address / City / State / Postal Code / Country / Phone Number">
-        </div>
         <div id="redeem-locked-msg" style="display:none;background:#fff3e0;border:1px solid #ffe082;border-radius:10px;padding:12px;text-align:center;font-size:13px;color:#e65100;margin-bottom:8px;">
           🔒 Redemption is not open yet<br><span style="font-size:11px;">Please wait for scoring to complete. You will be notified when redemption opens.</span>
         </div>
@@ -1332,7 +1325,6 @@ function renderOptions() {
   const container = document.getElementById('options-container');
   container.innerHTML = '';
   document.getElementById('btn-redeem').disabled = true;
-  document.getElementById('reward-fields').classList.add('hidden');
   initSelections();
 
   REWARDS.forEach(function(opt) {
@@ -1381,8 +1373,6 @@ function updateUI() {
   footer.innerHTML = '<div style="font-size:14px;font-weight:600;">Total: ' + totalCost + ' pts <span style="color:' + (rem >= 0 ? 'var(--pink-dark)' : '#e74c3c') + ';">(rem ' + rem + ' pts)</span></div>' +
     '<div style="font-size:12px;color:var(--text-light);margin:4px 0 8px;">' + chosen.map(s => s.name + ' ×' + selections[s.id]).join(' · ') + '</div>';
 
-  const hasMerch = (selections.merch || 0) > 0;
-  document.getElementById('reward-fields').classList.toggle('hidden', !hasMerch);
   document.getElementById('btn-redeem').disabled = !redemptionOpen || totalCost === 0;
 }
 
@@ -1427,7 +1417,7 @@ async function redeem() {
       return;
     }
 
-    const contact = document.getElementById('input-contact').value.trim() || '';
+    const contact = '';
     const chosen = REWARDS.filter(r => selections[r.id] > 0);
     const items = chosen.map(function(opt) {
       var qty = selections[opt.id];
@@ -1445,7 +1435,7 @@ async function redeem() {
     });
 
     var summary = chosen.map(function(opt) { return '• ' + opt.name + ' ×' + selections[opt.id] + ' = ' + (opt.cost * selections[opt.id]) + ' pts'; }).join('\n');
-    if (!confirm('Confirm redemption?\n\n' + summary + '\n\nTotal: ' + totalCost + ' pts\nAvailable after pending rewards: ' + available + ' pts\n\nPending rewards reserve your points until admin processes them.')) {
+    if (!confirm('Confirm redemption?\n\n' + summary + '\n\nTotal: ' + totalCost + ' pts\nRemaining balance: ' + (available - totalCost) + ' pts')) {
       btn.disabled = false;
       btn.textContent = 'Confirm Redemption';
       return;
