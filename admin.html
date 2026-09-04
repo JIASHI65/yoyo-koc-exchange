@@ -656,15 +656,13 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
 
 /* Shared visual language: practical admin UI with the creator portal palette */
 #admin-panel > .header {
-  background: linear-gradient(105deg,#ff4f9a,#b66be0 52%,#ef8fbd);
-  background-size: 220% 100%;
-  animation: adminHeaderSweep 8s linear infinite;
+  background: linear-gradient(105deg,#743b99,#944a9b 55%,#b65a92);
 }
 #admin-panel > .header h1 { letter-spacing: .01em; }
-.tabs { border-color: #a04b7a; }
-.tab.active { background: linear-gradient(90deg,#ff5a9d,#a968d4); background-size: 200% 100%; animation: adminActiveTabSweep 4s linear infinite; }
-.card-title { background: linear-gradient(90deg,#ff5a9d,#a968d4,#ff78ae); background-size: 220% 100%; animation: adminTitleSweep 6s linear infinite; }
-.btn-primary { background: linear-gradient(90deg,#e45191,#9c62d0,#e45191); background-size: 220% 100%; animation: adminButtonSweep 5s linear infinite; }
+.tabs { border-color: #74408f; }
+.tab.active { background: linear-gradient(90deg,#713b96,#974b9e); }
+.card-title { background: linear-gradient(90deg,#713b96,#984b9e 62%,#b35590); }
+.btn-primary { background: linear-gradient(90deg,#713b96,#984b9e); }
 .badge-pending { border-color: #f2b84b; }
 .badge-shipped { border-color: #68b985; }
 .badge-cancelled { border-color: #df7777; }
@@ -672,10 +670,9 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
 .toast.error { pointer-events: auto; cursor: pointer; }
 .empty-state { border: 2px dashed #e7b8cf; background: linear-gradient(135deg,#fffafd,#fff3f8); }
 button, .btn, .tab, input, select, textarea, a { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-@keyframes adminHeaderSweep { 0% { background-position: 0 0; } 100% { background-position: 220% 0; } }
-@keyframes adminActiveTabSweep { 0% { background-position: 0 0; } 100% { background-position: 200% 0; } }
-@keyframes adminTitleSweep { 0% { background-position: 0 0; } 100% { background-position: 220% 0; } }
-@keyframes adminButtonSweep { 0% { background-position: 0 0; } 100% { background-position: 220% 0; } }
+
+*, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+.btn:hover:not(:disabled), .btn:active:not(:disabled), .tab:hover, .tab:active, #login-btn:hover, #login-btn:active { transform: none !important; }
 
 @media (min-width: 901px) {
   #admin-panel {
@@ -7651,7 +7648,7 @@ function initSortable(type) {
       var sec = tb.closest('.month-section');
       if (sec) { var h = sec.querySelector('.month-header span:nth-child(2)'); if (h) ml = h.textContent.trim(); }
       new Sortable(tb, {
-        handle: '.drag-handle', animation: 150, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag',
+        handle: '.drag-handle', animation: 0, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag',
         onEnd: function() {
           var ids = []; tb.querySelectorAll('tr').forEach(function(tr) { var id = tr.getAttribute('data-order-id'); if (id) ids.push(parseInt(id)); });
           saveOrder(type, ml, ids);
