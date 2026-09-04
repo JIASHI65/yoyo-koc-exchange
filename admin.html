@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <script>
 // ECharts 加载（多 CDN 回退，确保仪表盘图表可用）
 (function loadECharts() {
@@ -737,6 +737,8 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
 }
 
 @media (max-width: 560px) {
+  html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+  .container { width: 100%; max-width: 100%; margin: 0 auto; padding-inline: 10px; overflow: visible; }
   .tabs { top: 6px; }
   #admin-panel > .header { grid-template-columns: 1fr; gap: 11px; }
   .admin-header-credit { justify-self: stretch; width: 100%; }
@@ -746,6 +748,9 @@ th { background: #ffe9f2; border-bottom: 2px solid #b97697; }
   #login-screen { border-width: 3px !important; box-shadow: 5px 5px 0 rgba(185,47,114,.40) !important; }
   .card-title { padding: 9px 10px; font-size: 13px; }
   .btn { min-height: 40px; }
+  .row { min-width: 0; }
+  .row > input, .row > select, .row > textarea { min-width: 0; width: 100%; }
+  .card { min-width: 0; max-width: 100%; }
   .koc-table-wrap, .month-table, [style*="overflow-x:auto"], [style*="overflow-x: auto"] { position: relative; }
   .koc-table-wrap::after, .month-table::after { content: "Swipe horizontally to view more →"; position: sticky; left: 8px; display: block; width: max-content; margin: 5px 0 0; padding: 3px 6px; color: #a05b7b; background: #fff3f8; border: 1px solid #ecc6d8; font-size: 9px; font-weight: 800; pointer-events: none; }
 }
